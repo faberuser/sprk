@@ -8,7 +8,7 @@ use axum::{body::Bytes, extract::State, Json};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use dashmap::DashMap;
 use serde_json::{json, Value};
-use sqlx::Row;
+use crate::db::RowExt;
 use std::sync::{
     atomic::{AtomicI32, Ordering},
     Arc,
@@ -141,7 +141,7 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
                             // Socket identity must prove possession of the game session.
                             let key = request["SessionKey"].as_str().map(str::to_owned);
                             let valid = key.as_ref().and_then(|key| state.get_session(key)).is_some_and(|s| s.account_id == requested && requested > 0);
-                            let allowed: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM accounts WHERE account_id = ? AND is_banned = 0)").bind(requested).fetch_one(&state.db).await?;
+                            let allowed: bool = crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM accounts WHERE account_id = $1 AND is_banned = 0)").bind(requested).fetch_one(&state.db).await?;
                             if !valid || !allowed {
                                 response["Result"] = json!("Fail");
                                 socket.write_all(&encode_packet("LoginRes", &response)).await?;
@@ -213,7 +213,7 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
                                     }
                                 }
                                 "ClearMessageReq" => {
-                                    sqlx::query("DELETE FROM chat_messages WHERE protocol = 'WhisperChat' AND receiver_id = ? AND sender_id = ?")
+                                    crate::db::query("DELETE FROM chat_messages WHERE protocol = 'WhisperChat' AND receiver_id = $1 AND sender_id = $2")
                                         .bind(account_id).bind(integer(&request["RemoveAccountId"]).unwrap_or(0)).execute(&state.db).await?;
                                 }
                                 _ => { response["Result"] = json!("Fail"); }
@@ -244,15 +244,15 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
 
 async fn presence(state: &AppState, account: i64, protocol: &str) -> Result<()> {
     if protocol == "Logout" && !state.chat.online(account) {
-        sqlx::query("UPDATE accounts SET last_logout=? WHERE account_id=?")
+        crate::db::query("UPDATE accounts SET last_logout=$1 WHERE account_id=$2")
             .bind(state.server_time_str()).bind(account).execute(&state.db).await?;
     }
-    let ids: Vec<i64> = sqlx::query_scalar("SELECT CASE WHEN account_id = ? THEN friend_account_id ELSE account_id END FROM friends WHERE status = 'accepted' AND (account_id = ? OR friend_account_id = ?)")
+    let ids: Vec<i64> = crate::db::query_scalar("SELECT CASE WHEN account_id = $1 THEN friend_account_id ELSE account_id END FROM friends WHERE status = 'accepted' AND (account_id = $2 OR friend_account_id = $3)")
         .bind(account).bind(account).bind(account).fetch_all(&state.db).await?;
     for id in ids {
         state.chat.notify(id, account, protocol, json!({}));
     }
-    let ids: Vec<i64> = sqlx::query_scalar("SELECT account_id FROM guild_members WHERE guild_id=(SELECT guild_id FROM guild_members WHERE account_id=?) AND account_id!=?")
+    let ids: Vec<i64> = crate::db::query_scalar("SELECT account_id FROM guild_members WHERE guild_id=(SELECT guild_id FROM guild_members WHERE account_id=$1) AND account_id!=$2")
         .bind(account).bind(account).fetch_all(&state.db).await?;
     for id in ids {
         state.chat.notify(id, account, if protocol == "Login" { "GuildLogin" } else { "GuildLogout" }, json!({}));
@@ -261,12 +261,12 @@ async fn presence(state: &AppState, account: i64, protocol: &str) -> Result<()> 
 }
 
 async fn sync_presence(state: &AppState, account: i64) -> Result<()> {
-    let friends: Vec<i64> = sqlx::query_scalar("SELECT CASE WHEN account_id=? THEN friend_account_id ELSE account_id END FROM friends WHERE status='accepted' AND (account_id=? OR friend_account_id=?)")
+    let friends: Vec<i64> = crate::db::query_scalar("SELECT CASE WHEN account_id=$1 THEN friend_account_id ELSE account_id END FROM friends WHERE status='accepted' AND (account_id=$2 OR friend_account_id=$3)")
         .bind(account).bind(account).bind(account).fetch_all(&state.db).await?;
     for id in friends {
         state.chat.notify(account, id, if state.chat.online(id) { "Login" } else { "Logout" }, json!({}));
     }
-    let members: Vec<i64> = sqlx::query_scalar("SELECT account_id FROM guild_members WHERE guild_id=(SELECT guild_id FROM guild_members WHERE account_id=?) AND account_id!=?")
+    let members: Vec<i64> = crate::db::query_scalar("SELECT account_id FROM guild_members WHERE guild_id=(SELECT guild_id FROM guild_members WHERE account_id=$1) AND account_id!=$2")
         .bind(account).bind(account).fetch_all(&state.db).await?;
     for id in members {
         state.chat.notify(account, id, if state.chat.online(id) { "GuildLogin" } else { "GuildLogout" }, json!({}));
@@ -276,7 +276,7 @@ async fn sync_presence(state: &AppState, account: i64) -> Result<()> {
 
 async fn guild(state: &AppState, account: i64) -> Result<i64> {
     Ok(
-        sqlx::query_scalar("SELECT guild_id FROM guild_members WHERE account_id = ?")
+        crate::db::query_scalar("SELECT guild_id FROM guild_members WHERE account_id = $1")
             .bind(account)
             .fetch_optional(&state.reads)
             .await?
@@ -291,7 +291,7 @@ async fn announce_guild_raid(state: &AppState, account: i64, content: &Value) ->
     let raid = super::warfare::raid_list(&mut db, state, guild_id).await?.into_iter()
         .find(|r| integer(&r["ChapterIndex"]) == Some(chapter) && integer(&r["IsOngoing"]) == Some(1))
         .ok_or_else(|| ServerError::InvalidRequest("No active guild raid".into()))?;
-    let nick: String = sqlx::query_scalar("SELECT nick FROM accounts WHERE account_id=?")
+    let nick: String = crate::db::query_scalar("SELECT nick FROM accounts WHERE account_id=$1")
         .bind(account).fetch_one(&mut *db).await?;
     drop(db);
     let message = notification(account, "Guild", &[], "GuildRaidOpen", json!({"Nick":nick,"OpenedGuildRaidInfo":raid}));
@@ -340,7 +340,7 @@ async fn send_chat(
         return Err(ServerError::InvalidRequest("Invalid chat message".into()));
     }
     let clean = text.to_string();
-    let user = sqlx::query("SELECT a.nick, u.avatar_hero_index, u.team_level FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id = ? AND a.is_banned = 0")
+    let user = crate::db::query("SELECT a.nick, u.avatar_hero_index, u.team_level FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id = $1 AND a.is_banned = 0")
         .bind(account).fetch_one(&state.db).await?;
     let guild_id = if group == "Guild" {
         guild(state, account).await?
@@ -351,7 +351,7 @@ async fn send_chat(
         return Err(ServerError::InvalidRequest("No guild".into()));
     }
     let target_name: Option<String> = if group == "None" {
-        sqlx::query_scalar("SELECT nick FROM accounts WHERE account_id = ? AND is_banned = 0")
+        crate::db::query_scalar("SELECT nick FROM accounts WHERE account_id = $1 AND is_banned = 0")
             .bind(target)
             .fetch_optional(&state.db)
             .await?
@@ -377,16 +377,15 @@ async fn send_chat(
     content["SenderTeamLevel"] = json!(user.get::<i32, _>("team_level"));
     content["ReceiverId"] = json!(if group == "None" { target } else { 0 });
     content["ReceiverName"] = json!(target_name.unwrap_or_default());
-    let mut tx = state.db.begin().await?;
-    sqlx::query("UPDATE accounts SET last_login = last_login WHERE account_id = ?")
-        .bind(account).execute(&mut *tx).await?;
+    let mut tx = crate::database::begin(&state.db).await?;
+    crate::postgres::lock_account(&mut *tx, account).await?;
     // Native SendToParty uses GroupType=None and a client-supplied receiver
     // list. Resolve the actual party here, including the sender's local echo.
     let party = if group == "Party" {
-        let room: i64 = sqlx::query_scalar("SELECT r.id FROM battle_rooms r JOIN battle_room_members m ON m.room=r.id WHERE m.account=?")
+        let room: i64 = crate::db::query_scalar("SELECT r.id FROM battle_rooms r JOIN battle_room_members m ON m.room=r.id WHERE m.account=$1")
             .bind(account).fetch_optional(&mut *tx).await?
             .ok_or_else(||ServerError::InvalidRequest("No party".into()))?;
-        let members: Vec<i64> = sqlx::query_scalar("SELECT account FROM battle_room_members WHERE room=? ORDER BY joined,account")
+        let members: Vec<i64> = crate::db::query_scalar("SELECT account FROM battle_room_members WHERE room=$1 ORDER BY joined,account")
             .bind(room).fetch_all(&mut *tx).await?;
         Some((room,members))
     } else { None };
@@ -412,14 +411,14 @@ async fn send_chat(
         verified.push(json!({"MaxEquipLevel":0,"EquipItemInfo":eq}));
     }
     if callout.is_none() {content["LinkedItem"] = json!(verified);}
-    let recent: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM chat_messages WHERE sender_id = ? AND created_at > datetime('now', '-2 seconds')")
+    let recent: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM chat_messages WHERE sender_id = $1 AND created_at > sprk_datetime('now', '-2 seconds')")
         .bind(account).fetch_one(&mut *tx).await?;
     if recent >= 3 {
         return Err(ServerError::InvalidRequest("Chat rate limit".into()));
     }
-    sqlx::query("INSERT INTO chat_messages (sender_id, group_type, channel, guild_id, receiver_id, protocol, content) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    crate::db::query("INSERT INTO chat_messages (sender_id, group_type, channel, guild_id, receiver_id, protocol, content) VALUES ($1, $2, $3, $4, $5, $6, $7)")
         .bind(account).bind(group).bind(channel).bind(guild_id).bind(party.as_ref().map(|(room,_)|*room).unwrap_or(if group == "None" { target } else { 0 })).bind(protocol).bind(content.to_string()).execute(&mut *tx).await?;
-    sqlx::query("DELETE FROM chat_messages WHERE message_id IN (SELECT message_id FROM chat_messages ORDER BY message_id DESC LIMIT -1 OFFSET 10000)").execute(&mut *tx).await?;
+    crate::db::query("DELETE FROM chat_messages WHERE message_id IN (SELECT message_id FROM chat_messages ORDER BY message_id DESC OFFSET 10000)").execute(&mut *tx).await?;
     tx.commit().await?;
     let targets = [target];
     let message = notification(
@@ -447,7 +446,7 @@ async fn send_chat(
 
 async fn history(state: &AppState, account: i64, channel: i32, limit: i64) -> Result<Value> {
     let guild_id = guild(state, account).await?;
-    let rows = sqlx::query("SELECT * FROM (SELECT * FROM chat_messages WHERE group_type = 'World' OR (group_type = 'Channel' AND channel = ?) OR (group_type = 'Guild' AND guild_id = ? AND guild_id > 0) OR (protocol = 'WhisperChat' AND (sender_id = ? OR receiver_id = ?)) ORDER BY message_id DESC LIMIT ?) ORDER BY message_id")
+    let rows = crate::db::query("SELECT * FROM (SELECT * FROM chat_messages WHERE group_type = 'World' OR (group_type = 'Channel' AND channel = $1) OR (group_type = 'Guild' AND guild_id = $2 AND guild_id > 0) OR (protocol = 'WhisperChat' AND (sender_id = $3 OR receiver_id = $4)) ORDER BY message_id DESC LIMIT $5) ORDER BY message_id")
         .bind(channel).bind(guild_id).bind(account).bind(account).bind(limit.clamp(1,100)).fetch_all(&state.reads).await?;
     let mut result = json!({"BaseResult": "Success", "Result": "Success", "WorldChats": [], "GuildChats": [], "WhisperChats": []});
     for row in rows {

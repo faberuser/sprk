@@ -81,7 +81,7 @@ pub(super) fn reward_definition<'a>(
 }
 
 pub(super) async fn grant(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     definition: &Value,
@@ -145,7 +145,7 @@ pub(super) async fn grant(
 }
 
 pub(super) async fn validate_shards(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -157,8 +157,8 @@ pub(super) async fn validate_shards(
         return Err(rule("InvalidItemCount"));
     }
     // Repeated begin requests must retain the buff selection already reserved.
-    if let Some(saved) = sqlx::query_scalar::<_, String>(
-        "SELECT entry FROM battle_runs WHERE account=? AND completed=0 AND started>=?",
+    if let Some(saved) = crate::db::query_scalar::<String>(
+        "SELECT entry FROM battle_runs WHERE account=$1 AND completed=0 AND started>=$2",
     )
     .bind(a)
     .bind(now() - settings(s, "BattleExpirySeconds", 14400))
@@ -198,7 +198,7 @@ pub(super) async fn validate_shards(
     {
         return Err(rule("InvalidItem"));
     }
-    let owned: i64=sqlx::query_scalar("SELECT COALESCE((SELECT count FROM items WHERE account_id=? AND item_index=? AND locked=0),0)")
+    let owned: i64=crate::db::query_scalar("SELECT COALESCE((SELECT count FROM items WHERE account_id=$1 AND item_index=$2 AND locked=0),0)")
         .bind(a).bind(id).fetch_one(&mut *db).await?;
     if owned - entry_costs::held(db, a, "Item", id).await? < count {
         return Err(rule("ItemNotOwned"));
@@ -207,7 +207,7 @@ pub(super) async fn validate_shards(
 }
 
 pub(super) async fn prepare_shards(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -220,14 +220,14 @@ pub(super) async fn prepare_shards(
     let id = int(r, "FlaskItemIndex")?;
     let shard = row(s, "ShardItem", &[("Index", id)])?;
     let owner = uuid::Uuid::new_v4().to_string();
-    sqlx::query("INSERT INTO battle_entry_holds(account,owner,family,kind,amount,expires) VALUES(?,?,'Item',?,?,?)")
+    crate::db::query("INSERT INTO battle_entry_holds(account,owner,family,kind,amount,expires) VALUES($1,$2,'Item',$3,$4,$5)")
         .bind(a).bind(&owner).bind(id).bind(count).bind(now()+settings(s,"BattleExpirySeconds",14400)).execute(&mut *db).await?;
     entry["PunishmentShard"] = json!({"Owner":owner,"Index":id,"Count":count,"Duration":n(shard,"Duration"),"IsWithDraw":n(shard,"IsWithDraw")});
     Ok(())
 }
 
 pub(super) async fn settle_shards(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     a: i64,
     entry: &mut Value,
     won: bool,
@@ -264,7 +264,7 @@ pub(super) fn opening_team_exp(s: &AppState, stamina: i64) -> Result<i64> {
 }
 
 pub(super) async fn grant_clear_team_exp(
-    db: &mut SqliteConnection, s: &AppState, a: i64, gate: &mut Value, grant: &mut Rewards,
+    db: &mut PgConnection, s: &AppState, a: i64, gate: &mut Value, grant: &mut Rewards,
 ) -> Result<()> {
     // Openings saved by the previous no-EXP policy have no pending snapshot.
     // Their current clear count still describes the opening that was paid for.
@@ -305,12 +305,12 @@ mod tests {
         )
         .await
         .unwrap();
-        sqlx::query("UPDATE heroes SET level=100 WHERE account_id=?")
+        crate::db::query("UPDATE heroes SET level=100 WHERE account_id=$1")
             .bind(account(&u))
             .execute(&s.db)
             .await
             .unwrap();
-        sqlx::query("UPDATE user_info SET stamina=500000 WHERE account_id=?")
+        crate::db::query("UPDATE user_info SET stamina=500000 WHERE account_id=$1")
             .bind(account(&u))
             .execute(&s.db)
             .await
@@ -318,8 +318,8 @@ mod tests {
         (s, u)
     }
     async fn count(s: &AppState, a: i64, id: i64) -> i64 {
-        sqlx::query_scalar(
-            "SELECT COALESCE((SELECT count FROM items WHERE account_id=? AND item_index=?),0)",
+        crate::db::query_scalar(
+            "SELECT COALESCE((SELECT count FROM items WHERE account_id=$1 AND item_index=$2),0)",
         )
         .bind(a)
         .bind(id)
@@ -347,7 +347,7 @@ mod tests {
     #[tokio::test]
     async fn punishment_team_exp_requires_final_boss_and_is_awarded_once() {
         let (s,u)=fixture().await;let a=account(&u);
-        let team=||async {sqlx::query_as::<_,(i64,i64)>("SELECT team_level,team_exp FROM user_info WHERE account_id=?")
+        let team=||async {crate::db::query_as::<(i64,i64)>("SELECT team_level,team_exp FROM user_info WHERE account_id=$1")
             .bind(a).fetch_one(&s.db).await.unwrap()};
         for deferred in [false,true] {
             put(&mut s.db.acquire().await.unwrap(),a,"entry_policy",0,&json!({"RefundPveDefeats":deferred})).await.unwrap();
@@ -560,7 +560,7 @@ mod tests {
         let a = account(&u);
         assert_ne!(open(&s, &u, 101002, 6).await["Result"], "Success");
         assert_eq!(open(&s, &u, 101002, 5).await["Result"], "Success");
-        sqlx::query("INSERT INTO items(account_id,item_index,count) VALUES (?,40251,4)")
+        crate::db::query("INSERT INTO items(account_id,item_index,count) VALUES ($1,40251,4)")
             .bind(a)
             .execute(&s.db)
             .await
@@ -616,7 +616,7 @@ mod tests {
         );
         assert_eq!(count(&s, a, 45129).await, 0);
         assert_eq!(count(&s, a, 40251).await, 4);
-        let active: i64 = sqlx::query_scalar("SELECT completed FROM battle_runs WHERE account=?")
+        let active: i64 = crate::db::query_scalar("SELECT completed FROM battle_runs WHERE account=$1")
             .bind(a)
             .fetch_one(&s.db)
             .await

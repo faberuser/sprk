@@ -2,7 +2,7 @@ use super::*;
 use crate::models::item::ItemGrant;
 use rand::RngExt;
 
-async fn progress(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
+async fn progress(db: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
     let cfg = event(s)?;
     let season = n(cfg, "Season");
     let mut v = get(db, a, "event_step", season).await?;
@@ -35,7 +35,7 @@ async fn progress(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Val
     Ok(v)
 }
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -291,7 +291,7 @@ pub(super) async fn execute(
                 }
             }
             for slot in &removed {
-                sqlx::query("DELETE FROM equip_items WHERE account_id=? AND slot_index=?")
+                crate::db::query("DELETE FROM equip_items WHERE account_id=$1 AND slot_index=$2")
                     .bind(a)
                     .bind(slot)
                     .execute(&mut *db)

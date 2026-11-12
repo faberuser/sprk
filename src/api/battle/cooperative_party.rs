@@ -2,7 +2,7 @@
 use super::*;
 
 pub(crate) async fn begin_party(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -13,14 +13,14 @@ pub(crate) async fn begin_party(
 /// `only` limits a Party Retry restart to the players still in the battle;
 /// members who exited to the party room stay in the room without joining.
 pub(super) async fn begin_party_for(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
     only: Option<&BTreeSet<i64>>,
 ) -> Result<Value> {
     let room_id = r.number("RaidRoomNo", 0)?.max(r.number("MultiRoomNo", 0)?);
-    let (family, raw): (String, String) = sqlx::query_as("SELECT family,data FROM battle_rooms WHERE id=? AND EXISTS(SELECT 1 FROM battle_room_members WHERE room=? AND account=?)")
+    let (family, raw): (String, String) = crate::db::query_as("SELECT family,data FROM battle_rooms WHERE id=$1 AND EXISTS(SELECT 1 FROM battle_room_members WHERE room=$2 AND account=$3) FOR UPDATE")
         .bind(room_id).bind(room_id).bind(a).fetch_optional(&mut *db).await?.ok_or_else(|| rule("RoomNotExist"))?;
     let mut room: Value = read_json(&raw)?;
     let master = n(&room, "MasterAccountId");
@@ -36,7 +36,7 @@ pub(super) async fn begin_party_for(
         return Err(rule("InvalidDiff"));
     }
     if let Some(id) = room["CoopRunId"].as_str() {
-        let saved: Option<(String,String)> = sqlx::query_as("SELECT entry,begin_response FROM battle_runs WHERE account=? AND json_extract(entry,'$.CoopRunId')=?")
+        let saved: Option<(String,String)> = crate::db::query_as("SELECT entry,begin_response FROM battle_runs WHERE account=$1 AND sprk_json_text(entry,'$.CoopRunId')=$2")
             .bind(a).bind(id).fetch_optional(&mut *db).await?;
         let (raw,out) = saved.ok_or_else(|| rule("AlreadyOnBattleHero"))?;
         let mut entry: Value = read_json(&raw)?;
@@ -69,7 +69,7 @@ pub(super) async fn begin_party_for(
             entry["Request"]["UseStamina"] = json!(use_stamina.to_string());
             entry["Request"]["ItemBoosterCount"] = json!(if use_stamina {int(r,"ItemBoosterCount")?} else {0}.to_string());
             super::super::loot_booster::prepare(db,s,a,r,&mut entry,&mut out,use_stamina).await?;
-            sqlx::query("UPDATE battle_runs SET entry=?,begin_response=? WHERE account=?")
+            crate::db::query("UPDATE battle_runs SET entry=$1,begin_response=$2 WHERE account=$3")
                 .bind(entry.to_string()).bind(out.to_string()).bind(a).execute(&mut *db).await?;
         } else if entry["PartyUseStamina"] != json!(use_stamina) {
             return Err(rule("InvalidValue"));
@@ -122,8 +122,8 @@ pub(super) async fn begin_party_for(
         .ok_or_else(|| rule("BattleServerNotFound"))?
         .id
         .clone();
-    let members: Vec<i64> = sqlx::query_scalar(
-        "SELECT account FROM battle_room_members WHERE room=? ORDER BY joined,account",
+    let members: Vec<i64> = crate::db::query_scalar(
+        "SELECT account FROM battle_room_members WHERE room=$1 ORDER BY joined,account",
     )
     .bind(room_id)
     .fetch_all(&mut *db)
@@ -153,8 +153,8 @@ pub(super) async fn begin_party_for(
     let mut all = BTreeSet::new();
     let mut entries = vec![];
     for account in &members {
-        let active: bool = sqlx::query_scalar(
-            "SELECT EXISTS(SELECT 1 FROM battle_runs WHERE account=? AND completed=0)",
+        let active: bool = crate::db::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM battle_runs WHERE account=$1 AND completed=0)",
         )
         .bind(account)
         .fetch_one(&mut *db)
@@ -228,7 +228,7 @@ pub(super) async fn begin_party_for(
         if !use_stamina { fields.insert("ItemBoosterCount".into(), "0".into()); }
         let local = Request(fields);
         let mut out = campaign::begin_party_member(db, s, *account, &local, use_stamina).await?;
-        let raw: String = sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=?")
+        let raw: String = crate::db::query_scalar("SELECT entry FROM battle_runs WHERE account=$1")
             .bind(account)
             .fetch_one(&mut *db)
             .await?;
@@ -241,7 +241,7 @@ pub(super) async fn begin_party_for(
         entry["CoopRoom"] = json!(room_id);
         entry["PartyResourceChoicePending"] = json!(!use_stamina);
         let mut info = conquest::combat_buffs(db, s, *account).await?;
-        let user = sqlx::query("SELECT a.nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=?")
+        let user = crate::db::query("SELECT a.nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=$1")
             .bind(account).fetch_one(&mut *db).await?;
         info["UserInfo"] = json!({"AccountId":account,"Nick":user.get::<String,_>("nick"),"TeamLevel":user.get::<i64,_>("team_level"),"AvatarHeroIndex":user.get::<i64,_>("avatar_hero_index")});
         let mut heroes = serde_json::Map::new();
@@ -285,7 +285,7 @@ pub(super) async fn begin_party_for(
     }
     let result = entries.iter().find(|v| v.0 == a).unwrap().2.clone();
     for (account, entry, out) in entries {
-        sqlx::query("UPDATE battle_runs SET run_id=?,entry=?,begin_response=? WHERE account=?")
+        crate::db::query("UPDATE battle_runs SET run_id=$1,entry=$2,begin_response=$3 WHERE account=$4")
             .bind(format!("{id}:{account}"))
             .bind(entry.to_string())
             .bind(out.to_string())
@@ -295,7 +295,7 @@ pub(super) async fn begin_party_for(
     }
     room["Status"] = json!(2);
     room["CoopRunId"] = json!(id);
-    sqlx::query("UPDATE battle_rooms SET data=?,updated=? WHERE id=?")
+    crate::db::query("UPDATE battle_rooms SET data=$1,updated=$2 WHERE id=$3")
         .bind(room.to_string())
         .bind(now())
         .bind(room_id)
@@ -343,17 +343,14 @@ pub(super) async fn settle_party(s: &AppState, run: &Run, body: &Value) -> Resul
     let creatures = body["Creatures"]
         .as_array()
         .ok_or_else(|| rule("InvalidValue"))?;
-    let mut db = s.db.begin().await?;
-    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?")
-        .bind(run.master)
-        .execute(&mut *db)
-        .await?;
+    let mut db = crate::database::begin(&s.db).await?;
+    crate::postgres::lock_account(&mut *db, run.master).await?;
     for account in &run.members {
         // Provisional guests can start another battle after cancellation. Their
         // new entry must never be read or settled as part of this old run.
         if run.cancelled.contains(account) { continue; }
         let (completed, raw): (i64, String) =
-            sqlx::query_as("SELECT completed,entry FROM battle_runs WHERE account=?")
+            crate::db::query_as("SELECT completed,entry FROM battle_runs WHERE account=$1")
                 .bind(account)
                 .fetch_one(&mut *db)
                 .await?;
@@ -366,7 +363,7 @@ pub(super) async fn settle_party(s: &AppState, run: &Run, body: &Value) -> Resul
         }
         if n(&entry,"ChallengeIndex")>0 {
             let participants:Vec<_>=run.members.iter().filter(|id|!run.cancelled.contains(id)).collect();
-            sqlx::query("UPDATE battle_runs SET entry=json_set(entry,'$.ChallengeTeam',json(?)) WHERE account=?")
+            crate::db::query("UPDATE battle_runs SET entry=sprk_json_set(entry,'$.ChallengeTeam',($1)::jsonb) WHERE account=$2")
                 .bind(json!(participants).to_string()).bind(account).execute(&mut *db).await?;
         }
         let alive: Vec<_> = creatures
@@ -393,12 +390,12 @@ pub(super) async fn settle_party(s: &AppState, run: &Run, body: &Value) -> Resul
         // even when all drops were awarded individually and the shared pool is empty.
         out["MultiplayMemberIds"] = json!(run.members);
         out["MultiplayRewardItems"] = json!([]);
-        sqlx::query("UPDATE battle_runs SET entry=json_set(entry,'$.PartyEndResponse',json(?)) WHERE account=?")
+        crate::db::query("UPDATE battle_runs SET entry=sprk_json_set(entry,'$.PartyEndResponse',($1)::jsonb) WHERE account=$2")
             .bind(out.to_string()).bind(account).execute(&mut *db).await?;
     }
-    sqlx::query("UPDATE battle_rooms SET data=json_remove(json_set(data,'$.Status',0),'$.CoopRunId'),updated=? WHERE id=? AND json_extract(data,'$.CoopRunId')=?")
+    crate::db::query("UPDATE battle_rooms SET data=sprk_json_remove(sprk_json_set(data,'$.Status',0),'$.CoopRunId'),updated=$1 WHERE id=$2 AND sprk_json_text(data,'$.CoopRunId')=$3")
         .bind(now()).bind(run.room).bind(&run.id).execute(&mut *db).await?;
-    sqlx::query("UPDATE battle_room_members SET updated=? WHERE room=?")
+    crate::db::query("UPDATE battle_room_members SET updated=$1 WHERE room=$2")
         .bind(now()).bind(run.room).execute(&mut *db).await?;
     db.commit().await?;
     for account in &run.members {
@@ -429,13 +426,13 @@ mod tests {
         let users = vec![u, v];
         let members: Vec<_> = users.iter().map(account).collect();
         let room = json!({"RoomNo":1,"MasterAccountId":members[0],"RaidIndex":0,"RaidLevel":0,"ChapterIndex":1,"DungeonIndex":1,"DungeonDifficulty":2,"Status":0,"Capacity":4,"Opened":0});
-        sqlx::query("INSERT INTO battle_rooms(id,family,master,data,updated) VALUES(1,'party_dungeon',?,?,?)")
+        crate::db::query("INSERT INTO battle_rooms(id,family,master,data,updated) VALUES(1,'party_dungeon',$1,$2,$3)")
             .bind(members[0]).bind(room.to_string()).bind(now()).execute(&s.db).await.unwrap();
         for (i, a) in members.iter().enumerate() {
             let hero = i as i64 + 1;
-            sqlx::query("INSERT OR IGNORE INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,?,?,100,5)").bind(a).bind(hero).bind(hero).execute(&s.db).await.unwrap();
-            sqlx::query(
-                "INSERT INTO battle_room_members(room,account,joined,updated) VALUES(1,?,?,?)",
+            crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES($1,$2,$3,100,5) ON CONFLICT DO NOTHING").bind(a).bind(hero).bind(hero).execute(&s.db).await.unwrap();
+            crate::db::query(
+                "INSERT INTO battle_room_members(room,account,joined,updated) VALUES(1,$1,$2,$3)",
             )
             .bind(a)
             .bind(now())
@@ -467,8 +464,8 @@ mod tests {
                 .rules["ChallengeRaidRotation"]=json!([70001]);
             let _worker=attach_worker(&s).await;
             let members:Vec<_>=users.iter().map(account).collect();
-            sqlx::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
-            sqlx::query("UPDATE battle_rooms SET family='raid',data=json_set(data,'$.RaidIndex',70001,'$.RaidLevel',1,'$.ChapterIndex',951,'$.DungeonIndex',1,'$.DungeonDifficulty',0,'$.AffixIndices',json('[6]'))")
+            crate::db::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
+            crate::db::query("UPDATE battle_rooms SET family='raid',data=sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(data,'$.RaidIndex',70001),'$.RaidLevel',1),'$.ChapterIndex',951),'$.DungeonIndex',1),'$.DungeonDifficulty',0),'$.AffixIndices',('[6]')::jsonb)")
                 .execute(&s.db).await.unwrap();
             let args=format!("ChapterIndex=951&DungeonIndex=1&DungeonDifficulty=0&RaidIndex=70001&RaidLevel=1&RaidRoomNo=1&MultiplayMasterId={}&MultiplayMemberIds={}&HeroIndices=[1]&AccountIds=[{}]&AffixIndices=[999999]",members[0],json!(members),members[0]);
             s.conquest.worker.write().await.as_mut().unwrap().challenge_version=0;
@@ -479,15 +476,15 @@ mod tests {
             let run=s.conquest.runs.iter().next().unwrap().value().clone();
             let run=run.lock().await;
             assert_eq!(run.payload["AffixIndices"],json!([6]));
-            sqlx::query("UPDATE battle_runs SET started=started-60,entry=json_set(entry,'$.CoopCharged',json('true'),'$.PartyResourceChoicePending',json('false'))").execute(&s.db).await.unwrap();
+            crate::db::query("UPDATE battle_runs SET started=started-60,entry=sprk_json_set(sprk_json_set(entry,'$.CoopCharged',('true')::jsonb),'$.PartyResourceChoicePending',('false')::jsonb)").execute(&s.db).await.unwrap();
             let body=json!({"Win":true,"TimeMs":60000,"DefeatedCreatures":{"1001":3,"4401":1},"Creatures":[{"Index":1,"AccountId":members[0],"TeamId":0,"Hp":10},{"Index":2,"AccountId":members[1],"TeamId":0,"Hp":10}]});
             settle_party(&s,&run,&body).await.unwrap();
             settle_party(&s,&run,&body).await.unwrap();
             for account in &members {
-                let kills:i64=sqlx::query_scalar("SELECT SUM(value) FROM progression_metrics WHERE account_id=? AND kind='DefeatMonster'")
+                let kills:i64=crate::db::query_scalar("SELECT SUM(value)::bigint FROM progression_metrics WHERE account_id=$1 AND kind='DefeatMonster'")
                     .bind(account).fetch_one(&s.db).await.unwrap();
                 assert_eq!(kills,4,"duplicate worker results must not duplicate kill credit");
-                let points:i64=sqlx::query_scalar("SELECT COALESCE((SELECT value FROM battle_currencies WHERE account=? AND kind='ChallengeRaidPoint'),0)")
+                let points:i64=crate::db::query_scalar("SELECT COALESCE((SELECT value FROM battle_currencies WHERE account=$1 AND kind='ChallengeRaidPoint'),0)")
                     .bind(account).fetch_one(&s.db).await.unwrap();
                 assert_eq!(points,3300,"raid members receive points once; UseStamina=false cannot bypass the raid's paid-entry rule");
             }
@@ -509,8 +506,8 @@ mod tests {
             for (before_enter,leave_wave,leaving_host) in [(false,1,false),(true,1,false),(false,2,false),(false,2,true)] {
                 let (s,users,mut args)=fixture().await;let mut worker=attach_worker(&s).await;
                 if dragon {
-                    sqlx::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
-                    sqlx::query("UPDATE battle_rooms SET family='raid',data=json_set(data,'$.RaidIndex',1,'$.RaidLevel',7,'$.ChapterIndex',901,'$.DungeonIndex',7,'$.DungeonDifficulty',0,'$.Capacity',2)").execute(&s.db).await.unwrap();
+                    crate::db::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
+                    crate::db::query("UPDATE battle_rooms SET family='raid',data=sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(data,'$.RaidIndex',1),'$.RaidLevel',7),'$.ChapterIndex',901),'$.DungeonIndex',7),'$.DungeonDifficulty',0),'$.Capacity',2)").execute(&s.db).await.unwrap();
                     args=format!("ChapterIndex=901&DungeonIndex=7&DungeonDifficulty=0&RaidIndex=1&RaidLevel=7&RaidRoomNo=1&MultiplayMasterId={}&MultiplayMemberIds=[{},{}]&HeroIndices=[1]&AccountIds=[{}]",account(&users[0]),account(&users[0]),account(&users[1]),account(&users[0]));
                 }
                 assert_eq!(call(&s,&users[0],"campaign/begin_campaign",&args).await["Result"],"Success");
@@ -556,18 +553,18 @@ mod tests {
                     // A cancelled guest may enter a solo battle while the party
                     // continues; the old result must leave that entry intact.
                     assert_eq!(call(&s,&users[1],"campaign/begin_campaign","ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=1&HeroIndices=[2]").await["Result"],"Success");
-                    Some(sqlx::query_scalar::<_,String>("SELECT run_id FROM battle_runs WHERE account=?").bind(guest).fetch_one(&s.db).await.unwrap())
+                    Some(crate::db::query_scalar::<String>("SELECT run_id FROM battle_runs WHERE account=$1").bind(guest).fetch_one(&s.db).await.unwrap())
                 }else{None};
                 worker_packet(&s,"party-worker","WorkerResult",json!({"RunId":id,"Win":true,"Creatures":[{"TeamId":0,"AccountId":host,"Index":1,"Hp":10},{"TeamId":0,"AccountId":guest,"Index":2,"Hp":10}],"TimeMs":10000,"MaxWaveIndex":3})).await.unwrap();
                 if let Some(replacement)=replacement {
-                    let (saved,completed):(String,i64)=sqlx::query_as("SELECT run_id,completed FROM battle_runs WHERE account=?").bind(guest).fetch_one(&s.db).await.unwrap();
+                    let (saved,completed):(String,i64)=crate::db::query_as("SELECT run_id,completed FROM battle_runs WHERE account=$1").bind(guest).fetch_one(&s.db).await.unwrap();
                     assert_eq!(saved,replacement);assert_eq!(completed,0);
                     assert_eq!(call(&s,&users[1],"campaign/end_campaign","ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=1&Completed=false").await["Result"],"Success");
                 }
-                assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_runs WHERE completed=0").fetch_one(&s.db).await.unwrap(),0);
-                assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap(),0);
+                assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_runs WHERE completed=0").fetch_one(&s.db).await.unwrap(),0);
+                assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap(),0);
                 if before_enter {
-                    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM service_results WHERE account=?").bind(guest).fetch_one(&s.db).await.unwrap(),0,"An unconfirmed guest receives no settlement rewards");
+                    assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM service_results WHERE account=$1").bind(guest).fetch_one(&s.db).await.unwrap(),0,"An unconfirmed guest receives no settlement rewards");
                 }
             }
         }
@@ -586,14 +583,14 @@ mod tests {
             for chat_first in [true,false] {
                 let (s,users,_)=fixture().await;let _worker=attach_worker(&s).await;
                 let host=account(&users[0]);let guest=account(&users[1]);
-                sqlx::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
+                crate::db::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
                 let (old_chapter,old_dungeon,new_chapter,new_dungeon)=if raid==0 {(1,1,1,2)}else{
                     let old=row(&s,"Raid",&[("Index",raid),("Level",old_level)]).unwrap();
                     let new=row(&s,"Raid",&[("Index",raid),("Level",new_level)]).unwrap();
                     (n(old,"ChapterIndex"),n(old,"DungeonIndex"),n(new,"ChapterIndex"),n(new,"DungeonIndex"))
                 };
                 if raid>0 {
-                    sqlx::query("UPDATE battle_rooms SET family='raid',data=json_set(data,'$.RaidIndex',?,'$.RaidLevel',?,'$.ChapterIndex',?,'$.DungeonIndex',?,'$.DungeonDifficulty',0,'$.CurPartyMember',2)")
+                    crate::db::query("UPDATE battle_rooms SET family='raid',data=sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(data,'$.RaidIndex',$1),'$.RaidLevel',$2),'$.ChapterIndex',$3),'$.DungeonIndex',$4),'$.DungeonDifficulty',0),'$.CurPartyMember',2)")
                         .bind(raid).bind(old_level).bind(old_chapter).bind(old_dungeon).execute(&s.db).await.unwrap();
                     put(&mut s.db.acquire().await.unwrap(),host,"raid",raid,&json!({"RaidIndex":raid,"RaidLevel":new_level})).await.unwrap();
                     put(&mut s.db.acquire().await.unwrap(),guest,"raid",raid,&json!({"RaidIndex":raid,"RaidLevel":new_level})).await.unwrap();
@@ -631,13 +628,13 @@ mod tests {
                     let settings=update(&mut clients[1],protocol).await;
                     assert_eq!(if raid==0 {n(&settings,"DungeonIndex")}else{n(&settings,"RaidLevel")},if raid==0 {new_dungeon}else{new_level});
                 }
-                let raw:String=sqlx::query_scalar("SELECT data FROM battle_rooms WHERE id=1").fetch_one(&s.db).await.unwrap();let room:Value=read_json(&raw).unwrap();
+                let raw:String=crate::db::query_scalar("SELECT data FROM battle_rooms WHERE id=1").fetch_one(&s.db).await.unwrap();let room:Value=read_json(&raw).unwrap();
                 assert_eq!(n(&room,"ChapterIndex"),new_chapter);assert_eq!(n(&room,"DungeonIndex"),new_dungeon);
                 let state=get(&mut s.db.acquire().await.unwrap(),guest,"party_member",1).await.unwrap();
                 assert_eq!(state["IsBattleReady"],false);assert_eq!(state["DeckHeros"]["2"]["HeroIndex"],2);
                 let before=room.clone();
                 assert_ne!(call(&s,&users[1],path,&change).await["Result"],"Success");
-                let raw:String=sqlx::query_scalar("SELECT data FROM battle_rooms WHERE id=1").fetch_one(&s.db).await.unwrap();assert_eq!(read_json::<Value>(&raw).unwrap(),before);
+                let raw:String=crate::db::query_scalar("SELECT data FROM battle_rooms WHERE id=1").fetch_one(&s.db).await.unwrap();assert_eq!(read_json::<Value>(&raw).unwrap(),before);
                 if raid==1 {
                     let args=format!("ChapterIndex={new_chapter}&DungeonIndex={new_dungeon}&DungeonDifficulty=0&RaidIndex=1&RaidLevel=8&RaidRoomNo=1&MultiplayMasterId={host}&MultiplayMemberIds=[{host},{guest}]&HeroIndices=[1]&AccountIds=[{host}]");
                     assert_ne!(call(&s,&users[0],"campaign/begin_campaign",&args).await["Result"],"Success","Stage change requires renewed guest readiness");
@@ -657,7 +654,7 @@ mod tests {
         use crate::api::battle::{entry_costs,loot_booster};
         let (s,users,args)=fixture().await;let _worker=attach_worker(&s).await;
         let host=account(&users[0]);let guest=account(&users[1]);
-        sqlx::query("UPDATE user_info SET gem=100 WHERE account_id=?").bind(guest).execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE user_info SET gem=100 WHERE account_id=$1").bind(guest).execute(&s.db).await.unwrap();
         // Only the host enables x2. A guest is provisional until it authenticates.
         assert_eq!(call(&s,&users[0],"campaign/begin_campaign",&format!("{args}&ItemBoosterCount=1")).await["Result"],"Success");
         assert_eq!(entry_costs::held(&mut s.db.acquire().await.unwrap(),host,"Currency",4).await.unwrap(),20);
@@ -671,7 +668,7 @@ mod tests {
         assert_eq!(call(&s,&users[0],"campaign/begin_campaign",&args).await["Result"],"Success");
         let free=guest_args(&users,&args,false);
         assert_eq!(call(&s,&users[1],"campaign/begin_campaign",&format!("{free}&ItemBoosterCount=1")).await["Result"],"Success");
-        let raw:String=sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=?").bind(guest).fetch_one(&s.db).await.unwrap();
+        let raw:String=crate::db::query_scalar("SELECT entry FROM battle_runs WHERE account=$1").bind(guest).fetch_one(&s.db).await.unwrap();
         assert!(!loot_booster::active(&read_json::<Value>(&raw).unwrap()));
         assert_eq!(entry_costs::held(&mut s.db.acquire().await.unwrap(),guest,"Currency",4).await.unwrap(),0);
         recover_orphaned(&s).await.unwrap();
@@ -681,13 +678,13 @@ mod tests {
         assert_eq!(entry_costs::held(&mut s.db.acquire().await.unwrap(),guest,"Currency",4).await.unwrap(),20);
         assert_eq!(entry_costs::held(&mut s.db.acquire().await.unwrap(),host,"Currency",4).await.unwrap(),0);
         recover_orphaned(&s).await.unwrap();
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap(),0);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap(),0);
     }
     #[tokio::test]
     async fn party_resource_choice_is_authenticated_and_cannot_bypass_solo_costs() {
         let (s,users,args)=fixture().await;let _worker=attach_worker(&s).await;
         let guest=account(&users[1]);
-        sqlx::query("UPDATE user_info SET stamina=0 WHERE account_id=?").bind(guest).execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE user_info SET stamina=0 WHERE account_id=$1").bind(guest).execute(&s.db).await.unwrap();
         assert_ne!(call(&s,&users[0],"campaign/begin_campaign",&format!("{args}&UseStamina=false")).await["Result"],"Success");
         assert_eq!(call(&s,&users[0],"campaign/begin_campaign",&args).await["Result"],"Success","An unpaid guest must not need the host's stamina cost");
         let id=s.conquest.runs.iter().next().unwrap().key().clone();
@@ -699,7 +696,7 @@ mod tests {
         let free=guest_args(&users,&args,false);
         assert_eq!(call(&s,&users[1],"campaign/begin_campaign",&free).await["Result"],"Success");
         assert_eq!(call(&s,&users[1],"campaign/begin_campaign",&free).await["Result"],"Success");
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_entry_holds WHERE account=?").bind(guest).fetch_one(&s.db).await.unwrap(),0);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_entry_holds WHERE account=$1").bind(guest).fetch_one(&s.db).await.unwrap(),0);
         assert_ne!(call(&s,&users[1],"campaign/begin_campaign",&guest_args(&users,&args,true)).await["Result"],"Success","Retry cannot change a confirmed choice");
         recover_orphaned(&s).await.unwrap();
         assert_ne!(call(&s,&users[1],"campaign/begin_campaign","ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=1&HeroIndices=[2]&UseStamina=false").await["Result"],"Success","Solo requests cannot use the party-only free option");
@@ -716,7 +713,7 @@ mod tests {
             client.send("BattleLoginReq",json!({"AccountId":account(user),"SessionKey":user["UserInfo"]["SessionKey"],"MasterId":master,"RequestId":1})).await;
             assert_eq!(client.recv("BattleLoginRes").await["Result"],"Success");clients.push(client);
         }
-        let holds=sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap();assert!(holds>0);
+        let holds=crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap();assert!(holds>0);
         let guest=clients.pop().unwrap();drop(guest);
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         cancel_abandoned(&s,&id,None).await.unwrap();assert!(s.conquest.runs.contains_key(&id),"A connected participant keeps the run alive");
@@ -724,8 +721,8 @@ mod tests {
         tokio::time::timeout(std::time::Duration::from_secs(6),async {
             while s.conquest.runs.contains_key(&id) {tokio::time::sleep(std::time::Duration::from_millis(25)).await;}
         }).await.unwrap();
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap(),0);
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_runs WHERE completed=0").fetch_one(&s.db).await.unwrap(),0);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap(),0);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_runs WHERE completed=0").fetch_one(&s.db).await.unwrap(),0);
         assert_eq!(call(&s,&users[0],"campaign/begin_campaign",&args).await["Result"],"Success");
     }
     #[tokio::test]
@@ -751,14 +748,14 @@ mod tests {
             .await["Result"],
             "Success"
         );
-        sqlx::query("UPDATE battle_state SET data=json_set(data,'$.IsBattleReady',json('false')) WHERE account=? AND kind='party_member'")
+        crate::db::query("UPDATE battle_state SET data=sprk_json_set(data,'$.IsBattleReady',('false')::jsonb) WHERE account=$1 AND kind='party_member'")
             .bind(account(&users[1])).execute(&s.db).await.unwrap();
         assert_ne!(
             call(&s, &users[0], "campaign/begin_campaign", &args).await["Result"],
             "Success"
         );
         assert_eq!(
-            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM battle_runs")
+            crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_runs")
                 .fetch_one(&s.db)
                 .await
                 .unwrap(),
@@ -788,12 +785,12 @@ mod tests {
         let begun = call(&s, &users[0], "campaign/begin_campaign", &args).await;
         assert_eq!(begun["Result"], "Success", "{begun}");
         let guest=account(&users[1]);
-        let guest_currency_before:(i64,i64)=sqlx::query_as("SELECT gold,gem FROM user_info WHERE account_id=?").bind(guest).fetch_one(&s.db).await.unwrap();
-        let guest_items_before:Vec<(i64,i64)>=sqlx::query_as("SELECT item_index,count FROM items WHERE account_id=? ORDER BY item_index").bind(guest).fetch_all(&s.db).await.unwrap();
-        let guest_equipment_before:i64=sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=?").bind(guest).fetch_one(&s.db).await.unwrap();
-        let guest_mail_before:i64=sqlx::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=?").bind(guest).fetch_one(&s.db).await.unwrap();
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_entry_holds WHERE account=?").bind(guest).fetch_one(&s.db).await.unwrap(),0);
-        let stamina_before:Vec<(i64,i64)>=sqlx::query_as("SELECT account_id,stamina FROM user_info ORDER BY account_id").fetch_all(&s.db).await.unwrap();
+        let guest_currency_before:(i64,i64)=crate::db::query_as("SELECT gold,gem FROM user_info WHERE account_id=$1").bind(guest).fetch_one(&s.db).await.unwrap();
+        let guest_items_before:Vec<(i64,i64)>=crate::db::query_as("SELECT item_index,count FROM items WHERE account_id=$1 ORDER BY item_index").bind(guest).fetch_all(&s.db).await.unwrap();
+        let guest_equipment_before:i64=crate::db::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=$1").bind(guest).fetch_one(&s.db).await.unwrap();
+        let guest_mail_before:i64=crate::db::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=$1").bind(guest).fetch_one(&s.db).await.unwrap();
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_entry_holds WHERE account=$1").bind(guest).fetch_one(&s.db).await.unwrap(),0);
+        let stamina_before:Vec<(i64,i64)>=crate::db::query_as("SELECT account_id,stamina FROM user_info ORDER BY account_id").fetch_all(&s.db).await.unwrap();
         assert_eq!(
             call(
                 &s,
@@ -874,7 +871,7 @@ mod tests {
             }
             assert_eq!(summaries.len(),users.len(),"Every client needs both participants' Loot summaries, including itself");
             for user in &users {
-                let a=account(user);let raw:String=sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=?").bind(a).fetch_one(&s.db).await.unwrap();
+                let a=account(user);let raw:String=crate::db::query_scalar("SELECT entry FROM battle_runs WHERE account=$1").bind(a).fetch_one(&s.db).await.unwrap();
                 let entry:Value=read_json(&raw).unwrap();let out=&entry["PartyEndResponse"];
                 assert_eq!(summaries[&a]["UseStamina"],json!(a==account(&users[0]) || guest_uses_stamina));
                 for field in ["HeroExpResults","CurrencyResults","ItemResults","EquipItemInfos","FlaskResults"] {
@@ -884,7 +881,7 @@ mod tests {
             }
         }
         assert_eq!(
-            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM battle_runs WHERE completed=1")
+            crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_runs WHERE completed=1")
                 .fetch_one(&s.db)
                 .await
                 .unwrap(),
@@ -893,27 +890,27 @@ mod tests {
         let ending = "ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=1&Completed=true&Star=3";
         let cost=campaign::stamina_cost(row(&s,"CampaignDungeon",&[("ChapterIndex",1),("DungeonIndex",1)]).unwrap(),1);
         for (account,before) in &stamina_before {
-            let after:i64=sqlx::query_scalar("SELECT stamina FROM user_info WHERE account_id=?").bind(account).fetch_one(&s.db).await.unwrap();
+            let after:i64=crate::db::query_scalar("SELECT stamina FROM user_info WHERE account_id=$1").bind(account).fetch_one(&s.db).await.unwrap();
             assert_eq!(after,before-if *account==guest && !guest_uses_stamina {0}else{cost});
-            let raw:String=sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=?").bind(account).fetch_one(&s.db).await.unwrap();
+            let raw:String=crate::db::query_scalar("SELECT entry FROM battle_runs WHERE account=$1").bind(account).fetch_one(&s.db).await.unwrap();
             let entry:Value=read_json(&raw).unwrap();
             let out=&entry["PartyEndResponse"];
             if *account==guest && !guest_uses_stamina {
                 for field in ["CurrencyResults","ItemResults","EquipItemInfos","FlaskResults","FlaskItemResults"] {
                     assert_eq!(out[field],json!([]),"Free guests must not receive {field}");
                 }
-                assert_eq!(sqlx::query_as::<_,(i64,i64)>("SELECT gold,gem FROM user_info WHERE account_id=?").bind(guest).fetch_one(&s.db).await.unwrap(),guest_currency_before);
-                assert_eq!(sqlx::query_as::<_,(i64,i64)>("SELECT item_index,count FROM items WHERE account_id=? ORDER BY item_index").bind(guest).fetch_all(&s.db).await.unwrap(),guest_items_before);
-                assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM equip_items WHERE account_id=?").bind(guest).fetch_one(&s.db).await.unwrap(),guest_equipment_before);
-                assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM mails WHERE account_id=?").bind(guest).fetch_one(&s.db).await.unwrap(),guest_mail_before,"No hidden overflow rewards");
+                assert_eq!(crate::db::query_as::<(i64,i64)>("SELECT gold,gem FROM user_info WHERE account_id=$1").bind(guest).fetch_one(&s.db).await.unwrap(),guest_currency_before);
+                assert_eq!(crate::db::query_as::<(i64,i64)>("SELECT item_index,count FROM items WHERE account_id=$1 ORDER BY item_index").bind(guest).fetch_all(&s.db).await.unwrap(),guest_items_before);
+                assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM equip_items WHERE account_id=$1").bind(guest).fetch_one(&s.db).await.unwrap(),guest_equipment_before);
+                assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM mails WHERE account_id=$1").bind(guest).fetch_one(&s.db).await.unwrap(),guest_mail_before,"No hidden overflow rewards");
                 assert_eq!(out["CampaignResults"][0]["LootRewardedDiff"],0);
             } else {
                 assert!(out["CurrencyResults"].as_array().unwrap().iter().any(|v|v["CurrencyType"]=="Gold" && n(v,"AddValue")>0),"Paid participants still receive gold");
             }
-            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT clear_count FROM campaign_progress WHERE account_id=? AND chapter_id=1 AND dungeon_id=1").bind(account).fetch_one(&s.db).await.unwrap(),1,"Free participation still credits the clear");
+            assert_eq!(crate::db::query_scalar::<i64>("SELECT clear_count FROM campaign_progress WHERE account_id=$1 AND chapter_id=1 AND dungeon_id=1").bind(account).fetch_one(&s.db).await.unwrap(),1,"Free participation still credits the clear");
         }
-        let balances:Vec<(i64,i64)>=sqlx::query_as("SELECT account_id,gold FROM user_info ORDER BY account_id").fetch_all(&s.db).await.unwrap();
-        let equipment_count=sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM equip_items").fetch_one(&s.db).await.unwrap();
+        let balances:Vec<(i64,i64)>=crate::db::query_as("SELECT account_id,gold FROM user_info ORDER BY account_id").fetch_all(&s.db).await.unwrap();
+        let equipment_count=crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM equip_items").fetch_one(&s.db).await.unwrap();
         let first = call(&s, &users[0], "campaign/end_campaign", ending).await;
         assert_eq!(first["Result"], "Success");
         assert_eq!(first["MultiplayMemberIds"], json!(users.iter().map(account).collect::<Vec<_>>()));
@@ -925,21 +922,21 @@ mod tests {
         let guest_end=call(&s,&users[1],"campaign/end_campaign",ending).await;
         assert_eq!(guest_end["Result"],"Success");
         assert_eq!(call(&s,&users[1],"campaign/end_campaign",ending).await,guest_end);
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT clear_count FROM campaign_progress WHERE account_id=? AND chapter_id=1 AND dungeon_id=1").bind(account(&users[0])).fetch_one(&s.db).await.unwrap(),1);
-        assert_eq!(sqlx::query_as::<_,(i64,i64)>("SELECT account_id,gold FROM user_info ORDER BY account_id").fetch_all(&s.db).await.unwrap(),balances,"Summary/result replay must not award gold again");
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM equip_items").fetch_one(&s.db).await.unwrap(),equipment_count,"Summary/result replay must not award equipment again");
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT clear_count FROM campaign_progress WHERE account_id=$1 AND chapter_id=1 AND dungeon_id=1").bind(account(&users[0])).fetch_one(&s.db).await.unwrap(),1);
+        assert_eq!(crate::db::query_as::<(i64,i64)>("SELECT account_id,gold FROM user_info ORDER BY account_id").fetch_all(&s.db).await.unwrap(),balances,"Summary/result replay must not award gold again");
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM equip_items").fetch_one(&s.db).await.unwrap(),equipment_count,"Summary/result replay must not award equipment again");
         for (account,before) in stamina_before {
-            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT stamina FROM user_info WHERE account_id=?").bind(account).fetch_one(&s.db).await.unwrap(),before-if account==guest && !guest_uses_stamina {0}else{cost},"Result replay must not charge again");
+            assert_eq!(crate::db::query_scalar::<i64>("SELECT stamina FROM user_info WHERE account_id=$1").bind(account).fetch_one(&s.db).await.unwrap(),before-if account==guest && !guest_uses_stamina {0}else{cost},"Result replay must not charge again");
         }
         assert_eq!(
-            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM battle_entry_holds")
+            crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_entry_holds")
                 .fetch_one(&s.db)
                 .await
                 .unwrap(),
             0
         );
         if !guest_uses_stamina {
-            let mut db=s.db.begin().await.unwrap();
+            let mut db=crate::database::begin(&s.db).await.unwrap();
             let paid=request(json!({"ChapterIndex":1,"DungeonIndex":1,"DungeonDifficulty":1}));
             let out=campaign::complete(&mut db,&s,guest,&paid,&[2],3,1).await.unwrap();
             assert!(out["CurrencyResults"].as_array().unwrap().iter().any(|v|v["CurrencyType"]=="Gem" && n(v,"AddValue")==137),"First-clear loot remains available after a free clear");
@@ -957,7 +954,7 @@ mod tests {
             "Success"
         );
         assert!(
-            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM battle_entry_holds")
+            crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_entry_holds")
                 .fetch_one(&s.db)
                 .await
                 .unwrap()
@@ -965,15 +962,15 @@ mod tests {
         );
         recover_orphaned(&s).await.unwrap();
         assert_eq!(
-            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM battle_entry_holds")
+            crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_entry_holds")
                 .fetch_one(&s.db)
                 .await
                 .unwrap(),
             0
         );
         assert_eq!(
-            sqlx::query_scalar::<_, i64>(
-                "SELECT json_extract(data,'$.Status') FROM battle_rooms WHERE id=1"
+            crate::db::query_scalar::<i64>(
+                "SELECT sprk_json_int(data,'$.Status') FROM battle_rooms WHERE id=1"
             )
             .fetch_one(&s.db)
             .await
@@ -986,8 +983,8 @@ mod tests {
     async fn dragon_party_uses_worker_route_and_keeps_direct_solo_guard() {
         let (s,users,_) = fixture().await;
         let _worker = attach_worker(&s).await;
-        sqlx::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
-        sqlx::query("UPDATE battle_rooms SET family='raid',data=json_set(data,'$.RaidIndex',1,'$.RaidLevel',7,'$.ChapterIndex',901,'$.DungeonIndex',7,'$.DungeonDifficulty',0,'$.Capacity',2)").execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE battle_rooms SET family='raid',data=sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(data,'$.RaidIndex',1),'$.RaidLevel',7),'$.ChapterIndex',901),'$.DungeonIndex',7),'$.DungeonDifficulty',0),'$.Capacity',2)").execute(&s.db).await.unwrap();
         let args = format!("ChapterIndex=901&DungeonIndex=7&DungeonDifficulty=0&RaidIndex=1&RaidLevel=7&RaidRoomNo=1&MultiplayMasterId={}&MultiplayMemberIds=[{},{}]&HeroIndices=[1]&AccountIds=[{}]",account(&users[0]),account(&users[0]),account(&users[1]),account(&users[0]));
         let direct = "ChapterIndex=901&DungeonIndex=7&DungeonDifficulty=0&RaidIndex=1&RaidLevel=7&HeroIndices=[1]&ServiceOwned=true";
         assert_eq!(call(&s,&users[0],"campaign/begin_campaign",direct).await["Result"],"ContentsDisabled");
@@ -1003,8 +1000,8 @@ mod tests {
     async fn dragon_party_clear_unlocks_next_stage_and_preserves_each_members_higher_progress() {
         let (s,users,_) = fixture().await;
         let _worker = attach_worker(&s).await;
-        sqlx::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
-        sqlx::query("UPDATE battle_rooms SET family='raid',data=json_set(data,'$.RaidIndex',1,'$.RaidLevel',7,'$.ChapterIndex',901,'$.DungeonIndex',7,'$.DungeonDifficulty',0,'$.Capacity',2)").execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE battle_rooms SET family='raid',data=sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(data,'$.RaidIndex',1),'$.RaidLevel',7),'$.ChapterIndex',901),'$.DungeonIndex',7),'$.DungeonDifficulty',0),'$.Capacity',2)").execute(&s.db).await.unwrap();
         put(&mut s.db.acquire().await.unwrap(),account(&users[1]),"raid",1,&json!({"RaidIndex":1,"RaidLevel":16})).await.unwrap();
         // RaidPartySetting has no Resource Spent toggle and leaves this flag
         // false for both players. Both still pay the normal dragon entry cost.
@@ -1012,7 +1009,7 @@ mod tests {
         assert_eq!(call(&s,&users[0],"campaign/begin_campaign",&args).await["Result"],"Success");
         assert_eq!(call(&s,&users[1],"campaign/begin_campaign",&guest_args(&users,&args,false)).await["Result"],"Success");
         let id=s.conquest.runs.iter().next().unwrap().key().clone();
-        sqlx::query("UPDATE battle_runs SET entry=json_set(entry,'$.CoopCharged',json('true'))").execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE battle_runs SET entry=sprk_json_set(entry,'$.CoopCharged',('true')::jsonb)").execute(&s.db).await.unwrap();
         let handle=s.conquest.runs.get(&id).unwrap().clone();let mut run=handle.lock().await;run.started=true;drop(run);
         worker_packet(&s,"party-worker","WorkerResult",json!({"RunId":id,"Win":true,"Creatures":[{"TeamId":0,"AccountId":account(&users[0]),"Index":1,"Hp":10},{"TeamId":0,"AccountId":account(&users[1]),"Index":2,"Hp":10}],"TimeMs":10000,"MaxWaveIndex":1})).await.unwrap();
         let end="ChapterIndex=901&DungeonIndex=7&DungeonDifficulty=0&Completed=true&Star=3";
@@ -1032,14 +1029,14 @@ mod tests {
         // FirstLobby also uses this snapshot. Returning from battle must keep
         // the existing PartyManager's room; only a full user login leaves it.
         super::super::login(&s, account(&users[1])).await.unwrap();
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_room_members WHERE account=?")
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_room_members WHERE account=$1")
             .bind(account(&users[1])).fetch_one(&s.db).await.unwrap(),1);
         super::super::party_messages::new_login(&s, account(&users[1]))
             .await
             .unwrap();
         assert_eq!(
-            sqlx::query_scalar::<_, i64>(
-                "SELECT COUNT(*) FROM battle_room_members WHERE account=?"
+            crate::db::query_scalar::<i64>(
+                "SELECT COUNT(*) FROM battle_room_members WHERE account=$1"
             )
             .bind(account(&users[1]))
             .fetch_one(&s.db)
@@ -1050,7 +1047,7 @@ mod tests {
         // A restarted client (e.g. after a crash) cannot rejoin the party even
         // while its battle runs; a retained membership would hide invites and
         // block creating rooms ("AlreadyJoined").
-        sqlx::query("UPDATE battle_rooms SET data=json_set(data,'$.Status',2) WHERE id=1")
+        crate::db::query("UPDATE battle_rooms SET data=sprk_json_set(data,'$.Status',2) WHERE id=1")
             .execute(&s.db)
             .await
             .unwrap();
@@ -1058,8 +1055,8 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(
-            sqlx::query_scalar::<_, i64>(
-                "SELECT COUNT(*) FROM battle_room_members WHERE account=?"
+            crate::db::query_scalar::<i64>(
+                "SELECT COUNT(*) FROM battle_room_members WHERE account=$1"
             )
             .bind(account(&users[0]))
             .fetch_one(&s.db)
@@ -1105,33 +1102,33 @@ mod tests {
         struct Native(std::process::Child);
         impl Drop for Native { fn drop(&mut self) { let _=self.0.kill(); let _=self.0.wait(); } }
         let (mut s,users,mut args) = fixture().await;
-        sqlx::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
         if dragon {
             // Use a complete six-hero party with real weapons and treasures
             // so the transition test can finish the dragon's boss wave.
             for (i,user) in users.iter().enumerate() {
                 let heroes=if i==0 {vec![1,3,4]}else{vec![2,5,6]};
                 for hero in &heroes {
-                    sqlx::query("INSERT OR IGNORE INTO heroes(account_id,hero_id,hero_index,level,star,transcend) VALUES(?,?,?,100,5,5)")
+                    crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star,transcend) VALUES($1,$2,$3,100,5,5) ON CONFLICT DO NOTHING")
                         .bind(account(user)).bind(hero).bind(hero).execute(&s.db).await.unwrap();
                     for (part,base) in [(1,1000),(7,103000)] {
-                        let slot=sqlx::query("INSERT INTO equip_items(account_id,item_index,star,level) VALUES(?,?,5,20)")
-                            .bind(account(user)).bind(base+hero).execute(&s.db).await.unwrap().last_insert_rowid();
-                        sqlx::query(sqlx::AssertSqlSafe(format!("UPDATE heroes SET equip_item_slot_index_{part}=? WHERE account_id=? AND hero_index=?")))
+                        let slot=crate::db::query_scalar::<i64>("INSERT INTO equip_items(account_id,item_index,star,level) VALUES($1,$2,5,20) RETURNING slot_index")
+                            .bind(account(user)).bind(base+hero).fetch_one(&s.db).await.unwrap();
+                        crate::db::query(sqlx::AssertSqlSafe(format!("UPDATE heroes SET equip_item_slot_index_{part}=$1 WHERE account_id=$2 AND hero_index=$3")))
                             .bind(slot).bind(account(user)).bind(hero).execute(&s.db).await.unwrap();
                     }
                 }
                 let deck:serde_json::Map<_,_>=heroes.iter().map(|hero|(hero.to_string(),json!({"HeroIndex":hero}))).collect();
                 put(&mut s.db.acquire().await.unwrap(),account(user),"party_member",1,&json!({"IsBattleReady":true,"DeckHeros":deck,"SubDeckHeros":{}})).await.unwrap();
             }
-            sqlx::query("UPDATE heroes SET star=5,transcend=5").execute(&s.db).await.unwrap();
-            sqlx::query("UPDATE battle_rooms SET family='raid',data=json_set(data,'$.RaidIndex',1,'$.RaidLevel',7,'$.ChapterIndex',901,'$.DungeonIndex',7,'$.DungeonDifficulty',0,'$.Capacity',2)").execute(&s.db).await.unwrap();
+            crate::db::query("UPDATE heroes SET star=5,transcend=5").execute(&s.db).await.unwrap();
+            crate::db::query("UPDATE battle_rooms SET family='raid',data=sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(data,'$.RaidIndex',1),'$.RaidLevel',7),'$.ChapterIndex',901),'$.DungeonIndex',7),'$.DungeonDifficulty',0),'$.Capacity',2)").execute(&s.db).await.unwrap();
             let host=account(&users[0]);
             args=format!("ChapterIndex=901&DungeonIndex=7&DungeonDifficulty=0&RaidIndex=1&RaidLevel=7&RaidRoomNo=1&MultiplayMasterId={host}&MultiplayMemberIds=[{host},{}]&HeroIndices=[1,3,4]&AccountIds=[{host},{host},{host}]",account(&users[1]));
         }
         if challenge_raid {
             Arc::make_mut(&mut Arc::make_mut(&mut s.tables).battle).rules["ChallengeRaidRotation"]=json!([70001]);
-            sqlx::query("UPDATE battle_rooms SET data=json_set(data,'$.RaidIndex',70001,'$.RaidLevel',1,'$.ChapterIndex',951,'$.DungeonIndex',1,'$.Capacity',3,'$.AffixIndices',json('[6]'))").execute(&s.db).await.unwrap();
+            crate::db::query("UPDATE battle_rooms SET data=sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(data,'$.RaidIndex',70001),'$.RaidLevel',1),'$.ChapterIndex',951),'$.DungeonIndex',1),'$.Capacity',3),'$.AffixIndices',('[6]')::jsonb)").execute(&s.db).await.unwrap();
             args=args.replace("ChapterIndex=901", "ChapterIndex=951").replace("DungeonIndex=7", "DungeonIndex=1").replace("RaidIndex=1&", "RaidIndex=70001&").replace("RaidLevel=7", "RaidLevel=1");
         }
         let key = uuid::Uuid::new_v4().to_string(); s.battle_service_key = Arc::new(Some(key.clone()));
@@ -1216,11 +1213,11 @@ mod tests {
                 "Co-op global clocks must remain monotonic across native waves");
         }
         assert!(number(&results[0].0,"MaxWaveIndex")>=leave_wave);
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_runs WHERE completed=1").fetch_one(&s.db).await.unwrap(),2);
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap(),0);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_runs WHERE completed=1").fetch_one(&s.db).await.unwrap(),2);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap(),0);
         if !dragon && leave_wave==0 {
             for user in &users {
-                let kills:i64=sqlx::query_scalar("SELECT COALESCE(SUM(value),0) FROM progression_metrics WHERE account_id=? AND kind='DefeatMonster'")
+                let kills:i64=crate::db::query_scalar("SELECT COALESCE(SUM(value)::bigint,0) FROM progression_metrics WHERE account_id=$1 AND kind='DefeatMonster'")
                     .bind(account(user)).fetch_one(&s.db).await.unwrap();
                 assert!(kills>0,"The real worker must report confirmed monster defeats");
                 println!("Native worker mission defeat credit: {kills}");

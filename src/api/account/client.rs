@@ -50,7 +50,7 @@ mod tests {
 
     #[tokio::test]
     async fn heartbeat_and_push_settings_reply_like_native_success() {
-        let db = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
+        let db = crate::database::test_pool().await;
         let state = AppState::new(db, crate::tables::GameTables::empty());
         state.create_session("live".into(), 7, String::new());
         let before = state.get_session("live").unwrap().last_activity;

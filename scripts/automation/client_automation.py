@@ -1,4 +1,5 @@
-"""Opt-in Windows/Unity client testing. Python standard library only.
+"""Opt-in Windows/Unity client testing. Python standard library only, except
+psycopg for the isolated test database and assert-db (pip install "psycopg[binary]").
 
 Commands and observations are retained under target/client-automation/<run>.
 The bridge does not bypass unlocks or synthesize battle results.
@@ -15,7 +16,6 @@ import re
 import shutil
 from pathlib import Path
 import socket
-import sqlite3
 import subprocess
 import sys
 import time
@@ -24,6 +24,22 @@ import uuid
 
 REPO = Path(__file__).resolve().parents[2]
 RUNS = REPO / "target/client-automation"
+# Server where isolated test databases are created: the local container that
+# scripts/server/start_local_server.ps1 starts, unless overridden.
+ADMIN_URL = os.environ.get("SPRK_AUTOMATION_POSTGRES_URL", "postgres://postgres:sprk-local@127.0.0.1:54320/postgres")
+
+
+def psycopg():
+    try:
+        import psycopg as module
+    except ImportError:
+        raise RuntimeError('This command needs psycopg: pip install "psycopg[binary]"') from None
+    return module
+
+
+def database_url(name):
+    base, _, _ = ADMIN_URL.rpartition("/")
+    return f"{base}/{name}"
 
 
 def save(path, value):
@@ -68,11 +84,15 @@ def client_view(client, profile):
     return view / (name + ".exe")
 
 
-def database_query(path, query, params=()):
-    # Read-only connection and query_only also prohibit mutations through PRAGMAs.
-    with closing(sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True)) as db:
-        db.execute("PRAGMA query_only=ON")
-        return [list(row) for row in db.execute(query, params).fetchall()]
+def database_query(url, query, params=()):
+    # Read-only transaction: assertions can never change the server's data.
+    # Scenarios keep SQLite-style ? placeholders.
+    query = re.sub(r"\?(?=(?:[^']*'[^']*')*[^']*$)", "%s", query)
+    with closing(psycopg().connect(url)) as db:
+        db.read_only = True
+        with db.cursor() as cursor:
+            cursor.execute(query, params)
+            return [list(row) for row in cursor.fetchall()]
 
 
 def server_identity(pid, terminate=False, expected=None):
@@ -224,7 +244,8 @@ def launch(args):
     if args.profile and not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", args.profile):
         raise ValueError("Profile must contain 1-64 letters, digits, hyphens or underscores")
     meta = {"session": str(root), "client": str(client), "server_pid": None, "profile": args.profile}
-    meta["database"] = str(Path(args.database).resolve()) if args.external_server and args.database else (None if args.external_server else str(root / "sprk.db"))
+    name = "sprk_auto_" + re.sub(r"[^0-9a-z]", "_", stamp)
+    meta["database"] = args.database if args.external_server else database_url(name)
     save(root / "session.json", meta)
     save(RUNS / "latest.json", meta)
     if not args.external_server:
@@ -232,11 +253,16 @@ def launch(args):
             with socket.socket() as probe:
                 if probe.connect_ex(("127.0.0.1", port)) == 0:
                     raise RuntimeError(f"Port {port} is already in use; choose --external-server explicitly to reuse a server")
+        # A new, isolated database; never the main one.
+        with closing(psycopg().connect(ADMIN_URL, autocommit=True)) as admin:
+            admin.execute(f'CREATE DATABASE "{name}"')
+        env = dict(os.environ, GAME_TABLES_PATH=str(REPO / "tables"), PORT="8080", CHAT_PORT="9001", CHAT_BIND="127.0.0.1", CHAT_ADDRESS="127.0.0.1", RUST_LOG="info",
+                   DATABASE_URL=meta["database"])
+        env.pop("DATABASE_MIGRATION_URL", None)
         if args.seed_db:
-            with closing(sqlite3.connect(Path(args.seed_db).resolve().as_uri() + "?mode=ro", uri=True)) as source:
-                with closing(sqlite3.connect(root / "sprk.db")) as dest:
-                    source.backup(dest)
-        env = dict(os.environ, GAME_TABLES_PATH=str(REPO / "tables"), PORT="8080", CHAT_PORT="9001", CHAT_BIND="127.0.0.1", CHAT_ADDRESS="127.0.0.1", RUST_LOG="info")
+            # The server's copy tool loads the SQLite file (read-only) into it.
+            subprocess.run([str(Path(args.server).resolve()), "migrate-sqlite", str(Path(args.seed_db).resolve()),
+                            "--report", str(root / "seed-report.json")], cwd=root, env=env, check=True)
         with (root / "server.log").open("wb") as log:
             proc = subprocess.Popen([str(Path(args.server).resolve())], cwd=root,
                                     env=env, stdout=log, stderr=subprocess.STDOUT,
@@ -322,8 +348,9 @@ def run_scenario(root, path):
                     raise AssertionError(f"Expected {step['expected']} controls, found {len(matches)}")
             elif action == "assert-db":
                 meta = read(root / "session.json")
-                db_path = meta.get("database") or str(root / "sprk.db")
-                actual = database_query(db_path, step["query"], step.get("params", []))
+                if not meta.get("database"):
+                    raise RuntimeError("No database for assertions; launch --external-server with --database <postgres URL>")
+                actual = database_query(meta["database"], step["query"], step.get("params", []))
                 entry["actual"] = actual
                 if actual != step["expected"]:
                     raise AssertionError(f"Database assertion: expected {step['expected']!r}, got {actual!r}")
@@ -355,10 +382,10 @@ def main():
     start = sub.add_parser("launch")
     start.add_argument("--client", default=str(REPO.parent / "sprk-client"))
     start.add_argument("--server", default=str(REPO / "target/release/sprk-server.exe"), help="Server build to launch (debug builds are useful for test/fix iterations)")
-    start.add_argument("--seed-db", help="Copy this SQLite database into the isolated test server")
+    start.add_argument("--seed-db", help="Copy this SQLite database into the isolated test server's new PostgreSQL database")
     start.add_argument("--external-server", action="store_true", help="Explicitly use an already-running server")
     start.add_argument("--profile", help="Separate test-account preferences; use different names for two clients")
-    start.add_argument("--database", help="Read-only assertion database path for --external-server")
+    start.add_argument("--database", help="PostgreSQL URL for read-only assertions with --external-server")
     for action in ("snapshot", "screenshot", "clear-errors", "quit", "renderers"):
         sub.add_parser(action)
     for action in ("click", "press", "native-click", "text"):

@@ -22,8 +22,8 @@ pub(super) fn authenticate(s: &AppState, h: &HeaderMap) -> Result<()> {
     }
     Ok(())
 }
-pub(super) async fn recover(db: &mut SqliteConnection, a: i64) -> Result<Value> {
-    let row = sqlx::query("SELECT * FROM battle_runs WHERE account=?")
+pub(super) async fn recover(db: &mut PgConnection, a: i64) -> Result<Value> {
+    let row = crate::db::query("SELECT * FROM battle_runs WHERE account=$1")
         .bind(a)
         .fetch_optional(&mut *db)
         .await?;
@@ -31,9 +31,9 @@ pub(super) async fn recover(db: &mut SqliteConnection, a: i64) -> Result<Value> 
         return Ok(json!({"Battle":null}));
     };
     let run = row.get::<String, _>("run_id");
-    let entry: Value = serde_json::from_str(row.get("entry")).map_err(|_| rule("Fail"))?;
+    let entry: Value = serde_json::from_str(&row.get::<String, _>("entry")).map_err(|_| rule("Fail"))?;
     let result: Option<String> =
-        sqlx::query_scalar("SELECT response FROM service_results WHERE run=? AND account=?")
+        crate::db::query_scalar("SELECT response FROM service_results WHERE run=$1 AND account=$2")
             .bind(&run)
             .bind(a)
             .fetch_optional(&mut *db)
@@ -42,13 +42,13 @@ pub(super) async fn recover(db: &mut SqliteConnection, a: i64) -> Result<Value> 
         .map(|v| serde_json::from_str::<Value>(&v))
         .transpose()
         .map_err(|_| rule("Fail"))?;
-    let begin: Value = serde_json::from_str(row.get("begin_response")).map_err(|_| rule("Fail"))?;
+    let begin: Value = serde_json::from_str(&row.get::<String, _>("begin_response")).map_err(|_| rule("Fail"))?;
     Ok(
         json!({"Battle":{"RunId":run,"Started":row.get::<i64,_>("started"),"Completed":row.get::<i64,_>("completed")!=0,"ServiceOwned":entry["ServiceOwned"]==true,"ServiceRequired":entry["ServiceRequired"]==true,"ChapterIndex":entry["ChapterIndex"],"DungeonIndex":entry["DungeonIndex"],"DungeonDifficulty":entry["DungeonDifficulty"],"Heroes":entry["Heroes"],"BeginResponse":begin,"Result":result}}),
     )
 }
 async fn bound_run(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     h: &HeaderMap,
@@ -58,8 +58,8 @@ async fn bound_run(
         .and_then(|v| v.to_str().ok())
         .filter(|v| !v.is_empty())
         .ok_or_else(|| rule("Fail"))?;
-    let row = sqlx::query(
-        "SELECT entry,started FROM battle_runs WHERE account=? AND run_id=? AND completed=0",
+    let row = crate::db::query(
+        "SELECT entry,started FROM battle_runs WHERE account=$1 AND run_id=$2 AND completed=0",
     )
     .bind(a)
     .bind(id)
@@ -75,7 +75,7 @@ async fn bound_run(
     }
     Ok((
         id.to_string(),
-        serde_json::from_str(row.get("entry")).map_err(|_| rule("Fail"))?,
+        serde_json::from_str(&row.get::<String, _>("entry")).map_err(|_| rule("Fail"))?,
     ))
 }
 fn coordinates(r: &Request, entry: &Value) -> Result<()> {
@@ -87,7 +87,7 @@ fn coordinates(r: &Request, entry: &Value) -> Result<()> {
     Ok(())
 }
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -107,8 +107,8 @@ pub(super) async fn execute(
             }
             // Persist only health/registration metadata, never service credentials.
             let data = json!({"Name":name,"Address":r.text("Address"),"PublicIp":r.text("PublicIp"),"PrivateIp":r.text("PrivateIp"),"Port":port,"ServerVersion":r.text("ServerVersion"),"CpuUsage":r.text("CpuUsage"),"SessionCu":r.number("SessionCu",0)?});
-            sqlx::query("INSERT INTO service_servers(name,data,seen) VALUES(?,?,?) ON CONFLICT(name) DO UPDATE SET data=excluded.data,seen=excluded.seen").bind(name).bind(data.to_string()).bind(now()).execute(&mut *db).await?;
-            sqlx::query("DELETE FROM service_servers WHERE seen<?")
+            crate::db::query("INSERT INTO service_servers(name,data,seen) VALUES($1,$2,$3) ON CONFLICT(name) DO UPDATE SET data=excluded.data,seen=excluded.seen").bind(name).bind(data.to_string()).bind(now()).execute(&mut *db).await?;
+            crate::db::query("DELETE FROM service_servers WHERE seen<$1")
                 .bind(now() - 86400)
                 .execute(db)
                 .await?;
@@ -119,13 +119,13 @@ pub(super) async fn execute(
         "internal/b2m_get_match_info" => {
             let id = r.number("MatchUid", 0)?;
             let row =
-                sqlx::query("SELECT * FROM arena_runs WHERE id=? AND kind=0 AND status='battle'")
+                crate::db::query("SELECT * FROM arena_runs WHERE id=$1 AND kind=0 AND status='battle'")
                     .bind(id)
                     .fetch_optional(&mut *db)
                     .await?
                     .ok_or_else(|| rule("Fail"))?;
             let mut data: Value =
-                serde_json::from_str(row.get("data")).map_err(|_| rule("Fail"))?;
+                serde_json::from_str(&row.get::<String, _>("data")).map_err(|_| rule("Fail"))?;
             if n(&data, "Expires") < now() {
                 return Err(rule("Fail"));
             }
@@ -133,7 +133,7 @@ pub(super) async fn execute(
                 return Ok(json!({"MatchInfo":data["Wait"]["MatchInfo"]}));
             }
             data["ServiceOwned"] = json!(true);
-            sqlx::query("UPDATE arena_runs SET data=? WHERE id=?")
+            crate::db::query("UPDATE arena_runs SET data=$1 WHERE id=$2")
                 .bind(data.to_string())
                 .bind(id)
                 .execute(db)
@@ -149,8 +149,8 @@ pub(super) async fn execute(
                 .and_then(|v| v.strip_prefix("arena:"))
                 .and_then(|v| v.parse::<i64>().ok())
                 .ok_or_else(|| rule("Fail"))?;
-            let raw: Option<String> = sqlx::query_scalar(
-                "SELECT data FROM arena_runs WHERE (id=? OR json_extract(data,'$.OnlineMatchUid')=?) AND +account=? AND status='battle'",
+            let raw: Option<String> = crate::db::query_scalar(
+                "SELECT data FROM arena_runs WHERE (id=$1 OR sprk_json_int(data,'$.OnlineMatchUid')=$2) AND +account=$3 AND status='battle'",
             )
             .bind(id)
             .bind(id)
@@ -176,14 +176,14 @@ pub(super) async fn execute(
         }
         "internal/b2g_set_match_result" | "internal/b2g_set_match_cancel" => {
             let id = r.number("MatchUid", 0)?;
-            let row = sqlx::query("SELECT * FROM arena_runs WHERE id=? AND account=? AND kind=0")
+            let row = crate::db::query("SELECT * FROM arena_runs WHERE id=$1 AND account=$2 AND kind=0")
                 .bind(id)
                 .bind(a)
                 .fetch_optional(&mut *db)
                 .await?
                 .ok_or_else(|| rule("Fail"))?;
             let mut data: Value =
-                serde_json::from_str(row.get("data")).map_err(|_| rule("Fail"))?;
+                serde_json::from_str(&row.get::<String, _>("data")).map_err(|_| rule("Fail"))?;
             if r.number("ArenaType", 0)? != 0
                 || r.number("SeasonIndex", 0)? != n(&data, "Season")
                 || data["ServiceOwned"] != true
@@ -213,7 +213,7 @@ pub(super) async fn execute(
             if cancel {
                 data["ServiceRequest"] = canonical;
                 data["ServiceCanceled"] = json!(true);
-                sqlx::query("UPDATE arena_runs SET status='canceled',data=? WHERE id=?")
+                crate::db::query("UPDATE arena_runs SET status='canceled',data=$1 WHERE id=$2")
                     .bind(data.to_string())
                     .bind(id)
                     .execute(db)
@@ -222,14 +222,14 @@ pub(super) async fn execute(
             }
             let response = crate::api::community::service_match_result(db, s, a, r).await?;
             // Reload to retain the score/reward receipt written by the arena implementation.
-            let raw: String = sqlx::query_scalar("SELECT data FROM arena_runs WHERE id=?")
+            let raw: String = crate::db::query_scalar("SELECT data FROM arena_runs WHERE id=$1")
                 .bind(id)
                 .fetch_one(&mut *db)
                 .await?;
             data = serde_json::from_str(&raw).map_err(|_| rule("Fail"))?;
             data["ServiceRequest"] = canonical;
             data["ServiceCanceled"] = json!(false);
-            sqlx::query("UPDATE arena_runs SET data=? WHERE id=?")
+            crate::db::query("UPDATE arena_runs SET data=$1 WHERE id=$2")
                 .bind(data.to_string())
                 .bind(id)
                 .execute(db)
@@ -248,13 +248,13 @@ pub(super) async fn execute(
                     .filter(|(k, _)| allowed.contains_key(*k) && !k.to_lowercase().contains("key"))
                     .map(|(k, v)| (k.clone(), json!(v)))
                     .collect();
-            sqlx::query("INSERT INTO service_reports(kind,data,created) VALUES(?,?,?)")
+            crate::db::query("INSERT INTO service_reports(kind,data,created) VALUES($1,$2,$3)")
                 .bind(path)
                 .bind(Value::Object(report).to_string())
                 .bind(now())
                 .execute(&mut *db)
                 .await?;
-            sqlx::query("DELETE FROM service_reports WHERE id IN (SELECT id FROM service_reports ORDER BY id DESC LIMIT -1 OFFSET 1000)").execute(db).await?;
+            crate::db::query("DELETE FROM service_reports WHERE id IN (SELECT id FROM service_reports ORDER BY id DESC OFFSET 1000)").execute(db).await?;
             Ok(json!({}))
         }
         "internal/b2g_battle_start" => {
@@ -264,7 +264,7 @@ pub(super) async fn execute(
                 return Err(rule("Fail"));
             }
             entry["ServiceOwned"] = json!(true);
-            sqlx::query("UPDATE battle_runs SET entry=? WHERE account=? AND run_id=?")
+            crate::db::query("UPDATE battle_runs SET entry=$1 WHERE account=$2 AND run_id=$3")
                 .bind(entry.to_string())
                 .bind(a)
                 .bind(id)
@@ -279,7 +279,7 @@ pub(super) async fn execute(
                 return Err(rule("Fail"));
             }
             crate::api::battle::entry_costs::settle(db,s,a,&mut entry,false,&mut json!({})).await?;
-            sqlx::query("UPDATE battle_runs SET completed=1,entry=? WHERE account=? AND run_id=?")
+            crate::db::query("UPDATE battle_runs SET completed=1,entry=$1 WHERE account=$2 AND run_id=$3")
                 .bind(entry.to_string())
                 .bind(a)
                 .bind(id)
@@ -329,7 +329,7 @@ pub(super) async fn execute(
                 .ok_or_else(|| rule("Fail"))?;
             let canonical = json!(r.0).to_string();
             let previous =
-                sqlx::query("SELECT request FROM service_results WHERE run=? AND account=?")
+                crate::db::query("SELECT request FROM service_results WHERE run=$1 AND account=$2")
                     .bind(id)
                     .bind(a)
                     .fetch_optional(&mut *db)
@@ -386,7 +386,7 @@ pub(super) async fn execute(
                 r.number("TotalDamage", 0)?.to_string(),
             );
             let response = crate::api::battle::end_authoritative(db, s, a, &request).await?;
-            sqlx::query("INSERT INTO service_results(run,account,request,response,created) VALUES(?,?,?,?,?)").bind(id).bind(a).bind(canonical).bind(response.to_string()).bind(now()).execute(db).await?;
+            crate::db::query("INSERT INTO service_results(run,account,request,response,created) VALUES($1,$2,$3,$4,$5)").bind(id).bind(a).bind(canonical).bind(response.to_string()).bind(now()).execute(db).await?;
             Ok(json!({}))
         }
         // No standalone simulator or live arena/guild-suppression runtime is present.

@@ -3,7 +3,7 @@ use axum::{
     Json,
 };
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use crate::db::RowExt;
 use chrono::{Datelike, Duration, NaiveDate, Utc};
 use crate::{
     error::{Result, ServerError},
@@ -52,7 +52,7 @@ pub async fn first_lobby(
     
     if let Some(nick) = req.nick {
         // Update nickname
-        sqlx::query("UPDATE accounts SET nick = ? WHERE account_id = ?")
+        crate::db::query("UPDATE accounts SET nick = $1 WHERE account_id = $2")
             .bind(&nick)
             .bind(session.account_id)
             .execute(&state.db)
@@ -197,7 +197,7 @@ async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: boo
         (None, Vec::new(), Vec::new())
     } else {
         // Legacy API consumers can still request the full account snapshot.
-        let account_row = sqlx::query("SELECT nick FROM accounts WHERE account_id = ?")
+        let account_row = crate::db::query("SELECT nick FROM accounts WHERE account_id = $1")
             .bind(account_id)
             .fetch_optional(&state.db)
             .await?
@@ -206,7 +206,7 @@ async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: boo
         let nick: String = account_row.get("nick");
 
         // Fetch user info
-        let user_info_row = sqlx::query("SELECT * FROM user_info WHERE account_id = ?")
+        let user_info_row = crate::db::query("SELECT * FROM user_info WHERE account_id = $1")
             .bind(account_id)
             .fetch_optional(&state.db)
             .await?;
@@ -240,7 +240,7 @@ async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: boo
         let heroes = crate::api::heroes::snapshot(&mut *state.db.acquire().await?, account_id).await?;
 
         // Fetch items
-        let item_rows = sqlx::query("SELECT * FROM items WHERE account_id = ? AND count > 0")
+        let item_rows = crate::db::query("SELECT * FROM items WHERE account_id = $1 AND count > 0")
             .bind(account_id)
             .fetch_all(&state.db)
             .await?;
@@ -256,24 +256,24 @@ async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: boo
     };
 
     // Count unread mail
-    let mail_count: i32 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM mails WHERE account_id = ? AND is_received = 0"
+    let mail_count: i32 = crate::db::query_scalar(
+        "SELECT COUNT(*) FROM mails WHERE account_id = $1 AND is_received = 0"
     )
     .bind(account_id)
     .fetch_one(&state.reads)
     .await?;
 
     // Count friend requests
-    let friend_request_count: i32 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM friends WHERE friend_account_id = ? AND status = 0"
+    let friend_request_count: i32 = crate::db::query_scalar(
+        "SELECT COUNT(*) FROM friends WHERE friend_account_id = $1 AND status = 'pending'"
     )
     .bind(account_id)
     .fetch_one(&state.reads)
     .await?;
 
     // Fetch campaign progress for dungeon infos
-    let campaign_rows = sqlx::query(
-        "SELECT chapter_id, dungeon_id, clear_count, best_star, completed_time FROM campaign_progress WHERE account_id = ? ORDER BY chapter_id, dungeon_id"
+    let campaign_rows = crate::db::query(
+        "SELECT chapter_id, dungeon_id, clear_count, best_star, completed_time FROM campaign_progress WHERE account_id = $1 ORDER BY chapter_id, dungeon_id"
     )
     .bind(account_id)
     .fetch_all(&state.reads)
@@ -316,7 +316,7 @@ async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: boo
     // For returning users who skip tutorial, user.rs handles pre-populating dungeons.
 
     // Fetch Hero Inn friendly info if exists
-    let friendly_info = sqlx::query("SELECT * FROM hero_friendly_info WHERE account_id = ?")
+    let friendly_info = crate::db::query("SELECT * FROM hero_friendly_info WHERE account_id = $1")
         .bind(account_id)
         .fetch_optional(&state.reads)
         .await?
@@ -426,8 +426,7 @@ mod reset_tests {
 
     #[tokio::test]
     async fn compact_lobby_keeps_native_state_and_skips_legacy_inventory() {
-        let db=sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
-        crate::database::create_tables(&db).await.unwrap();
+        let db=crate::database::test_pool().await;
         let state=AppState::new(db,crate::tables::test_tables());
         let login=crate::api::account::user::test_login(State(state.clone()),axum::body::Bytes::from_static(b"LoginId=compact-lobby")).await.unwrap().0;
         let req=||EnterLobbyRequest{session_id:None,session_key:Some(login.user_info.session_key.clone())};

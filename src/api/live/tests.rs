@@ -1,14 +1,9 @@
 use super::*;
 use crate::models::item::ItemGrant;
-use crate::{api::account::user, database};
+use crate::api::account::user;
 use std::sync::Arc;
 async fn setup() -> (AppState, Value) {
-    let db = sqlx::sqlite::SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect("sqlite::memory:")
-        .await
-        .unwrap();
-    database::create_tables(&db).await.unwrap();
+    let db = crate::database::test_pool().await;
     let s = AppState::new(db, crate::tables::test_tables());
     let u = json!(
         user::test_login(State(s.clone()), Bytes::from("LoginId=live-test"))
@@ -16,7 +11,7 @@ async fn setup() -> (AppState, Value) {
             .unwrap()
             .0
     );
-    sqlx::query("UPDATE user_info SET gold=100000000,gem=100000,friendship_point=10000")
+    crate::db::query("UPDATE user_info SET gold=100000000,gem=100000,friendship_point=10000")
         .execute(&s.db)
         .await
         .unwrap();
@@ -117,7 +112,7 @@ async fn unlimited_shop_repeated_purchases_and_cached_selection_use_current_stoc
         assert_eq!(result["PlayerProductPurchaseInfo"]["PurchasedCount"], expected);
     }
     assert_eq!(balance(&s, &u, "gem").await, before - 15000);
-    let count:i32=sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=93009")
+    let count:i32=crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=93009")
         .bind(a).fetch_one(&s.db).await.unwrap();
     assert_eq!(count, 3);
     let snapshot=shop_snapshot(&s,a).await.unwrap();
@@ -144,7 +139,7 @@ async fn shop_purchases_preserve_current_mission_unlocks() {
     let a = account(&u);
     for progressed in [false, true] {
         if progressed {
-            sqlx::query("INSERT INTO progression_claims(account_id,family,idx,step,period) VALUES(?,'subquest',10110,1,'all')")
+            crate::db::query("INSERT INTO progression_claims(account_id,family,idx,step,period) VALUES($1,'subquest',10110,1,'all')")
                 .bind(a).execute(&s.db).await.unwrap();
         }
         let expected = crate::api::progression::login(&s, a).await.unwrap()["OpendMissionCategories"].clone();
@@ -160,7 +155,7 @@ async fn shop_purchases_preserve_current_mission_unlocks() {
         assert!(!categories.iter().any(|c| n(c, "MainCategoryIndex") >= 98));
     }
     // Failed purchases must not send a replacement list either.
-    sqlx::query("UPDATE user_info SET gem=0 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET gem=0 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
     let rejected = call(&s, &u, "shop/buy_payshop_product", "Index=3093009").await;
     assert_ne!(rejected["Result"], "Success");
     assert!(rejected["OpendMissionCategories"].is_null());
@@ -170,7 +165,7 @@ async fn shop_purchases_preserve_current_mission_unlocks() {
 async fn free_shop_packages_are_once_daily_and_restore_after_reset() {
     let (s, u) = setup().await;
     let a = account(&u);
-    sqlx::query("UPDATE user_info SET gold=0,gem=0,mileage=0 WHERE account_id=?")
+    crate::db::query("UPDATE user_info SET gold=0,gem=0,mileage=0 WHERE account_id=$1")
         .bind(a).execute(&s.db).await.unwrap();
     let catalog = shop_snapshot(&s, a).await.unwrap();
     let products = catalog["PayShopProductInfos"].as_array().unwrap();
@@ -187,7 +182,7 @@ async fn free_shop_packages_are_once_daily_and_restore_after_reset() {
         for expected in 1..=2 {
             if expected == 2 {
                 // Reset only this package's ledger to simulate the next UTC day.
-                sqlx::query("UPDATE extension_state SET data=json_set(data,'$.Period',-1) WHERE account_id=? AND kind='product' AND idx=?")
+                crate::db::query("UPDATE extension_state SET data=sprk_json_set(data,'$.Period',-1) WHERE account_id=$1 AND kind='product' AND idx=$2")
                     .bind(a).bind(id).execute(&s.db).await.unwrap();
                 let refreshed = shop_snapshot(&s, a).await.unwrap();
                 assert_eq!(refreshed["PlayerProductPurchaseInfos"].as_array().unwrap().iter()
@@ -208,7 +203,7 @@ async fn free_shop_packages_are_once_daily_and_restore_after_reset() {
             let persisted = shop_snapshot(&s, a).await.unwrap();
             assert_eq!(persisted["PlayerProductPurchaseInfos"].as_array().unwrap().iter()
                 .find(|p| n(p, "ProductIndex") == id).unwrap()["PurchasedCount"], 1);
-            assert_eq!(sqlx::query_scalar::<_, i64>("SELECT count FROM items WHERE account_id=? AND item_index=?")
+            assert_eq!(crate::db::query_scalar::<i64>("SELECT count FROM items WHERE account_id=$1 AND item_index=$2")
                 .bind(a).bind(item).fetch_one(&s.db).await.unwrap(), expected * amount);
         }
     }
@@ -240,12 +235,12 @@ async fn class_unique_weapon_selector_shop_purchase_costs_2000_and_redeems() {
         assert_eq!(result["EquipItemResults"][0]["ItemIndex"], weapon);
         assert_eq!(result["EquipItemResults"][0]["Star"], 0);
     }
-    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT count FROM items WHERE account_id=? AND item_index=600101")
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT count FROM items WHERE account_id=$1 AND item_index=600101")
         .bind(a).fetch_one(&s.db).await.unwrap(), 0);
-    sqlx::query("UPDATE user_info SET gem=1999,pay_gem=0 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET gem=1999,pay_gem=0 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
     assert_ne!(call(&s, &u, "shop/buy_payshop_product", "Index=3600101").await["Result"], "Success");
     assert_eq!(balance(&s, &u, "gem").await, 1999);
-    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT count FROM items WHERE account_id=? AND item_index=600101")
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT count FROM items WHERE account_id=$1 AND item_index=600101")
         .bind(a).fetch_one(&s.db).await.unwrap(), 0);
 }
 
@@ -273,13 +268,13 @@ async fn special_shop_batches_charge_deliver_and_enforce_stock_atomically() {
     assert_ne!(rejected["Result"], "Success");
     assert_eq!(balance(&s, &u, "gem").await, before - 15000);
     ok(&call(&s, &u, "shop/buy_payshop_product", "Index=3093009&Quantity=2").await);
-    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT count FROM items WHERE account_id=? AND item_index=93009")
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT count FROM items WHERE account_id=$1 AND item_index=93009")
         .bind(a).fetch_one(&s.db).await.unwrap(), 5);
     assert_eq!(balance(&s, &u, "gem").await, before - 25000);
     assert_ne!(call(&s, &u, "shop/buy_payshop_product", "Index=3094170&Quantity=2").await["Result"], "Success");
     assert!(get(&mut s.db.acquire().await.unwrap(), a, "product", 3094170).await.unwrap().is_null());
     // Affordable units are insufficient for this batch: no partial purchase.
-    sqlx::query("UPDATE user_info SET gem=6000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET gem=6000 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
     let other = 3093003;
     assert_ne!(call(&s, &u, "shop/buy_payshop_product", &format!("Index={other}&Quantity=999")).await["Result"], "Success");
     assert_eq!(balance(&s, &u, "gem").await, 6000);
@@ -289,10 +284,10 @@ async fn special_shop_batches_charge_deliver_and_enforce_stock_atomically() {
     let product = rules["Products"].as_array_mut().unwrap().iter_mut().find(|p| n(p, "Index") == 3093009).unwrap();
     product["PurchasableCount"] = json!(0);
     product["ItemInfos"].as_array_mut().unwrap().push(json!({"ItemIndex":-1,"ItemCount":1}));
-    sqlx::query("UPDATE user_info SET gem=100000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET gem=100000 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
     assert_ne!(call(&s, &u, "shop/buy_payshop_product", "Index=3093009&Quantity=2").await["Result"], "Success");
     assert_eq!(balance(&s, &u, "gem").await, 100000);
-    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT count FROM items WHERE account_id=? AND item_index=93009")
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT count FROM items WHERE account_id=$1 AND item_index=93009")
         .bind(a).fetch_one(&s.db).await.unwrap(), 5);
     assert_eq!(get(&mut s.db.acquire().await.unwrap(), a, "product", 3093009).await.unwrap()["PurchasedCount"], 5);
 }
@@ -332,7 +327,7 @@ async fn recovered_shop_purchases_are_atomic_limited_and_restore_after_reset() {
     assert_eq!(v["CurrencyResults"][0]["AddValue"], -5000);
     assert_eq!(v["CurrencyResults"][0]["Value1"], before - 5000);
     assert!(v["firstPurchase"].is_null());
-    let count: i32 = sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=93009")
+    let count: i32 = crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=93009")
         .bind(a).fetch_one(&s.db).await.unwrap();
     assert_eq!(count, 1);
     assert_ne!(call(&s, &u, "shop/buy_payshop_product", "Index=3093009").await["Result"], "Success");
@@ -340,13 +335,13 @@ async fn recovered_shop_purchases_are_atomic_limited_and_restore_after_reset() {
     let snapshot = shop_snapshot(&s, a).await.unwrap();
     assert_eq!(snapshot["PlayerProductPurchaseInfos"].as_array().unwrap().iter()
         .find(|v| v["ProductIndex"] == 3093009).unwrap()["PurchasedCount"], 1);
-    sqlx::query("UPDATE extension_state SET data=json_set(data,'$.Period',-1) WHERE account_id=? AND kind='product' AND idx=3093009")
+    crate::db::query("UPDATE extension_state SET data=sprk_json_set(data,'$.Period',-1) WHERE account_id=$1 AND kind='product' AND idx=3093009")
         .bind(a).execute(&s.db).await.unwrap();
     let snapshot = shop_snapshot(&s, a).await.unwrap();
     assert_eq!(snapshot["PlayerProductPurchaseInfos"].as_array().unwrap().iter()
         .find(|v| v["ProductIndex"] == 3093009).unwrap()["PurchasedCount"], 0);
     ok(&call(&s, &u, "shop/buy_payshop_product", "Index=3093009").await);
-    sqlx::query("UPDATE user_info SET gem=0 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET gem=0 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
     assert_ne!(call(&s, &u, "shop/buy_payshop_product", "Index=3093003").await["Result"], "Success");
     assert!(get(&mut s.db.acquire().await.unwrap(), a, "product", 3093003).await.unwrap().is_null());
     let before_gold = balance(&s, &u, "gold").await;
@@ -358,10 +353,10 @@ async fn recovered_shop_purchases_are_atomic_limited_and_restore_after_reset() {
     assert_eq!(balance(&s, &u, "gem").await, 0);
 }
 async fn seed(s: &AppState, u: &Value, id: i32, count: i32) {
-    sqlx::query("INSERT INTO items(account_id,item_index,count) VALUES(?,?,?) ON CONFLICT(account_id,item_index) DO UPDATE SET count=count+excluded.count").bind(account(u)).bind(id).bind(count).execute(&s.db).await.unwrap();
+    crate::db::query("INSERT INTO items(account_id,item_index,count) VALUES($1,$2,$3) ON CONFLICT(account_id,item_index) DO UPDATE SET count=items.count+excluded.count").bind(account(u)).bind(id).bind(count).execute(&s.db).await.unwrap();
 }
 async fn balance(s: &AppState, u: &Value, col: &str) -> i64 {
-    sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT {col} FROM user_info WHERE account_id=?")))
+    crate::db::query_scalar(sqlx::AssertSqlSafe(format!("SELECT {col} FROM user_info WHERE account_id=$1")))
         .bind(account(u))
         .fetch_one(&s.db)
         .await
@@ -508,7 +503,7 @@ async fn daily_single_summon_resets_at_midnight_for_every_class_and_shares_one_a
 #[tokio::test]
 async fn line_pet_summons_are_permanent_and_charge_double_normal_rubies() {
     let (s, u) = setup().await; let a = account(&u);
-    sqlx::query("UPDATE user_info SET pay_gem=0 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET pay_gem=0 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
     for id in [26, 27, 29, 30] {
         let data = s.tables.live.find("NewEquipGacha", &[("Index", id)]).unwrap();
         let normal = s.tables.live.find("NewEquipGacha", &[("Index", if id==26 || id==27 {25} else {28})]).unwrap();
@@ -524,7 +519,7 @@ async fn line_pet_summons_are_permanent_and_charge_double_normal_rubies() {
         assert_eq!(balance(&s,&u,"gem").await, before-expected);
         assert_eq!(result["GachaItemResults"].as_array().unwrap().len(), if id==26 || id==27 {11} else {1});
     }
-    sqlx::query("UPDATE user_info SET gem=499 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET gem=499 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
     for id in [26,27,29,30] {
         let before = snapshot(&s,a).await.unwrap();
         let counter = get(&mut s.db.acquire().await.unwrap(),a,"summon",id).await.unwrap();
@@ -633,7 +628,7 @@ async fn incubation_checks_time_identity_and_replay() {
         .await["Result"],
         "Success"
     );
-    sqlx::query("UPDATE extension_state SET data=json_set(data,'$.CompletedTime','2000-01-01 00:00:00') WHERE kind='pet_slot'").execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE extension_state SET data=sprk_json_set(data,'$.CompletedTime','2000-01-01 00:00:00') WHERE kind='pet_slot'").execute(&s.db).await.unwrap();
     let v = call(
         &s,
         &u,
@@ -643,7 +638,7 @@ async fn incubation_checks_time_identity_and_replay() {
     .await;
     ok(&v);
     assert_eq!(v["PetAddResultInfos"].as_array().unwrap().len(), 1);
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT SUM(value) FROM progression_metrics WHERE account_id=? AND kind='UsePetIncubator'")
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT SUM(value)::bigint FROM progression_metrics WHERE account_id=$1 AND kind='UsePetIncubator'")
         .bind(account(&u)).fetch_one(&s.db).await.unwrap(),1);
     assert_ne!(
         call(
@@ -751,7 +746,7 @@ async fn event_contributions_rewards_and_craft_rollback() {
         "Success"
     );
     let left: i64 =
-        sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=?")
+        crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=$2")
             .bind(account(&u))
             .bind(material)
             .fetch_one(&s.db)
@@ -1037,15 +1032,15 @@ async fn pickup_summons_accept_native_repeated_hero_fields_and_charge_once() {
 #[tokio::test]
 async fn pickup_summons_reject_invalid_selections_without_spending_or_awarding() {
     let (s,u)=setup().await;let a=account(&u);
-    let before:(i64,i64,i64)=sqlx::query_as("SELECT gold,gem,mileage FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
-    let items:Vec<(i64,i64)>=sqlx::query_as("SELECT item_index,count FROM items WHERE account_id=? ORDER BY item_index").bind(a).fetch_all(&s.db).await.unwrap();
-    let gear:i64=sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    let before:(i64,i64,i64)=crate::db::query_as("SELECT gold,gem,mileage FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap();
+    let items:Vec<(i64,i64)>=crate::db::query_as("SELECT item_index,count FROM items WHERE account_id=$1 ORDER BY item_index").bind(a).fetch_all(&s.db).await.unwrap();
+    let gear:i64=crate::db::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap();
     for id in [18,5] {
         for heroes in ["HeroIndices=1&HeroIndices=2&HeroIndices=3","HeroIndices=1&HeroIndices=1&HeroIndices=3&HeroIndices=4","HeroIndices=1&HeroIndices=2&HeroIndices=3&HeroIndices=999999","HeroIndices=1&HeroIndices=2&HeroIndices=3&HeroIndices=-4"] {
             assert_ne!(call(&s,&u,"equip_gacha/exec_equip_gacha",&format!("GachaIndex={id}&{heroes}")).await["Result"],"Success");
-            assert_eq!(sqlx::query_as::<_,(i64,i64,i64)>("SELECT gold,gem,mileage FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),before);
-            assert_eq!(sqlx::query_as::<_,(i64,i64)>("SELECT item_index,count FROM items WHERE account_id=? ORDER BY item_index").bind(a).fetch_all(&s.db).await.unwrap(),items);
-            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM equip_items WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),gear);
+            assert_eq!(crate::db::query_as::<(i64,i64,i64)>("SELECT gold,gem,mileage FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap(),before);
+            assert_eq!(crate::db::query_as::<(i64,i64)>("SELECT item_index,count FROM items WHERE account_id=$1 ORDER BY item_index").bind(a).fetch_all(&s.db).await.unwrap(),items);
+            assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM equip_items WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap(),gear);
             assert!(get(&mut s.db.acquire().await.unwrap(),a,"summon",id).await.unwrap().is_null());
         }
     }
@@ -1178,7 +1173,7 @@ async fn concurrent_purchase_limit_and_capacity_failure_do_not_spend() {
         1
     );
     let before = balance(&s, &u, "gold").await;
-    sqlx::query("WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<300) INSERT INTO equip_items(account_id,item_index,created_time) SELECT ?,1001,datetime('now') FROM n").bind(account(&u)).execute(&s.db).await.unwrap();
+    crate::db::query("WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<300) INSERT INTO equip_items(account_id,item_index,created_time) SELECT $1,1001,sprk_datetime('now') FROM n").bind(account(&u)).execute(&s.db).await.unwrap();
     assert_ne!(
         call(&s, &u, "shop/buy_payshop_product", "Index=920003").await["Result"],
         "Success"
@@ -1303,10 +1298,10 @@ async fn all_roster_costume_light_ticket_shop_charges_5000_and_delivers_one_tick
     let product=s.tables.live.rules["Products"].as_array().unwrap().iter().find(|p|p["Index"]==3600100).unwrap();
     assert_eq!(product["Price"],5000);assert_eq!(product["PurchasableCount"],0);
     assert_eq!(product["IconPath"],"Icon/Item/COSTUME_SELECT_ITEM_97_LIGHT_BALANCE_210427");
-    sqlx::query("UPDATE user_info SET gem=10000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET gem=10000 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
     let out=call(&s,&u,"shop/buy_payshop_product","Index=3600100&Quantity=2&Price=0").await;
     ok(&out);assert_eq!(balance(&s,&u,"gem").await,0);
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count FROM items WHERE account_id=? AND item_index=600100").bind(a).fetch_one(&s.db).await.unwrap(),2);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT count FROM items WHERE account_id=$1 AND item_index=600100").bind(a).fetch_one(&s.db).await.unwrap(),2);
     assert_ne!(call(&s,&u,"shop/buy_payshop_product","Index=3600100").await["Result"],"Success");
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count FROM items WHERE account_id=? AND item_index=600100").bind(a).fetch_one(&s.db).await.unwrap(),2);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT count FROM items WHERE account_id=$1 AND item_index=600100").bind(a).fetch_one(&s.db).await.unwrap(),2);
 }

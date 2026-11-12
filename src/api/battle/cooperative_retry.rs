@@ -55,7 +55,7 @@ pub(super) fn nick(run: &Run, a: i64) -> String {
 /// Players who must agree: participants still in the room and the battle.
 /// Players who exited to the party room are neither asked nor restarted.
 async fn electorate(s: &AppState, run: &Run) -> Result<Vec<i64>> {
-    let room: Vec<i64> = sqlx::query_scalar("SELECT account FROM battle_room_members WHERE room=? ORDER BY joined,account")
+    let room: Vec<i64> = crate::db::query_scalar("SELECT account FROM battle_room_members WHERE room=$1 ORDER BY joined,account")
         .bind(run.room).fetch_all(&s.db).await?;
     Ok(room.into_iter().filter(|a| run.members.contains(a) && !run.cancelled.contains(a) && !run.departed.contains(a)).collect())
 }
@@ -155,26 +155,26 @@ async fn finish(s: &AppState, run: &mut Run) -> Result<bool> {
 /// Returns the native `PartyBattleStart` body every client follows.
 async fn restart(s: &AppState, run: &Run, voters: &BTreeSet<i64>) -> Result<Value> {
     if !voters.contains(&run.master) { return Err(rule("WrongMember")); }
-    let mut db = s.db.begin().await?;
-    let raw: Option<String> = sqlx::query_scalar("SELECT data FROM battle_rooms WHERE id=?")
+    let mut db = crate::database::begin(&s.db).await?;
+    let raw: Option<String> = crate::db::query_scalar("SELECT data FROM battle_rooms WHERE id=$1 FOR UPDATE")
         .bind(run.room).fetch_optional(&mut *db).await?;
     let mut room: Value = read_json(&raw.ok_or_else(|| rule("RoomNotExist"))?)?;
     if room["CoopRunId"] != json!(run.id) || n(&room, "MasterAccountId") != run.master {
         return Err(rule("WrongMember"));
     }
     for a in &run.members {
-        let raw: Option<String> = sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=? AND completed=0 AND json_extract(entry,'$.CoopRunId')=?")
+        let raw: Option<String> = crate::db::query_scalar("SELECT entry FROM battle_runs WHERE account=$1 AND completed=0 AND sprk_json_text(entry,'$.CoopRunId')=$2")
             .bind(a).bind(&run.id).fetch_optional(&mut *db).await?;
         let Some(raw) = raw else { continue; };
         let mut entry: Value = read_json(&raw)?;
         // A retry is a defeat for cost purposes: victory-only holds are released.
         super::super::entry_costs::settle(&mut db, s, *a, &mut entry, false, &mut json!({})).await?;
-        sqlx::query("UPDATE battle_runs SET completed=1,entry=json_set(entry,'$.CoopCancelled',json('true'),'$.CoopRetried',json('true')) WHERE account=?")
+        crate::db::query("UPDATE battle_runs SET completed=1,entry=sprk_json_set(sprk_json_set(entry,'$.CoopCancelled',('true')::jsonb),'$.CoopRetried',('true')::jsonb) WHERE account=$1")
             .bind(a).execute(&mut *db).await?;
     }
     room["Status"] = json!(0);
     room.as_object_mut().unwrap().remove("CoopRunId");
-    sqlx::query("UPDATE battle_rooms SET data=?,updated=? WHERE id=?")
+    crate::db::query("UPDATE battle_rooms SET data=$1,updated=$2 WHERE id=$3")
         .bind(room.to_string()).bind(now()).bind(run.room).execute(&mut *db).await?;
     for member in voters.iter().filter(|a| **a != run.master) {
         // Every remaining player voted Yes, which is their readiness.
@@ -186,7 +186,7 @@ async fn restart(s: &AppState, run: &Run, voters: &BTreeSet<i64>) -> Result<Valu
     fields.insert("MultiplayMemberIds".into(), json!(voters).to_string());
     let request = Request(fields);
     super::party::begin_party_for(&mut db, s, run.master, &request, Some(voters)).await?;
-    let raw: String = sqlx::query_scalar("SELECT data FROM battle_rooms WHERE id=?")
+    let raw: String = crate::db::query_scalar("SELECT data FROM battle_rooms WHERE id=$1 FOR UPDATE")
         .bind(run.room).fetch_one(&mut *db).await?;
     let mut room: Value = read_json(&raw)?;
     room["RoomNo"] = json!(run.room);

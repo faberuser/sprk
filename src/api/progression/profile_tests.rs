@@ -1,15 +1,14 @@
 //! Opt-in profiling against a real database copy:
-//! SPRK_PROFILE_DB=<copy.db> SPRK_PROFILE_ACCOUNT=<id> cargo test --release profile_snapshot -- --ignored --nocapture
+//! SPRK_PROFILE_DATABASE_URL=<copy url> SPRK_PROFILE_ACCOUNT=<id> cargo test --release profile_snapshot -- --ignored --nocapture
 use super::*;
 use std::time::Instant;
 
 #[tokio::test]
 #[ignore]
 async fn profile_snapshot() {
-    let Ok(path) = std::env::var("SPRK_PROFILE_DB") else { return; };
+    let Ok(path) = std::env::var("SPRK_PROFILE_DATABASE_URL") else { return; };
     let account: i64 = std::env::var("SPRK_PROFILE_ACCOUNT").ok().and_then(|v| v.parse().ok()).unwrap_or(1);
-    let db = crate::database::open_pool(std::path::Path::new(&path)).await.unwrap();
-    crate::database::create_tables(&db).await.unwrap();
+    let db = crate::postgres::connect_read(&path).await.unwrap();
     let tables = crate::tables::GameTables::load(std::path::Path::new("tables")).unwrap();
     let state = AppState::new(db, tables);
     let mut conn = state.db.acquire().await.unwrap();
@@ -55,13 +54,12 @@ fn field_sizes(label: &str, value: &Value) {
 #[tokio::test]
 #[ignore]
 async fn profile_login_payloads() {
-    let Ok(path) = std::env::var("SPRK_PROFILE_DB") else { return; };
+    let Ok(path) = std::env::var("SPRK_PROFILE_DATABASE_URL") else { return; };
     let account: i64 = std::env::var("SPRK_PROFILE_ACCOUNT").ok().and_then(|v| v.parse().ok()).unwrap_or(1);
-    let db = crate::database::open_pool(std::path::Path::new(&path)).await.unwrap();
-    crate::database::create_tables(&db).await.unwrap();
+    let db = crate::postgres::connect_read(&path).await.unwrap();
     let tables = crate::tables::GameTables::load(std::path::Path::new("tables")).unwrap();
     let state = AppState::new(db, tables);
-    let login_id: String = sqlx::query_scalar("SELECT login_id FROM accounts WHERE account_id=?").bind(account).fetch_one(&state.db).await.unwrap();
+    let login_id: String = crate::db::query_scalar("SELECT login_id FROM accounts WHERE account_id=$1").bind(account).fetch_one(&state.db).await.unwrap();
     let t = Instant::now();
     let login = crate::api::account::user::test_login(axum::extract::State(state.clone()), axum::body::Bytes::from(format!("LoginId={login_id}"))).await.unwrap().0;
     println!("login handler {:?}", t.elapsed());
@@ -94,10 +92,9 @@ async fn profile_login_payloads() {
 #[tokio::test]
 #[ignore]
 async fn profile_lobby_parts() {
-    let Ok(path) = std::env::var("SPRK_PROFILE_DB") else { return; };
+    let Ok(path) = std::env::var("SPRK_PROFILE_DATABASE_URL") else { return; };
     let account: i64 = std::env::var("SPRK_PROFILE_ACCOUNT").ok().and_then(|v| v.parse().ok()).unwrap_or(1);
-    let db = crate::database::open_pool(std::path::Path::new(&path)).await.unwrap();
-    crate::database::create_tables(&db).await.unwrap();
+    let db = crate::postgres::connect_read(&path).await.unwrap();
     let tables = crate::tables::GameTables::load(std::path::Path::new("tables")).unwrap();
     let state = AppState::new(db, tables);
     for round in 0..3 {

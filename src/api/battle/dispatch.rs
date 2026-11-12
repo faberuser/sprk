@@ -28,7 +28,7 @@ fn dispatch_raid<'a>(s: &'a AppState, d: &Value) -> Result<Option<&'a Value>> {
     Ok(Some(raid))
 }
 pub(super) async fn ensure_available(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     a: i64,
     party: &[i64],
     except: Option<i64>,
@@ -106,7 +106,7 @@ fn advance(info: &mut Value, stamp: i64) {
         "Battle"
     });
 }
-async fn simulation_result(db: &mut SqliteConnection, a: i64, r: &Request) -> Result<Value> {
+async fn simulation_result(db: &mut PgConnection, a: i64, r: &Request) -> Result<Value> {
     let slot = int(r, "SlotIndex")?;
     let mut info = get(db, a, "dispatch", slot).await?;
     if n(&info, "SimulationVersion") != 1
@@ -169,7 +169,7 @@ async fn simulation_result(db: &mut SqliteConnection, a: i64, r: &Request) -> Re
     put(db, a, "dispatch", slot, &info).await?;
     Ok(json!({"DispatchInfo":info}))
 }
-pub(super) async fn snapshot(db: &mut SqliteConnection, a: i64) -> Result<Vec<Value>> {
+pub(super) async fn snapshot(db: &mut PgConnection, a: i64) -> Result<Vec<Value>> {
     let mut runs = list(db, a, "dispatch").await?;
     // Native clients reserve every hero present in this snapshot, regardless of
     // state. Keep terminal records in storage for duplicate-request protection.
@@ -189,7 +189,7 @@ pub(super) async fn snapshot(db: &mut SqliteConnection, a: i64) -> Result<Vec<Va
     Ok(runs)
 }
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -236,8 +236,8 @@ pub(super) async fn execute(
         if n(d,"DispatchDeckCount") > 0 && party.len() as i64 > n(d,"DispatchDeckCount") {
             return Err(rule("NotMatchHeroIndices"));
         }
-        let active: Option<String> = sqlx::query_scalar(
-            "SELECT entry FROM battle_runs WHERE account=? AND completed=0 AND started>=?",
+        let active: Option<String> = crate::db::query_scalar(
+            "SELECT entry FROM battle_runs WHERE account=$1 AND completed=0 AND started>=$2",
         )
         .bind(a)
         .bind(now() - settings(s, "BattleExpirySeconds", 14400))
@@ -288,7 +288,7 @@ pub(super) async fn execute(
             let result =
                 entry_costs::charge(db, s, a, &mut receipt, n(d, "ReqStaminaType"), cost).await?;
             // Offline jobs keep their budget until collection or cancellation.
-            sqlx::query("UPDATE battle_entry_holds SET expires=? WHERE account=? AND owner=?")
+            crate::db::query("UPDATE battle_entry_holds SET expires=$1 WHERE account=$2 AND owner=$3")
                 .bind(i64::MAX)
                 .bind(a)
                 .bind(receipt["EntryCostReservation"].as_str().unwrap())
@@ -344,7 +344,7 @@ pub(super) async fn execute(
     let req = request(&info);
     let heroes: Vec<i64> = read_json(info["HeroIndices"].as_str().unwrap_or("[]"))?;
     let mut out = if wins > 0 {
-        campaign::complete(db, s, a, &req, &heroes, 3, wins).await?
+        campaign::complete_dispatch(db, s, a, &req, &heroes, 3, wins).await?
     } else {
         item::success()
     };
@@ -376,8 +376,8 @@ pub(super) async fn execute(
         let refund = n(&info, "Cost") / total * (total - wins);
         let kind = n(&info, "CostType");
         if kind == 1 {
-            let value: i64 = sqlx::query_scalar(
-                "UPDATE user_info SET stamina=stamina+? WHERE account_id=? RETURNING stamina",
+            let value: i64 = crate::db::query_scalar(
+                "UPDATE user_info SET stamina=stamina+$1 WHERE account_id=$2 RETURNING stamina",
             )
             .bind(refund)
             .bind(a)
@@ -413,7 +413,7 @@ pub(super) async fn execute(
     Ok(out)
 }
 pub(super) async fn sweep(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -501,7 +501,7 @@ pub(super) async fn sweep(
 // The native tower window submits the next floor, including when the popup
 // displays repeats of the historical best. After a reset it advances to that
 // best floor before repeating. A skip must never establish a new best clear.
-async fn sweep_stages(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request,count:i64,diff:i64)->Result<Vec<Request>> {
+async fn sweep_stages(db:&mut PgConnection,s:&AppState,a:i64,r:&Request,count:i64,diff:i64)->Result<Vec<Request>> {
     let dungeon=campaign::dungeon(s,r)?;
     let Some(floor)=dungeons::floor(s,r) else {
         let progress=campaign::progress(db,s,a,n(dungeon,"ChapterIndex"),n(dungeon,"DungeonIndex")).await?;
@@ -544,9 +544,9 @@ async fn sweep_stages(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request,coun
 }
 
 // Freeze the roster and combat buffs before the player disconnects or changes gear.
-pub(super) async fn simulation_snapshot(db: &mut SqliteConnection, s: &AppState, a: i64, info: &Value) -> Result<Value> {
+pub(super) async fn simulation_snapshot(db: &mut PgConnection, s: &AppState, a: i64, info: &Value) -> Result<Value> {
     let mut account = crate::api::community::conquest::combat_buffs(db, s, a).await?;
-    let user = sqlx::query("SELECT a.nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=?")
+    let user = crate::db::query("SELECT a.nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=$1")
         .bind(a).fetch_one(&mut *db).await?;
     account["UserInfo"] = json!({"AccountId":a,"Nick":user.get::<String,_>("nick"),"TeamLevel":user.get::<i64,_>("team_level"),"AvatarHeroIndex":user.get::<i64,_>("avatar_hero_index")});
     let heroes: Vec<i64> = read_json(info["HeroIndices"].as_str().unwrap_or("[]"))?;

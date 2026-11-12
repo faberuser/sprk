@@ -4,13 +4,11 @@ use crate::models::item::ItemGrant;
 use axum::{body::Bytes, extract::{OriginalUri, State}};
 
 async fn setup() -> (AppState, user::LoginResponse) {
-    let db = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1)
-        .connect("sqlite::memory:").await.unwrap();
-    crate::database::create_tables(&db).await.unwrap();
+    let db = crate::database::test_pool().await;
     let s = AppState::new(db, crate::tables::test_tables());
     let u = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=episode-test"))
         .await.unwrap().0;
-    sqlx::query("UPDATE user_info SET gold=100000000,gem=100000,stamina=1000000")
+    crate::db::query("UPDATE user_info SET gold=100000000,gem=100000,stamina=1000000")
         .execute(&s.db).await.unwrap();
     (s,u)
 }
@@ -31,7 +29,7 @@ async fn give(s: &AppState, a: i64, index: i32, count: i32) {
 #[tokio::test]
 async fn episodes_native_gifts_claim_original_rewards_and_persist_on_login() {
     let (s,u)=setup().await;let a=u.user_info.account_id;
-    let initial_heroes:i64=sqlx::query_scalar("SELECT COUNT(*) FROM heroes WHERE account_id=?")
+    let initial_heroes:i64=crate::db::query_scalar("SELECT COUNT(*) FROM heroes WHERE account_id=$1")
         .bind(a).fetch_one(&s.db).await.unwrap();
     for (npc,gift) in [(827,47021),(831,47022),(835,47023),(837,47024),(838,47031),(839,47032),(80,47033)] {
         let rows:Vec<_>=s.tables.extensions.rows("NPCFriendlyPoint").iter()
@@ -62,14 +60,14 @@ async fn episodes_native_gifts_claim_original_rewards_and_persist_on_login() {
         let r=call(&s,&u,"recv_reward_friendly_point",&format!("HeroIndex={npc}&Step={max}")).await;
         assert_eq!(r["Result"],"Success","{r}");
         assert_eq!(r["FriendlyInfo"]["EndRewardCount"],1);
-        let stock:i64=sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=?")
+        let stock:i64=crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=$2")
             .bind(a).bind(gift).fetch_one(&s.db).await.unwrap();
         assert_ne!(call(&s,&u,"give_gift_item",&format!("HeroIndex={npc}&ItemIndices={gift}&ItemCount=50")).await["Result"],"Success");
         assert_ne!(call(&s,&u,"recv_reward_friendly_point",&format!("HeroIndex={npc}&Step={max}")).await["Result"],"Success");
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count FROM items WHERE account_id=? AND item_index=?")
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT count FROM items WHERE account_id=$1 AND item_index=$2")
             .bind(a).bind(gift).fetch_one(&s.db).await.unwrap(),stock);
     }
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM heroes WHERE account_id=?")
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM heroes WHERE account_id=$1")
         .bind(a).fetch_one(&s.db).await.unwrap(),initial_heroes+3);
     let login=user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=episode-test")).await.unwrap().0;
     for e in EPISODES {
@@ -103,10 +101,10 @@ async fn episodes_wrong_gifts_and_malformed_native_arrays_are_atomic() {
         "HeroIndex=835&ItemIndices=47023&ItemCount=1&ItemCount=2"] {
         assert_ne!(call(&s,&u,"give_gift_item",args).await["Result"],"Success");
         for item in [47023,47031] {
-            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count FROM items WHERE account_id=? AND item_index=?")
+            assert_eq!(crate::db::query_scalar::<i64>("SELECT count FROM items WHERE account_id=$1 AND item_index=$2")
                 .bind(a).bind(item).fetch_one(&s.db).await.unwrap(),2000);
         }
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM extension_state WHERE account_id=? AND kind='npc'")
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM extension_state WHERE account_id=$1 AND kind='npc'")
             .bind(a).fetch_one(&s.db).await.unwrap(),0);
     }
 }
@@ -119,14 +117,14 @@ async fn episodes_battle_gates_use_real_clears_and_can_be_disabled() {
         require_battle(&mut db,&s,a,e.chapter,1,0).await.unwrap();
         assert!(require_battle(&mut db,&s,a,e.chapter,2,0).await.is_err());
         for (c,d) in [e.gate,(e.chapter,1)] {
-            sqlx::query("INSERT OR REPLACE INTO battle_state(account,kind,idx,data) VALUES(?,'dungeon',?,?)")
+            crate::db::query("INSERT INTO battle_state(account,kind,idx,data) VALUES($1,'dungeon',$2,$3) ON CONFLICT(account,kind,idx) DO UPDATE SET data=excluded.data")
                 .bind(a).bind((c<<32)|d).bind(json!({"MaxStar":3,"CompletedTime":"2026-01-01 00:00:00","FirstRewardedDiff":1}).to_string())
                 .execute(&mut *db).await.unwrap();
         }
         require_battle(&mut db,&s,a,e.chapter,2,0).await.unwrap();
         assert!(require_battle(&mut db,&s,a,e.chapter,3,0).await.is_err());
         assert!(require_battle(&mut db,&s,a,e.chapter,1,1).await.is_err());
-        sqlx::query("UPDATE battle_state SET data=json_set(data,'$.MaxStar',0,'$.CompletedTime',NULL) WHERE account=? AND kind='dungeon' AND idx=?")
+        crate::db::query("UPDATE battle_state SET data=sprk_json_set(sprk_json_set(data,'$.MaxStar',0),'$.CompletedTime',NULL) WHERE account=$1 AND kind='dungeon' AND idx=$2")
             .bind(a).bind((e.gate.0<<32)|e.gate.1).execute(&mut *db).await.unwrap();
         assert!(require_battle(&mut db,&s,a,e.chapter,2,0).await.is_err());
     }
@@ -141,7 +139,7 @@ async fn battle(s: &AppState,u: &user::LoginResponse,action: &str,args: &str) ->
 }
 
 async fn clear(s: &AppState,a: i64,c: i64,d: i64) {
-    sqlx::query("INSERT OR REPLACE INTO battle_state(account,kind,idx,data) VALUES(?,'dungeon',?,?)")
+    crate::db::query("INSERT INTO battle_state(account,kind,idx,data) VALUES($1,'dungeon',$2,$3) ON CONFLICT(account,kind,idx) DO UPDATE SET data=excluded.data")
         .bind(a).bind((c<<32)|d).bind(json!({"ChapterIndex":c,"DungeonIndex":d,"MaxStar":3,
             "FirstRewardedDiff":1,"CompletedTime":"2026-01-01 00:00:00"}).to_string())
         .execute(&s.db).await.unwrap();
@@ -152,30 +150,30 @@ async fn episodes_battles_charge_stamina_award_tokens_once_and_allow_farming() {
     let (s,u)=setup().await;let a=u.user_info.account_id;
     let entry="ChapterIndex=30036&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=[84,85]";
     let end="ChapterIndex=30036&DungeonIndex=1&DungeonDifficulty=0&Completed=true&Star=3&AliveHeroIndices=[84,85]";
-    let before:i64=sqlx::query_scalar("SELECT stamina FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    let before:i64=crate::db::query_scalar("SELECT stamina FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap();
     assert_eq!(battle(&s,&u,"begin_campaign",entry).await["Result"],"Success");
-    sqlx::query("UPDATE battle_runs SET started=? WHERE account=?").bind(chrono::Utc::now().timestamp()-60).bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE battle_runs SET started=$1 WHERE account=$2").bind(chrono::Utc::now().timestamp()-60).bind(a).execute(&s.db).await.unwrap();
     let r=battle(&s,&u,"end_campaign",end).await;
     assert_eq!(r["Result"],"Success","{r}");
     assert_eq!(r["ItemResults"][0]["ItemIndex"],47023);assert_eq!(r["ItemResults"][0]["AddCount"],50);
     assert_eq!(battle(&s,&u,"end_campaign",end).await,r);
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count FROM items WHERE account_id=? AND item_index=47023").bind(a).fetch_one(&s.db).await.unwrap(),50);
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT stamina FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),before-100);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT count FROM items WHERE account_id=$1 AND item_index=47023").bind(a).fetch_one(&s.db).await.unwrap(),50);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT stamina FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap(),before-100);
     let locked=battle(&s,&u,"begin_campaign","ChapterIndex=30036&DungeonIndex=2&DungeonDifficulty=0&HeroIndices=[84,85]").await;
     assert_ne!(locked["Result"],"Success");
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT stamina FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),before-100);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT stamina FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap(),before-100);
     clear(&s,a,97,2).await;
     clear(&s,a,30036,11).await;
     for win in [false,true,true] {
         let entry="ChapterIndex=30036&DungeonIndex=12&DungeonDifficulty=0&HeroIndices=[1]";
         assert_eq!(battle(&s,&u,"begin_campaign",entry).await["Result"],"Success");
-        sqlx::query("UPDATE battle_runs SET started=? WHERE account=?").bind(chrono::Utc::now().timestamp()-60).bind(a).execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE battle_runs SET started=$1 WHERE account=$2").bind(chrono::Utc::now().timestamp()-60).bind(a).execute(&s.db).await.unwrap();
         let r=battle(&s,&u,"end_campaign",&format!("ChapterIndex=30036&DungeonIndex=12&DungeonDifficulty=0&Completed={win}&Star={}&AliveHeroIndices=[1]",if win {3}else{0})).await;
         assert_eq!(r["Result"],"Success","{r}");
         if win {assert_eq!(r["ItemResults"][0]["AddCount"],1000);}
         else {assert!(r["ItemResults"].as_array().is_none_or(|v|v.is_empty()));}
     }
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count FROM items WHERE account_id=? AND item_index=47023").bind(a).fetch_one(&s.db).await.unwrap(),2050);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT count FROM items WHERE account_id=$1 AND item_index=47023").bind(a).fetch_one(&s.db).await.unwrap(),2050);
 }
 
 #[tokio::test]
@@ -185,12 +183,12 @@ async fn rebel_clause_special_three_accepts_archived_loaned_party_and_preserves_
     clear(&s,a,30039,12).await;
     // Archive: stage 13 borrows group 2 at level 60, requires Gau (5), and
     // allows up to four heroes. The other choices need not be owned.
-    let before:Vec<(i64,i64,i64)>=sqlx::query_as("SELECT hero_index,level,exp FROM heroes WHERE account_id=? ORDER BY hero_index")
+    let before:Vec<(i64,i64,i64)>=crate::db::query_as("SELECT hero_index,level,exp FROM heroes WHERE account_id=$1 ORDER BY hero_index")
         .bind(a).fetch_all(&s.db).await.unwrap();
     let borrowed=[5,6,83,85];
-    sqlx::query("DELETE FROM heroes WHERE account_id=? AND hero_index IN (5,6,83,85)")
+    crate::db::query("DELETE FROM heroes WHERE account_id=$1 AND hero_index IN (5,6,83,85)")
         .bind(a).execute(&s.db).await.unwrap();
-    let original:Vec<(i64,i64,i64)>=sqlx::query_as("SELECT hero_index,level,exp FROM heroes WHERE account_id=? ORDER BY hero_index")
+    let original:Vec<(i64,i64,i64)>=crate::db::query_as("SELECT hero_index,level,exp FROM heroes WHERE account_id=$1 ORDER BY hero_index")
         .bind(a).fetch_all(&s.db).await.unwrap();
     assert!(original.len()<=before.len());
     for heroes in ["[6,83,85]","[5,6,83,85,1]","[5,2147483647]"] {
@@ -200,19 +198,19 @@ async fn rebel_clause_special_three_accepts_archived_loaned_party_and_preserves_
     let entry=format!("ChapterIndex=30039&DungeonIndex=13&DungeonDifficulty=0&HeroIndices={}",json!(borrowed));
     let started=battle(&s,&u,"begin_campaign",&entry).await;
     assert_eq!(started["Result"],"Success","{started}");
-    let saved:String=sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=?")
+    let saved:String=crate::db::query_scalar("SELECT entry FROM battle_runs WHERE account=$1")
         .bind(a).fetch_one(&s.db).await.unwrap();
     let saved:Value=serde_json::from_str(&saved).unwrap();
     assert_eq!(saved["LoanedHeroIndices"],json!(borrowed));
     assert_eq!(saved["DeckSnapshot"],json!([]));
-    sqlx::query("UPDATE battle_runs SET started=? WHERE account=?")
+    crate::db::query("UPDATE battle_runs SET started=$1 WHERE account=$2")
         .bind(chrono::Utc::now().timestamp()-60).bind(a).execute(&s.db).await.unwrap();
     let args=format!("ChapterIndex=30039&DungeonIndex=13&DungeonDifficulty=0&Completed=true&Star=3&AliveHeroIndices={}",json!(borrowed));
     let done=battle(&s,&u,"end_campaign",&args).await;
     assert_eq!(done["Result"],"Success","{done}");
     assert_eq!(done["HeroExpResults"],json!([]));
     assert!(done["ItemResults"].as_array().unwrap().iter().any(|v|v["ItemIndex"]==47031 && v["AddCount"]==50));
-    assert_eq!(sqlx::query_as::<_,(i64,i64,i64)>("SELECT hero_index,level,exp FROM heroes WHERE account_id=? ORDER BY hero_index")
+    assert_eq!(crate::db::query_as::<(i64,i64,i64)>("SELECT hero_index,level,exp FROM heroes WHERE account_id=$1 ORDER BY hero_index")
         .bind(a).fetch_all(&s.db).await.unwrap(),original);
     assert_eq!(battle(&s,&u,"end_campaign",&args).await,done);
 }
@@ -225,6 +223,6 @@ async fn episodes_concurrent_milestone_claims_grant_one_reward() {
         call(&s,&u,"recv_reward_friendly_point","HeroIndex=835&Step=1"),
         call(&s,&u,"recv_reward_friendly_point","HeroIndex=835&Step=1"));
     assert_eq!([first,second].iter().filter(|r|r["Result"]=="Success").count(),1);
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT json_extract(data,'$.Step') FROM extension_state WHERE account_id=? AND kind='npc' AND idx=835")
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT sprk_json_int(data,'$.Step') FROM extension_state WHERE account_id=$1 AND kind='npc' AND idx=835")
         .bind(a).fetch_one(&s.db).await.unwrap(),2);
 }

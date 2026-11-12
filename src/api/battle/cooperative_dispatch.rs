@@ -44,7 +44,7 @@ impl Scheduler {
 
     /// Start a task for each pending job that does not already have one.
     async fn scan(&self, s: &AppState) -> Result<()> {
-        let jobs: Vec<(i64,i64)> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT account,idx FROM battle_state WHERE {} ORDER BY account,idx", crate::api::battle::PENDING_DISPATCH_SIMULATION)))
+        let jobs: Vec<(i64,i64)> = crate::db::query_as(sqlx::AssertSqlSafe(format!("SELECT account,idx FROM battle_state WHERE {} ORDER BY account,idx", crate::api::battle::PENDING_DISPATCH_SIMULATION)))
             .fetch_all(&s.db).await?;
         for job in jobs {
             if !self.active.lock().unwrap_or_else(|e| e.into_inner()).insert(job) {
@@ -93,11 +93,8 @@ async fn prepare(s: &AppState, a: i64, slot: i64) -> Result<bool> {
         };
         (w.id.clone(), w.sender.clone())
     };
-    let mut tx = s.db.begin().await?;
-    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?")
-        .bind(a)
-        .execute(&mut *tx)
-        .await?;
+    let mut tx = crate::database::begin(&s.db).await?;
+    crate::postgres::lock_account(&mut *tx, a).await?;
     let mut job = get(&mut tx, a, "dispatch", slot).await?;
     if matches!(job["State"].as_str(), Some("Complete" | "Cancel")) {
         return Ok(false);
@@ -165,11 +162,8 @@ async fn save(
     index: usize,
     answer: &Value,
 ) -> Result<()> {
-    let mut tx = s.db.begin().await?;
-    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?")
-        .bind(a)
-        .execute(&mut *tx)
-        .await?;
+    let mut tx = crate::database::begin(&s.db).await?;
+    crate::postgres::lock_account(&mut *tx, a).await?;
     let mut job = get(&mut tx, a, "dispatch", slot).await?;
     if job["SimulationJobId"] != original["SimulationJobId"]
         || matches!(job["State"].as_str(), Some("Complete" | "Cancel"))
@@ -490,7 +484,7 @@ mod tests {
         let (s, u, job) = job().await;
         let a = account(&u);
         let pending = |s: AppState| async move {
-            sqlx::query_scalar::<_, i64>(sqlx::AssertSqlSafe(format!("SELECT COUNT(*) FROM battle_state WHERE {}", crate::api::battle::PENDING_DISPATCH_SIMULATION)))
+            crate::db::query_scalar::<i64>(sqlx::AssertSqlSafe(format!("SELECT COUNT(*) FROM battle_state WHERE {}", crate::api::battle::PENDING_DISPATCH_SIMULATION)))
                 .fetch_one(&s.db).await.unwrap()
         };
         // slot 1: 50 fights (sampled); slot 2: exactly SAMPLE_FIGHTS (all simulated);

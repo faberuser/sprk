@@ -11,7 +11,8 @@ use axum::{
     response::Response,
 };
 use serde_json::{json, Value};
-use sqlx::{Row, SqliteConnection};
+use sqlx::{PgConnection};
+use crate::db::RowExt;
 use std::collections::HashMap;
 
 #[derive(Default)]
@@ -45,11 +46,11 @@ fn lookup(state: &AppState) -> std::sync::Arc<HashMap<i64, Option<i64>>> {
 }
 
 pub(crate) async fn synchronize(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
 ) -> Result<Vec<Value>> {
-    let heroes = sqlx::query("SELECT * FROM heroes WHERE account_id=?")
+    let heroes = crate::db::query("SELECT * FROM heroes WHERE account_id=$1")
         .bind(account).fetch_all(&mut *db).await?;
     let mut hero_levels = HashMap::<i64, i32>::new();
     let mut equipped_levels = HashMap::<i32, i32>::new();
@@ -65,8 +66,8 @@ pub(crate) async fn synchronize(
             }
         }
     }
-    let rows = sqlx::query(
-        "SELECT slot_index,item_index,level FROM equip_items WHERE account_id=? ORDER BY slot_index"
+    let rows = crate::db::query(
+        "SELECT slot_index,item_index,level FROM equip_items WHERE account_id=$1 ORDER BY slot_index"
     ).bind(account).fetch_all(&mut *db).await?;
     let equipment = lookup(state);
     let mut updates = Vec::new();
@@ -88,7 +89,7 @@ pub(crate) async fn synchronize(
         if level < 1 || level == row.get::<i32, _>("level") {
             continue;
         }
-        sqlx::query("UPDATE equip_items SET level=? WHERE account_id=? AND slot_index=?")
+        crate::db::query("UPDATE equip_items SET level=$1 WHERE account_id=$2 AND slot_index=$3")
             .bind(level)
             .bind(account)
             .bind(slot)
@@ -179,9 +180,9 @@ pub(crate) async fn notify(
         return Response::from_parts(parts, Body::from(bytes));
     }
     let result = async {
-        let mut tx = state.db.begin().await?;
-        // Acquire the writer before reading a revision that may need repair.
-        sqlx::query("UPDATE inventory_settings SET account_id=account_id WHERE 0").execute(&mut *tx).await?;
+        let mut tx = crate::database::begin(&state.db).await?;
+        // Serialize with the account's other writers before reading a revision that may need repair.
+        crate::postgres::lock_account(&mut *tx, account).await?;
         let revision = crate::api::system::revisions::get(&mut tx, "equipment", account).await?;
         let current = session.as_ref().and_then(|s| *s.equipment_revision.lock().unwrap_or_else(|e| e.into_inner()));
         if current == Some((revision, tables)) {

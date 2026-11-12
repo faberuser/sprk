@@ -6,6 +6,11 @@
 !Dockerfile.tests
 !src/
 !src/**
+!migrations/
+!migrations/**
+!tests/
+!tests/fixtures/
+!tests/fixtures/**
 !tables/
 !tables/**
 !config/

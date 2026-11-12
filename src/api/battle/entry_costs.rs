@@ -1,7 +1,7 @@
 //! PvE costs are held logically and deducted only when a victory is committed.
 use super::*;
 
-pub(crate) async fn enabled(db: &mut SqliteConnection, a: i64) -> Result<bool> {
+pub(crate) async fn enabled(db: &mut PgConnection, a: i64) -> Result<bool> {
     Ok(get(db, a, "entry_policy", 0).await?["RefundPveDefeats"] == true)
 }
 
@@ -13,24 +13,24 @@ fn resource(family: &str, kind: i64) -> (&str, i64) {
     }
 }
 pub(crate) async fn held(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     a: i64,
     family: &str,
     kind: i64,
 ) -> Result<i64> {
     let (family, kind) = resource(family, kind);
-    Ok(sqlx::query_scalar("SELECT COALESCE(SUM(amount),0) FROM battle_entry_holds WHERE account=? AND family=? AND kind=? AND expires>?")
+    Ok(crate::db::query_scalar("SELECT COALESCE(SUM(amount)::bigint,0) FROM battle_entry_holds WHERE account=$1 AND family=$2 AND kind=$3 AND expires>$4")
         .bind(a).bind(family).bind(kind).bind(now()).fetch_one(db).await?)
 }
 async fn owned_hold(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     a: i64,
     owner: &str,
     family: &str,
     kind: i64,
 ) -> Result<i64> {
     let (family, kind) = resource(family, kind);
-    Ok(sqlx::query_scalar("SELECT COALESCE(SUM(amount),0) FROM battle_entry_holds WHERE account=? AND owner=? AND family=? AND kind=? AND expires>?")
+    Ok(crate::db::query_scalar("SELECT COALESCE(SUM(amount)::bigint,0) FROM battle_entry_holds WHERE account=$1 AND owner=$2 AND family=$3 AND kind=$4 AND expires>$5")
         .bind(a).bind(owner).bind(family).bind(kind).bind(now()).fetch_one(db).await?)
 }
 fn currency(family: &str, kind: i64) -> Result<&'static str> {
@@ -45,7 +45,7 @@ fn currency(family: &str, kind: i64) -> Result<&'static str> {
     }
 }
 async fn peek(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     family: &str,
@@ -67,7 +67,7 @@ struct Reservation<'a> {
 }
 
 async fn reserve(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     reservation: Reservation<'_>,
@@ -90,15 +90,15 @@ async fn reserve(
             "InvalidCost"
         }));
     }
-    sqlx::query("INSERT INTO battle_entry_holds(account,owner,family,kind,amount,expires) VALUES(?,?,?,?,?,?) ON CONFLICT(account,owner,family,kind) DO UPDATE SET amount=excluded.amount,expires=excluded.expires")
+    crate::db::query("INSERT INTO battle_entry_holds(account,owner,family,kind,amount,expires) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(account,owner,family,kind) DO UPDATE SET amount=excluded.amount,expires=excluded.expires")
         .bind(a).bind(owner).bind(family).bind(kind).bind(total).bind(expires).execute(db).await?;
     Ok(value)
 }
 pub(super) fn deferred_receipt() -> Value {
     json!({"VictoryEntryCosts":[],"DeferredEntryCosts":true,"EntryCostReservation":uuid::Uuid::new_v4().to_string()})
 }
-pub(super) async fn clear_hold(db: &mut SqliteConnection, a: i64, owner: &str) -> Result<()> {
-    sqlx::query("DELETE FROM battle_entry_holds WHERE account=? AND owner=?")
+pub(super) async fn clear_hold(db: &mut PgConnection, a: i64, owner: &str) -> Result<()> {
+    crate::db::query("DELETE FROM battle_entry_holds WHERE account=$1 AND owner=$2")
         .bind(a)
         .bind(owner)
         .execute(db)
@@ -106,7 +106,7 @@ pub(super) async fn clear_hold(db: &mut SqliteConnection, a: i64, owner: &str) -
     Ok(())
 }
 pub(super) async fn prepare(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -199,7 +199,7 @@ pub(super) fn note(entry: &mut Value, family: &str, kind: i64, amount: i64) {
 }
 
 pub(super) async fn charge(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     entry: &mut Value,
@@ -241,7 +241,7 @@ pub(super) async fn charge(
 }
 
 pub(super) async fn charge_currency(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     entry: &mut Value,
@@ -279,7 +279,7 @@ pub(super) async fn charge_currency(
 }
 
 pub(super) async fn mark_gate(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     a: i64,
     gate: &mut Value,
     kind: i64,
@@ -290,7 +290,7 @@ pub(super) async fn mark_gate(
         gate["EntryPaid"] = json!(false);
         gate["DeferredOpening"] = json!(true);
         let owner = uuid::Uuid::new_v4().to_string();
-        sqlx::query("INSERT INTO battle_entry_holds(account,owner,family,kind,amount,expires) VALUES(?,?,'Stamina',?,?,?)")
+        crate::db::query("INSERT INTO battle_entry_holds(account,owner,family,kind,amount,expires) VALUES($1,$2,'Stamina',$3,$4,$5)")
             .bind(a).bind(&owner).bind(kind).bind(amount).bind((now()/86400+1)*86400).execute(&mut *db).await?;
         gate["EntryCostReservation"] = json!(owner);
         gate["EntryCostType"] = json!(kind);
@@ -301,7 +301,7 @@ pub(super) async fn mark_gate(
 }
 
 pub(super) async fn opening_charge(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     kind: i64,
@@ -330,7 +330,7 @@ fn stamina_result(out: &mut Value, result: Value) {
 }
 
 pub(crate) async fn settle(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     entry: &mut Value,
@@ -485,7 +485,7 @@ pub(crate) async fn settle(
 }
 
 pub(super) async fn fill_stamina_flasks(
-    db:&mut SqliteConnection,s:&AppState,a:i64,entry:&mut Value,spent:i64,out:&mut Value,
+    db:&mut PgConnection,s:&AppState,a:i64,entry:&mut Value,spent:i64,out:&mut Value,
 ) -> Result<()> {
     if spent<=0 || entry["FlaskStaminaSettled"]==true || !entry["PresetStoryParty"].is_null() {
         return Ok(());
@@ -496,7 +496,7 @@ pub(super) async fn fill_stamina_flasks(
     for id in heroes.iter().filter_map(Value::as_i64) {
         if id<=0 || id>i32::MAX as i64 || !seen.insert(id) ||
             entry["LoanedHeroIndices"].as_array().is_some_and(|ids|ids.contains(&json!(id))) {continue;}
-        let owned:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=?)")
+        let owned:bool=crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=$1 AND hero_index=$2)")
             .bind(a).bind(id).fetch_one(&mut *db).await?;
         if !owned {continue;}
         if let Some((flask,items))=crate::api::extensions::consumables::fill_stamina_flask(db,s,a,id as i32,spent).await? {
@@ -509,7 +509,7 @@ pub(super) async fn fill_stamina_flasks(
 }
 
 pub(super) async fn release_gate(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     state: &str,
@@ -542,7 +542,7 @@ pub(super) async fn release_gate(
 // Adopt an open dungeon saved by the temporary refund policy. Pay an unpaid
 // opening once, preserving its open state and all clear records.
 pub(super) async fn restore_godking_gate(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     idx: i64,
@@ -573,17 +573,17 @@ pub(super) async fn restore_godking_gate(
 }
 
 pub(super) async fn abandon_on_login(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
 ) -> Result<()> {
     if let Some(row) =
-        sqlx::query("SELECT entry,started FROM battle_runs WHERE account=? AND completed=0")
+        crate::db::query("SELECT entry,started FROM battle_runs WHERE account=$1 AND completed=0")
             .bind(a)
             .fetch_optional(&mut *db)
             .await?
     {
-        let mut entry: Value = read_json(row.get::<&str, _>("entry"))?;
+        let mut entry: Value = read_json(&row.get::<String, _>("entry"))?;
         let expired =
             now() - row.get::<i64, _>("started") > settings(s, "BattleExpirySeconds", 14400);
         if (super::campaign::is_story_entry(s,&entry) || entry["DeferredEntryCosts"] == true || entry["ShakmehStoryFinal"] == true || super::loot_booster::active(&entry) || super::karma::is_entry(s, &entry))
@@ -591,15 +591,15 @@ pub(super) async fn abandon_on_login(
         {
             settle(db, s, a, &mut entry, false, &mut json!({})).await?;
             entry["AbandonedOnLogin"] = json!(true);
-            sqlx::query("UPDATE battle_runs SET completed=1,entry=? WHERE account=?")
+            crate::db::query("UPDATE battle_runs SET completed=1,entry=$1 WHERE account=$2")
                 .bind(entry.to_string())
                 .bind(a)
                 .execute(&mut *db)
                 .await?;
         }
     }
-    let active_service = sqlx::query_scalar::<_, String>(
-        "SELECT entry FROM battle_runs WHERE account=? AND completed=0",
+    let active_service = crate::db::query_scalar::<String>(
+        "SELECT entry FROM battle_runs WHERE account=$1 AND completed=0",
     )
     .bind(a)
     .fetch_optional(&mut *db)

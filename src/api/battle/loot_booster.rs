@@ -2,7 +2,7 @@
 use super::*;
 
 pub(super) async fn prepare(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -44,7 +44,7 @@ pub(super) async fn prepare(
     if price <= 0 || n(booster, "Value") != 100 {
         return Err(rule("InvalidCost"));
     }
-    let balance: i64 = sqlx::query_scalar("SELECT gem+pay_gem FROM user_info WHERE account_id=?")
+    let balance: i64 = crate::db::query_scalar("SELECT gem+pay_gem FROM user_info WHERE account_id=$1")
         .bind(a)
         .fetch_one(&mut *db)
         .await?;
@@ -52,11 +52,11 @@ pub(super) async fn prepare(
         return Err(rule("NotEnoughGem"));
     }
     let owner = uuid::Uuid::new_v4().to_string();
-    sqlx::query("INSERT INTO battle_entry_holds(account,owner,family,kind,amount,expires) VALUES(?,?,'Currency',4,?,?)")
+    crate::db::query("INSERT INTO battle_entry_holds(account,owner,family,kind,amount,expires) VALUES($1,$2,'Currency',4,$3,$4)")
         .bind(a).bind(&owner).bind(price).bind(now()+settings(s,"BattleExpirySeconds",14400))
         .execute(&mut *db).await?;
     let previous: Option<String> =
-        sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=? AND completed=1")
+        crate::db::query_scalar("SELECT entry FROM battle_runs WHERE account=$1 AND completed=1")
             .bind(a)
             .fetch_optional(&mut *db)
             .await?;
@@ -120,7 +120,7 @@ mod tests {
         (s, u)
     }
     async fn gems(s: &AppState, a: i64) -> i64 {
-        sqlx::query_scalar("SELECT gem+pay_gem FROM user_info WHERE account_id=?")
+        crate::db::query_scalar("SELECT gem+pay_gem FROM user_info WHERE account_id=$1")
             .bind(a)
             .fetch_one(&s.db)
             .await
@@ -134,6 +134,147 @@ mod tests {
             .filter(|v| n(v, "ItemIndex") == 20001)
             .map(|v| n(v, "AddCount"))
             .sum()
+    }
+
+    async fn use_item(s: &AppState, u: &Value, id: i32, potion: bool) -> Value {
+        crate::db::query("INSERT INTO items(account_id,item_index,count) VALUES($1,$2,1) ON CONFLICT(account_id,item_index) DO UPDATE SET count=items.count+1")
+            .bind(account(u)).bind(id).execute(&s.db).await.unwrap();
+        let body=Bytes::from(format!("SessionKey={}&ItemIndex={id}&ItemCount=1",u["UserInfo"]["SessionKey"].as_str().unwrap()));
+        let response=if potion {item::use_potion_item(State(s.clone()),body).await} else {item::use_booster_item(State(s.clone()),body).await};
+        let result=response.unwrap().0;
+        assert_eq!(result["Result"],"Success","{result}");
+        result
+    }
+
+    #[tokio::test]
+    async fn timed_loot_booster_activates_extends_persists_and_expires_without_ruby_cost() {
+        let (s,u)=fixture().await;let a=account(&u);
+        let before=gems(&s,a).await;
+        let used=use_item(&s,&u,110005,false).await;
+        assert_eq!(used["ItemResult"]["AddCount"],-1);
+        assert_eq!(used["ItemTimeDurationInfo"]["ItemIndex"],110005);
+        use_item(&s,&u,110005,false).await;
+        let duration:i64=crate::db::query_scalar("SELECT sprk_epoch(end_time)-sprk_epoch(start_time) FROM item_boosters WHERE account_id=$1 AND item_index=110005")
+            .bind(a).fetch_one(&s.db).await.unwrap();
+        assert_eq!(duration,7200);
+        assert!(item::booster_login(&s,a).await.unwrap().iter().any(|v|v["ItemIndex"]==110005));
+        assert_eq!(call(&s,&u,"campaign/begin_campaign",ENTRY).await["Result"],"Success");
+        let out=call(&s,&u,"campaign/end_campaign",END).await;
+        assert_eq!(out["Result"],"Success","{out}");
+        assert_eq!(fragments(&out),4);
+        assert_eq!(out["ItemResults"][0]["AddBoosterCount"],2);
+        assert_eq!(out["EquipItemInfos"].as_array().unwrap().len(),2);
+        assert_eq!(out["EquipItemBoostInfos"].as_array().unwrap().len(),1);
+        assert_eq!(gems(&s,a).await,before+137,"The timed item never charges rubies");
+        crate::db::query("UPDATE item_boosters SET end_time=sprk_datetime('now','-1 second') WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
+        assert_eq!(call(&s,&u,"campaign/begin_campaign",ENTRY).await["Result"],"Success");
+        let plain=call(&s,&u,"campaign/end_campaign",END).await;
+        assert_eq!(fragments(&plain),2);
+        assert_eq!(plain["EquipItemInfos"].as_array().unwrap().len(),1);
+        assert_eq!(plain["EquipItemBoostInfos"],json!([]));
+        assert_eq!(gems(&s,a).await,before+137);
+    }
+
+    #[tokio::test]
+    async fn timed_loot_booster_cookie_and_paid_loot_stack_additively() {
+        let (s,u)=fixture().await;let a=account(&u);
+        let before=gems(&s,a).await;
+        use_item(&s,&u,110005,false).await;
+        use_item(&s,&u,41110,true).await; // Strawberry Cookie Stick, separate +100% timer.
+        assert_eq!(call(&s,&u,"campaign/begin_campaign",&format!("{ENTRY}&ItemBoosterCount=1")).await["Result"],"Success");
+        let out=call(&s,&u,"campaign/end_campaign",END).await;
+        assert_eq!(out["Result"],"Success","{out}");
+        assert_eq!(fragments(&out),8,"Base +100% scroll +100% cookie +100% paid option");
+        assert_eq!(out["ItemResults"][0]["AddBoosterCount"],6);
+        assert_eq!(out["EquipItemInfos"].as_array().unwrap().len(),4);
+        assert_eq!(out["EquipItemBoostInfos"].as_array().unwrap().len(),3);
+        assert_eq!(gems(&s,a).await,before+137-20);
+        assert_eq!(out["CurrencyResults"].as_array().unwrap().iter()
+            .filter(|v|v["CurrencyType"]=="Gold").map(|v|n(v,"AddValue")).sum::<i64>(),100);
+    }
+
+    #[tokio::test]
+    async fn timed_loot_booster_keeps_first_clear_attachments_single() {
+        let (mut s,u)=fixture().await;
+        let dungeon=std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).battle)
+            .tables.get_mut("CampaignDungeon").unwrap().iter_mut()
+            .find(|v|n(v,"ChapterIndex")==1 && n(v,"DungeonIndex")==1).unwrap();
+        dungeon["FirstClearRewardIndex_Normal"]=dungeon["DropRewardIndex_Normal"].clone();
+        use_item(&s,&u,110005,false).await;
+        assert_eq!(call(&s,&u,"campaign/begin_campaign",ENTRY).await["Result"],"Success");
+        let out=call(&s,&u,"campaign/end_campaign",END).await;
+        assert_eq!(out["Result"],"Success","{out}");
+        assert_eq!(fragments(&out),6,"Four normal boosted fragments plus two first-clear fragments");
+        assert_eq!(out["EquipItemInfos"].as_array().unwrap().len(),3);
+        assert_eq!(out["ItemResults"].as_array().unwrap().iter().map(|v|n(v,"AddBoosterCount")).sum::<i64>(),2);
+    }
+
+    #[tokio::test]
+    async fn timed_loot_booster_applies_to_challenge_tower_repeats_and_sweep_rewards_only() {
+        let (s,u)=fixture().await;let a=account(&u);
+        use_item(&s,&u,110005,false).await;
+        let floor=s.tables.battle.rows("TowerFloor").iter().find(|f| {
+            s.tables.battle.rows("CampaignDungeon").iter().any(|d|n(d,"ChapterIndex")==n(f,"ChapterIndex") && n(d,"DungeonIndex")==n(f,"DungeonIndex") && n(d,"BattleType")==14)
+        }).unwrap();
+        let request=Request::parse(format!("ChapterIndex={}&DungeonIndex={}&DungeonDifficulty=1",n(floor,"ChapterIndex"),n(floor,"DungeonIndex")).as_bytes()).unwrap();
+        let mut db=s.db.acquire().await.unwrap();
+        assert_eq!(super::percent(&mut db,&s,a,&request,&json!({})).await.unwrap(),0,"Tower first clears are excluded");
+        let mut progress=dungeons::tower(&mut db,&s,a,n(floor,"TowerIndex")).await.unwrap();
+        progress["CompletedFloor"]=floor["Floor"].clone();
+        put(&mut db,a,"tower",n(floor,"TowerIndex"),&progress).await.unwrap();
+        assert_eq!(super::percent(&mut db,&s,a,&request,&json!({})).await.unwrap(),100,"Tower repeat rewards use the timer");
+        // Sweeps share the ordinary completion helper, while offline dispatch
+        // uses its separate unboosted helper. Do not conflate those two modes.
+        let request=Request::parse(ENTRY.as_bytes()).unwrap();
+        let out=campaign::complete(&mut db,&s,a,&request,&[],3,1).await.unwrap();
+        assert_eq!(fragments(&out),4);
+    }
+
+    #[tokio::test]
+    async fn timed_loot_booster_obeys_archived_battle_types_and_free_party_exclusion() {
+        let (mut s,u)=fixture().await;let a=account(&u);
+        use_item(&s,&u,110005,false).await;
+        use_item(&s,&u,110019,false).await;
+        for battle in [1,10,14,22,28,37,39,12,13,33,34,35,36,40,41,42] {
+            let row=std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).battle)
+                .tables.get_mut("CampaignDungeon").unwrap().iter_mut()
+                .find(|v|n(v,"ChapterIndex")==1 && n(v,"DungeonIndex")==1).unwrap();
+            row["BattleType"]=json!(battle);
+            let request=Request::parse(ENTRY.as_bytes()).unwrap();
+            let value=super::percent(&mut s.db.acquire().await.unwrap(),&s,a,&request,&json!({})).await.unwrap();
+            let expected=if [1,10,14,22].contains(&battle) {200} else if [28,37,39].contains(&battle) {100} else {0};
+            assert_eq!(value,expected,"battle type {battle}");
+            assert_eq!(super::percent(&mut s.db.acquire().await.unwrap(),&s,a,&request,&json!({"PartyCampaign":true,"PartyUseStamina":false})).await.unwrap(),0);
+        }
+    }
+
+    #[tokio::test]
+    async fn timed_loot_booster_does_not_apply_to_dispatch_start_claim_or_cancel() {
+        for cancel in [false,true] {
+            let (s,u)=fixture().await;let a=account(&u);
+            put(&mut s.db.acquire().await.unwrap(),a,"dungeon",campaign::key(1,1),&json!({"FirstRewardedDiff":2,"LootRewardedDiff":2,"MaxStar":13})).await.unwrap();
+            use_item(&s,&u,110005,false).await;
+            let before=gems(&s,a).await;
+            let start=call(&s,&u,"dispatch/start_dispatch","ChapterIndex=1&DungeonIndex=1&Difficulty=1&HeroIndices=[1]&RepeatCount=3&DeckIndex=1&ItemBoosterCount=3").await;
+            assert_eq!(start["Result"],"Success","{start}");
+            let slot=n(&start["DispatchBattleInfo"],"SlotIndex");
+            crate::api::battle::tests::prepared_dispatch(&s,&u,slot,&[1,0,1]).await;
+            let mut job=get(&mut s.db.acquire().await.unwrap(),a,"dispatch",slot).await.unwrap();
+            job["FinishTimestamp"]=json!(now()-1);
+            put(&mut s.db.acquire().await.unwrap(),a,"dispatch",slot,&job).await.unwrap();
+            // A second eligible loot buff activated only at collection cannot boost it either.
+            use_item(&s,&u,41110,true).await;
+            let path=if cancel {"dispatch/cancel_dispatch"} else {"dispatch/request_complete_dispatch"};
+            let done=call(&s,&u,path,&format!("SlotIndex={slot}")).await;
+            assert_eq!(done["Result"],"Success","{done}");
+            assert_eq!(done["DispatchBattleInfo"]["WinCount"],2);
+            assert_eq!(fragments(&done),4,"Only the two successful unboosted drops");
+            assert!(done["ItemResults"].as_array().unwrap().iter().all(|v|n(v,"AddBoosterCount")==0));
+            assert_eq!(gems(&s,a).await,before,"Dispatch cannot select or charge the paid loot option");
+            let count:i64=crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=20001").bind(a).fetch_one(&s.db).await.unwrap();
+            let _=call(&s,&u,path,&format!("SlotIndex={slot}")).await;
+            assert_eq!(crate::db::query_scalar::<i64>("SELECT count FROM items WHERE account_id=$1 AND item_index=20001").bind(a).fetch_one(&s.db).await.unwrap(),count,"Retry cannot duplicate loot");
+        }
     }
 
     #[tokio::test]
@@ -245,7 +386,7 @@ mod tests {
             json!({"RemainCount":1,"MaxCount":3})
         );
         assert_eq!(
-            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM battle_entry_holds")
+            crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_entry_holds")
                 .fetch_one(&s.db)
                 .await
                 .unwrap(),
@@ -257,7 +398,7 @@ mod tests {
     async fn loot_booster_reserves_paid_rubies_releases_failures_and_rejects_insufficient_funds() {
         let (s, u) = fixture().await;
         let a = account(&u);
-        sqlx::query("UPDATE user_info SET gem=5,pay_gem=15 WHERE account_id=?")
+        crate::db::query("UPDATE user_info SET gem=5,pay_gem=15 WHERE account_id=$1")
             .bind(a)
             .execute(&s.db)
             .await
@@ -272,7 +413,7 @@ mod tests {
             .await["Result"],
             "Success"
         );
-        let mut db = s.db.begin().await.unwrap();
+        let mut db = crate::database::begin(&s.db).await.unwrap();
         assert!(
             item::money(&mut db, a, "Gem", -1).await.is_err(),
             "Reserved rubies cannot be spent elsewhere"
@@ -289,7 +430,7 @@ mod tests {
         assert_eq!(failed["ItemBoosterResult"]["RemainCount"], 1);
         assert_eq!(gems(&s, a).await, 20);
         assert_eq!(
-            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM battle_entry_holds")
+            crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_entry_holds")
                 .fetch_one(&s.db)
                 .await
                 .unwrap(),
@@ -305,8 +446,8 @@ mod tests {
             .await["Result"],
             "Success"
         );
-        let mut db = s.db.begin().await.unwrap();
-        let raw: String = sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=?")
+        let mut db = crate::database::begin(&s.db).await.unwrap();
+        let raw: String = crate::db::query_scalar("SELECT entry FROM battle_runs WHERE account=$1")
             .bind(a)
             .fetch_one(&mut *db)
             .await
@@ -315,7 +456,7 @@ mod tests {
         super::super::entry_costs::settle(&mut db, &s, a, &mut entry, false, &mut json!({}))
             .await
             .unwrap();
-        sqlx::query("UPDATE battle_runs SET completed=1,entry=? WHERE account=?")
+        crate::db::query("UPDATE battle_runs SET completed=1,entry=$1 WHERE account=$2")
             .bind(entry.to_string())
             .bind(a)
             .execute(&mut *db)
@@ -323,7 +464,7 @@ mod tests {
             .unwrap();
         db.commit().await.unwrap();
         assert_eq!(gems(&s, a).await, 20, "Abandonment costs nothing");
-        let mut db = s.db.begin().await.unwrap();
+        let mut db = crate::database::begin(&s.db).await.unwrap();
         let mut progress = campaign::progress(&mut db, &s, a, 1, 1).await.unwrap();
         progress["FirstRewardedDiff"] = json!(2);
         progress["LootRewardedDiff"] = json!(2);
@@ -348,7 +489,7 @@ mod tests {
             0,
             "The stage charge consumes 5 free and 15 paid rubies"
         );
-        sqlx::query("UPDATE user_info SET gem=4,pay_gem=15 WHERE account_id=?")
+        crate::db::query("UPDATE user_info SET gem=4,pay_gem=15 WHERE account_id=$1")
             .bind(a)
             .execute(&s.db)
             .await
@@ -365,7 +506,7 @@ mod tests {
         );
         assert_eq!(gems(&s, a).await, 19);
         assert_eq!(
-            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM battle_entry_holds")
+            crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_entry_holds")
                 .fetch_one(&s.db)
                 .await
                 .unwrap(),
@@ -388,8 +529,44 @@ pub(super) fn active(entry: &Value) -> bool {
     n(&entry["LootBooster"], "Count") > 0 && campaign::party_loot_enabled(entry)
 }
 
+/// Online reward boosters add their percentages. Dispatch deliberately calls
+/// campaign::complete_dispatch with zero instead: dispatch never inherits item boosters
+/// from either dispatch start or collection time.
+pub(super) async fn percent(
+    db: &mut PgConnection,
+    s: &AppState,
+    a: i64,
+    r: &Request,
+    entry: &Value,
+) -> Result<i64> {
+    if !campaign::party_loot_enabled(entry) || boolean(r, "ScenarioDungeon", false)? {
+        return Ok(0);
+    }
+    if let Some(floor) = dungeons::floor(s, r) {
+        let progress = dungeons::tower(db, s, a, n(floor,"TowerIndex")).await?;
+        if n(&progress,"CompletedFloor") < n(floor,"Floor") {
+            return Ok(0);
+        }
+    }
+    let battle = campaign::dungeon(s, r)?["BattleType"].clone();
+    item::normalize_booster_timers(db, s, a).await?;
+    let timers: Vec<i32> = crate::db::query_scalar(
+        "SELECT item_index FROM item_boosters WHERE account_id=$1 AND start_time<=sprk_datetime('now') AND end_time>sprk_datetime('now')",
+    ).bind(a).fetch_all(db).await?;
+    let mut percent = if active(entry) { 100_i64 } else { 0 };
+    for id in timers {
+        if let Some(b) = s.tables.inventory.booster_effect(id) {
+            if n(b,"Type") == 2 && b["IsOnetime"] != true
+                && b["BattleTypes"].as_array().is_some_and(|types| types.contains(&battle)) {
+                percent = percent.checked_add(n(b,"Value").max(0)).ok_or_else(||rule("InvalidValue"))?;
+            }
+        }
+    }
+    Ok(percent)
+}
+
 pub(super) async fn settle(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     a: i64,
     entry: &mut Value,
     won: bool,

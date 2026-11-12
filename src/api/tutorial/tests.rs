@@ -1,6 +1,5 @@
 use super::*;
 use crate::api::account::user;
-use crate::database;
 use crate::tables::GameTables;
 use axum::body::Bytes;
 use std::sync::Arc;
@@ -10,12 +9,7 @@ fn tables() -> GameTables {
 }
 
 async fn setup() -> (AppState, user::LoginResponse) {
-    let pool = sqlx::sqlite::SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect("sqlite::memory:")
-        .await
-        .unwrap();
-    database::create_tables(&pool).await.unwrap();
+    let pool = crate::database::test_pool().await;
     let state = AppState::new(pool, tables());
     let response = login(&state).await;
     (state, response)
@@ -54,7 +48,7 @@ fn reward_receipt(mut v:Value)->Value {
 async fn tutorial_completion_and_retry_refresh_stamina_clock() {
     let (s,u)=setup().await;let a=u.user_info.account_id;
     for _ in 0..2 {
-        sqlx::query("UPDATE user_info SET stamina=0,stamina_recharge_time=? WHERE account_id=?")
+        crate::db::query("UPDATE user_info SET stamina=0,stamina_recharge_time=$1 WHERE account_id=$2")
             .bind(chrono::Utc::now().timestamp()).bind(a).execute(&s.db).await.unwrap();
         let out=complete(&s,&u.user_info.session_key,10001).await;
         let timer=&out["StaminaResultInfos"][0];
@@ -117,7 +111,7 @@ async fn begin_never_clears_or_rewards_a_battle() {
     )
     .await
     .unwrap();
-    let clears: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM campaign_progress")
+    let clears: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM campaign_progress")
         .fetch_one(&state.db)
         .await
         .unwrap();
@@ -183,7 +177,7 @@ async fn unknown_missing_and_unauthenticated_requests_do_not_write() {
             .await
             .is_err());
     }
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM tutorial_progress")
+    let count: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM tutorial_progress")
         .fetch_one(&state.db)
         .await
         .unwrap();
@@ -199,7 +193,7 @@ async fn unknown_missing_and_unauthenticated_requests_do_not_write() {
 #[tokio::test]
 async fn every_shipped_tutorial_reward_is_supported() {
     let (state, first) = setup().await;
-    sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,is_unlocked) VALUES(?,1,20,1,1)")
+    crate::db::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,is_unlocked) VALUES($1,1,20,1,1)")
         .bind(first.user_info.account_id).execute(&state.db).await.unwrap();
     let mut indices: Vec<_> = state.tables.tutorials.definitions.keys().copied().collect();
     indices.sort();
@@ -236,7 +230,7 @@ async fn every_shipped_tutorial_reward_is_supported() {
 #[tokio::test]
 async fn skip_persists_without_overwriting_owned_heroes() {
     let (state, first) = setup().await;
-    sqlx::query("UPDATE heroes SET level = 25 WHERE account_id = ?")
+    crate::db::query("UPDATE heroes SET level = 25 WHERE account_id = $1")
         .bind(first.user_info.account_id)
         .execute(&state.db)
         .await
@@ -271,21 +265,15 @@ async fn skip_persists_without_overwriting_owned_heroes() {
 }
 
 #[tokio::test]
-async fn migration_preserves_legacy_skip_and_new_account_opt_in() {
+async fn new_accounts_opt_into_the_tutorial() {
+    // Legacy accounts were backfilled as skipped by the last SQLite build;
+    // the copied data keeps that. New accounts start the tutorial.
     let (state, first) = setup().await;
-    sqlx::query("INSERT INTO accounts (login_id, nick) VALUES ('legacy', 'Legacy')")
-        .execute(&state.db)
-        .await
-        .unwrap();
-    database::create_tables(&state.db).await.unwrap();
-    database::create_tables(&state.db).await.unwrap();
-    let legacy: bool = sqlx::query_scalar("SELECT is_skipped FROM tutorial_settings WHERE account_id = (SELECT account_id FROM accounts WHERE login_id = 'legacy')").fetch_one(&state.db).await.unwrap();
-    assert!(legacy);
     assert!(!login(&state).await.is_tutorial_skip);
-    let gates: Vec<i64> = sqlx::query_scalar("SELECT account_id FROM tutorial_progress WHERE tutorial_index = 14000 AND is_completed = 1")
+    let gates: Vec<i64> = crate::db::query_scalar("SELECT account_id FROM tutorial_progress WHERE tutorial_index = 14000 AND is_completed = 1")
         .fetch_all(&state.db).await.unwrap();
     assert!(gates.is_empty());
-    sqlx::query("INSERT INTO tutorial_progress (account_id, tutorial_index, is_completed, completed_time) VALUES (?, 10001, 1, '2025-01-01 00:00:00')")
+    crate::db::query("INSERT INTO tutorial_progress (account_id, tutorial_index, is_completed, completed_time) VALUES ($1, 10001, 1, '2025-01-01 00:00:00')")
         .bind(first.user_info.account_id).execute(&state.db).await.unwrap();
     let response = complete(&state, &first.user_info.session_key, 10001).await;
     assert_eq!(response["Info"]["CompletedTime"], "2025-01-01 00:00:00");
@@ -298,16 +286,16 @@ async fn dungeon_completion_uses_table_and_preserves_existing_clear() {
     let key = &first.user_info.session_key;
     let response = complete(&state, key, 10310).await;
     assert_eq!(response["DungeonInfos"][0]["DungeonIndex"], 8);
-    sqlx::query("UPDATE campaign_progress SET clear_count = 7, completed_time = '2025-01-01 00:00:00' WHERE dungeon_id = 8").execute(&state.db).await.unwrap();
+    crate::db::query("UPDATE campaign_progress SET clear_count = 7, completed_time = '2025-01-01 00:00:00' WHERE dungeon_id = 8").execute(&state.db).await.unwrap();
     let count: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM campaign_progress WHERE dungeon_id = 5")
+        crate::db::query_scalar("SELECT COUNT(*) FROM campaign_progress WHERE dungeon_id = 5")
             .fetch_one(&state.db)
             .await
             .unwrap();
     assert_eq!(count, 0);
     complete(&state, key, 10310).await;
     let clear_count: i64 =
-        sqlx::query_scalar("SELECT clear_count FROM campaign_progress WHERE dungeon_id = 8")
+        crate::db::query_scalar("SELECT clear_count FROM campaign_progress WHERE dungeon_id = 8")
             .fetch_one(&state.db)
             .await
             .unwrap();
@@ -319,17 +307,17 @@ async fn old_receipts_return_current_inventory_and_hero_state() {
     let (state, first) = setup().await;
     let key = &first.user_info.session_key;
     let original = complete(&state, key, 10001).await;
-    sqlx::query(
+    crate::db::query(
         "UPDATE user_info SET gold = 7, gem = 9, pay_gem = 11, team_level = 15, team_exp = 23",
     )
     .execute(&state.db)
     .await
     .unwrap();
-    sqlx::query("UPDATE heroes SET level = 20, star = 3, skill_level_1 = 5 WHERE hero_index = 3")
+    crate::db::query("UPDATE heroes SET level = 20, star = 3, skill_level_1 = 5 WHERE hero_index = 3")
         .execute(&state.db)
         .await
         .unwrap();
-    sqlx::query("UPDATE equip_items SET level = 8, locked = 1")
+    crate::db::query("UPDATE equip_items SET level = 8, locked = 1")
         .execute(&state.db)
         .await
         .unwrap();
@@ -346,7 +334,7 @@ async fn old_receipts_return_current_inventory_and_hero_state() {
     assert_eq!(replay["TeamExpResultInfos"][0]["NewValue"], 23);
     let books = complete(&state, key, 10030).await;
     assert_eq!(books["ItemResults"][0]["AddCount"], 20);
-    sqlx::query("UPDATE items SET count = 2")
+    crate::db::query("UPDATE items SET count = 2")
         .execute(&state.db)
         .await
         .unwrap();
@@ -416,12 +404,7 @@ async fn gm_reset_restarts_tutorial_with_kasel() {
 
 #[tokio::test]
 async fn failed_new_account_creation_is_atomic() {
-    let pool = sqlx::sqlite::SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect("sqlite::memory:")
-        .await
-        .unwrap();
-    database::create_tables(&pool).await.unwrap();
+    let pool = crate::database::test_pool().await;
     let state = AppState::new(pool, GameTables::empty());
     assert!(user::test_login(
         State(state.clone()),
@@ -429,7 +412,7 @@ async fn failed_new_account_creation_is_atomic() {
     )
     .await
     .is_err());
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM accounts")
+    let count: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM accounts")
         .fetch_one(&state.db)
         .await
         .unwrap();
@@ -473,16 +456,16 @@ async fn side_tutorial_difficulty_matches_relogin() {
 async fn skipped_cave_story_recovers_only_after_both_clears_on_login() {
     let (state, first) = setup().await;
     let a = first.user_info.account_id;
-    sqlx::query("INSERT INTO tutorial_settings(account_id,is_skipped) VALUES(?,1) ON CONFLICT(account_id) DO UPDATE SET is_skipped=1")
+    crate::db::query("INSERT INTO tutorial_settings(account_id,is_skipped) VALUES($1,1) ON CONFLICT(account_id) DO UPDATE SET is_skipped=1")
         .bind(a).execute(&state.db).await.unwrap();
-    sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count) VALUES(?,117,3,1),(?,117,4,0)")
+    crate::db::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count) VALUES($1,117,3,1),($2,117,4,0)")
         .bind(a).bind(a).execute(&state.db).await.unwrap();
     assert!(!login(&state).await.tutorials.iter().any(|t|t.tutorial_index==70001));
-    sqlx::query("UPDATE campaign_progress SET clear_count=1 WHERE account_id=? AND chapter_id=117 AND dungeon_id=4")
+    crate::db::query("UPDATE campaign_progress SET clear_count=1 WHERE account_id=$1 AND chapter_id=117 AND dungeon_id=4")
         .bind(a).execute(&state.db).await.unwrap();
-    sqlx::query("UPDATE tutorial_settings SET is_skipped=0 WHERE account_id=?").bind(a).execute(&state.db).await.unwrap();
+    crate::db::query("UPDATE tutorial_settings SET is_skipped=0 WHERE account_id=$1").bind(a).execute(&state.db).await.unwrap();
     assert!(!login(&state).await.tutorials.iter().any(|t|t.tutorial_index==70001));
-    sqlx::query("UPDATE tutorial_settings SET is_skipped=1 WHERE account_id=?").bind(a).execute(&state.db).await.unwrap();
+    crate::db::query("UPDATE tutorial_settings SET is_skipped=1 WHERE account_id=$1").bind(a).execute(&state.db).await.unwrap();
     let recovered=login(&state).await;
     let stamp=&recovered.tutorials.iter().find(|t|t.tutorial_index==70001).unwrap().completed_time;
     let again=login(&state).await;
@@ -497,23 +480,23 @@ async fn clause_requires_clear_and_recovers_on_lobby_entry_once() {
     let a = first.user_info.account_id;
     assert!(complete_tutorial(State(state.clone()), Form(request(key, 20001))).await.is_err());
     assert!(complete_tutorial(State(state.clone()), Form(request(key, 20002))).await.is_err());
-    sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,is_unlocked) VALUES(?,1,20,1)")
+    crate::db::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,is_unlocked) VALUES($1,1,20,1)")
         .bind(a).execute(&state.db).await.unwrap();
     restore_clause_reward(&state,a).await.unwrap();
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM heroes WHERE account_id=? AND hero_index=15").bind(a).fetch_one(&state.db).await.unwrap(),0);
-    sqlx::query("UPDATE campaign_progress SET clear_count=1 WHERE account_id=? AND chapter_id=1 AND dungeon_id=20")
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM heroes WHERE account_id=$1 AND hero_index=15").bind(a).fetch_one(&state.db).await.unwrap(),0);
+    crate::db::query("UPDATE campaign_progress SET clear_count=1 WHERE account_id=$1 AND chapter_id=1 AND dungeon_id=20")
         .bind(a).execute(&state.db).await.unwrap();
     let lobby = crate::api::account::lobby::enter_lobby(State(state.clone()), Form(crate::api::account::lobby::EnterLobbyRequest {session_id:None,session_key:Some(key.clone())})).await.unwrap().0;
     let clause = lobby.heroes.iter().find(|h|h.hero_index==15).unwrap();
     assert_eq!((clause.star,clause.level),(2,20));
-    let exp: i64 = sqlx::query_scalar("SELECT team_exp FROM user_info WHERE account_id=?").bind(a).fetch_one(&state.db).await.unwrap();
-    sqlx::query("UPDATE heroes SET level=70,star=5 WHERE account_id=? AND hero_index=15").bind(a).execute(&state.db).await.unwrap();
+    let exp: i64 = crate::db::query_scalar("SELECT team_exp FROM user_info WHERE account_id=$1").bind(a).fetch_one(&state.db).await.unwrap();
+    crate::db::query("UPDATE heroes SET level=70,star=5 WHERE account_id=$1 AND hero_index=15").bind(a).execute(&state.db).await.unwrap();
     let receipt = complete(&state,key,20002).await;
     assert_eq!(receipt["HeroInfos"][0]["Level"],70);
     let again = login(&state).await;
     assert_eq!(again.heroes.iter().filter(|h|h.hero_index==15).count(),1);
     assert_eq!(again.heroes.iter().find(|h|h.hero_index==15).unwrap().level,70);
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT team_exp FROM user_info WHERE account_id=?").bind(a).fetch_one(&state.db).await.unwrap(),exp);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT team_exp FROM user_info WHERE account_id=$1").bind(a).fetch_one(&state.db).await.unwrap(),exp);
 }
 
 #[tokio::test]
@@ -521,7 +504,7 @@ async fn clause_login_catches_up_past_chapter_one_without_resetting_owned_hero()
     let (state, first) = setup().await;
     let a = first.user_info.account_id;
     for (c,d) in [(1,20),(2,1)] {
-        sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,is_unlocked) VALUES(?,?,?,1,1)")
+        crate::db::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,is_unlocked) VALUES($1,$2,$3,1,1)")
             .bind(a).bind(c).bind(d).execute(&state.db).await.unwrap();
     }
     let recovered = login(&state).await;
@@ -529,10 +512,10 @@ async fn clause_login_catches_up_past_chapter_one_without_resetting_owned_hero()
     assert!(recovered.tutorials.iter().any(|t|t.tutorial_index==20001));
     assert!(recovered.tutorials.iter().any(|t|t.tutorial_index==20002));
     // An independently recruited Clause must retain upgrades and award no recruitment EXP.
-    sqlx::query("DELETE FROM tutorial_progress WHERE account_id=? AND tutorial_index IN (20001,20002)").bind(a).execute(&state.db).await.unwrap();
-    sqlx::query("UPDATE heroes SET level=80,star=5 WHERE account_id=? AND hero_index=15").bind(a).execute(&state.db).await.unwrap();
-    let before:i64=sqlx::query_scalar("SELECT team_exp FROM user_info WHERE account_id=?").bind(a).fetch_one(&state.db).await.unwrap();
+    crate::db::query("DELETE FROM tutorial_progress WHERE account_id=$1 AND tutorial_index IN (20001,20002)").bind(a).execute(&state.db).await.unwrap();
+    crate::db::query("UPDATE heroes SET level=80,star=5 WHERE account_id=$1 AND hero_index=15").bind(a).execute(&state.db).await.unwrap();
+    let before:i64=crate::db::query_scalar("SELECT team_exp FROM user_info WHERE account_id=$1").bind(a).fetch_one(&state.db).await.unwrap();
     let recovered = login(&state).await;
     assert!(recovered.heroes.iter().any(|h|h.hero_index==15 && h.level==80 && h.star==5));
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT team_exp FROM user_info WHERE account_id=?").bind(a).fetch_one(&state.db).await.unwrap(),before);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT team_exp FROM user_info WHERE account_id=$1").bind(a).fetch_one(&state.db).await.unwrap(),before);
 }

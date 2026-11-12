@@ -12,7 +12,8 @@ use crate::{
 };
 use axum::{body::Bytes, extract::State, Json};
 use serde_json::{json, Value};
-use sqlx::{Row, SqliteConnection};
+use sqlx::{PgConnection};
+use crate::db::RowExt;
 
 pub(crate) fn rule(code: &str) -> ServerError {
     ServerError::InvalidRequest(code.into())
@@ -42,28 +43,25 @@ pub(crate) fn data(state: &AppState, index: i32) -> Result<&Value> {
         .ok_or_else(|| rule("ItemDataNotFound"))
 }
 /// Read-only: whether `init` would write nothing for this account.
-pub(crate) async fn initialized(db: &mut SqliteConnection, state: &AppState, account: i64) -> Result<bool> {
+pub(crate) async fn initialized(db: &mut PgConnection, state: &AppState, account: i64) -> Result<bool> {
     let slots = state.tables.inventory.constant("CraftSlotCountMin", 2);
-    Ok(sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM inventory_settings WHERE account_id=?) AND (SELECT COUNT(*) FROM craft_slots WHERE account_id=? AND slot_index BETWEEN 1 AND ?) = ?")
+    Ok(crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM inventory_settings WHERE account_id=$1) AND (SELECT COUNT(*) FROM craft_slots WHERE account_id=$2 AND slot_index BETWEEN 1 AND $3) = $4")
         .bind(account).bind(account).bind(slots).bind(slots)
         .fetch_one(db).await?)
 }
-pub(crate) async fn init(db: &mut SqliteConnection, state: &AppState, account: i64) -> Result<()> {
-    // Mutation callers use deferred SQLx transactions. Reserve the SQLite writer
-    // before any reads to avoid read-to-write upgrade races (including WAL's
-    // SQLITE_BUSY_SNAPSHOT). WHERE 0 changes no rows or database pages.
-    sqlx::query("UPDATE inventory_settings SET account_id=account_id WHERE 0")
-        .execute(&mut *db).await?;
+pub(crate) async fn init(db: &mut PgConnection, state: &AppState, account: i64) -> Result<()> {
+    // Serialize with the account's other writers before reading what to repair.
+    crate::postgres::lock_account(&mut *db, account).await?;
     // Check persisted state instead of caching initialization before its caller's
     // transaction commits. This also repairs old accounts and missing slots.
     if initialized(&mut *db, state, account).await? { return Ok(()); }
     let slots = state.tables.inventory.constant("CraftSlotCountMin", 2);
-    sqlx::query("INSERT OR IGNORE INTO inventory_settings(account_id) VALUES (?)")
+    crate::db::query("INSERT INTO inventory_settings(account_id) VALUES ($1) ON CONFLICT DO NOTHING")
         .bind(account)
         .execute(&mut *db)
         .await?;
     for slot in 1..=slots {
-        sqlx::query("INSERT OR IGNORE INTO craft_slots(account_id,slot_index) VALUES (?,?)")
+        crate::db::query("INSERT INTO craft_slots(account_id,slot_index) VALUES ($1,$2) ON CONFLICT DO NOTHING")
             .bind(account)
             .bind(slot)
             .execute(&mut *db)
@@ -72,7 +70,7 @@ pub(crate) async fn init(db: &mut SqliteConnection, state: &AppState, account: i
     Ok(())
 }
 pub(crate) async fn consume(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     account: i64,
     index: i32,
     count: i32,
@@ -81,7 +79,7 @@ pub(crate) async fn consume(
         return Err(rule("InvalidItemCount"));
     }
     let reserved=crate::api::battle::entry_costs::held(db,account,"Item",index as i64).await?;
-    let row=sqlx::query("UPDATE items SET count=count-? WHERE account_id=? AND item_index=? AND count>=? AND locked=0 RETURNING count,locked")
+    let row=crate::db::query("UPDATE items SET count=count-$1 WHERE account_id=$2 AND item_index=$3 AND count>=$4 AND locked=0 RETURNING count,locked")
         .bind(count).bind(account).bind(index).bind(count as i64+reserved).fetch_optional(&mut *db).await?;
     let Some(row) = row else {
         return Err(rule("ItemNotOwned"));
@@ -91,7 +89,7 @@ pub(crate) async fn consume(
     )
 }
 pub(crate) async fn money(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     account: i64,
     kind: &str,
     amount: i64,
@@ -102,7 +100,7 @@ pub(crate) async fn money(
         return Ok(json!(CurrencyResultInfo3::new(kind, amount, value)));
     }
     if !matches!(kind, "Gem" | "PayGem") { return Err(rule("Fail")); }
-    let row = sqlx::query("SELECT gem,pay_gem FROM user_info WHERE account_id=?")
+    let row = crate::db::query("SELECT gem,pay_gem FROM user_info WHERE account_id=$1")
         .bind(account).fetch_one(&mut *db).await?;
     let free: i64 = row.try_get("gem")?;
     let paid: i64 = row.try_get("pay_gem")?;
@@ -119,27 +117,27 @@ pub(crate) async fn money(
     } else {
         (crate::currency::balance(free, amount)?, paid)
     };
-    let updated=sqlx::query("UPDATE user_info SET gem=?,pay_gem=? WHERE account_id=? AND gem=? AND pay_gem=?")
+    let updated=crate::db::query("UPDATE user_info SET gem=$1,pay_gem=$2 WHERE account_id=$3 AND gem=$4 AND pay_gem=$5")
         .bind(new_free).bind(new_paid).bind(account).bind(free).bind(paid).execute(db).await?;
     if updated.rows_affected()!=1 {return Err(rule("NotEnoughGem"));}
     Ok(json!(CurrencyResultInfo3::gem(amount, new_free, new_paid)))
 }
 
 /// Unequipped equipment in one bag. `?1` = account, `?2` = inventory type.
-const EQUIP_BAG_COUNT: &str = "SELECT COUNT(*) FROM equip_items WHERE account_id=?1 AND inventory_type=?2 AND slot_index NOT IN (\
-    SELECT equip_item_slot_index_1 FROM heroes WHERE account_id=?1 AND equip_item_slot_index_1 IS NOT NULL UNION ALL \
-    SELECT equip_item_slot_index_2 FROM heroes WHERE account_id=?1 AND equip_item_slot_index_2 IS NOT NULL UNION ALL \
-    SELECT equip_item_slot_index_3 FROM heroes WHERE account_id=?1 AND equip_item_slot_index_3 IS NOT NULL UNION ALL \
-    SELECT equip_item_slot_index_4 FROM heroes WHERE account_id=?1 AND equip_item_slot_index_4 IS NOT NULL UNION ALL \
-    SELECT equip_item_slot_index_5 FROM heroes WHERE account_id=?1 AND equip_item_slot_index_5 IS NOT NULL UNION ALL \
-    SELECT equip_item_slot_index_6 FROM heroes WHERE account_id=?1 AND equip_item_slot_index_6 IS NOT NULL UNION ALL \
-    SELECT equip_item_slot_index_7 FROM heroes WHERE account_id=?1 AND equip_item_slot_index_7 IS NOT NULL UNION ALL \
-    SELECT equip_item_slot_index_8 FROM heroes WHERE account_id=?1 AND equip_item_slot_index_8 IS NOT NULL UNION ALL \
-    SELECT equip_item_slot_index_9 FROM heroes WHERE account_id=?1 AND equip_item_slot_index_9 IS NOT NULL UNION ALL \
-    SELECT equip_item_slot_index_10 FROM heroes WHERE account_id=?1 AND equip_item_slot_index_10 IS NOT NULL)";
+const EQUIP_BAG_COUNT: &str = "SELECT COUNT(*) FROM equip_items WHERE account_id=$1 AND inventory_type=$2 AND slot_index NOT IN (\
+    SELECT equip_item_slot_index_1 FROM heroes WHERE account_id=$1 AND equip_item_slot_index_1 IS NOT NULL UNION ALL \
+    SELECT equip_item_slot_index_2 FROM heroes WHERE account_id=$1 AND equip_item_slot_index_2 IS NOT NULL UNION ALL \
+    SELECT equip_item_slot_index_3 FROM heroes WHERE account_id=$1 AND equip_item_slot_index_3 IS NOT NULL UNION ALL \
+    SELECT equip_item_slot_index_4 FROM heroes WHERE account_id=$1 AND equip_item_slot_index_4 IS NOT NULL UNION ALL \
+    SELECT equip_item_slot_index_5 FROM heroes WHERE account_id=$1 AND equip_item_slot_index_5 IS NOT NULL UNION ALL \
+    SELECT equip_item_slot_index_6 FROM heroes WHERE account_id=$1 AND equip_item_slot_index_6 IS NOT NULL UNION ALL \
+    SELECT equip_item_slot_index_7 FROM heroes WHERE account_id=$1 AND equip_item_slot_index_7 IS NOT NULL UNION ALL \
+    SELECT equip_item_slot_index_8 FROM heroes WHERE account_id=$1 AND equip_item_slot_index_8 IS NOT NULL UNION ALL \
+    SELECT equip_item_slot_index_9 FROM heroes WHERE account_id=$1 AND equip_item_slot_index_9 IS NOT NULL UNION ALL \
+    SELECT equip_item_slot_index_10 FROM heroes WHERE account_id=$1 AND equip_item_slot_index_10 IS NOT NULL)";
 
 pub(crate) async fn capacity(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     inventory: i32,
@@ -153,7 +151,7 @@ pub(crate) async fn capacity(
 
 /// Bag size minus unequipped items; negative when over capacity.
 pub(crate) async fn free_slots(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     inventory: i32,
@@ -163,8 +161,8 @@ pub(crate) async fn free_slots(
     } else {
         "inventory_extend"
     };
-    let extend: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
-        "SELECT {column} FROM inventory_settings WHERE account_id=?"
+    let extend: i64 = crate::db::query_scalar(sqlx::AssertSqlSafe(format!(
+        "SELECT {column} FROM inventory_settings WHERE account_id=$1"
     )))
     .bind(account)
     .fetch_optional(&mut *db)
@@ -195,7 +193,7 @@ pub(crate) async fn free_slots(
     };
     // Collect the equipped slots once instead of rescanning the account's
     // heroes per bag row (5 ms vs 0.15 ms for ~1000 items; this runs per drop).
-    let count: i64 = sqlx::query_scalar(EQUIP_BAG_COUNT)
+    let count: i64 = crate::db::query_scalar(EQUIP_BAG_COUNT)
     .bind(account)
     .bind(inventory)
     .fetch_one(db)
@@ -203,7 +201,7 @@ pub(crate) async fn free_slots(
     Ok(base + extend * size - count)
 }
 pub(crate) async fn give(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     grant: ItemGrant,
@@ -236,8 +234,8 @@ pub(crate) async fn give(
         return Ok(());
     }
     if metadata.kind == "Hero" {
-        let owned: bool = sqlx::query_scalar(
-            "SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=?)",
+        let owned: bool = crate::db::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=$1 AND hero_index=$2)",
         )
         .bind(account)
         .bind(metadata.hero_index)
@@ -265,7 +263,7 @@ pub(crate) async fn give(
     } else if metadata.kind != "Hero" {
         let cap = n(data(state, index)?, "ItemMaxCap");
         let old: i64 =
-            sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=?")
+            crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=$2")
                 .bind(account)
                 .bind(index)
                 .fetch_optional(&mut *db)
@@ -313,7 +311,7 @@ pub(crate) async fn give(
         let mut mailed = Vec::new();
         for _ in 0..overflow {
             let mut equip = rewards.equipment.pop().unwrap();
-            sqlx::query("DELETE FROM equip_items WHERE account_id=? AND slot_index=?")
+            crate::db::query("DELETE FROM equip_items WHERE account_id=$1 AND slot_index=$2")
                 .bind(account).bind(equip.slot_index).execute(&mut *db).await?;
             equip.slot_index = 0;
             equip.uid = String::new();
@@ -322,11 +320,11 @@ pub(crate) async fn give(
         mailed.reverse();
         mail_overflow(db, account, rewards, mailed).await?;
     }
-    sqlx::query("UPDATE items SET created_time=COALESCE(created_time,datetime('now')) WHERE account_id=? AND item_index=?").bind(account).bind(index).execute(&mut *db).await?;
+    crate::db::query("UPDATE items SET created_time=COALESCE(created_time,sprk_datetime('now')) WHERE account_id=$1 AND item_index=$2").bind(account).bind(index).execute(&mut *db).await?;
     // Rewarding additional copies must preserve the item's lock in the client response.
     if let Some(result) = rewards.items.last_mut().filter(|r| r["ItemIndex"] == index) {
         let locked: i32 =
-            sqlx::query_scalar("SELECT locked FROM items WHERE account_id=? AND item_index=?")
+            crate::db::query_scalar("SELECT locked FROM items WHERE account_id=$1 AND item_index=$2")
                 .bind(account)
                 .bind(index)
                 .fetch_one(db)
@@ -340,18 +338,18 @@ const OVERFLOW_MAIL_EQUIPMENT: usize = 25;
 
 /// Persist overflowed equipment now (never only in memory), appending to the
 /// batch's open overflow mail while it has room.
-async fn mail_overflow(db: &mut SqliteConnection, account: i64, rewards: &mut Rewards, equipment: Vec<EquipItemInfo>) -> Result<()> {
+async fn mail_overflow(db: &mut PgConnection, account: i64, rewards: &mut Rewards, equipment: Vec<EquipItemInfo>) -> Result<()> {
     for equip in equipment {
         match rewards.overflow_mail.as_mut() {
             Some((id, held)) if held.len() < OVERFLOW_MAIL_EQUIPMENT => {
                 held.push(equip);
-                sqlx::query("UPDATE mails SET reward_equipment=? WHERE mail_id=? AND account_id=?")
+                crate::db::query("UPDATE mails SET reward_equipment=$1 WHERE mail_id=$2 AND account_id=$3")
                     .bind(serde_json::to_string(held).map_err(|e|ServerError::Internal(e.to_string()))?)
                     .bind(*id).bind(account).execute(&mut *db).await?;
             }
             _ => {
                 let held = vec![equip];
-                let id: i64 = sqlx::query_scalar("INSERT INTO mails(account_id,sender,title,content,reward_equipment) VALUES(?,'System','Battle equipment rewards','Your equipment bag was full. Free bag space to claim these rewards.',?) RETURNING mail_id")
+                let id: i64 = crate::db::query_scalar("INSERT INTO mails(account_id,sender,title,content,reward_equipment) VALUES($1,'System','Battle equipment rewards','Your equipment bag was full. Free bag space to claim these rewards.',$2) RETURNING mail_id")
                     .bind(account).bind(serde_json::to_string(&held).map_err(|e|ServerError::Internal(e.to_string()))?)
                     .fetch_one(&mut *db).await?;
                 rewards.overflow_mail = Some((id, held));
@@ -361,24 +359,24 @@ async fn mail_overflow(db: &mut SqliteConnection, account: i64, rewards: &mut Re
     Ok(())
 }
 pub(crate) async fn reward(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     index: i32,
     rewards: &mut Rewards,
 ) -> Result<()> {
-    reward_with_loot_booster(db, state, account, index, rewards, false).await
+    reward_with_loot_bonus(db, state, account, index, rewards, 0).await
 }
 
-/// Double item quantities from this drop roll; currencies and first-clear
+/// Apply the additive loot percentage to this drop roll; currencies and first-clear
 /// rewards use their own paths. Equipment copies still roll their own options.
-pub(crate) async fn reward_with_loot_booster(
-    db: &mut SqliteConnection,
+pub(crate) async fn reward_with_loot_bonus(
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     index: i32,
     rewards: &mut Rewards,
-    boosted: bool,
+    loot_percent: i64,
 ) -> Result<()> {
     let row = state
         .tables
@@ -412,7 +410,7 @@ pub(crate) async fn reward_with_loot_booster(
             let mut amount=drop.count as i64;
             if code=="ShakmehMiddleBossPoint" {
                 let max=state.tables.battle.find("CurrencyType",&[("CurrencyType",48)]).map(|v|n(v,"MaxValue")).filter(|v|*v>0).ok_or_else(||rule("ItemDataNotFound"))?;
-                let balance:i64=sqlx::query_scalar("SELECT COALESCE((SELECT value FROM battle_currencies WHERE account=? AND kind='ShakmehMiddleBossPoint'),0)").bind(account).fetch_one(&mut *db).await?;
+                let balance:i64=crate::db::query_scalar("SELECT COALESCE((SELECT value FROM battle_currencies WHERE account=$1 AND kind='ShakmehMiddleBossPoint'),0)").bind(account).fetch_one(&mut *db).await?;
                 amount=amount.min((max-balance).max(0));
             }
             rewards.currencies.push(crate::api::heroes::currency(db,account,&code,amount).await?);
@@ -441,13 +439,16 @@ pub(crate) async fn reward_with_loot_booster(
         };
         let item_start = rewards.items.len();
         let equip_start = rewards.equipment.len();
+        let bonus = i64::from(count).checked_mul(loot_percent.max(0))
+            .and_then(|v| i32::try_from(v / 100).ok())
+            .ok_or_else(|| rule("InvalidItemCount"))?;
         give(
             db,
             state,
             account,
             ItemGrant {
                 index,
-                count: count.checked_mul(if boosted { 2 } else { 1 })
+                count: count.checked_add(bonus)
                     .ok_or_else(|| rule("InvalidItemCount"))?,
                 star,
                 custom: drop.custom_option_index,
@@ -455,19 +456,19 @@ pub(crate) async fn reward_with_loot_booster(
             rewards,
         )
         .await?;
-        if boosted {
+        if bonus > 0 {
             for result in &mut rewards.items[item_start..] {
-                result["AddBoosterCount"] = json!(count);
+                result["AddBoosterCount"] = json!(bonus);
             }
             for equip in rewards.equipment[equip_start..].iter().skip(count as usize) {
-                rewards.equipment_boosts.push(json!({"SlotIndex":equip.slot_index,"BoostPercent":100}));
+                rewards.equipment_boosts.push(json!({"SlotIndex":equip.slot_index,"BoostPercent":loot_percent}));
             }
         }
     }
     Ok(())
 }
 pub(crate) async fn reward_response(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     mut r: Rewards,
@@ -505,7 +506,7 @@ endpoint!(
     unset_chest
 );
 async fn complete_achievement_token(
-    db: &mut SqliteConnection, state: &AppState, account: i64, potion: &Value, amount: i64,
+    db: &mut PgConnection, state: &AppState, account: i64, potion: &Value, amount: i64,
 ) -> Result<Value> {
     // The recovered Guild Conquest mail token awards one victory towards the
     // WinGuildSuppress achievement. The action comes from trusted item data,
@@ -518,15 +519,14 @@ async fn complete_achievement_token(
 }
 
 pub(crate) async fn recover_pending_achievement_tokens(state: &AppState, account: i64) -> Result<()> {
-    let mut tx=state.db.begin().await?;
+    let mut tx=crate::database::begin(&state.db).await?;
     // Serialize against a concurrent native auto-use request. Tokens left by
     // the old unsupported-action response are consumed and credited together.
-    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?")
-        .bind(account).execute(&mut *tx).await?;
+    crate::postgres::lock_account(&mut *tx, account).await?;
     for (&index,potion) in &state.tables.inventory.potions {
         if potion["AutoUse"] != true || n(potion,"ActionType") != 8 ||
             potion["ActionSubValue"] != "WinGuildSuppress" || n(potion,"ActionValue2") != 0 { continue; }
-        let count:Option<i32>=sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=? AND count>0")
+        let count:Option<i32>=crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=$2 AND count>0")
             .bind(account).bind(index).fetch_optional(&mut *tx).await?;
         if let Some(count)=count {
             let amount=n(potion,"ActionValue").checked_mul(count as i64)
@@ -553,7 +553,7 @@ async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value
     };
     let req = Request::parse_with_integer_arrays(&body, arrays)?;
     let account = req.account(&state)?;
-    let mut tx = state.db.begin().await?;
+    let mut tx = crate::database::begin(&state.db).await?;
     init(&mut tx, &state, account).await?;
     match execute(&mut tx, &state, account, &req, action).await {
         Ok(mut value) => {
@@ -576,7 +576,7 @@ async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value
     }
 }
 async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -615,8 +615,8 @@ async fn execute(
         if ![0, 1].contains(&locked) {
             return Err(rule("Fail"));
         }
-        let changed = sqlx::query(
-            "UPDATE items SET locked=? WHERE account_id=? AND item_index=? AND count>0",
+        let changed = crate::db::query(
+            "UPDATE items SET locked=$1 WHERE account_id=$2 AND item_index=$3 AND count>0",
         )
         .bind(locked)
         .bind(account)
@@ -693,8 +693,8 @@ async fn execute(
                         .ok_or_else(||rule("InvalidStaminaType"))?;
                     let amount = if n(potion, "ActionType") == 2 {
                         // StaminaTable uses the team's level-based stamina maximum.
-                        let level: i32 = sqlx::query_scalar(
-                            "SELECT team_level FROM user_info WHERE account_id=?",
+                        let level: i32 = crate::db::query_scalar(
+                            "SELECT team_level FROM user_info WHERE account_id=$1",
                         )
                         .bind(account)
                         .fetch_one(&mut *db)
@@ -727,7 +727,7 @@ async fn execute(
                 4 => out["CurrencyResult"] = money(db, account, "Gem", amount).await?,
                 3 => {
                     let hero = item_index(req, "HeroIndex")?;
-                    let row=sqlx::query("SELECT level,exp,star,transcend FROM heroes WHERE account_id=? AND hero_index=?").bind(account).bind(hero).fetch_optional(&mut *db).await?.ok_or_else(||rule("HeroNotOwned"))?;
+                    let row=crate::db::query("SELECT level,exp,star,transcend FROM heroes WHERE account_id=$1 AND hero_index=$2").bind(account).bind(hero).fetch_optional(&mut *db).await?.ok_or_else(||rule("HeroNotOwned"))?;
                     let cap = state
                         .tables
                         .tutorials
@@ -751,8 +751,8 @@ async fn execute(
                         amount,
                         cap,
                     );
-                    sqlx::query(
-                        "UPDATE heroes SET level=?,exp=? WHERE account_id=? AND hero_index=?",
+                    crate::db::query(
+                        "UPDATE heroes SET level=$1,exp=$2 WHERE account_id=$3 AND hero_index=$4",
                     )
                     .bind(level)
                     .bind(exp)
@@ -769,8 +769,8 @@ async fn execute(
                     } else {
                         "inventory_extend"
                     };
-                    let old: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
-                        "SELECT {column} FROM inventory_settings WHERE account_id=?"
+                    let old: i64 = crate::db::query_scalar(sqlx::AssertSqlSafe(format!(
+                        "SELECT {column} FROM inventory_settings WHERE account_id=$1"
                     )))
                     .bind(account)
                     .fetch_one(&mut *db)
@@ -791,8 +791,8 @@ async fn execute(
                         return Err(rule("InvalidActionValue"));
                     }
                     let added = amount.min(max - old);
-                    sqlx::query(sqlx::AssertSqlSafe(format!(
-                        "UPDATE inventory_settings SET {column}={column}+? WHERE account_id=?"
+                    crate::db::query(sqlx::AssertSqlSafe(format!(
+                        "UPDATE inventory_settings SET {column}={column}+$1 WHERE account_id=$2"
                     )))
                     .bind(added)
                     .bind(account)
@@ -1006,7 +1006,7 @@ async fn execute(
                     save_options(db, account, equip).await?;
                 }
                 equip.level = n(selector, "Level") as i32;
-                sqlx::query("UPDATE equip_items SET level=? WHERE account_id=? AND slot_index=?")
+                crate::db::query("UPDATE equip_items SET level=$1 WHERE account_id=$2 AND slot_index=$3")
                     .bind(equip.level)
                     .bind(account)
                     .bind(equip.slot_index)
@@ -1030,8 +1030,8 @@ async fn execute(
                 || req.text("GetOtherReward") == "1"
             {
                 for id in choices {
-                    let owned: bool = sqlx::query_scalar(
-                        "SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=?)",
+                    let owned: bool = crate::db::query_scalar(
+                        "SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=$1 AND hero_index=$2)",
                     )
                     .bind(account)
                     .bind(id.as_i64().unwrap_or(0))
@@ -1059,8 +1059,8 @@ async fn execute(
                 if !choices.contains(&json!(selected)) {
                     return Err(rule("HeroNotSelectable"));
                 }
-                let owned: bool = sqlx::query_scalar(
-                    "SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=?)",
+                let owned: bool = crate::db::query_scalar(
+                    "SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=$1 AND hero_index=$2)",
                 )
                 .bind(account)
                 .bind(selected)
@@ -1073,7 +1073,7 @@ async fn execute(
                 let star = n(selector, "HeroStar");
                 let level = n(selector, "HeroLevel").max(1);
                 let transcend = n(selector, "HeroTranscend");
-                sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,star,level,transcend) SELECT ?,COALESCE(MAX(hero_id),0)+1,?,?,?,? FROM heroes WHERE account_id=?")
+                crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,star,level,transcend) SELECT $1,COALESCE(MAX(hero_id),0)+1,$2,$3,$4,$5 FROM heroes WHERE account_id=$6")
                     .bind(account).bind(selected).bind(star).bind(level).bind(transcend).bind(account).execute(&mut *db).await?;
                 let exp = state
                     .tables
@@ -1116,7 +1116,7 @@ fn pairs(req: &Request, counts_key: &str) -> Result<Vec<(i32, i32)>> {
     Ok(combined.into_iter().collect())
 }
 async fn sell_or_break(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -1128,8 +1128,8 @@ async fn sell_or_break(
     let mut r = Rewards::default();
     for (id, count) in pairs {
         let item = data(state, id)?;
-        let locked: Option<i32> = sqlx::query_scalar(
-            "SELECT locked FROM items WHERE account_id=? AND item_index=? AND count>=?",
+        let locked: Option<i32> = crate::db::query_scalar(
+            "SELECT locked FROM items WHERE account_id=$1 AND item_index=$2 AND count>=$3",
         )
         .bind(account)
         .bind(id)
@@ -1178,7 +1178,7 @@ async fn sell_or_break(
     Ok(out)
 }
 async fn equipment_action(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -1199,13 +1199,13 @@ async fn equipment_action(
     let mut gold = 0;
     let mut changed = vec![];
     for id in ids {
-        let row = sqlx::query("SELECT * FROM equip_items WHERE account_id=? AND slot_index=?")
+        let row = crate::db::query("SELECT * FROM equip_items WHERE account_id=$1 AND slot_index=$2")
             .bind(account)
             .bind(id)
             .fetch_optional(&mut *db)
             .await?
             .ok_or_else(|| rule("EquipNotOwned"))?;
-        let in_use:bool=sqlx::query_scalar("SELECT (? AND EXISTS(SELECT 1 FROM equipment_pending WHERE account_id=? AND slot_index=?)) OR EXISTS(SELECT 1 FROM extension_state WHERE account_id=? AND kind='soul' AND idx=?)").bind(action != "sell_equip").bind(account).bind(id).bind(account).bind(id).fetch_one(&mut *db).await?;
+        let in_use:bool=crate::db::query_scalar("SELECT ($1<>0 AND EXISTS(SELECT 1 FROM equipment_pending WHERE account_id=$2 AND slot_index=$3)) OR EXISTS(SELECT 1 FROM extension_state WHERE account_id=$4 AND kind='soul' AND idx=$5)").bind(action != "sell_equip").bind(account).bind(id).bind(account).bind(id).fetch_one(&mut *db).await?;
         if (row.get::<i32, _>("inventory_type") > 1 || in_use) && action != "set_lock_equip_item" {
             return Err(rule("Equipped"));
         }
@@ -1214,7 +1214,7 @@ async fn equipment_action(
             if ![0, 1].contains(&locked) {
                 return Err(rule("Fail"));
             }
-            sqlx::query("UPDATE equip_items SET locked=? WHERE account_id=? AND slot_index=?")
+            crate::db::query("UPDATE equip_items SET locked=$1 WHERE account_id=$2 AND slot_index=$3")
                 .bind(locked)
                 .bind(account)
                 .bind(id)
@@ -1222,7 +1222,7 @@ async fn equipment_action(
                 .await?;
             continue;
         }
-        let equipped:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND ? IN (equip_item_slot_index_1,equip_item_slot_index_2,equip_item_slot_index_3,equip_item_slot_index_4,equip_item_slot_index_5,equip_item_slot_index_6,equip_item_slot_index_7,equip_item_slot_index_8,equip_item_slot_index_9,equip_item_slot_index_10))").bind(account).bind(id).fetch_one(&mut *db).await?;
+        let equipped:bool=crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=$1 AND $2 IN (equip_item_slot_index_1,equip_item_slot_index_2,equip_item_slot_index_3,equip_item_slot_index_4,equip_item_slot_index_5,equip_item_slot_index_6,equip_item_slot_index_7,equip_item_slot_index_8,equip_item_slot_index_9,equip_item_slot_index_10))").bind(account).bind(id).fetch_one(&mut *db).await?;
         if equipped {
             return Err(rule("Equipped"));
         }
@@ -1236,7 +1236,7 @@ async fn equipment_action(
             }
             gold += n(item, "SellGold");
             crate::api::heroes::presets::forget_equipment(db, account, id).await?;
-            sqlx::query("DELETE FROM equip_items WHERE account_id=? AND slot_index=?")
+            crate::db::query("DELETE FROM equip_items WHERE account_id=$1 AND slot_index=$2")
                 .bind(account)
                 .bind(id)
                 .execute(&mut *db)
@@ -1246,8 +1246,8 @@ async fn equipment_action(
             if row.get::<i32, _>("inventory_type") != destination {
                 capacity(db, state, account, destination, 1).await?;
             }
-            sqlx::query(
-                "UPDATE equip_items SET inventory_type=? WHERE account_id=? AND slot_index=?",
+            crate::db::query(
+                "UPDATE equip_items SET inventory_type=$1 WHERE account_id=$2 AND slot_index=$3",
             )
             .bind(destination)
             .bind(account)
@@ -1270,7 +1270,7 @@ async fn equipment_action(
     Ok(out)
 }
 async fn expand(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -1281,8 +1281,8 @@ async fn expand(
     } else {
         "inventory_extend"
     };
-    let count: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
-        "SELECT {column} FROM inventory_settings WHERE account_id=?"
+    let count: i64 = crate::db::query_scalar(sqlx::AssertSqlSafe(format!(
+        "SELECT {column} FROM inventory_settings WHERE account_id=$1"
     )))
     .bind(account)
     .fetch_one(&mut *db)
@@ -1327,8 +1327,8 @@ async fn expand(
     }
     let mut out = success();
     out["CurrencyResult"] = money(db, account, "Gem", -price).await?;
-    sqlx::query(sqlx::AssertSqlSafe(format!(
-        "UPDATE inventory_settings SET {column}=? WHERE account_id=?"
+    crate::db::query(sqlx::AssertSqlSafe(format!(
+        "UPDATE inventory_settings SET {column}=$1 WHERE account_id=$2"
     )))
     .bind(new_count)
     .bind(account)
@@ -1345,13 +1345,13 @@ async fn expand(
 pub async fn get_inventory(State(state): State<AppState>, body: Bytes) -> Result<Json<Value>> {
     let account = Request::parse(&body)?.account(&state)?;
     let rows =
-        sqlx::query("SELECT * FROM items WHERE account_id=? AND count>0 ORDER BY item_index")
+        crate::db::query("SELECT * FROM items WHERE account_id=$1 AND count>0 ORDER BY item_index")
             .bind(account)
             .fetch_all(&state.db)
             .await?;
     let items:Vec<_>=rows.iter().map(|r|json!({"ItemIndex":r.get::<i32,_>("item_index"),"Count":r.get::<i32,_>("count"),"Locked":r.get::<i32,_>("locked"),"CreatedTime":r.get::<Option<String>,_>("created_time"),"Uid":r.get::<i32,_>("item_index").to_string()})).collect();
     let equip: Vec<_> =
-        sqlx::query("SELECT * FROM equip_items WHERE account_id=? ORDER BY slot_index")
+        crate::db::query("SELECT * FROM equip_items WHERE account_id=$1 ORDER BY slot_index")
             .bind(account)
             .fetch_all(&state.db)
             .await?
@@ -1364,7 +1364,7 @@ pub async fn get_inventory(State(state): State<AppState>, body: Bytes) -> Result
 }
 
 pub(crate) async fn activate_booster(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     index: i32,
@@ -1376,14 +1376,14 @@ pub(crate) async fn activate_booster(
         .boosters
         .get(&index)
         .ok_or_else(|| rule("BoosterDataNotFound"))?;
-    if !matches!(n(data, "Type"), 1 | 3) || data["IsOnetime"] == true {
+    if !matches!(n(data, "Type"), 1 | 2 | 3) || data["IsOnetime"] == true {
         return Err(rule("ItemTypeMismatch"));
     }
     activate_booster_definition(db, state, account, count, data).await
 }
 
 async fn activate_booster_definition(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     count: i32,
@@ -1399,52 +1399,51 @@ async fn activate_booster_definition(
         .ok().filter(|id| *id > 0).ok_or_else(|| rule("BoosterDataNotFound"))?;
     normalize_booster_timers(db, state, account).await?;
     let now = state.server_time_str();
-    let row=sqlx::query("INSERT INTO item_boosters(account_id,item_index,start_time,end_time) VALUES (?,?,?,datetime(?,?)) ON CONFLICT(account_id,item_index) DO UPDATE SET start_time=CASE WHEN end_time>excluded.start_time THEN start_time ELSE excluded.start_time END,end_time=datetime(MAX(end_time,excluded.start_time),?) RETURNING start_time,end_time")
+    let row=crate::db::query("INSERT INTO item_boosters(account_id,item_index,start_time,end_time) VALUES ($1,$2,$3,sprk_datetime($4,$5)) ON CONFLICT(account_id,item_index) DO UPDATE SET start_time=CASE WHEN item_boosters.end_time>excluded.start_time THEN item_boosters.start_time ELSE excluded.start_time END,end_time=sprk_datetime(GREATEST(item_boosters.end_time,excluded.start_time),$6) RETURNING start_time,end_time")
         .bind(account).bind(index).bind(&now).bind(&now).bind(format!("+{duration} seconds")).bind(format!("+{duration} seconds")).fetch_one(db).await?;
     Ok(
         json!({"ItemIndex":index,"StartTime":row.get::<String,_>("start_time"),"EndTime":row.get::<String,_>("end_time")}),
     )
 }
 pub(crate) async fn booster_login(state: &AppState, account: i64) -> Result<Vec<Value>> {
-    let mut tx = state.db.begin().await?;
+    let mut tx = crate::database::begin(&state.db).await?;
     // Serialize legacy timer repair against an item use or battle settlement.
-    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?")
-        .bind(account).execute(&mut *tx).await?;
+    crate::postgres::lock_account(&mut *tx, account).await?;
     let result = booster_snapshot(&mut tx, state, account).await?;
     tx.commit().await?;
     Ok(result)
 }
 
 pub(crate) async fn normalize_booster_timers(
-    db: &mut SqliteConnection, state: &AppState, account: i64,
+    db: &mut PgConnection, state: &AppState, account: i64,
 ) -> Result<()> {
     let now = state.server_time_str();
     for (&index, data) in &state.tables.inventory.boosters {
         let group = n(data, "BoosterItemIndex");
-        if !matches!(n(data, "Type"), 1 | 3) || group <= 0 || group == i64::from(index) {
+        if !matches!(n(data, "Type"), 1 | 2 | 3) || group <= 0 || group == i64::from(index) {
             continue;
         }
         // Older servers stored day/week consumable IDs separately, while the
         // client maps both onto one timer. Preserve every unexpired second once
         // and delete the alias in the same caller-owned transaction.
-        sqlx::query("INSERT INTO item_boosters(account_id,item_index,start_time,end_time)
-            SELECT account_id,?,start_time,end_time FROM item_boosters
-            WHERE account_id=? AND item_index=? AND end_time>?
+        crate::db::query("INSERT INTO item_boosters(account_id,item_index,start_time,end_time)
+            SELECT account_id,$1,start_time,end_time FROM item_boosters
+            WHERE account_id=$2 AND item_index=$3 AND end_time>$4
             ON CONFLICT(account_id,item_index) DO UPDATE SET
-            start_time=CASE WHEN item_boosters.end_time>? THEN MIN(item_boosters.start_time,excluded.start_time) ELSE excluded.start_time END,
-            end_time=datetime(MAX(item_boosters.end_time,?), '+' || (strftime('%s',excluded.end_time)-strftime('%s',?)) || ' seconds')")
+            start_time=CASE WHEN item_boosters.end_time>$5 THEN LEAST(item_boosters.start_time,excluded.start_time) ELSE excluded.start_time END,
+            end_time=sprk_datetime(GREATEST(item_boosters.end_time,$6), '+' || (sprk_epoch(excluded.end_time)-sprk_epoch($7)) || ' seconds')")
             .bind(group).bind(account).bind(index).bind(&now)
             .bind(&now).bind(&now).bind(&now).execute(&mut *db).await?;
-        sqlx::query("DELETE FROM item_boosters WHERE account_id=? AND item_index=?")
+        crate::db::query("DELETE FROM item_boosters WHERE account_id=$1 AND item_index=$2")
             .bind(account).bind(index).execute(&mut *db).await?;
     }
     Ok(())
 }
 
-async fn booster_snapshot(db: &mut SqliteConnection, state: &AppState, account: i64) -> Result<Vec<Value>> {
+async fn booster_snapshot(db: &mut PgConnection, state: &AppState, account: i64) -> Result<Vec<Value>> {
     normalize_booster_timers(db, state, account).await?;
     let rows =
-        sqlx::query("SELECT * FROM item_boosters WHERE account_id=? AND end_time>datetime('now') ORDER BY item_index")
+        crate::db::query("SELECT * FROM item_boosters WHERE account_id=$1 AND end_time>sprk_datetime('now') ORDER BY item_index")
             .bind(account)
             .fetch_all(db)
             .await?;
@@ -1568,13 +1567,13 @@ pub(crate) fn make_options(
         as i32;
     Ok(())
 }
-async fn save_options(db: &mut SqliteConnection, account: i64, item: &EquipItemInfo) -> Result<()> {
-    sqlx::query("UPDATE equip_items SET option_index_1=?,option_step_1=?,option_index_2=?,option_step_2=?,option_index_3=?,option_step_3=?,option_index_4=?,option_step_4=?,rune_slot_count=? WHERE account_id=? AND slot_index=?")
+async fn save_options(db: &mut PgConnection, account: i64, item: &EquipItemInfo) -> Result<()> {
+    crate::db::query("UPDATE equip_items SET option_index_1=$1,option_step_1=$2,option_index_2=$3,option_step_2=$4,option_index_3=$5,option_step_3=$6,option_index_4=$7,option_step_4=$8,rune_slot_count=$9 WHERE account_id=$10 AND slot_index=$11")
         .bind(item.option_index_1).bind(item.option_step_1).bind(item.option_index_2).bind(item.option_step_2).bind(item.option_index_3).bind(item.option_step_3).bind(item.option_index_4).bind(item.option_step_4).bind(item.rune_slot_count).bind(account).bind(item.slot_index).execute(db).await?;
     Ok(())
 }
 async fn dismantle_runes(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -1594,7 +1593,7 @@ async fn dismantle_runes(
             return Err(rule("InvalidItemType"));
         }
         let locked: Option<i32> =
-            sqlx::query_scalar("SELECT locked FROM items WHERE account_id=? AND item_index=?")
+            crate::db::query_scalar("SELECT locked FROM items WHERE account_id=$1 AND item_index=$2")
                 .bind(account)
                 .bind(id)
                 .fetch_optional(&mut *db)

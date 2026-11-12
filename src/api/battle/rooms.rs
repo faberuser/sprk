@@ -8,13 +8,13 @@ pub(super) fn wire_room(room: &Value) -> Value {
     }
     out
 }
-pub(super) async fn remove_account(db: &mut SqliteConnection, a: i64) -> Result<()> {
+pub(super) async fn remove_account(db: &mut PgConnection, a: i64) -> Result<()> {
     leave(db, a, a, None).await
 }
 
-async fn room(db: &mut SqliteConnection, id: i64, family: &str) -> Result<Value> {
+async fn room(db: &mut PgConnection, id: i64, family: &str) -> Result<Value> {
     let v: Option<String> =
-        sqlx::query_scalar("SELECT data FROM battle_rooms WHERE id=? AND family=?")
+        crate::db::query_scalar("SELECT data FROM battle_rooms WHERE id=$1 AND family=$2 FOR UPDATE")
             .bind(id)
             .bind(family)
             .fetch_optional(db)
@@ -22,16 +22,16 @@ async fn room(db: &mut SqliteConnection, id: i64, family: &str) -> Result<Value>
     v.map(|s| read_json(&s))
         .unwrap_or_else(|| Err(rule("RoomNotExist")))
 }
-async fn members(db: &mut SqliteConnection, id: i64) -> Result<Vec<i64>> {
-    Ok(sqlx::query_scalar(
-        "SELECT account FROM battle_room_members WHERE room=? ORDER BY joined,account",
+async fn members(db: &mut PgConnection, id: i64) -> Result<Vec<i64>> {
+    Ok(crate::db::query_scalar(
+        "SELECT account FROM battle_room_members WHERE room=$1 ORDER BY joined,account",
     )
     .bind(id)
     .fetch_all(db)
     .await?)
 }
-async fn save(db: &mut SqliteConnection, id: i64, v: &Value) -> Result<()> {
-    sqlx::query("UPDATE battle_rooms SET master=?,data=?,updated=? WHERE id=?")
+async fn save(db: &mut PgConnection, id: i64, v: &Value) -> Result<()> {
+    crate::db::query("UPDATE battle_rooms SET master=$1,data=$2,updated=$3 WHERE id=$4")
         .bind(n(v, "MasterAccountId"))
         .bind(v.to_string())
         .bind(now())
@@ -40,9 +40,9 @@ async fn save(db: &mut SqliteConnection, id: i64, v: &Value) -> Result<()> {
         .await?;
     Ok(())
 }
-async fn prune(db: &mut SqliteConnection, s: &AppState) -> Result<()> {
+async fn prune(db: &mut PgConnection, s: &AppState) -> Result<()> {
     let expired: Vec<i64> =
-        sqlx::query_scalar("SELECT m.account FROM battle_room_members m JOIN battle_rooms r ON r.id=m.room WHERE m.updated<? AND COALESCE(json_extract(r.data,'$.Status'),0)!=2")
+        crate::db::query_scalar("SELECT m.account FROM battle_room_members m JOIN battle_rooms r ON r.id=m.room WHERE m.updated<$1 AND COALESCE(sprk_json_int(r.data,'$.Status'),0)!=2")
             .bind(now() - settings(s, "RoomTimeoutSeconds", 120))
             .fetch_all(&mut *db)
             .await?;
@@ -52,17 +52,17 @@ async fn prune(db: &mut SqliteConnection, s: &AppState) -> Result<()> {
     Ok(())
 }
 async fn leave(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     actor: i64,
     target: i64,
     requested: Option<i64>,
 ) -> Result<()> {
-    let membership:Option<(i64,i64,String)>=sqlx::query_as("SELECT r.id,r.master,r.data FROM battle_room_members m JOIN battle_rooms r ON r.id=m.room WHERE m.account=?").bind(actor).fetch_optional(&mut *db).await?;
+    let membership:Option<(i64,i64,String)>=crate::db::query_as("SELECT r.id,r.master,r.data FROM battle_room_members m JOIN battle_rooms r ON r.id=m.room WHERE m.account=$1").bind(actor).fetch_optional(&mut *db).await?;
     let (id, master, text) = membership.ok_or_else(|| rule("RoomNotExist"))?;
     if requested.is_some_and(|r| r != id) || actor != target && actor != master {
         return Err(rule("RoomNotExist"));
     }
-    let count = sqlx::query("DELETE FROM battle_room_members WHERE room=? AND account=?")
+    let count = crate::db::query("DELETE FROM battle_room_members WHERE room=$1 AND account=$2")
         .bind(id)
         .bind(target)
         .execute(&mut *db)
@@ -71,10 +71,10 @@ async fn leave(
     if count != 1 {
         return Err(rule("RoomNotExist"));
     }
-    sqlx::query("DELETE FROM battle_state WHERE account=? AND kind='party_member' AND idx=?").bind(target).bind(id).execute(&mut *db).await?;
+    crate::db::query("DELETE FROM battle_state WHERE account=$1 AND kind='party_member' AND idx=$2").bind(target).bind(id).execute(&mut *db).await?;
     let ids = members(db, id).await?;
     if ids.is_empty() {
-        sqlx::query("DELETE FROM battle_rooms WHERE id=?")
+        crate::db::query("DELETE FROM battle_rooms WHERE id=$1")
             .bind(id)
             .execute(db)
             .await?;
@@ -84,7 +84,7 @@ async fn leave(
     v["CurPartyMember"] = json!(ids.len());
     if master == target {
         let next = ids[0];
-        let nick: String = sqlx::query_scalar("SELECT nick FROM accounts WHERE account_id=?")
+        let nick: String = crate::db::query_scalar("SELECT nick FROM accounts WHERE account_id=$1")
             .bind(next)
             .fetch_one(&mut *db)
             .await?;
@@ -93,7 +93,7 @@ async fn leave(
     }
     save(db, id, &v).await
 }
-async fn definition<'a>(db: &mut SqliteConnection, s: &'a AppState, a: i64, r: &Request, family: &str) -> Result<&'a Value> {
+async fn definition<'a>(db: &mut PgConnection, s: &'a AppState, a: i64, r: &Request, family: &str) -> Result<&'a Value> {
     if family == "raid" {
         let v = row(
             s,
@@ -139,7 +139,7 @@ async fn definition<'a>(db: &mut SqliteConnection, s: &'a AppState, a: i64, r: &
     }
 }
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -151,7 +151,7 @@ pub(super) async fn execute(
     if action.starts_with("create_") {
         let def = definition(db, s, a, r, family).await?;
         let existing: bool =
-            sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM battle_room_members WHERE account=?)")
+            crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM battle_room_members WHERE account=$1)")
                 .bind(a)
                 .fetch_one(&mut *db)
                 .await?;
@@ -162,23 +162,23 @@ pub(super) async fn execute(
         if opened > 1 {
             return Err(rule("InvalidRoomInfo"));
         }
-        let nick: String = sqlx::query_scalar("SELECT nick FROM accounts WHERE account_id=?")
+        let nick: String = crate::db::query_scalar("SELECT nick FROM accounts WHERE account_id=$1")
             .bind(a)
             .fetch_one(&mut *db)
             .await?;
         let mut v = json!({"RoomNo":0,"RaidIndex":int(r,"RaidIndex")?,"RaidLevel":int(r,"RaidLevel")?,"RaidMonsterLevel":int(r,"RaidMonsterLevel")?,"GoalIndex":int(r,"GoalIndex")?,"DungeonType":int(r,"DungeonType")?,"ChapterIndex":n(def,"ChapterIndex"),"DungeonIndex":n(def,"DungeonIndex"),"DungeonDifficulty":int(r,"DungeonDifficulty")?,"Opened":opened,"MasterAccountId":a,"MasterNick":nick,"CurPartyMember":1,"IsAutoRoot":false,"AffixIndices":ids(r,"AffixIndices",128)?,"Status":0,"Capacity":n(def,"PlayerCount").clamp(1,8)});
         let id =
-            sqlx::query("INSERT INTO battle_rooms(family,master,data,updated) VALUES(?,?,?,?)")
+            crate::db::query_scalar::<i64>("INSERT INTO battle_rooms(family,master,data,updated) VALUES($1,$2,$3,$4) RETURNING id")
                 .bind(family)
                 .bind(a)
                 .bind(v.to_string())
                 .bind(now())
-                .execute(&mut *db)
+                .fetch_one(&mut *db)
                 .await?
-                .last_insert_rowid();
+                ;
         v["RoomNo"] = json!(id);
         save(db, id, &v).await?;
-        sqlx::query("INSERT INTO battle_room_members(account,room,joined,updated) VALUES(?,?,?,?)")
+        crate::db::query("INSERT INTO battle_room_members(account,room,joined,updated) VALUES($1,$2,$3,$4)")
             .bind(a)
             .bind(id)
             .bind(now())
@@ -189,8 +189,8 @@ pub(super) async fn execute(
         return Ok(out);
     }
     if action.starts_with("search_") || action.starts_with("wait_") {
-        let texts: Vec<String> = sqlx::query_scalar(
-            "SELECT data FROM battle_rooms WHERE family=? ORDER BY id LIMIT 100",
+        let texts: Vec<String> = crate::db::query_scalar(
+            "SELECT data FROM battle_rooms WHERE family=$1 ORDER BY id LIMIT 100",
         )
         .bind(family)
         .fetch_all(&mut *db)
@@ -229,7 +229,7 @@ pub(super) async fn execute(
         return Err(rule("RoomNotExist"));
     }
     if action.starts_with("ping_") {
-        sqlx::query("UPDATE battle_room_members SET updated=? WHERE account=?")
+        crate::db::query("UPDATE battle_room_members SET updated=$1 WHERE account=$2")
             .bind(now())
             .bind(a)
             .execute(db)
@@ -263,7 +263,7 @@ pub(super) async fn execute(
         }
         v["MasterAccountId"] = json!(target);
         v["MasterNick"] = json!(
-            sqlx::query_scalar::<_, String>("SELECT nick FROM accounts WHERE account_id=?")
+            crate::db::query_scalar::<String>("SELECT nick FROM accounts WHERE account_id=$1")
                 .bind(target)
                 .fetch_one(&mut *db)
                 .await?
@@ -339,7 +339,7 @@ pub(super) async fn execute(
     save(db, id, &v).await?;
     Ok(out)
 }
-pub(super) async fn require_join_unlock(db:&mut SqliteConnection,s:&AppState,a:i64,v:&Value,family:&str)->Result<()> {
+pub(super) async fn require_join_unlock(db:&mut PgConnection,s:&AppState,a:i64,v:&Value,family:&str)->Result<()> {
     if family=="raid" {
         let raid=row(s,"Raid",&[("Index",n(v,"RaidIndex")),("Level",n(v,"RaidLevel"))])?;
         dungeons::require_raid_join_unlock(db,s,a,raid).await?;
@@ -349,18 +349,18 @@ pub(super) async fn require_join_unlock(db:&mut SqliteConnection,s:&AppState,a:i
     Ok(())
 }
 
-pub(super) async fn join(db: &mut SqliteConnection, s:&AppState, a: i64, id: i64, family: &str) -> Result<Value> {
+pub(super) async fn join(db: &mut PgConnection, s:&AppState, a: i64, id: i64, family: &str) -> Result<Value> {
     let mut v = room(db, id, family).await?;
     require_join_unlock(db,s,a,&v,family).await.map_err(|error|match error {
         ServerError::InvalidRequest(_)=>rule("DungeonLocked"),other=>other,
     })?;
     if family=="raid" && n(&v,"RaidIndex")==90001 {
-        let same:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM guild_members a JOIN guild_members b ON a.guild_id=b.guild_id WHERE a.account_id=? AND b.account_id=?)")
+        let same:bool=crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM guild_members a JOIN guild_members b ON a.guild_id=b.guild_id WHERE a.account_id=$1 AND b.account_id=$2)")
             .bind(a).bind(n(&v,"MasterAccountId")).fetch_one(&mut *db).await?;
         if !same {return Err(rule("WrongMember"));}
     }
     let old: Option<i64> =
-        sqlx::query_scalar("SELECT room FROM battle_room_members WHERE account=?")
+        crate::db::query_scalar("SELECT room FROM battle_room_members WHERE account=$1")
             .bind(a)
             .fetch_optional(&mut *db)
             .await?;
@@ -377,7 +377,7 @@ pub(super) async fn join(db: &mut SqliteConnection, s:&AppState, a: i64, id: i64
     if count >= n(&v, "Capacity") || n(&v, "Status") != 0 || (n(&v, "Opened") != 1 && !invited) {
         return Err(rule("InvalidRoomInfo"));
     }
-    sqlx::query("INSERT INTO battle_room_members(account,room,joined,updated) VALUES(?,?,?,?)")
+    crate::db::query("INSERT INTO battle_room_members(account,room,joined,updated) VALUES($1,$2,$3,$4)")
         .bind(a)
         .bind(id)
         .bind(now())
@@ -385,20 +385,20 @@ pub(super) async fn join(db: &mut SqliteConnection, s:&AppState, a: i64, id: i64
         .execute(&mut *db)
         .await?;
     v["CurPartyMember"] = json!(count + 1);
-    sqlx::query("DELETE FROM battle_state WHERE account=? AND kind='party_member'").bind(a).execute(&mut *db).await?;
+    crate::db::query("DELETE FROM battle_state WHERE account=$1 AND kind='party_member'").bind(a).execute(&mut *db).await?;
     save(db, id, &v).await?;
     Ok(v)
 }
 pub(super) async fn validate_battle(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     _s: &AppState,
     a: i64,
     r: &Request,
 ) -> Result<()> {
     let id = r.number("RaidRoomNo", 0)?.max(r.number("MultiRoomNo", 0)?);
     if id > 0 {
-        let valid: bool = sqlx::query_scalar(
-            "SELECT EXISTS(SELECT 1 FROM battle_room_members WHERE account=? AND room=?)",
+        let valid: bool = crate::db::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM battle_room_members WHERE account=$1 AND room=$2)",
         )
         .bind(a)
         .bind(id)
@@ -419,7 +419,7 @@ pub(super) async fn validate_battle(
     Ok(())
 }
 pub(super) async fn finish(
-    _db: &mut SqliteConnection,
+    _db: &mut PgConnection,
     _s: &AppState,
     _a: i64,
     _r: &Request,
@@ -429,7 +429,7 @@ pub(super) async fn finish(
     Ok(())
 }
 pub(super) async fn reward(
-    _db: &mut SqliteConnection,
+    _db: &mut PgConnection,
     _s: &AppState,
     _a: i64,
     _r: &Request,

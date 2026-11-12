@@ -2,7 +2,8 @@
 use crate::{error::Result, state::AppState};
 use crate::api::inventory::item::{n, rule};
 use serde_json::{json, Value};
-use sqlx::{Row, SqliteConnection};
+use sqlx::{PgConnection};
+use crate::db::RowExt;
 
 #[cfg(test)]
 mod tests;
@@ -57,20 +58,20 @@ pub(crate) fn events(s: &AppState) -> Vec<Value> {
     events
 }
 
-async fn cleared(db: &mut SqliteConnection, account: i64, chapter: i64, dungeon: i64) -> Result<bool> {
-    let native: Option<String> = sqlx::query_scalar("SELECT data FROM battle_state WHERE account=? AND kind='dungeon' AND idx=?")
+async fn cleared(db: &mut PgConnection, account: i64, chapter: i64, dungeon: i64) -> Result<bool> {
+    let native: Option<String> = crate::db::query_scalar("SELECT data FROM battle_state WHERE account=$1 AND kind='dungeon' AND idx=$2")
         .bind(account).bind((chapter << 32) | dungeon).fetch_optional(&mut *db).await?;
     if let Some(native) = native {
         let info: Value = serde_json::from_str(&native).map_err(|_| rule("InvalidProgress"))?;
         // A testing reset keeps reward flags, so those flags alone are not a clear.
         return Ok(n(&info, "MaxStar") % 10 > 0 && info["CompletedTime"].as_str().is_some_and(|v| !v.is_empty()));
     }
-    Ok(sqlx::query("SELECT clear_count,completed_time FROM campaign_progress WHERE account_id=? AND chapter_id=? AND dungeon_id=?")
+    Ok(crate::db::query("SELECT clear_count,completed_time FROM campaign_progress WHERE account_id=$1 AND chapter_id=$2 AND dungeon_id=$3")
         .bind(account).bind(chapter).bind(dungeon).fetch_optional(db).await?
         .is_some_and(|r| r.get::<i64,_>("clear_count") > 0 && r.get::<Option<String>,_>("completed_time").is_some()))
 }
 
-pub(crate) async fn require_battle(db: &mut SqliteConnection, s: &AppState, account: i64,
+pub(crate) async fn require_battle(db: &mut PgConnection, s: &AppState, account: i64,
     chapter_id: i64, dungeon: i64, difficulty: i64) -> Result<()> {
     let Some(e) = chapter(chapter_id) else { return Ok(()); };
     if !enabled(s) { return Err(rule("NotOpenedDungeon")); }

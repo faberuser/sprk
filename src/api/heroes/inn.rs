@@ -3,7 +3,7 @@ use axum::{
     Json,
 };
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use crate::db::RowExt;
 use chrono::{Utc, Duration};
 use rand::RngExt;
 
@@ -103,10 +103,10 @@ pub async fn request_new_friendly_hero(
 
     let account_id = session.account_id;
     let current_time = state.server_time_str();
-    let mut tx = state.db.begin().await?;
+    let mut tx = crate::database::begin(&state.db).await?;
 
     // Ownership excludes recruitment, not social visits.
-    let owned_heroes: Vec<i32> = sqlx::query("SELECT hero_index FROM heroes WHERE account_id = ?")
+    let owned_heroes: Vec<i32> = crate::db::query("SELECT hero_index FROM heroes WHERE account_id = $1")
         .bind(account_id)
         .fetch_all(&mut *tx)
         .await?
@@ -122,7 +122,7 @@ pub async fn request_new_friendly_hero(
     let owned_visitors = owned_inn_visitors(&state, &owned_heroes);
 
     // Check if there's an existing friendly info for this account
-    let existing = sqlx::query("SELECT * FROM hero_friendly_info WHERE account_id = ?")
+    let existing = crate::db::query("SELECT * FROM hero_friendly_info WHERE account_id = $1")
         .bind(account_id)
         .fetch_optional(&mut *tx)
         .await?;
@@ -154,8 +154,8 @@ pub async fn request_new_friendly_hero(
         let first_hero = selected_heroes.iter().copied().find(|id| available_heroes.contains(id)).unwrap_or(0);
 
         // Insert new record
-        sqlx::query(
-            "INSERT INTO hero_friendly_info (account_id, hero_index, selected_hero_index, friendly_point, selected_time, selected_hero_indices) VALUES (?, ?, ?, 0, ?, ?)"
+        crate::db::query(
+            "INSERT INTO hero_friendly_info (account_id, hero_index, selected_hero_index, friendly_point, selected_time, selected_hero_indices) VALUES ($1, $2, $3, 0, $4, $5)"
         )
         .bind(account_id)
         .bind(first_hero)
@@ -207,7 +207,7 @@ pub async fn request_new_friendly_hero(
         let selected = select_inn_visitors(&available_heroes, &owned_visitors, friendly_info.hero_index);
         friendly_info.selected_hero_indice = Some(selected.iter().map(i32::to_string).collect::<Vec<_>>().join(","));
         friendly_info.selected_time = Some(current_time.clone());
-        sqlx::query("UPDATE hero_friendly_info SET hero_index=?,selected_hero_index=?,friendly_point=?,last_greeting_time=?,last_conversation_time=?,last_gift_time=?,selected_time=?,selected_hero_indices=? WHERE account_id=?")
+        crate::db::query("UPDATE hero_friendly_info SET hero_index=$1,selected_hero_index=$2,friendly_point=$3,last_greeting_time=$4,last_conversation_time=$5,last_gift_time=$6,selected_time=$7,selected_hero_indices=$8 WHERE account_id=$9")
             .bind(friendly_info.hero_index).bind(friendly_info.selected_hero_index)
             .bind(friendly_info.friendly_point).bind(&friendly_info.last_greeting_time)
             .bind(&friendly_info.last_conversation_time).bind(&friendly_info.last_gift_time)
@@ -217,8 +217,8 @@ pub async fn request_new_friendly_hero(
     tx.commit().await?;
 
     // Check for heroes that reached max closeness (for owned heroes)
-    let max_closeness_heroes: Vec<i32> = sqlx::query(
-        "SELECT hero_index FROM heroes WHERE account_id = ? AND closeness >= 1000"
+    let max_closeness_heroes: Vec<i32> = crate::db::query(
+        "SELECT hero_index FROM heroes WHERE account_id = $1 AND closeness >= 1000"
     )
     .bind(account_id)
     .fetch_all(&state.db)
@@ -357,16 +357,15 @@ pub async fn do_hero_friendly(
     };
     // Serialize the cooldown check, costs, timestamp and Affinity update. A
     // concurrent click must not pay or earn points a second time.
-    let mut tx = state.db.begin().await?;
-    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?")
-        .bind(account_id).execute(&mut *tx).await?;
-    let owned = sqlx::query("SELECT closeness FROM heroes WHERE account_id=? AND hero_index=?")
+    let mut tx = crate::database::begin(&state.db).await?;
+    crate::postgres::lock_account(&mut *tx, account_id).await?;
+    let owned = crate::db::query("SELECT closeness FROM heroes WHERE account_id=$1 AND hero_index=$2")
         .bind(account_id).bind(hero_index).fetch_optional(&mut *tx).await?;
     let is_owned = owned.is_some();
     let target = state.tables.hero_shop.inn_recruitment_points.get(&hero_index).copied();
     if !is_owned && target.is_none() { return Ok(failure(DoHeroFriendlyResult::CannotRecruit)); }
     if is_owned != closeness_action { return Ok(failure(DoHeroFriendlyResult::ActionNotExist)); }
-    let Some(friendly) = sqlx::query("SELECT * FROM hero_friendly_info WHERE account_id=?")
+    let Some(friendly) = crate::db::query("SELECT * FROM hero_friendly_info WHERE account_id=$1")
         .bind(account_id).fetch_optional(&mut *tx).await? else {
         return Ok(failure(DoHeroFriendlyResult::HeroNotExistInFriendlyTable));
     };
@@ -384,19 +383,19 @@ pub async fn do_hero_friendly(
         .is_some_and(|t| t.date() >= today) {
         return Ok(failure(DoHeroFriendlyResult::ActionNotReady));
     }
-    let user = sqlx::query("SELECT gold,friendship_point FROM user_info WHERE account_id=?")
+    let user = crate::db::query("SELECT gold,friendship_point FROM user_info WHERE account_id=$1")
         .bind(account_id).fetch_one(&mut *tx).await?;
     let gold: i64 = user.get("gold");
     let friendship: i64 = user.get("friendship_point");
     if gold < gold_cost || friendship < friendship_cost { return Ok(failure(DoHeroFriendlyResult::CostMismatch)); }
     let currency_result = if gold_cost > 0 {
-        sqlx::query("UPDATE user_info SET gold=gold-? WHERE account_id=?")
+        crate::db::query("UPDATE user_info SET gold=gold-$1 WHERE account_id=$2")
             .bind(gold_cost).bind(account_id).execute(&mut *tx).await?;
         Some(CurrencyResultInfo3 { currency_type: "Gold".into(), add_value: -gold_cost,
             new_value: gold-gold_cost, ..Default::default() })
     } else { None };
     let friendship_point_result = if friendship_cost > 0 {
-        sqlx::query("UPDATE user_info SET friendship_point=friendship_point-? WHERE account_id=?")
+        crate::db::query("UPDATE user_info SET friendship_point=friendship_point-$1 WHERE account_id=$2")
             .bind(friendship_cost).bind(account_id).execute(&mut *tx).await?;
         Some(FriendshipPointResultInfo { add_value: -friendship_cost, add_daily_acc_value: 0,
             new_value: friendship-friendship_cost, new_daily_acc_value: 0 })
@@ -405,10 +404,10 @@ pub async fn do_hero_friendly(
     let new_point = if is_owned { current_point } else { (current_point + points).min(target.unwrap()) };
     // Retain the Inn's action timestamps for recruitment and progression hooks.
     // Owned-hero cooldown decisions use only that hero's persisted timestamps.
-    sqlx::query(sqlx::AssertSqlSafe(format!("UPDATE hero_friendly_info SET friendly_point=?, {column}=? WHERE account_id=?")))
+    crate::db::query(sqlx::AssertSqlSafe(format!("UPDATE hero_friendly_info SET friendly_point=$1, {column}=$2 WHERE account_id=$3")))
         .bind(new_point).bind(&current_time).bind(account_id).execute(&mut *tx).await?;
     let hero_info = if let Some(owned) = owned {
-        sqlx::query("UPDATE heroes SET closeness=? WHERE account_id=? AND hero_index=?")
+        crate::db::query("UPDATE heroes SET closeness=$1 WHERE account_id=$2 AND hero_index=$3")
             .bind((owned.get::<i32, _>("closeness") + points).min(1000))
             .bind(account_id).bind(hero_index).execute(&mut *tx).await?;
         if !details.is_object() { return Err(ServerError::Internal("Invalid hero details".into())); }
@@ -419,7 +418,7 @@ pub async fn do_hero_friendly(
         Some(serde_json::from_value(super::info(&mut tx, account_id, hero_index).await?)
             .map_err(|e| ServerError::Internal(e.to_string()))?)
     } else { None };
-    let row = sqlx::query("SELECT * FROM hero_friendly_info WHERE account_id=?")
+    let row = crate::db::query("SELECT * FROM hero_friendly_info WHERE account_id=$1")
         .bind(account_id).fetch_one(&mut *tx).await?;
     let friendly_info = PlayerHeroFriendlyInfo {
         hero_index: row.get("hero_index"), selected_hero_index: row.get("selected_hero_index"),
@@ -497,7 +496,7 @@ pub async fn change_recruit_hero(
     // Preserve the day's visitors and reset schedule; cancellation is not a
     // visitor refresh and must never select a replacement recruit.
     if hero_index == 0 {
-        let row = sqlx::query("UPDATE hero_friendly_info SET hero_index=0,selected_hero_index=0,friendly_point=0,last_greeting_time=NULL,last_conversation_time=NULL,last_gift_time=NULL WHERE account_id=? RETURNING *")
+        let row = crate::db::query("UPDATE hero_friendly_info SET hero_index=0,selected_hero_index=0,friendly_point=0,last_greeting_time=NULL,last_conversation_time=NULL,last_gift_time=NULL WHERE account_id=$1 RETURNING *")
             .bind(account_id).fetch_optional(&state.db).await?;
         let Some(row) = row else {
             return Ok(Json(ChangeRecruitHeroResponse {
@@ -525,7 +524,7 @@ pub async fn change_recruit_hero(
     }
 
     // Check if player already owns this hero
-    let owned = sqlx::query("SELECT hero_index FROM heroes WHERE account_id = ? AND hero_index = ?")
+    let owned = crate::db::query("SELECT hero_index FROM heroes WHERE account_id = $1 AND hero_index = $2")
         .bind(account_id)
         .bind(hero_index)
         .fetch_optional(&state.db)
@@ -542,7 +541,7 @@ pub async fn change_recruit_hero(
     let current_time = state.server_time_str();
 
     // Get current selected_hero_indices from database
-    let current_row = sqlx::query("SELECT selected_hero_indices FROM hero_friendly_info WHERE account_id = ?")
+    let current_row = crate::db::query("SELECT selected_hero_indices FROM hero_friendly_info WHERE account_id = $1")
         .bind(account_id)
         .fetch_optional(&state.db)
         .await?;
@@ -550,8 +549,8 @@ pub async fn change_recruit_hero(
     let selected_hero_indice: Option<String> = current_row.as_ref().and_then(|row| row.get("selected_hero_indices"));
 
     // Update selected hero
-    sqlx::query(
-        "UPDATE hero_friendly_info SET hero_index = ?, selected_hero_index = ?, friendly_point = 0, selected_time = ?, last_greeting_time = NULL, last_conversation_time = NULL, last_gift_time = NULL WHERE account_id = ?"
+    crate::db::query(
+        "UPDATE hero_friendly_info SET hero_index = $1, selected_hero_index = $2, friendly_point = 0, selected_time = $3, last_greeting_time = NULL, last_conversation_time = NULL, last_gift_time = NULL WHERE account_id = $4"
     )
     .bind(hero_index)
     .bind(hero_index)
@@ -604,11 +603,11 @@ pub async fn recruit_hero(
     let fail=|code:&str|Json(json!({"BaseResult":"Success","Result":code}));
     if INN_RECRUITMENT_EXCLUDED_HEROES.contains(&index) {return Ok(fail("HeroIndexMismatch"));}
     let Some(c)=state.tables.hero_shop.heroes.get(&index) else {return Ok(fail("HeroIndexMismatch"))};
-    let mut tx=state.db.begin().await?;
+    let mut tx=crate::database::begin(&state.db).await?;
     crate::api::inventory::item::init(&mut tx,&state,account).await?;
-    let owned:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=?)").bind(account).bind(index).fetch_one(&mut *tx).await?;
+    let owned:bool=crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=$1 AND hero_index=$2)").bind(account).bind(index).fetch_one(&mut *tx).await?;
     if owned {return Ok(fail("AlreadyRecruited"));}
-    let row=sqlx::query("SELECT hero_index,friendly_point FROM hero_friendly_info WHERE account_id=?").bind(account).fetch_optional(&mut *tx).await?;
+    let row=crate::db::query("SELECT hero_index,friendly_point FROM hero_friendly_info WHERE account_id=$1").bind(account).fetch_optional(&mut *tx).await?;
     let Some(row)=row else {return Ok(fail("HeroNotExist"))};
     if row.get::<i32,_>("hero_index")!=index {return Ok(fail("HeroIndexMismatch"));}
     let Some(required_points) = state.tables.hero_shop.inn_recruitment_points.get(&index) else {
@@ -616,7 +615,7 @@ pub async fn recruit_hero(
     };
     if row.get::<i32,_>("friendly_point") < *required_points {return Ok(fail("FriendlyPointMismatch"));}
     let mut reward=crate::api::heroes::recruit_at(&mut tx,&state,account,index,crate::api::inventory::item::n(c,"StartHeroStar"),crate::api::inventory::item::n(c,"StartHeroLevel"),0).await?;
-    sqlx::query("UPDATE hero_friendly_info SET hero_index=0,selected_hero_index=0,friendly_point=0,selected_time=datetime('now') WHERE account_id=?").bind(account).execute(&mut *tx).await?;
+    crate::db::query("UPDATE hero_friendly_info SET hero_index=0,selected_hero_index=0,friendly_point=0,selected_time=sprk_datetime('now') WHERE account_id=$1").bind(account).execute(&mut *tx).await?;
     reward["HeroFriendlyInfo"]=json!({"HeroIndex":0,"SelectedHeroIndex":0,"FriendlyPoint":0,"SelectedTime":state.server_time_str(),"SelectedHeroIndice":""});
     tx.commit().await?;
     Ok(Json(json!({"BaseResult":"Success","Result":"Success","HeroResult":reward})))
@@ -761,7 +760,7 @@ pub async fn request_hero_inn_roulette(
 
     // Calculate max spins: 1 base + number of owned heroes visiting the inn
     // Get the selected heroes in the inn
-    let friendly_row = sqlx::query("SELECT selected_hero_indices FROM hero_friendly_info WHERE account_id = ?")
+    let friendly_row = crate::db::query("SELECT selected_hero_indices FROM hero_friendly_info WHERE account_id = $1")
         .bind(account_id)
         .fetch_optional(&state.db)
         .await?;
@@ -772,7 +771,7 @@ pub async fn request_hero_inn_roulette(
         .unwrap_or_default();
 
     // Get owned heroes
-    let owned_heroes: Vec<i32> = sqlx::query("SELECT hero_index FROM heroes WHERE account_id = ?")
+    let owned_heroes: Vec<i32> = crate::db::query("SELECT hero_index FROM heroes WHERE account_id = $1")
         .bind(account_id)
         .fetch_all(&state.db)
         .await?
@@ -789,8 +788,8 @@ pub async fn request_hero_inn_roulette(
     let max_spins = 1 + owned_heroes_in_inn;
 
     // Check how many spins the player has done today
-    let spins_today: i32 = sqlx::query_scalar::<_, i32>(
-        "SELECT COALESCE(spin_count, 0) FROM hero_inn_roulette_spins WHERE account_id = ? AND spin_date = ?"
+    let spins_today: i32 = crate::db::query_scalar::<i32>(
+        "SELECT COALESCE(spin_count, 0) FROM hero_inn_roulette_spins WHERE account_id = $1 AND spin_date = $2"
     )
     .bind(account_id)
     .bind(&today)
@@ -868,16 +867,15 @@ async fn spin_roulette(state:AppState,req:GiveRewardHeroInnRouletteRequest,winni
         .and_then(|s| s.parse().ok())
         .unwrap_or(1);
 
-    let mut tx=state.db.begin().await?;
+    let mut tx=crate::database::begin(&state.db).await?;
     // Serialize quota checks and reward credits in the same transaction.
-    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?")
-        .bind(account_id).execute(&mut *tx).await?;
+    crate::postgres::lock_account(&mut *tx, account_id).await?;
 
     // Get today's date for spin tracking
     let today = Utc::now().format("%Y-%m-%d").to_string();
 
     // Calculate max spins: 1 base + number of owned heroes visiting the inn
-    let friendly_row = sqlx::query("SELECT selected_hero_indices FROM hero_friendly_info WHERE account_id = ?")
+    let friendly_row = crate::db::query("SELECT selected_hero_indices FROM hero_friendly_info WHERE account_id = $1")
         .bind(account_id)
         .fetch_optional(&mut *tx)
         .await?;
@@ -887,7 +885,7 @@ async fn spin_roulette(state:AppState,req:GiveRewardHeroInnRouletteRequest,winni
         .map(|s| s.split(',').filter_map(|x| x.parse().ok()).collect())
         .unwrap_or_default();
 
-    let owned_heroes: Vec<i32> = sqlx::query("SELECT hero_index FROM heroes WHERE account_id = ?")
+    let owned_heroes: Vec<i32> = crate::db::query("SELECT hero_index FROM heroes WHERE account_id = $1")
         .bind(account_id)
         .fetch_all(&mut *tx)
         .await?
@@ -902,8 +900,8 @@ async fn spin_roulette(state:AppState,req:GiveRewardHeroInnRouletteRequest,winni
     let max_spins = 1 + owned_heroes_in_inn;
 
     // Check how many spins the player has done today
-    let spins_today: i32 = sqlx::query_scalar::<_, i32>(
-        "SELECT COALESCE(spin_count, 0) FROM hero_inn_roulette_spins WHERE account_id = ? AND spin_date = ?"
+    let spins_today: i32 = crate::db::query_scalar::<i32>(
+        "SELECT COALESCE(spin_count, 0) FROM hero_inn_roulette_spins WHERE account_id = $1 AND spin_date = $2"
     )
     .bind(account_id)
     .bind(&today)
@@ -928,10 +926,10 @@ async fn spin_roulette(state:AppState,req:GiveRewardHeroInnRouletteRequest,winni
     }
 
     // Update spin count
-    sqlx::query(
+    crate::db::query(
         "INSERT INTO hero_inn_roulette_spins (account_id, spin_date, spin_count)
-         VALUES (?, ?, 1)
-         ON CONFLICT(account_id, spin_date) DO UPDATE SET spin_count = spin_count + 1"
+         VALUES ($1, $2, 1)
+         ON CONFLICT(account_id, spin_date) DO UPDATE SET spin_count = hero_inn_roulette_spins.spin_count + 1"
     )
     .bind(account_id)
     .bind(&today)

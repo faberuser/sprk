@@ -45,7 +45,7 @@ fn boolean(v: &Value, key: &str) -> Result<bool> {
 /// Invite All uses Friend/Guild groups with no receiver IDs. Resolve those
 /// groups from persisted membership, and build the invite from the host's room.
 pub(crate) async fn invite(s: &AppState, a: i64, group: &Value, targets: &Value) -> Result<()> {
-    let mut db = s.db.begin().await?;
+    let mut db = crate::database::begin(&s.db).await?;
     let (id, family, room) = membership(&mut db, a).await?;
     let members = ids_in(&mut db, id).await?;
     if n(&room, "MasterAccountId") != a || n(&room, "Status") != 0
@@ -60,13 +60,13 @@ pub(crate) async fn invite(s: &AppState, a: i64, group: &Value, targets: &Value)
                 .filter(|id| *id > 0).ok_or_else(|| rule("InvalidMessage")))
             .collect::<Result<_>>()?
     } else if group == "Friend" || group == 4 || group == "4" {
-        sqlx::query_scalar("SELECT CASE WHEN account_id=? THEN friend_account_id ELSE account_id END FROM friends WHERE status='accepted' AND (account_id=? OR friend_account_id=?)")
+        crate::db::query_scalar("SELECT CASE WHEN account_id=$1 THEN friend_account_id ELSE account_id END FROM friends WHERE status='accepted' AND (account_id=$2 OR friend_account_id=$3)")
             .bind(a).bind(a).bind(a).fetch_all(&mut *db).await?
     } else if group == "Guild" || group == 3 || group == "3" {
-        sqlx::query_scalar("SELECT account_id FROM guild_members WHERE guild_id=(SELECT guild_id FROM guild_members WHERE account_id=?) AND account_id!=?")
+        crate::db::query_scalar("SELECT account_id FROM guild_members WHERE guild_id=(SELECT guild_id FROM guild_members WHERE account_id=$1) AND account_id!=$2")
             .bind(a).bind(a).fetch_all(&mut *db).await?
     } else { return Err(rule("InvalidMessage")); };
-    let nick: String = sqlx::query_scalar("SELECT nick FROM accounts WHERE account_id=?")
+    let nick: String = crate::db::query_scalar("SELECT nick FROM accounts WHERE account_id=$1")
         .bind(a).fetch_one(&mut *db).await?;
     let content = json!({"InvitorName":nick,"RoomNo":id,"RaidIndex":if family=="raid" {room["RaidIndex"].clone()} else {json!(0)},
         "RaidLevel":if family=="raid" {room["RaidLevel"].clone()} else {json!(0)},"BannedIds":[],"IsSendOne":direct,
@@ -82,22 +82,22 @@ pub(crate) async fn invite(s: &AppState, a: i64, group: &Value, targets: &Value)
     }
     Ok(())
 }
-async fn membership(db: &mut SqliteConnection, a: i64) -> Result<(i64, String, Value)> {
-    let row:Option<(i64,String,String)>=sqlx::query_as("SELECT r.id,r.family,r.data FROM battle_rooms r JOIN battle_room_members m ON m.room=r.id WHERE m.account=?")
+async fn membership(db: &mut PgConnection, a: i64) -> Result<(i64, String, Value)> {
+    let row:Option<(i64,String,String)>=crate::db::query_as("SELECT r.id,r.family,r.data FROM battle_rooms r JOIN battle_room_members m ON m.room=r.id WHERE m.account=$1")
         .bind(a).fetch_optional(db).await?;
     let (id, family, data) = row.ok_or_else(|| rule("RoomNotExist"))?;
     Ok((id, family, read_json(&data)?))
 }
-async fn ids_in(db: &mut SqliteConnection, id: i64) -> Result<Vec<i64>> {
-    Ok(sqlx::query_scalar(
-        "SELECT account FROM battle_room_members WHERE room=? ORDER BY joined,account",
+async fn ids_in(db: &mut PgConnection, id: i64) -> Result<Vec<i64>> {
+    Ok(crate::db::query_scalar(
+        "SELECT account FROM battle_room_members WHERE room=$1 ORDER BY joined,account",
     )
     .bind(id)
     .fetch_all(db)
     .await?)
 }
-async fn member(db: &mut SqliteConnection, a: i64, room: &Value, index: usize) -> Result<Value> {
-    let user=sqlx::query("SELECT a.nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=?").bind(a).fetch_one(&mut *db).await?;
+async fn member(db: &mut PgConnection, a: i64, room: &Value, index: usize) -> Result<Value> {
+    let user=crate::db::query("SELECT a.nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=$1").bind(a).fetch_one(&mut *db).await?;
     let mut v = get(db, a, "party_member", n(room, "RoomNo")).await?;
     if v.is_null() {
         v = json!({"DeckHeros":{},"SubDeckHeros":{},"IsBattleReady":false});
@@ -114,7 +114,7 @@ async fn member(db: &mut SqliteConnection, a: i64, room: &Value, index: usize) -
     if !v["Status"].is_string() { v["Status"] = json!("PartyRoom"); }
     Ok(v)
 }
-async fn snapshot(db: &mut SqliteConnection, s: &AppState, room: &Value) -> Result<Value> {
+async fn snapshot(db: &mut PgConnection, s: &AppState, room: &Value) -> Result<Value> {
     let mut members = vec![];
     for (index, a) in ids_in(db, n(room, "RoomNo")).await?.into_iter().enumerate() {
         members.push(member(db, a, room, index).await?);
@@ -139,18 +139,15 @@ pub(crate) async fn send(
     if !supported(protocol) || !content.is_object() {
         return Err(rule("InvalidMessage"));
     }
-    let mut db = s.db.begin().await?;
+    let mut db = crate::database::begin(&s.db).await?;
     // Obtain the SQLite writer before reading membership/decks, avoiding lost updates.
-    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?")
-        .bind(a)
-        .execute(&mut *db)
-        .await?;
+    crate::postgres::lock_account(&mut *db, a).await?;
     let mut messages: Vec<(i64, i64, String, Value)> = vec![];
     if protocol == "JoinPartyReq" {
         // Native declines omit RoomNo and Invitee; there is no join to authorize.
         if !boolean(&content, "Accepted")? { return Ok(()); }
         let id = number(&content, "RoomNo");
-        let raw: Option<(String,String)> = sqlx::query_as("SELECT family,data FROM battle_rooms WHERE id=?")
+        let raw: Option<(String,String)> = crate::db::query_as("SELECT family,data FROM battle_rooms WHERE id=$1 FOR UPDATE")
             .bind(id)
             .fetch_optional(&mut *db)
             .await?;
@@ -168,7 +165,7 @@ pub(crate) async fn send(
         }
         let members = ids_in(&mut db, id).await?;
         let current: Option<i64> =
-            sqlx::query_scalar("SELECT room FROM battle_room_members WHERE account=?")
+            crate::db::query_scalar("SELECT room FROM battle_room_members WHERE account=$1")
                 .bind(a)
                 .fetch_optional(&mut *db)
                 .await?;
@@ -186,7 +183,7 @@ pub(crate) async fn send(
             if !matches!(error,ServerError::InvalidRequest(_)) {return Err(error);}
             // A real JoinPartyRes clears the guest's native pending join and
             // waiting popup. A bare MessageRes failure would leave it waiting.
-            sqlx::query("DELETE FROM battle_state WHERE account=? AND kind='party_pending' AND idx=?")
+            crate::db::query("DELETE FROM battle_state WHERE account=$1 AND kind='party_pending' AND idx=$2")
                 .bind(a).bind(id).execute(&mut *db).await?;
             db.commit().await?;
             s.chat.notify(a,target,"JoinPartyRes",json!({"Result":"DungeonLocked","SendKey":send_key,"PartyInfo":null}));
@@ -309,8 +306,8 @@ pub(crate) async fn send(
                 content =
                     json!({"Result":if locked {"DungeonLocked"}else{"InvalidParty"},"SendKey":pending["SendKey"],"PartyInfo":null});
             }
-            sqlx::query(
-                "DELETE FROM battle_state WHERE account=? AND kind='party_pending' AND idx=?",
+            crate::db::query(
+                "DELETE FROM battle_state WHERE account=$1 AND kind='party_pending' AND idx=$2",
             )
             .bind(target)
             .bind(id)
@@ -341,7 +338,7 @@ pub(crate) async fn send(
             }
         } else if protocol == "PartyMemberPing" {
             if target != master { return Err(rule("WrongMember")); }
-            sqlx::query("UPDATE battle_room_members SET updated=? WHERE account=?")
+            crate::db::query("UPDATE battle_room_members SET updated=$1 WHERE account=$2")
                 .bind(now()).bind(a).execute(&mut *db).await?;
         } else if protocol == "ChangePartyMemberStatus" {
             let status = match content["Status"].as_str() {
@@ -353,14 +350,14 @@ pub(crate) async fn send(
                     _ => return Err(rule("InvalidMessage")),
                 },
             };
-            let complete: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM battle_runs WHERE account=? AND completed=1)")
+            let complete: bool = crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM battle_runs WHERE account=$1 AND completed=1)")
                 .bind(a).fetch_one(&mut *db).await?;
             if status == "Battle" && n(&room,"Status") != 2 || status == "EndCampaign" && !complete {
                 return Err(rule("InvalidRoomInfo"));
             }
             let mut state = member(&mut db,a,&room,recipients.iter().position(|v|*v==a).unwrap_or(0)).await?;
             state["Status"] = json!(status); put(&mut db,a,"party_member",id,&state).await?;
-            sqlx::query("UPDATE battle_room_members SET updated=? WHERE account=?")
+            crate::db::query("UPDATE battle_room_members SET updated=$1 WHERE account=$2")
                 .bind(now()).bind(a).execute(&mut *db).await?;
             for receiver in recipients.into_iter().filter(|v|*v != a) {
                 messages.push((receiver,a,protocol.into(),json!({"Status":status})));
@@ -492,7 +489,7 @@ pub(crate) async fn send(
                     }
                     let repeat = boolean(&content, "IsRepeat")?;
                     room["IsRepeatBattle"] = json!(repeat);
-                    sqlx::query("UPDATE battle_rooms SET data=? WHERE id=?")
+                    crate::db::query("UPDATE battle_rooms SET data=$1 WHERE id=$2")
                         .bind(room.to_string())
                         .bind(id)
                         .execute(&mut *db)
@@ -544,7 +541,7 @@ pub(crate) async fn send(
                 }
                 _ => return Err(rule("InvalidMessage")),
             }
-            sqlx::query("UPDATE battle_room_members SET updated=? WHERE account=?")
+            crate::db::query("UPDATE battle_room_members SET updated=$1 WHERE account=$2")
                 .bind(now())
                 .bind(a)
                 .execute(&mut *db)
@@ -566,13 +563,13 @@ pub(crate) async fn send(
 /// of committed rewards, never an additional award or a player-supplied report.
 pub(crate) async fn replay_rewards(s: &AppState, a: i64) -> Result<()> {
     let mut db=s.db.acquire().await?;
-    let own:Option<(i64,String)>=sqlx::query_as("SELECT m.room,r.entry FROM battle_room_members m JOIN battle_runs r ON r.account=m.account WHERE m.account=? AND r.completed=1")
+    let own:Option<(i64,String)>=crate::db::query_as("SELECT m.room,r.entry FROM battle_room_members m JOIN battle_runs r ON r.account=m.account WHERE m.account=$1 AND r.completed=1")
         .bind(a).fetch_optional(&mut *db).await?;
     let Some((room,raw))=own else {return Ok(());};
     let entry:Value=read_json(&raw)?;
     if entry["PartyCampaign"]!=true || number(&entry,"CoopRoom")!=room || !entry["PartyEndResponse"].is_object() {return Ok(());}
     let Some(run)=entry["CoopRunId"].as_str() else {return Ok(());};
-    let rows:Vec<(i64,String)>=sqlx::query_as("SELECT r.account,r.entry FROM battle_runs r JOIN battle_room_members m ON m.account=r.account WHERE m.room=? AND r.completed=1 AND json_extract(r.entry,'$.CoopRunId')=? AND json_extract(r.entry,'$.CoopRoom')=?")
+    let rows:Vec<(i64,String)>=crate::db::query_as("SELECT r.account,r.entry FROM battle_runs r JOIN battle_room_members m ON m.account=r.account WHERE m.room=$1 AND r.completed=1 AND sprk_json_text(r.entry,'$.CoopRunId')=$2 AND sprk_json_int(r.entry,'$.CoopRoom')=$3")
         .bind(room).bind(run).bind(room).fetch_all(&mut *db).await?;
     drop(db);
     for (sender,raw) in rows {
@@ -592,13 +589,13 @@ pub(crate) async fn replay_rewards(s: &AppState, a: i64) -> Result<()> {
 }
 
 pub(crate) async fn reconnect(s: &AppState, a: i64) -> Result<()> {
-    let mut db = s.db.begin().await?;
+    let mut db = crate::database::begin(&s.db).await?;
     let Ok((id, _, room)) = membership(&mut db, a).await else {
         return Ok(());
     };
     let info = snapshot(&mut db, s, &room).await?;
     let members = ids_in(&mut db, id).await?;
-    sqlx::query("UPDATE battle_room_members SET updated=? WHERE account=?")
+    crate::db::query("UPDATE battle_room_members SET updated=$1 WHERE account=$2")
         .bind(now())
         .bind(a)
         .execute(&mut *db)
@@ -645,9 +642,8 @@ pub(crate) async fn reconnect(s: &AppState, a: i64) -> Result<()> {
 /// battle departure, so AI keeps the heroes and the others settle normally.
 /// A chat reconnect with the same session retains the room.
 pub(crate) async fn new_login(s: &AppState, a: i64) -> Result<()> {
-    let mut db = s.db.begin().await?;
-    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?")
-        .bind(a).execute(&mut *db).await?;
+    let mut db = crate::database::begin(&s.db).await?;
+    crate::postgres::lock_account(&mut *db, a).await?;
     let Ok((id, family, _room)) = membership(&mut db, a).await else { return Ok(()); };
     rooms::remove_account(&mut db, a).await?;
     db.commit().await?;
@@ -674,8 +670,8 @@ pub(crate) async fn after_room_request(
         let target=if target==0 {a}else{target};
         crate::api::battle::cooperative::room_departed(s,target,id).await?;
     }
-    let mut db = s.db.begin().await?;
-    let raw: Option<String> = sqlx::query_scalar("SELECT data FROM battle_rooms WHERE id=?")
+    let mut db = crate::database::begin(&s.db).await?;
+    let raw: Option<String> = crate::db::query_scalar("SELECT data FROM battle_rooms WHERE id=$1 FOR UPDATE")
         .bind(id)
         .fetch_optional(&mut *db)
         .await?;
@@ -728,7 +724,7 @@ pub(crate) async fn after_room_request(
 }
 
 pub(crate) async fn disconnected(s: &AppState, a: i64) -> Result<()> {
-    let mut db = s.db.begin().await?;
+    let mut db = crate::database::begin(&s.db).await?;
     let Ok((id, _, room)) = membership(&mut db, a).await else {
         return Ok(());
     };

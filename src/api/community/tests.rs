@@ -1,13 +1,7 @@
 use super::*;
 use crate::api::account::user;
-use crate::database;
 pub(crate) async fn setup() -> AppState {
-    let db = sqlx::sqlite::SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect("sqlite::memory:")
-        .await
-        .unwrap();
-    database::create_tables(&db).await.unwrap();
+    let db = crate::database::test_pool().await;
     AppState::new(db, crate::tables::test_tables())
 }
 pub(crate) async fn login(s: &AppState, id: &str) -> Value {
@@ -17,7 +11,7 @@ pub(crate) async fn login(s: &AppState, id: &str) -> Value {
             .unwrap()
             .0
     );
-    sqlx::query("UPDATE user_info SET team_level=60,gold=100000000,gem=100000 WHERE account_id=?")
+    crate::db::query("UPDATE user_info SET team_level=60,gold=100000000,gem=100000 WHERE account_id=$1")
         .bind(n(&u["UserInfo"], "AccountId"))
         .execute(&s.db)
         .await
@@ -140,7 +134,7 @@ async fn guild_contribution_limits_and_attendance_are_persistent() {
     assert_eq!(first["Result"], "Success", "{first}");
     call(&s, &u, "guild/send_guild_attendance_reward", "").await;
     let count: i64 =
-        sqlx::query_scalar("SELECT count(*) FROM mails WHERE title='Guild attendance reward'")
+        crate::db::query_scalar("SELECT count(*) FROM mails WHERE title='Guild attendance reward'")
             .fetch_one(&s.db)
             .await
             .unwrap();
@@ -177,9 +171,9 @@ async fn arena_rankings_share_standings_and_show_only_the_competitive_season_squ
     let b = n(&users[1]["UserInfo"],"AccountId");
     let season = arena::season(&s).0;
     for u in &users { call(&s,u,"match/get_match_rank","ArenaType=BanPick").await; }
-    sqlx::query("UPDATE arena_scores SET score=CASE WHEN account=? THEN 1040 ELSE 1000 END WHERE kind=0")
+    crate::db::query("UPDATE arena_scores SET score=CASE WHEN account=$1 THEN 1040 ELSE 1000 END WHERE kind=0")
         .bind(b).execute(&s.db).await.unwrap();
-    sqlx::query("UPDATE arena_scores SET score=CASE WHEN account=? THEN 1500 ELSE 1100 END WHERE kind=1")
+    crate::db::query("UPDATE arena_scores SET score=CASE WHEN account=$1 THEN 1500 ELSE 1100 END WHERE kind=1")
         .bind(a).execute(&s.db).await.unwrap();
     // Snapshot stars/levels must describe the saved formation, not today's hero.
     let snapshot = json!({"1":{"Star":5,"Level":100},"2":{"Star":4,"Level":90},"3":{"Star":3,"Level":80},"4":{"Star":2,"Level":70}});
@@ -195,10 +189,10 @@ async fn arena_rankings_share_standings_and_show_only_the_competitive_season_squ
         let separate = kind == 1;
         let register = if separate { Value::Null } else { json!({"HeroInfos":snapshot}) };
         let data = json!({"Season":saved_season,"DuelType":duel,"Heroes":heroes,"Register":{"AccountInfo":register}});
-        let run = sqlx::query("INSERT INTO arena_runs(account,kind,status,started,data) VALUES(?,?,?,?,?)")
-            .bind(a).bind(kind).bind(status).bind(now()).bind(data.to_string()).execute(&s.db).await.unwrap().last_insert_rowid();
+        let run = crate::db::query_scalar::<i64>("INSERT INTO arena_runs(account,kind,status,started,data) VALUES($1,$2,$3,$4,$5) RETURNING id")
+            .bind(a).bind(kind).bind(status).bind(now()).bind(data.to_string()).fetch_one(&s.db).await.unwrap();
         if separate {
-            sqlx::query("INSERT INTO arena_snapshots(run,data) VALUES(?,?)")
+            crate::db::query("INSERT INTO arena_snapshots(run,data) VALUES($1,$2)")
                 .bind(run).bind(json!({"HeroInfos":snapshot}).to_string()).execute(&s.db).await.unwrap();
         }
     }
@@ -223,7 +217,7 @@ async fn arena_honor_rank_is_separate_from_victory_and_requires_full_roster() {
     let s = setup().await;
     let u = login(&s, "honor-ranker").await;
     let a = n(&u["UserInfo"], "AccountId");
-    sqlx::query("UPDATE arena_scores SET score=1600,wins=7 WHERE account=? AND kind=0")
+    crate::db::query("UPDATE arena_scores SET score=1600,wins=7 WHERE account=$1 AND kind=0")
         .bind(a).execute(&s.db).await.unwrap();
     let honor = call(&s, &u, "match/get_match_rank", "ArenaType=BanPick").await;
     assert_eq!(honor["Result"], "Success", "{honor}");
@@ -232,7 +226,7 @@ async fn arena_honor_rank_is_separate_from_victory_and_requires_full_roster() {
     assert_eq!(honor["BattleBanPickInfo"]["SeasonWin"], 0);
     let tier = n(&honor["BattleBanPickInfo"], "TierIndex");
     assert!(s.tables.arena_guild.rows("GlobalBanPickTier").iter().any(|v| n(v, "Index") == tier));
-    sqlx::query("UPDATE arena_scores SET score=1234,wins=2 WHERE account=? AND kind=1")
+    crate::db::query("UPDATE arena_scores SET score=1234,wins=2 WHERE account=$1 AND kind=1")
         .bind(a).execute(&s.db).await.unwrap();
     let ranks = call(&s, &u, "global_arena/get_world_ranker", "ArenaType=BanPick&StartRank=0&EndRank=0").await;
     assert_eq!(ranks["Rankers"][0]["MatchScore"], 1234, "{ranks}");
@@ -285,10 +279,10 @@ async fn arena_offline_flow_rejects_unentered_and_replayed_results() {
     assert_eq!(result["MatchResult"]["NewTotalRank"], 0);
     assert_eq!(result["MatchResult"]["NewTierRank"], 0);
     assert_eq!(result["BattleInfo"]["Rank"], 0);
-    let saved: (i64,String)=sqlx::query_as("SELECT kind,data FROM service_replays WHERE owner=?")
+    let saved: (i64,String)=crate::db::query_as("SELECT kind,data FROM service_replays WHERE owner=$1")
         .bind(n(&u["UserInfo"],"AccountId")).fetch_one(&s.db).await.unwrap();
     assert_eq!(saved,(0,"native-compressed-replay".into()));
-    let snapshot: String = sqlx::query_scalar("SELECT data FROM community_state WHERE owner=? AND kind='arena_daily'")
+    let snapshot: String = crate::db::query_scalar("SELECT data FROM community_state WHERE owner=$1 AND kind='arena_daily'")
         .bind(n(&u["UserInfo"], "AccountId")).fetch_one(&s.db).await.unwrap();
     assert_eq!(serde_json::from_str::<Value>(&snapshot).unwrap()["Rank"], 1);
     assert_ne!(
@@ -309,7 +303,7 @@ async fn arena_defense_keeps_the_saved_short_deck_and_soul_weapon() {
     let mut rewards=Rewards::default();
     item::give(&mut db,&s,a,crate::models::item::ItemGrant{index:1001,count:1,star:0,custom:0},&mut rewards).await.unwrap();
     let slot=rewards.equipment[0].slot_index as i64;
-    sqlx::query("UPDATE heroes SET equip_item_slot_index_1=? WHERE account_id=? AND hero_index=1").bind(slot).bind(a).execute(&mut *db).await.unwrap();
+    crate::db::query("UPDATE heroes SET equip_item_slot_index_1=$1 WHERE account_id=$2 AND hero_index=1").bind(slot).bind(a).execute(&mut *db).await.unwrap();
     crate::api::extensions::put(&mut db,a,"soul",slot,&json!({"SlotIndex":slot,"Grade":2})).await.unwrap();
     let hero=cached_hero(&mut db,a,1).await.unwrap();
     assert_eq!(hero["EquipItemInfo1"]["SoulWeaponInfo"]["Grade"],2);
@@ -399,13 +393,13 @@ async fn guild_raid_damage_advances_shared_boss_and_charges_once() {
     assert_eq!(bought["Result"], "Success", "{bought}");
     assert!(n(&bought["GuildPointResult"], "AddValue") < 0, "{bought}");
     let count: i64 =
-        sqlx::query_scalar("SELECT count(*) FROM mails WHERE title='Guild raid boss defeated'")
+        crate::db::query_scalar("SELECT count(*) FROM mails WHERE title='Guild raid boss defeated'")
             .fetch_one(&s.db)
             .await
             .unwrap();
     assert_eq!(count, 1);
     let a = n(&u["UserInfo"], "AccountId");
-    let saved: String=sqlx::query_scalar("SELECT reward_currencies FROM mails WHERE account_id=? AND title='Guild raid boss defeated'").bind(a).fetch_one(&s.db).await.unwrap();
+    let saved: String=crate::db::query_scalar("SELECT reward_currencies FROM mails WHERE account_id=$1 AND title='Guild raid boss defeated'").bind(a).fetch_one(&s.db).await.unwrap();
     assert!(saved.contains("GuildPoint"));
 }
 
@@ -413,8 +407,8 @@ async fn guild_raid_damage_advances_shared_boss_and_charges_once() {
 async fn guild_raid_placeholder_health_migrates_once_and_dead_boss_stays_dead() {
     let s=setup().await;let u=login(&s,"hp-migrate").await;let g=create(&s,&u,"Migrate",1).await;
     call(&s,&u,"guild_raid/get_guild_raid_list","").await;
-    sqlx::query("UPDATE community_state SET data=json_remove(json_set(data,'$.MonsterHp0',500000000),'$.HpSchema') WHERE owner=? AND kind='guild_raid' AND idx=6002").bind(g).execute(&s.db).await.unwrap();
-    sqlx::query("UPDATE community_state SET data=json_remove(json_set(data,'$.MonsterHp0',0,'$.IsOngoing',0),'$.HpSchema') WHERE owner=? AND kind='guild_raid' AND idx=6003").bind(g).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE community_state SET data=sprk_json_remove(sprk_json_set(data,'$.MonsterHp0',500000000),'$.HpSchema') WHERE owner=$1 AND kind='guild_raid' AND idx=6002").bind(g).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE community_state SET data=sprk_json_remove(sprk_json_set(sprk_json_set(data,'$.MonsterHp0',0),'$.IsOngoing',0),'$.HpSchema') WHERE owner=$1 AND kind='guild_raid' AND idx=6003").bind(g).execute(&s.db).await.unwrap();
     for _ in 0..2 {
         let v=call(&s,&u,"guild_raid/get_guild_raid_list","").await;
         let bosses=v["GuildRaidInfos"].as_array().unwrap();
@@ -444,7 +438,7 @@ async fn guild_booty_can_be_bought_from_both_native_shops_and_persists() {
         assert_ne!(call(&s,&u,"guild_raid/buy_guild_raid_booty_item",&args).await["Result"],"Success");
     }
     assert_eq!(call(&s,&u,"guild_raid/get_guild_raid_all_booty_items","").await["ItemInfos"],json!([]));
-    let qty:i64=sqlx::query_scalar("SELECT SUM(json_extract(data,'$.ItemCount')) FROM community_state WHERE owner=? AND kind='guild_booty'").bind(g).fetch_one(&s.db).await.unwrap();
+    let qty:i64=crate::db::query_scalar("SELECT SUM(sprk_json_int(data,'$.ItemCount'))::bigint FROM community_state WHERE owner=$1 AND kind='guild_booty'").bind(g).fetch_one(&s.db).await.unwrap();
     assert_eq!(qty,0);
 }
 
@@ -639,7 +633,7 @@ async fn guild_arena_decks_matches_and_replay_protection() {
     let _ = login(&s, "attacker").await;
     let _ = login(&s, "attacker").await;
     let count: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM mails WHERE title='Guild arena season reward'")
+        crate::db::query_scalar("SELECT COUNT(*) FROM mails WHERE title='Guild arena season reward'")
             .fetch_one(&s.db)
             .await
             .unwrap();
@@ -679,8 +673,8 @@ async fn arena_pages_and_reward_rollover_are_persistent() {
         )
         .await
         .unwrap();
-        sqlx::query(
-            "INSERT INTO arena_scores(account,kind,season,score,wins) VALUES(?,0,?,1100,1)",
+        crate::db::query(
+            "INSERT INTO arena_scores(account,kind,season,score,wins) VALUES($1,0,$2,1100,1)",
         )
         .bind(a)
         .bind(arena::season(&s).0 - 1)
@@ -690,12 +684,12 @@ async fn arena_pages_and_reward_rollover_are_persistent() {
     }
     login(&s, "rollover").await;
     login(&s, "rollover").await;
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM mails WHERE sender='Arena'")
+    let count: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM mails WHERE sender='Arena'")
         .fetch_one(&s.db)
         .await
         .unwrap();
     assert_eq!(count, 2);
-    let mails: Vec<(String, String)> = sqlx::query_as(
+    let mails: Vec<(String, String)> = crate::db::query_as(
         "SELECT reward_items,reward_currencies FROM mails WHERE sender='Arena'",
     ).fetch_all(&s.db).await.unwrap();
     for (items, currencies) in mails {
@@ -762,7 +756,7 @@ async fn portal_guild_raid_polling_without_membership_is_empty() {
     }
     let denied = call(&s, &u, "guild_raid/ping_guild_raid", "").await;
     assert_ne!(denied["Result"], "Success", "{denied}");
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM community_state WHERE kind='guild_raid'")
+    let count: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM community_state WHERE kind='guild_raid'")
         .fetch_one(&s.db).await.unwrap();
     assert_eq!(count, 0);
     create(&s, &u, "Portal", 1).await;

@@ -4,7 +4,7 @@ use axum::{
     Json,
 };
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use crate::db::RowExt;
 use crate::{
     crypto::{generate_session_key, generate_aes_key},
     error::{Result,ServerError},
@@ -298,8 +298,8 @@ pub async fn login(
     tracing::info!("Login request from: {} (device: {}, method: {})", login_id, device_id, login_method);
 
     // Check if account exists
-    let existing_account = sqlx::query(
-        "SELECT account_id, nick, session_key FROM accounts WHERE login_id = ?"
+    let existing_account = crate::db::query(
+        "SELECT account_id, nick, session_key FROM accounts WHERE login_id = $1"
     )
     .bind(&login_id)
     .fetch_optional(&state.db)
@@ -312,41 +312,41 @@ pub async fn login(
             (account_id, nick, false)
         }
         None => {
-            let mut tx = state.db.begin().await?;
+            let mut tx = crate::database::begin(&state.db).await?;
             // Create new account
             let nick = format!("Raider{}", rand::random::<u32>() % 100000);
             
-            let result = sqlx::query(
-                "INSERT INTO accounts (login_id, login_method, device_id, nick) VALUES (?, ?, ?, ?)"
+            let result = crate::db::query_scalar::<i64>(
+                "INSERT INTO accounts (login_id, login_method, device_id, nick) VALUES ($1, $2, $3, $4) RETURNING account_id"
             )
             .bind(&login_id)
             .bind(login_method)
             .bind(&device_id)
             .bind(&nick)
-            .execute(&mut *tx)
+            .fetch_one(&mut *tx)
             .await?;
             
-            let account_id = result.last_insert_rowid();
+            let account_id = result;
             
             // Create user_info entry with starting friendship points for Hero's Inn
             // Explicit balances also override legacy defaults in existing databases.
-            sqlx::query(
-                "INSERT INTO user_info (account_id, gold, gem, stamina, friendship_point) VALUES (?, 0, 0, 200, 6000)"
+            crate::db::query(
+                "INSERT INTO user_info (account_id, gold, gem, stamina, friendship_point) VALUES ($1, 0, 0, 200, 6000)"
             )
             .bind(account_id)
             .execute(&mut *tx)
             .await?;
             
-            sqlx::query("INSERT INTO tutorial_settings (account_id, is_skipped) VALUES (?, 0)")
+            crate::db::query("INSERT INTO tutorial_settings (account_id, is_skipped) VALUES ($1, 0)")
                 .bind(account_id).execute(&mut *tx).await?;
             // Kasel is present in the opening scene. The tutorial recruits the rest.
             let kasel = state.tables.tutorials.support.items.get(&1)
                 .ok_or_else(|| crate::error::ServerError::Internal("Missing starter hero data".into()))?;
-            sqlx::query("INSERT INTO heroes (account_id, hero_id, hero_index, star, level) VALUES (?, 1, ?, ?, ?)")
+            crate::db::query("INSERT INTO heroes (account_id, hero_id, hero_index, star, level) VALUES ($1, 1, $2, $3, $4)")
                 .bind(account_id).bind(kasel.hero_index).bind(kasel.star).bind(kasel.level)
                 .execute(&mut *tx).await?;
             // UIAvatarHelper encodes a hero portrait as hero index * 10 + star.
-            sqlx::query("UPDATE user_info SET avatar_hero_index=? WHERE account_id=?")
+            crate::db::query("UPDATE user_info SET avatar_hero_index=$1 WHERE account_id=$2")
                 .bind(kasel.hero_index * 10 + kasel.star).bind(account_id)
                 .execute(&mut *tx).await?;
 
@@ -355,8 +355,8 @@ pub async fn login(
             // The client will call begin_tutorial and complete_tutorial endpoints
             
             // Send welcome mail
-            sqlx::query(
-                "INSERT INTO mails (account_id, sender, title, content, reward_gold, reward_gem, reward_stamina) VALUES (?, 'System', 'Welcome to King''s Raid!', 'Thank you for playing on this private server. Enjoy your adventure!', 100000000, 100000, 100000)"
+            crate::db::query(
+                "INSERT INTO mails (account_id, sender, title, content, reward_gold, reward_gem, reward_stamina) VALUES ($1, 'System', 'Welcome to King''s Raid!', 'Thank you for playing on this private server. Enjoy your adventure!', 100000000, 100000, 100000)"
             )
             .bind(account_id)
             .execute(&mut *tx)
@@ -372,8 +372,8 @@ pub async fn login(
     let aes_key = generate_aes_key();
 
     // Update session in database
-    sqlx::query(
-        "UPDATE accounts SET session_key = ?, aes_key = ?, last_login = datetime('now') WHERE account_id = ?"
+    crate::db::query(
+        "UPDATE accounts SET session_key = $1, aes_key = $2, last_login = sprk_datetime('now') WHERE account_id = $3"
     )
     .bind(&session_key)
     .bind(&aes_key)
@@ -388,8 +388,8 @@ pub async fn login(
     crate::api::tutorial::restore_skipped_cave_story(&state, account_id).await?;
 
     // Fetch user info
-    let user_info_row = sqlx::query(
-        "SELECT * FROM user_info WHERE account_id = ?"
+    let user_info_row = crate::db::query(
+        "SELECT * FROM user_info WHERE account_id = $1"
     )
     .bind(account_id)
     .fetch_optional(&state.db)
@@ -430,8 +430,8 @@ pub async fn login(
     // potion responses before sending item and achievement login snapshots.
     crate::api::inventory::item::recover_pending_achievement_tokens(&state,account_id).await?;
     // Fetch items
-    let item_rows = sqlx::query(
-        "SELECT * FROM items WHERE account_id = ? AND count > 0"
+    let item_rows = crate::db::query(
+        "SELECT * FROM items WHERE account_id = $1 AND count > 0"
     )
     .bind(account_id)
     .fetch_all(&state.db)
@@ -447,13 +447,13 @@ pub async fn login(
 
     // Repair existing hero-scaled gear before the initial native stat snapshot.
     {
-        let mut tx = state.db.begin().await?;
+        let mut tx = crate::database::begin(&state.db).await?;
         crate::api::inventory::hero_level::synchronize(&mut tx, &state, account_id).await?;
         tx.commit().await?;
     }
     // Fetch equipment items
-    let equip_rows = sqlx::query(
-        "SELECT * FROM equip_items WHERE account_id = ?"
+    let equip_rows = crate::db::query(
+        "SELECT * FROM equip_items WHERE account_id = $1"
     )
     .bind(account_id)
     .fetch_all(&state.db)
@@ -462,8 +462,8 @@ pub async fn login(
     let equip_items: Vec<EquipItemInfo> = equip_rows.iter().map(EquipItemInfo::from_row).collect();
 
     // Check guild membership
-    let guild_row = sqlx::query(
-        "SELECT guild_id FROM guild_members WHERE account_id = ?"
+    let guild_row = crate::db::query(
+        "SELECT guild_id FROM guild_members WHERE account_id = $1"
     )
     .bind(account_id)
     .fetch_optional(&state.db)
@@ -475,8 +475,8 @@ pub async fn login(
 
     // Fetch tutorial progress - only return completed tutorials
     // The client expects an array of TutorialInfo with TutorialIndex and CompletedTime
-    let tutorial_rows = sqlx::query(
-        "SELECT tutorial_index, completed_time FROM tutorial_progress WHERE account_id = ? AND is_completed = 1"
+    let tutorial_rows = crate::db::query(
+        "SELECT tutorial_index, completed_time FROM tutorial_progress WHERE account_id = $1 AND is_completed = 1"
     )
     .bind(account_id)
     .fetch_all(&state.db)
@@ -490,12 +490,12 @@ pub async fn login(
     }).collect();
 
     // Keep incomplete tutorials enabled across reconnects. Completion is tracked per index.
-    let tutorial_skip: bool = sqlx::query_scalar("SELECT is_skipped FROM tutorial_settings WHERE account_id = ?")
+    let tutorial_skip: bool = crate::db::query_scalar("SELECT is_skipped FROM tutorial_settings WHERE account_id = $1")
         .bind(account_id).fetch_optional(&state.db).await?.unwrap_or(false);
 
     // Fetch campaign progress and build chapter_dungeons
-    let campaign_rows = sqlx::query(
-        "SELECT chapter_id, dungeon_id, clear_count, best_star, completed_time FROM campaign_progress WHERE account_id = ? ORDER BY chapter_id, dungeon_id"
+    let campaign_rows = crate::db::query(
+        "SELECT chapter_id, dungeon_id, clear_count, best_star, completed_time FROM campaign_progress WHERE account_id = $1 ORDER BY chapter_id, dungeon_id"
     )
     .bind(account_id)
     .fetch_all(&state.db)
@@ -548,9 +548,9 @@ pub async fn login(
         // Only unlock 1-1, NOT completed - player starts fresh and must play 1-1 first
         tracing::info!("Tutorial skipped - unlocking dungeon 1-1 (not completed)");
         
-        sqlx::query(concat!(
+        crate::db::query(concat!(
             "INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, is_unlocked, clear_count, best_star, completed_time) ",
-            "VALUES (?, 1, 1, 1, 0, 0, NULL) ",
+            "VALUES ($1, 1, 1, 1, 0, 0, NULL) ",
             "ON CONFLICT(account_id, chapter_id, dungeon_id) DO NOTHING"
         ))
         .bind(account_id)
@@ -576,7 +576,7 @@ pub async fn login(
     let (current_chapter_index, current_dungeon_index) = (1, 1);
 
     let craft_slot_infos = crate::api::inventory::craft::login_data(&state,account_id).await?;
-    let inventory_settings = sqlx::query("SELECT * FROM inventory_settings WHERE account_id=?").bind(account_id).fetch_one(&state.db).await?;
+    let inventory_settings = crate::db::query("SELECT * FROM inventory_settings WHERE account_id=$1").bind(account_id).fetch_one(&state.db).await?;
     let (friend_infos, friend_invitor_infos, point_infos, sent_points) = crate::api::community::friend::login_data(&state, account_id).await?;
     let costume_infos = crate::api::heroes::costumes(&mut *state.db.acquire().await?, account_id).await?;
     let costume_storage_slot_infos = crate::api::heroes::presets(&mut *state.db.acquire().await?, account_id).await?;
@@ -593,8 +593,8 @@ pub async fn login(
     let weapon_costume_infos=crate::api::extensions::list(&mut *state.db.acquire().await?,account_id,"weapon").await?;
     let hair_costume_infos=crate::api::extensions::list(&mut *state.db.acquire().await?,account_id,"hair").await?;
     let player_accessory_costume_infos=crate::api::extensions::list(&mut *state.db.acquire().await?,account_id,"accessory").await?;
-    let class_buffs={let mut tx=state.db.begin().await?;let v=crate::api::extensions::buffs::class_snapshot(&mut tx,&state,account_id).await?;tx.commit().await?;v};
-    let team_level_buff_infos={let mut tx=state.db.begin().await?;let infos=crate::api::extensions::buffs::team_snapshot(&mut tx,&state,account_id).await?;tx.commit().await?;infos};
+    let class_buffs={let mut tx=crate::database::begin(&state.db).await?;let v=crate::api::extensions::buffs::class_snapshot(&mut tx,&state,account_id).await?;tx.commit().await?;v};
+    let team_level_buff_infos={let mut tx=crate::database::begin(&state.db).await?;let infos=crate::api::extensions::buffs::team_snapshot(&mut tx,&state,account_id).await?;tx.commit().await?;infos};
     let equip_storage_slot_infos=crate::api::extensions::storage_login(&state,account_id).await?;
     let pet_infos=crate::api::extensions::list(&mut *state.db.acquire().await?,account_id,"pet").await?;
     let hero_rune_page_infos = heroes.iter().flat_map(|h| h.details.get("HeroRunePageInfos").and_then(serde_json::Value::as_array).into_iter().flatten().cloned()).collect();
@@ -686,7 +686,7 @@ pub async fn login(
             login_daily_count: progression["LoginDailyCount"].as_i64().unwrap_or(0),
             inventory_extend: inventory_settings.get("inventory_extend"),
             chest_extend: inventory_settings.get("chest_extend"),
-            daily_acc_friendship_point: sqlx::query_scalar("SELECT points FROM friend_daily WHERE account_id=? AND day=?").bind(account_id).bind(state.server_date()).fetch_optional(&state.db).await?.unwrap_or(0),
+            daily_acc_friendship_point: crate::db::query_scalar("SELECT points FROM friend_daily WHERE account_id=$1 AND day=$2").bind(account_id).bind(state.server_date()).fetch_optional(&state.db).await?.unwrap_or(0),
             daily_acc_friendship_point_reset_time: (chrono::Utc::now().date_naive()+chrono::Duration::days(1)).format("%Y-%m-%d 00:00:00").to_string(),
             nick_change_count: 0,
             inventory_expand_count: 0,
@@ -710,7 +710,7 @@ pub async fn login(
         achievement_infos: progression["AchievementInfos"].as_array().cloned().unwrap_or_default(),
         is_tutorial_skip: tutorial_skip,
         server_name: "Private Server".to_string(),
-        created_time: sqlx::query_scalar("SELECT created_at FROM accounts WHERE account_id=?").bind(account_id).fetch_one(&state.db).await?,
+        created_time: crate::db::query_scalar("SELECT created_at FROM accounts WHERE account_id=$1").bind(account_id).fetch_one(&state.db).await?,
         message_server_info: serde_json::json!({"Address":state.chat.address, "Port":state.chat.port}),
         send_recv_friendship_point_infos: point_infos,
         sent_friendship_point_infos: sent_points,
@@ -808,8 +808,8 @@ pub async fn logout(
     
     if let Some(session_id) = session_id {
         // Clear session in database
-        sqlx::query(
-            "UPDATE accounts SET session_key = NULL WHERE session_key = ?"
+        crate::db::query(
+            "UPDATE accounts SET session_key = NULL WHERE session_key = $1"
         )
         .bind(session_id)
         .execute(&state.db)
@@ -830,14 +830,11 @@ mod logout_tests {
 
     #[tokio::test]
     async fn native_logout_returns_success_and_invalidates_only_the_requested_session() {
-        let db = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1)
-            .connect("sqlite::memory:").await.unwrap();
-        sqlx::query("CREATE TABLE accounts(account_id INTEGER PRIMARY KEY, session_key TEXT)")
-            .execute(&db).await.unwrap();
+        let db = crate::database::test_pool().await;
         let state = AppState::new(db, crate::tables::GameTables::empty());
         // Exercise native SessionKey and legacy SessionId, including URL decoding.
         for (id, key) in [(1, "native+key"), (2, "legacy/key"), (3, "untouched")] {
-            sqlx::query("INSERT INTO accounts VALUES(?,?)").bind(id).bind(key)
+            crate::db::query("INSERT INTO accounts(account_id,login_id,session_key) VALUES($1,$2,$2)").bind(id).bind(key)
                 .execute(&state.db).await.unwrap();
             state.create_session(key.into(), id, "aes".into());
         }
@@ -848,7 +845,7 @@ mod logout_tests {
             assert_eq!(json["BaseResult"], "Success");
             assert_eq!(json["Result"], "Success");
             assert!(state.get_session(key).is_none());
-            let stored: Option<String> = sqlx::query_scalar("SELECT session_key FROM accounts WHERE account_id=?")
+            let stored: Option<String> = crate::db::query_scalar("SELECT session_key FROM accounts WHERE account_id=$1")
                 .bind(if field == "SessionKey" { 1 } else { 2 }).fetch_one(&state.db).await.unwrap();
             assert!(stored.is_none());
             assert_eq!(logout(State(state.clone()), body).await.unwrap().0.result, "Success");
@@ -914,7 +911,7 @@ pub(crate) async fn test_login(state: State<AppState>, body: Bytes) -> Result<Js
     let req = parse_login_request(&form);
     let id = req.login_id.unwrap_or_default();
     let ticket = uuid::Uuid::new_v4().to_string();
-    sqlx::query("INSERT INTO auth_tickets VALUES (?, ?, 'game', ?)")
+    crate::db::query("INSERT INTO auth_tickets VALUES ($1, $2, 'game', $3)")
         .bind(super::auth::digest(&ticket)).bind(id).bind(chrono::Utc::now().timestamp()+300)
         .execute(&state.0.db).await?;
     login(state, Bytes::from(format!("{form}&LoginVerificationInfo={ticket}"))).await

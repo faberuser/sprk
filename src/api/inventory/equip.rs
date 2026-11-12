@@ -4,7 +4,7 @@ use axum::{
     Json,
 };
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use crate::db::RowExt;
 use crate::{
     error::{Result, ServerError},
     state::AppState,
@@ -92,14 +92,14 @@ pub async fn set_equip(
         || equip_slot_indices.iter().collect::<std::collections::HashSet<_>>().len()!=equip_slot_indices.len() {
         return Err(ServerError::InvalidRequest("Invalid equipment slots".into()));
     }
-    let mut tx=state.db.begin().await?;
-    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?").bind(session.account_id).execute(&mut *tx).await?;
-    let owned:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=?)").bind(session.account_id).bind(hero_index).fetch_one(&mut *tx).await?;
+    let mut tx=crate::database::begin(&state.db).await?;
+    crate::postgres::lock_account(&mut *tx, session.account_id).await?;
+    let owned:bool=crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=$1 AND hero_index=$2)").bind(session.account_id).bind(hero_index).fetch_one(&mut *tx).await?;
     if !owned {return Err(ServerError::InvalidRequest("HeroNotOwned".into()));}
     for slot in &equip_slot_indices {
-        let owned:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM equip_items WHERE account_id=? AND slot_index=? AND inventory_type=0)").bind(session.account_id).bind(slot).fetch_one(&mut *tx).await?;
+        let owned:bool=crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM equip_items WHERE account_id=$1 AND slot_index=$2 AND inventory_type=0)").bind(session.account_id).bind(slot).fetch_one(&mut *tx).await?;
         if !owned {return Err(ServerError::InvalidRequest("EquipNotOwned".into()));}
-        let item_index:i32=sqlx::query_scalar("SELECT item_index FROM equip_items WHERE account_id=? AND slot_index=?").bind(session.account_id).bind(slot).fetch_one(&mut *tx).await?;
+        let item_index:i32=crate::db::query_scalar("SELECT item_index FROM equip_items WHERE account_id=$1 AND slot_index=$2").bind(session.account_id).bind(slot).fetch_one(&mut *tx).await?;
         if state.tables.inventory.items.get(&item_index).is_some_and(|v|crate::api::inventory::item::n(v,"Type")==52) {
             return Err(ServerError::InvalidRequest("ImpossibleEquipItem".into()));
         }
@@ -118,14 +118,14 @@ pub async fn set_equip(
         // equip_slot_index is the SlotIndex of the equipment item from inventory
         
         // First, check if the equipment is currently on another hero and unequip it
-        let current_owner = sqlx::query(
+        let current_owner = crate::db::query(
             r#"SELECT hero_index FROM heroes 
-               WHERE account_id = ? AND (
-                   equip_item_slot_index_1 = ? OR equip_item_slot_index_2 = ? OR
-                   equip_item_slot_index_3 = ? OR equip_item_slot_index_4 = ? OR
-                   equip_item_slot_index_5 = ? OR equip_item_slot_index_6 = ? OR
-                   equip_item_slot_index_7 = ? OR equip_item_slot_index_8 = ? OR
-                   equip_item_slot_index_9 = ? OR equip_item_slot_index_10 = ?
+               WHERE account_id = $1 AND (
+                   equip_item_slot_index_1 = $2 OR equip_item_slot_index_2 = $3 OR
+                   equip_item_slot_index_3 = $4 OR equip_item_slot_index_4 = $5 OR
+                   equip_item_slot_index_5 = $6 OR equip_item_slot_index_6 = $7 OR
+                   equip_item_slot_index_7 = $8 OR equip_item_slot_index_8 = $9 OR
+                   equip_item_slot_index_9 = $10 OR equip_item_slot_index_10 = $11
                )"#
         )
         .bind(session.account_id)
@@ -143,8 +143,8 @@ pub async fn set_equip(
                 // Unequip from the other hero by setting all matching slots to 0
                 for slot in 1..=10 {
                     let column = format!("equip_item_slot_index_{}", slot);
-                    sqlx::query(sqlx::AssertSqlSafe(format!(
-                        "UPDATE heroes SET {} = 0 WHERE account_id = ? AND hero_index = ? AND {} = ?",
+                    crate::db::query(sqlx::AssertSqlSafe(format!(
+                        "UPDATE heroes SET {} = 0 WHERE account_id = $1 AND hero_index = $2 AND {} = $3",
                         column, column
                     )))
                     .bind(session.account_id)
@@ -160,8 +160,8 @@ pub async fn set_equip(
 
         // Check if something is currently in the target slot and unequip it
         let slot_column = format!("equip_item_slot_index_{}", part_index);
-        let current_in_slot = sqlx::query(sqlx::AssertSqlSafe(format!(
-            "SELECT {} as current_equip FROM heroes WHERE account_id = ? AND hero_index = ?",
+        let current_in_slot = crate::db::query(sqlx::AssertSqlSafe(format!(
+            "SELECT {} as current_equip FROM heroes WHERE account_id = $1 AND hero_index = $2",
             slot_column
         )))
         .bind(session.account_id)
@@ -179,10 +179,10 @@ pub async fn set_equip(
 
         // Now equip the item to the hero
         let query = format!(
-            "UPDATE heroes SET {} = ? WHERE account_id = ? AND hero_index = ?",
+            "UPDATE heroes SET {} = $1 WHERE account_id = $2 AND hero_index = $3",
             slot_column
         );
-        sqlx::query(sqlx::AssertSqlSafe(query.as_str()))
+        crate::db::query(sqlx::AssertSqlSafe(query.as_str()))
             .bind(equip_slot_index)
             .bind(session.account_id)
             .bind(hero_index)
@@ -263,15 +263,15 @@ pub async fn unset_equip(
     tracing::info!("UnsetEquip: slots={:?}", equip_slot_indices);
 
     let mut unequipped_slots: Vec<i32> = Vec::new();
-    let mut tx = state.db.begin().await?;
+    let mut tx = crate::database::begin(&state.db).await?;
 
     // For each equipment slot to unequip
     for equip_slot_index in equip_slot_indices {
         // Find which hero has this equipment and unequip it
         for slot in 1..=10 {
             let column = format!("equip_item_slot_index_{}", slot);
-            let result = sqlx::query(sqlx::AssertSqlSafe(format!(
-                "UPDATE heroes SET {} = 0 WHERE account_id = ? AND {} = ?",
+            let result = crate::db::query(sqlx::AssertSqlSafe(format!(
+                "UPDATE heroes SET {} = 0 WHERE account_id = $1 AND {} = $2",
                 column, column
             )))
             .bind(session.account_id)

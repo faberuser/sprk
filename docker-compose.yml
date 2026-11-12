@@ -25,11 +25,24 @@ services:
       # TCP stays private; /health/battle checks worker authentication/capabilities.
       CHAT_BIND: 127.0.0.1
       BATTLE_BIND: 127.0.0.1
+      # Game database (docs/postgresql-migration.md). The app role reads and
+      # writes data; the owner role applies migrations at startup. Use
+      # URL-safe passwords (letters, digits, - and _).
+      DATABASE_URL: postgres://sprk_app:${SPRK_DB_APP_PASSWORD:-}@postgres:5432/sprk
+      DATABASE_MIGRATION_URL: postgres://sprk_owner:${SPRK_DB_OWNER_PASSWORD:-}@postgres:5432/sprk
+      # Connections per pool (main and read pool each). PostgreSQL allows 100
+      # in total by default, so keep this at 45 or below.
+      SPRK_DB_MAX_CONNECTIONS: ${SPRK_DB_MAX_CONNECTIONS:-16}
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "${SPRK_GAME_PORT:-8080}:8080"
       # Private admin listener. Keep loopback, or choose the Docker host's LAN/VPN IP.
       - "${SPRK_GM_BIND_IP:-127.0.0.1}:${SPRK_GM_PORT:-8082}:8082"
     volumes:
+      # Non-database state (native worker configuration) and, until it is
+      # copied with `sprk-server migrate-sqlite`, the old sprk.db.
       - game-data:/data
 
   updates:
@@ -59,5 +72,75 @@ services:
     cpus: "${SPRK_UPDATE_CPUS:-1.0}"
     mem_limit: ${SPRK_UPDATE_MEMORY:-256m}
 
+  # Game database. The init script creates the roles and the sprk database
+  # only when the volume is first created. Back it up with pg_dump; the
+  # volume is not a backup (docs/postgresql-migration.md).
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - shared_buffers=${SPRK_DB_SHARED_BUFFERS:-512MB}
+      - -c
+      - max_wal_size=${SPRK_DB_MAX_WAL_SIZE:-4GB}
+    environment:
+      # Bootstrap superuser, used only by the init script and maintenance.
+      POSTGRES_PASSWORD: ${SPRK_DB_SUPERUSER_PASSWORD:-}
+      SPRK_DB_OWNER_PASSWORD: ${SPRK_DB_OWNER_PASSWORD:-}
+      SPRK_DB_APP_PASSWORD: ${SPRK_DB_APP_PASSWORD:-}
+    # Internal Docker network only; no published host port.
+    volumes:
+      # postgres:18 keeps its data under /var/lib/postgresql/18/docker.
+      - postgres-data:/var/lib/postgresql
+      - ./config/postgres/initdb:/docker-entrypoint-initdb.d:ro
+    shm_size: 256mb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sprk"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Daily pg_dump of the game database into a host directory outside the
+  # database volume, keeping the newest SPRK_DB_BACKUP_KEEP. Create the directory
+  # first (writable by the postgres image's UID 999).
+  postgres-backup:
+    image: postgres:18
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/usr/local/bin/sprk-postgres-backup"]
+    environment:
+      PGHOST: postgres
+      PGDATABASE: sprk
+      PGUSER: sprk_owner
+      PGPASSWORD: ${SPRK_DB_OWNER_PASSWORD:-}
+      SPRK_DB_BACKUP_KEEP: ${SPRK_DB_BACKUP_KEEP:-14}
+      SPRK_DB_BACKUP_HOUR_UTC: ${SPRK_DB_BACKUP_HOUR_UTC:-4}
+      # Off-host copy (e.g. a NAS mounted on the host); empty disables it.
+      SPRK_DB_BACKUP_COPY: ${SPRK_DB_BACKUP_COPY_HOST_DIR:-}
+      SPRK_DB_BACKUP_COPY_KEEP: ${SPRK_DB_BACKUP_COPY_KEEP:-}
+    user: "999:999"
+    volumes:
+      - ./scripts/docker/postgres-backup.sh:/usr/local/bin/sprk-postgres-backup:ro
+      - type: bind
+        source: ${SPRK_DB_BACKUP_HOST_DIR:-/srv/sprk/db-backups}
+        target: /backups
+        bind:
+          create_host_path: false
+      # Without a copy directory this mounts the backup directory a second
+      # time, unused. Never created by Docker: a missing NAS mount stops this
+      # service instead of filling the local disk.
+      - type: bind
+        source: ${SPRK_DB_BACKUP_COPY_HOST_DIR:-${SPRK_DB_BACKUP_HOST_DIR:-/srv/sprk/db-backups}}
+        target: /backup-copy
+        bind:
+          create_host_path: false
+
 volumes:
   game-data:
+  postgres-data:

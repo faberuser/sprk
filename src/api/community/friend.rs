@@ -6,7 +6,8 @@ use crate::{
 };
 use axum::{body::Bytes, extract::State, Json};
 use serde_json::{json, Value};
-use sqlx::{QueryBuilder, Row, Sqlite, SqliteConnection};
+use sqlx::{QueryBuilder, PgConnection};
+use crate::db::RowExt;
 
 pub const FRIEND_LIMIT: i64 = 50;
 pub const POINTS_PER_ACTION: i64 = 10;
@@ -18,11 +19,11 @@ fn response(result: &str) -> Value {
 }
 
 pub async fn profile(state: &AppState, account: i64) -> Result<Value> {
-    let row = sqlx::query("SELECT a.account_id, a.nick, a.last_login, a.last_logout, u.team_level, u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id = ? AND a.is_banned = 0")
+    let row = crate::db::query("SELECT a.account_id, a.nick, a.last_login, a.last_logout, u.team_level, u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id = $1 AND a.is_banned = 0")
         .bind(account).fetch_one(&state.db).await?;
     profile_row(&mut *state.db.acquire().await?, state, &row).await
 }
-async fn profile_row(db: &mut SqliteConnection, state: &AppState, row: &sqlx::sqlite::SqliteRow) -> Result<Value> {
+async fn profile_row(db: &mut PgConnection, state: &AppState, row: &sqlx::postgres::PgRow) -> Result<Value> {
     let account: i64 = row.get("account_id");
     let last: Option<String> = row.get("last_login");
     let logout: Option<String> = row.get("last_logout");
@@ -30,7 +31,7 @@ async fn profile_row(db: &mut SqliteConnection, state: &AppState, row: &sqlx::sq
     let online = online(state, account);
     // Both persisted progress formats are in use. An unlock or a numerically
     // higher raid/event chapter is not main-story completion.
-    let clears: Vec<(i64,i64)> = sqlx::query_as("SELECT chapter_id,dungeon_id FROM campaign_progress WHERE account_id=? AND clear_count>0 UNION SELECT COALESCE(json_extract(data,'$.ChapterIndex'),idx >> 32),COALESCE(json_extract(data,'$.DungeonIndex'),idx & 4294967295) FROM battle_state WHERE account=? AND kind='dungeon' AND (json_extract(data,'$.FirstRewardedDiff')>0 OR json_extract(data,'$.MaxStar')>0 OR json_extract(data,'$.ScenarioComplete')=1)")
+    let clears: Vec<(i64,i64)> = crate::db::query_as("SELECT chapter_id,dungeon_id FROM campaign_progress WHERE account_id=$1 AND clear_count>0 UNION SELECT COALESCE(sprk_json_int(data,'$.ChapterIndex'),idx >> 32),COALESCE(sprk_json_int(data,'$.DungeonIndex'),idx & 4294967295) FROM battle_state WHERE account=$2 AND kind='dungeon' AND (sprk_json_int(data,'$.FirstRewardedDiff')>0 OR sprk_json_int(data,'$.MaxStar')>0 OR sprk_json_int(data,'$.ScenarioComplete')=1)")
         .bind(account).bind(account).fetch_all(db).await?;
     let main = main_story_stages(state);
     let (chapter,dungeon) = clears.into_iter().filter(|stage| main.contains(stage)).max().unwrap_or((1,1));
@@ -83,7 +84,7 @@ pub async fn inspect_user(State(state): State<AppState>, body: Bytes) -> Result<
     // Read-only snapshot of another player (~100 Hero snapshots): serve it
     // from a reader instead of queueing every request behind it on the writer.
     let mut db = state.reads.begin().await?;
-    let row = sqlx::query("SELECT a.account_id,a.nick,a.last_login, a.last_logout,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=? AND a.is_banned=0")
+    let row = crate::db::query("SELECT a.account_id,a.nick,a.last_login, a.last_logout,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=$1 AND a.is_banned=0")
         .bind(target).fetch_optional(&mut *db).await?;
     let Some(row) = row else { return Ok(Json(response("NoTargetAccountId"))); };
     let mut user = profile_row(&mut db, &state, &row).await?;
@@ -91,7 +92,7 @@ pub async fn inspect_user(State(state): State<AppState>, body: Bytes) -> Result<
     for key in ["TierIndex","MatchScore","SeasonWin","SeasonLose","SuccessiveWin"] {
         user[key] = arena[key].clone();
     }
-    let ids: Vec<i64> = sqlx::query_scalar("SELECT hero_index FROM heroes WHERE account_id=? ORDER BY hero_index")
+    let ids: Vec<i64> = crate::db::query_scalar("SELECT hero_index FROM heroes WHERE account_id=$1 ORDER BY hero_index")
         .bind(target).fetch_all(&mut *db).await?;
     if ids.is_empty() { return Ok(Json(response("NoCache"))); }
     let mut heroes = serde_json::Map::new();
@@ -101,7 +102,7 @@ pub async fn inspect_user(State(state): State<AppState>, body: Bytes) -> Result<
     // The native Arena inspector selects DeckInfos[BattleType.Arena], not
     // ranking-row HeroInfos. Keep the last real Victory team across rollovers,
     // while the profile statistics above always describe the current season.
-    let saved: Option<(i64,String)> = sqlx::query_as("SELECT started,data FROM arena_runs WHERE account=? AND kind=0 AND status='complete' AND squad=1 ORDER BY id DESC LIMIT 1")
+    let saved: Option<(i64,String)> = crate::db::query_as("SELECT started,data FROM arena_runs WHERE account=$1 AND kind=0 AND status='complete' AND squad=1 ORDER BY id DESC LIMIT 1")
         .bind(target).fetch_optional(&mut *db).await?;
     let mut decks = json!({});
     if let Some((started,saved)) = saved {
@@ -118,7 +119,7 @@ pub async fn inspect_user(State(state): State<AppState>, body: Bytes) -> Result<
     // Store it durably because battle_runs is replaced by raids and other modes.
     let mut campaign = crate::api::battle::get(&mut db,target,"inspection_deck",1).await?;
     if campaign.is_null() {
-        if let Some((started,entry)) = sqlx::query_as::<_,(i64,String)>("SELECT started,entry FROM battle_runs WHERE account=?")
+        if let Some((started,entry)) = crate::db::query_as::<(i64,String)>("SELECT started,entry FROM battle_runs WHERE account=$1")
             .bind(target).fetch_optional(&mut *db).await? {
             campaign = crate::api::battle::campaign_inspection_deck(&state,&super::parse(&entry)?,started).unwrap_or(Value::Null);
         }
@@ -131,7 +132,7 @@ pub async fn inspect_user(State(state): State<AppState>, body: Bytes) -> Result<
             decks["Campaign"] = campaign;
         }
     }
-    let guild: Option<i64> = sqlx::query_scalar("SELECT guild_id FROM guild_members WHERE account_id=?")
+    let guild: Option<i64> = crate::db::query_scalar("SELECT guild_id FROM guild_members WHERE account_id=$1")
         .bind(target).fetch_optional(&mut *db).await?;
     let guild_info = if let Some(g) = guild { super::guild::view(&mut db, &state, g).await? } else { Value::Null };
     db.commit().await?;
@@ -144,7 +145,7 @@ pub async fn login_data(
     state: &AppState,
     account: i64,
 ) -> Result<(Vec<Value>, Vec<Value>, Vec<Value>, Vec<Value>)> {
-    let rows = sqlx::query("SELECT f.account_id AS sender, f.friend_account_id AS receiver, f.status, f.created_at, a.account_id, a.nick, a.last_login, a.last_logout, u.team_level, u.avatar_hero_index FROM friends f JOIN accounts a ON a.account_id = CASE WHEN f.account_id = ? THEN f.friend_account_id ELSE f.account_id END JOIN user_info u ON u.account_id = a.account_id WHERE (f.account_id = ? OR f.friend_account_id = ?) AND a.is_banned = 0 ORDER BY f.id")
+    let rows = crate::db::query("SELECT f.account_id AS sender, f.friend_account_id AS receiver, f.status, f.created_at, a.account_id, a.nick, a.last_login, a.last_logout, u.team_level, u.avatar_hero_index FROM friends f JOIN accounts a ON a.account_id = CASE WHEN f.account_id = $1 THEN f.friend_account_id ELSE f.account_id END JOIN user_info u ON u.account_id = a.account_id WHERE (f.account_id = $2 OR f.friend_account_id = $3) AND a.is_banned = 0 ORDER BY f.id")
         .bind(account).bind(account).bind(account).fetch_all(&state.reads).await?;
     let mut outgoing = Vec::new();
     let mut incoming = Vec::new();
@@ -162,16 +163,16 @@ pub async fn login_data(
         }
     }
     let own = point_infos(&mut *state.reads.acquire().await?, account).await?;
-    let rows = sqlx::query("SELECT p.account_id AS friend_id, p.last_send_time, p.last_recv_time FROM friend_points p WHERE p.friend_id = ? AND EXISTS (SELECT 1 FROM friends f WHERE f.status = 'accepted' AND ((f.account_id = p.account_id AND f.friend_account_id = p.friend_id) OR (f.account_id = p.friend_id AND f.friend_account_id = p.account_id)))")
+    let rows = crate::db::query("SELECT p.account_id AS friend_id, p.last_send_time, p.last_recv_time FROM friend_points p WHERE p.friend_id = $1 AND EXISTS (SELECT 1 FROM friends f WHERE f.status = 'accepted' AND ((f.account_id = p.account_id AND f.friend_account_id = p.friend_id) OR (f.account_id = p.friend_id AND f.friend_account_id = p.account_id)))")
         .bind(account).fetch_all(&state.reads).await?;
     let sent = rows.iter().map(point_row).collect();
     Ok((outgoing, incoming, own, sent))
 }
-fn point_row(row: &sqlx::sqlite::SqliteRow) -> Value {
+fn point_row(row: &sqlx::postgres::PgRow) -> Value {
     json!({"FriendId":row.get::<i64,_>("friend_id"), "LastSendTime":row.get::<Option<String>,_>("last_send_time"), "LastRecvTime":row.get::<Option<String>,_>("last_recv_time")})
 }
-async fn point_infos(db: &mut SqliteConnection, account: i64) -> Result<Vec<Value>> {
-    let rows = sqlx::query("SELECT p.* FROM friend_points p WHERE p.account_id = ? AND EXISTS(SELECT 1 FROM friends f WHERE f.status='accepted' AND ((f.account_id=p.account_id AND f.friend_account_id=p.friend_id) OR (f.account_id=p.friend_id AND f.friend_account_id=p.account_id))) ORDER BY p.friend_id").bind(account).fetch_all(db).await?;
+async fn point_infos(db: &mut PgConnection, account: i64) -> Result<Vec<Value>> {
+    let rows = crate::db::query("SELECT p.* FROM friend_points p WHERE p.account_id = $1 AND EXISTS(SELECT 1 FROM friends f WHERE f.status='accepted' AND ((f.account_id=p.account_id AND f.friend_account_id=p.friend_id) OR (f.account_id=p.friend_id AND f.friend_account_id=p.account_id))) ORDER BY p.friend_id").bind(account).fetch_all(db).await?;
     Ok(rows.iter().map(point_row).collect())
 }
 
@@ -194,7 +195,7 @@ pub async fn search_friend(State(state): State<AppState>, body: Bytes) -> Result
     }
     // The native client requests recommendations with an omitted/empty Keyword
     // when opening Accept/Request, and uses this same endpoint for Find.
-    let mut query = QueryBuilder::<Sqlite>::new(
+    let mut query = QueryBuilder::<sqlx::Postgres>::new(
         "SELECT a.account_id,a.nick,a.last_login, a.last_logout,u.team_level,u.avatar_hero_index \
          FROM accounts a JOIN user_info u USING(account_id) \
          LEFT JOIN credentials c ON c.login_id = a.login_id \
@@ -220,20 +221,20 @@ pub async fn search_friend(State(state): State<AppState>, body: Bytes) -> Result
                 .replace('_', "!_")
         );
         let player_id = keyword.parse::<i64>().ok().filter(|id| *id > 0);
-        query.push(" AND (a.nick LIKE ");
+        query.push(" AND (a.nick ILIKE ");
         query.push_bind(pattern.clone());
-        query.push(" ESCAPE '!' OR c.username LIKE ");
+        query.push(" ESCAPE '!' OR c.username ILIKE ");
         query.push_bind(pattern);
         query.push(" ESCAPE '!' OR a.account_id = ");
         query.push_bind(player_id);
         // Prioritize exact IDs/names ahead of partial name matches.
         query.push(") ORDER BY CASE WHEN a.account_id = ");
         query.push_bind(player_id);
-        query.push(" THEN 0 WHEN a.nick = ");
+        query.push(" THEN 0 WHEN lower(a.nick) = lower(");
         query.push_bind(keyword);
-        query.push(" COLLATE NOCASE OR c.username = ");
+        query.push(") OR lower(c.username) = lower(");
         query.push_bind(keyword);
-        query.push(" COLLATE NOCASE THEN 1 ELSE 2 END, a.account_id");
+        query.push(") THEN 1 ELSE 2 END, a.account_id");
     }
     query.push(" LIMIT 20");
     let rows = query.build().fetch_all(&state.reads).await?;
@@ -244,8 +245,8 @@ pub async fn search_friend(State(state): State<AppState>, body: Bytes) -> Result
     ))
 }
 
-async fn friend_count(db: &mut SqliteConnection, account: i64) -> Result<i64> {
-    Ok(sqlx::query_scalar("SELECT COUNT(*) FROM friends WHERE status = 'accepted' AND (account_id = ? OR friend_account_id = ?)").bind(account).bind(account).fetch_one(db).await?)
+async fn friend_count(db: &mut PgConnection, account: i64) -> Result<i64> {
+    Ok(crate::db::query_scalar("SELECT COUNT(*) FROM friends WHERE status = 'accepted' AND (account_id = $1 OR friend_account_id = $2)").bind(account).bind(account).fetch_one(db).await?)
 }
 
 pub async fn request_friend(State(state): State<AppState>, body: Bytes) -> Result<Json<Value>> {
@@ -268,13 +269,10 @@ async fn invite(state: AppState, body: Bytes, force_accept: bool) -> Result<Json
     if target == account {
         return Ok(Json(response("RequestMyself")));
     }
-    let mut tx = state.db.begin().await?;
-    sqlx::query("UPDATE accounts SET last_login = last_login WHERE account_id = ?")
-        .bind(account)
-        .execute(&mut *tx)
-        .await?;
-    let exists: bool = sqlx::query_scalar(
-        "SELECT EXISTS(SELECT 1 FROM accounts WHERE account_id = ? AND is_banned = 0)",
+    let mut tx = crate::database::begin(&state.db).await?;
+    crate::postgres::lock_account(&mut *tx, account).await?;
+    let exists: bool = crate::db::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM accounts WHERE account_id = $1 AND is_banned = 0)",
     )
     .bind(target)
     .fetch_one(&mut *tx)
@@ -282,7 +280,7 @@ async fn invite(state: AppState, body: Bytes, force_accept: bool) -> Result<Json
     if !exists {
         return Ok(Json(response("FriendNotFound")));
     }
-    let existing = sqlx::query("SELECT id, account_id, status, created_at FROM friends WHERE (account_id = ? AND friend_account_id = ?) OR (account_id = ? AND friend_account_id = ?)")
+    let existing = crate::db::query("SELECT id, account_id, status, created_at FROM friends WHERE (account_id = $1 AND friend_account_id = $2) OR (account_id = $3 AND friend_account_id = $4)")
         .bind(account).bind(target).bind(target).bind(account).fetch_optional(&mut *tx).await?;
     let now = state.server_time_str();
     let mut changed = false;
@@ -299,7 +297,7 @@ async fn invite(state: AppState, body: Bytes, force_accept: bool) -> Result<Json
             if friend_count(&mut tx, target).await? >= FRIEND_LIMIT {
                 return Ok(Json(response("TargetFriendFull")));
             }
-            sqlx::query("UPDATE friends SET status = 'accepted' WHERE id = ?")
+            crate::db::query("UPDATE friends SET status = 'accepted' WHERE id = $1")
                 .bind(row.get::<i64, _>("id"))
                 .execute(&mut *tx)
                 .await?;
@@ -317,8 +315,8 @@ async fn invite(state: AppState, body: Bytes, force_accept: bool) -> Result<Json
         if friend_count(&mut tx, target).await? >= FRIEND_LIMIT {
             return Ok(Json(response("TargetFriendFull")));
         }
-        let waiting: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM friends WHERE friend_account_id = ? AND status = 'pending'",
+        let waiting: i64 = crate::db::query_scalar(
+            "SELECT COUNT(*) FROM friends WHERE friend_account_id = $1 AND status = 'pending'",
         )
         .bind(target)
         .fetch_one(&mut *tx)
@@ -326,7 +324,7 @@ async fn invite(state: AppState, body: Bytes, force_accept: bool) -> Result<Json
         if waiting >= FRIEND_LIMIT {
             return Ok(Json(response("TargetFriendWaitFull")));
         }
-        sqlx::query("INSERT INTO friends(account_id,friend_account_id,status,created_at) VALUES (?,?,'pending',?)")
+        crate::db::query("INSERT INTO friends(account_id,friend_account_id,status,created_at) VALUES ($1,$2,'pending',$3)")
             .bind(account).bind(target).bind(&now).execute(&mut *tx).await?;
         changed = true;
     }
@@ -346,8 +344,8 @@ async fn invite(state: AppState, body: Bytes, force_accept: bool) -> Result<Json
     ))
 }
 
-async fn reset_daily(db: &mut SqliteConnection, account: i64, day: &str) -> Result<()> {
-    sqlx::query("INSERT INTO friend_daily(account_id,day) VALUES (?,?) ON CONFLICT(account_id) DO UPDATE SET day = excluded.day, points = CASE WHEN friend_daily.day = excluded.day THEN friend_daily.points ELSE 0 END, removed = CASE WHEN friend_daily.day = excluded.day THEN friend_daily.removed ELSE 0 END")
+async fn reset_daily(db: &mut PgConnection, account: i64, day: &str) -> Result<()> {
+    crate::db::query("INSERT INTO friend_daily(account_id,day) VALUES ($1,$2) ON CONFLICT(account_id) DO UPDATE SET day = excluded.day, points = CASE WHEN friend_daily.day = excluded.day THEN friend_daily.points ELSE 0 END, removed = CASE WHEN friend_daily.day = excluded.day THEN friend_daily.removed ELSE 0 END")
         .bind(account).bind(day).execute(db).await?;
     Ok(())
 }
@@ -361,13 +359,13 @@ async fn remove(state: AppState, body: Bytes) -> Result<Json<Value>> {
     let req = Request::parse(&body)?;
     let account = req.account(&state)?;
     let target = req.number("FriendId", req.number("FriendAccountId", 0)?)?;
-    let mut tx = state.db.begin().await?;
+    let mut tx = crate::database::begin(&state.db).await?;
     reset_daily(&mut tx, account, &state.server_date()).await?;
-    let removed: i64 = sqlx::query_scalar("SELECT removed FROM friend_daily WHERE account_id = ?")
+    let removed: i64 = crate::db::query_scalar("SELECT removed FROM friend_daily WHERE account_id = $1")
         .bind(account)
         .fetch_one(&mut *tx)
         .await?;
-    let status: Option<String> = sqlx::query_scalar("SELECT status FROM friends WHERE (account_id = ? AND friend_account_id = ?) OR (account_id = ? AND friend_account_id = ?)")
+    let status: Option<String> = crate::db::query_scalar("SELECT status FROM friends WHERE (account_id = $1 AND friend_account_id = $2) OR (account_id = $3 AND friend_account_id = $4)")
         .bind(account).bind(target).bind(target).bind(account).fetch_optional(&mut *tx).await?;
     let Some(status) = status else {
         return Ok(Json(response("FriendNotFound")));
@@ -376,11 +374,11 @@ async fn remove(state: AppState, body: Bytes) -> Result<Json<Value>> {
     if accepted && removed >= DAILY_REMOVE_LIMIT {
         return Ok(Json(response("MaxDailyRemoveFriends")));
     }
-    sqlx::query("DELETE FROM friends WHERE (account_id = ? AND friend_account_id = ?) OR (account_id = ? AND friend_account_id = ?)")
+    crate::db::query("DELETE FROM friends WHERE (account_id = $1 AND friend_account_id = $2) OR (account_id = $3 AND friend_account_id = $4)")
         .bind(account).bind(target).bind(target).bind(account).execute(&mut *tx).await?;
     // Keep today's point ledger across removal/re-addition to prevent repeated grants.
     if accepted {
-        sqlx::query("UPDATE friend_daily SET removed = removed + 1 WHERE account_id = ?")
+        crate::db::query("UPDATE friend_daily SET removed = removed + 1 WHERE account_id = $1")
             .bind(account)
             .execute(&mut *tx)
             .await?;
@@ -443,9 +441,9 @@ async fn points(state: AppState, body: Bytes, mode: u8) -> Result<Json<Value>> {
             "FriendIds"
         })?
     };
-    let mut tx = state.db.begin().await?;
+    let mut tx = crate::database::begin(&state.db).await?;
     reset_daily(&mut tx, account, &state.server_date()).await?;
-    let daily: i64 = sqlx::query_scalar("SELECT points FROM friend_daily WHERE account_id=?")
+    let daily: i64 = crate::db::query_scalar("SELECT points FROM friend_daily WHERE account_id=$1")
         .bind(account)
         .fetch_one(&mut *tx)
         .await?;
@@ -455,21 +453,21 @@ async fn points(state: AppState, body: Bytes, mode: u8) -> Result<Json<Value>> {
     let day = state.server_date();
     for (is_send, ids) in [(true, &send), (false, &recv)] {
         for target in ids {
-            let accepted: bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM friends WHERE status='accepted' AND ((account_id=? AND friend_account_id=?) OR (account_id=? AND friend_account_id=?)))")
+            let accepted: bool=crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM friends WHERE status='accepted' AND ((account_id=$1 AND friend_account_id=$2) OR (account_id=$3 AND friend_account_id=$4)))")
                 .bind(account).bind(target).bind(target).bind(account).fetch_one(&mut *tx).await?;
             if !accepted {
                 return Ok(Json(response("Fail")));
             }
-            sqlx::query("INSERT OR IGNORE INTO friend_points(account_id,friend_id) VALUES (?,?)")
+            crate::db::query("INSERT INTO friend_points(account_id,friend_id) VALUES ($1,$2) ON CONFLICT DO NOTHING")
                 .bind(account)
                 .bind(target)
                 .execute(&mut *tx)
                 .await?;
             let changed = if is_send {
-                sqlx::query("UPDATE friend_points SET last_send_time=? WHERE account_id=? AND friend_id=? AND (last_send_time IS NULL OR substr(last_send_time,1,10) != ?)")
+                crate::db::query("UPDATE friend_points SET last_send_time=$1 WHERE account_id=$2 AND friend_id=$3 AND (last_send_time IS NULL OR substr(last_send_time,1,10) != $4)")
                     .bind(&now).bind(account).bind(target).bind(&day).execute(&mut *tx).await?.rows_affected()>0
             } else {
-                sqlx::query("UPDATE friend_points SET last_recv_time=? WHERE account_id=? AND friend_id=? AND substr(last_send_time,1,10)=? AND (last_recv_time IS NULL OR substr(last_recv_time,1,10) != ?) AND EXISTS(SELECT 1 FROM friend_points p WHERE p.account_id=? AND p.friend_id=? AND substr(p.last_send_time,1,10)=?)")
+                crate::db::query("UPDATE friend_points SET last_recv_time=$1 WHERE account_id=$2 AND friend_id=$3 AND substr(last_send_time,1,10)=$4 AND (last_recv_time IS NULL OR substr(last_recv_time,1,10) != $5) AND EXISTS(SELECT 1 FROM friend_points p WHERE p.account_id=$6 AND p.friend_id=$7 AND substr(p.last_send_time,1,10)=$8)")
                     .bind(&now).bind(account).bind(target).bind(&day).bind(&day).bind(target).bind(account).bind(&day).execute(&mut *tx).await?.rows_affected()>0
             };
             if changed {
@@ -484,9 +482,9 @@ async fn points(state: AppState, body: Bytes, mode: u8) -> Result<Json<Value>> {
     if daily + add > DAILY_POINT_LIMIT {
         return Ok(Json(response("MaxFriendshipPoint")));
     }
-    let new: i64=sqlx::query_scalar("UPDATE user_info SET friendship_point=friendship_point+? WHERE account_id=? RETURNING friendship_point")
+    let new: i64=crate::db::query_scalar("UPDATE user_info SET friendship_point=friendship_point+$1 WHERE account_id=$2 RETURNING friendship_point")
         .bind(add).bind(account).fetch_one(&mut *tx).await?;
-    sqlx::query("UPDATE friend_daily SET points=points+? WHERE account_id=?")
+    crate::db::query("UPDATE friend_daily SET points=points+$1 WHERE account_id=$2")
         .bind(add)
         .bind(account)
         .execute(&mut *tx)
@@ -512,7 +510,7 @@ mod main_story_index_tests {
 
     #[tokio::test]
     async fn main_story_index_matches_first_row_table_lookups() {
-        let db = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
+        let db = crate::database::test_pool().await;
         let state = AppState::new(db, crate::tables::test_tables());
         let stages = main_story_stages(&state);
         let battle = &state.tables.battle;

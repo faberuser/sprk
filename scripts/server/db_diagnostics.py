@@ -1,48 +1,44 @@
 #!/usr/bin/env python3
-"""Read-only report for a production sprk.db and/or sprk-game.log.
+"""Read-only report for the game database and/or sprk-game.log.
 
 Usage (from the sprk-server root; put the user's files in their own folder):
-    python -I scripts/server/db_diagnostics.py --db <copy/of/sprk.db> --log <sprk-game.log>
+    python -I scripts/server/db_diagnostics.py --database-url <postgres URL> --log <sprk-game.log>
 
-The database is opened with ``mode=ro&immutable=1``: nothing is written, and a
--wal file next to it is ignored (ask for the server to be stopped, or for the
--wal/-shm files too, when the newest commits matter). See
-docs/database-diagnostics.md for how to interpret the output.
+The database report runs in a read-only session (pip install "psycopg[binary]").
+Connect as the owner role (sprk_owner), which can read pg_stat_statements and
+other sessions' activity. The log report also reads logs of the SQLite server,
+for comparing against the PostgreSQL baseline. See docs/database-diagnostics.md
+for how to interpret the output.
 """
 from __future__ import annotations
 
 import argparse
 import collections
 import re
-import sqlite3
 import statistics
 import sys
-import time
-from pathlib import Path
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 FIELD = re.compile(r'(\w+)=("[^"]*"|\S+)')
 
-# Periodic or hot queries whose plans must stay indexed. Keep them in sync with
-# the server source (see docs/database-diagnostics.md).
+# Periodic or hot queries whose plans must stay indexed, as the server sends
+# them. Keep them in sync with the server source (docs/database-diagnostics.md).
 PENDING_DISPATCH = (
-    "kind='dispatch' AND json_extract(data,'$.SimulationVersion') IN (1,2) AND "
-    "json_extract(data,'$.State') NOT IN ('Complete','Cancel') AND "
-    "COALESCE(json_array_length(json_extract(data,'$.SimulationResults')),0)"
-    "<json_extract(data,'$.RepeatCount')"
+    "kind='dispatch' AND sprk_json_int(data,'$.SimulationVersion') IN (1,2) AND "
+    "sprk_json_text(data,'$.State') NOT IN ('Complete','Cancel') AND "
+    "COALESCE(sprk_json_array_length(data,'$.SimulationResults'),0)<sprk_json_int(data,'$.RepeatCount')"
 )
-ARENA_ACCOUNT = "SELECT account FROM arena_runs GROUP BY account ORDER BY COUNT(*) DESC LIMIT 1"
+ARENA_ACCOUNT = "(SELECT account FROM arena_runs GROUP BY account ORDER BY COUNT(*) DESC LIMIT 1)"
 WATCHED_QUERIES = {
     "dispatch poller (every 3s)": f"SELECT account,idx FROM battle_state WHERE {PENDING_DISPATCH} ORDER BY account,idx",
     "recommended decks": "SELECT data FROM service_decks WHERE chapter=1 AND dungeon=1 AND difficulty=0 AND kind=0 ORDER BY metric,account LIMIT 10",
-    "mail check": "SELECT COUNT(*),COALESCE(MAX(mail_id),0) FROM mails WHERE account_id=1 AND is_received=0 AND (expires_at IS NULL OR expires_at='' OR datetime(expires_at)>datetime('now'))",
+    "mail check": "SELECT COUNT(*),COALESCE(MAX(mail_id),0) FROM mails WHERE account_id=1 AND is_received=0 AND (expires_at IS NULL OR expires_at='' OR sprk_datetime(expires_at)>sprk_datetime('now'))",
     "mail notifications (every 250ms)": "SELECT q.mail_id FROM mail_notifications q LEFT JOIN mails m ON m.mail_id=q.mail_id ORDER BY q.mail_id LIMIT 256",
-    # Arena lookups for the player with the most runs (Honor rows are ~1.5 MB).
-    # Account-scoped match lookups must use arena_online_match_status, and the
-    # ranking deck must filter on the season/squad columns, never on JSON.
-    "arena battle login (per match)": f"SELECT EXISTS(SELECT 1 FROM arena_runs WHERE +account=({ARENA_ACCOUNT}) AND status IN ('battle','complete') AND json_extract(data,'$.OnlineMatchUid')=-1)",
-    "arena match result lookup": f"SELECT kind FROM arena_runs WHERE +account=({ARENA_ACCOUNT}) AND (id=-1 OR json_extract(data,'$.OnlineMatchUid')=-1) ORDER BY id DESC LIMIT 1",
-    "arena ranking deck (per ranked player)": f"SELECT id,json_extract(data,'$.Heroes') FROM arena_runs WHERE account=({ARENA_ACCOUNT}) AND kind=1 AND status='complete' AND season=(SELECT MAX(season) FROM arena_scores) AND squad=1 ORDER BY id DESC LIMIT 1",
+    # Arena lookups for the player with the most runs (Honor rows are ~1.5 MB):
+    # the match uid must only be read through arena_online_match_status.
+    "arena battle login (per match)": f"SELECT EXISTS(SELECT 1 FROM arena_runs WHERE +account={ARENA_ACCOUNT} AND status IN ('battle','complete') AND sprk_json_int(data,'$.OnlineMatchUid')=-1)",
+    "arena match result lookup": "SELECT data FROM arena_runs WHERE id IN (SELECT id FROM arena_runs WHERE id=-1 UNION SELECT id FROM arena_runs WHERE sprk_json_int(data,'$.OnlineMatchUid')=-1) AND +account=" + ARENA_ACCOUNT + " AND status='complete' ORDER BY id DESC LIMIT 1",
+    "arena ranking deck (per ranked player)": f"SELECT id,sprk_json_text(data,'$.Heroes') FROM arena_runs WHERE account={ARENA_ACCOUNT} AND kind=1 AND status='complete' AND season=(SELECT MAX(season) FROM arena_scores) AND squad=1 ORDER BY id DESC LIMIT 1",
 }
 
 
@@ -71,42 +67,62 @@ def summarize(label: str, values: list[float]) -> str:
             f"p95={p95:.0f} max={values[-1]:.0f}")
 
 
-def report_log(path: Path) -> None:
-    lines = [ANSI.sub("", raw) for raw in path.read_text(encoding="utf-8", errors="replace").splitlines()]
+def report_log(path) -> None:
+    lines = [ANSI.sub("", raw) for raw in open(path, encoding="utf-8", errors="replace").read().splitlines()]
     stamps = [line[:19] for line in lines if re.match(r"\d{4}-\d\d-\d\dT", line)]
-    print(f"\n== Log {path.name}: {len(lines)} lines, {stamps[0] if stamps else '?'} .. {stamps[-1] if stamps else '?'}")
+    print(f"\n== Log {path}: {len(lines)} lines, {stamps[0] if stamps else '?'} .. {stamps[-1] if stamps else '?'}")
 
     levels = collections.Counter(m.group(1) for line in lines if (m := re.search(r"Z\s+(ERROR|WARN|INFO|DEBUG)\s", line)))
     print("Levels:", dict(levels))
 
+    # PostgreSQL contention. Retried 40001/40P01 failures are expected now and
+    # then; a rising count means a hot row or an inconsistent lock order.
+    pg_errors = {
+        "deadlock detected (40P01)": "deadlock detected",
+        "serialization failure (40001)": "could not serialize access",
+        "lock_timeout (55P03)": "lock timeout",
+        "statement_timeout (57014)": "statement timeout",
+        "idle in transaction timeout (25P03)": "idle-in-transaction timeout",
+        "too many connections (53300)": "too many clients",
+    }
+    print("\nPostgreSQL contention errors:")
+    for label, needle in pg_errors.items():
+        hits = [line for line in lines if needle in line]
+        print(f"  {len(hits):6}  {label}")
+        if hits:
+            top(collections.Counter(fields(line).get("path", "<no path>") for line in hits), 5)
+
+    # SQLite-era signals, kept to compare against logs from before the move.
     locked = [i for i, line in enumerate(lines) if "database is locked" in line]
-    codes = collections.Counter(m.group(1) for i in locked if (m := re.search(r"code: (\d+)", lines[i])))
-    print(f"\n'database is locked': {len(locked)}  codes={dict(codes)}  (5=SQLITE_BUSY, 517=BUSY_SNAPSHOT, 6=LOCKED)")
     if locked:
-        latencies = []
-        for i in locked:
-            for line in lines[i:i + 3]:
-                if (m := re.search(r"latency=(\d+) ms", line)):
-                    latencies.append(float(m.group(1)))
-                    break
-        print(" ", summarize("failure latency ms", latencies))
-        print("  <50ms = transaction upgrade conflict (busy_timeout never applied); ~busy_timeout = lock wait expired")
+        codes = collections.Counter(m.group(1) for i in locked if (m := re.search(r"code: (\d+)", lines[i])))
+        print(f"\nSQLite 'database is locked': {len(locked)}  codes={dict(codes)}")
         top(collections.Counter(fields(lines[i]).get("path", "<no path>") for i in locked))
-
-    timeouts = [line for line in lines if "pool timed out" in line.lower() or "PoolTimedOut" in line]
-    print(f"\nPool acquire timeouts (queued > acquire_timeout): {len(timeouts)}")
-
     holds = [fields(line) for line in lines if "Database connection held long" in line]
-    print(f"\n'Database connection held long' (>=250ms on the single connection): {len(holds)}")
     if holds:
+        print(f"\nSQLite single-connection holds >=250ms: {len(holds)}")
         by_holder: dict[str, list[float]] = collections.defaultdict(list)
         for f in holds:
             by_holder[f.get("holder", "?")].append(number(f.get("held_ms")) or 0)
         for holder, values in sorted(by_holder.items(), key=lambda kv: -sum(kv[1]))[:15]:
             print(f"  total={sum(values):8.0f}ms  {summarize(holder, values)}")
 
+    timeouts = [line for line in lines if "pool timed out" in line.lower() or "PoolTimedOut" in line]
+    print(f"\nPool acquire timeouts (all connections busy for acquire_timeout): {len(timeouts)}")
+    slow_acquire = [line for line in lines if "slow acquire" in line.lower() or "acquire_slow" in line]
+    print(f"Slow pool acquires: {len(slow_acquire)}")
+
+    waits = [fields(line) for line in lines if "Waited long for a lock" in line]
+    print(f"\n'Waited long for a lock' (>=250ms): {len(waits)}")
+    if waits:
+        by_lock: dict[str, list[float]] = collections.defaultdict(list)
+        for f in waits:
+            by_lock[f"{f.get('lock', '?')} @ {f.get('path', '?')}"].append(number(f.get("waited_ms")) or 0)
+        for key, values in sorted(by_lock.items(), key=lambda kv: -sum(kv[1]))[:15]:
+            print(f"  total={sum(values):8.0f}ms  {summarize(key, values)}")
+
     slow = [fields(line) for line in lines if "Slow HTTP request" in line]
-    print(f"\n'Slow HTTP request' (>=1s incl. queue wait): {len(slow)}")
+    print(f"\n'Slow HTTP request' (>=1s): {len(slow)}")
     if slow:
         by_path: dict[str, list[float]] = collections.defaultdict(list)
         for f in slow:
@@ -115,14 +131,14 @@ def report_log(path: Path) -> None:
             print(f"  {summarize(p, values)}")
 
     statements = [line for line in lines if "slow statement" in line]
-    print(f"\nsqlx 'slow statement' (>=1s, includes lock/queue waits inside SQLite): {len(statements)}")
+    print(f"\nsqlx 'slow statement' (>=1s, includes lock waits): {len(statements)}")
     if statements:
         top(collections.Counter(fields(line).get("summary", "?") for line in statements), 10)
         print(" ", summarize("elapsed s*1000", [(number(fields(line).get("elapsed_secs")) or 0) * 1000 for line in statements]))
 
     errors = collections.Counter()
     for line in lines:
-        if " ERROR " in line and "database is locked" not in line and "on_failure" not in line:
+        if " ERROR " in line and not any(n in line for n in pg_errors.values()) and "database is locked" not in line:
             errors[re.sub(r"\d+", "N", line[60:200])] += 1
     print("\nOther ERROR lines (digits normalised):")
     if errors:
@@ -131,98 +147,83 @@ def report_log(path: Path) -> None:
         print("  (none)")
 
 
-def report_db(path: Path) -> None:
-    uri = path.resolve().as_uri() + "?mode=ro&immutable=1"
-    db = sqlite3.connect(uri, uri=True)
-    header = path.open("rb").read(20)
-    size_mb = path.stat().st_size / 1e6
-    print(f"\n== Database {path.name}: {size_mb:.1f} MB, SQLite {sqlite3.sqlite_version}, "
-          f"journal={'WAL' if header[18:20] == b'\x02\x02' else 'rollback'}")
-    for pragma in ("page_size", "page_count", "freelist_count"):
-        print(f"  {pragma}={db.execute(f'PRAGMA {pragma}').fetchone()[0]}")
-    wal = Path(str(path) + "-wal")
-    if wal.exists():
-        print(f"  WAL file present ({wal.stat().st_size / 1e6:.1f} MB) - ignored by immutable read")
+def rows(db, sql: str, params=()) -> list[tuple]:
+    with db.cursor() as cursor:
+        cursor.execute(sql, params)
+        return cursor.fetchall()
 
+
+def report_db(url: str) -> None:
     try:
-        accounts = db.execute("SELECT COUNT(*) FROM accounts").fetchone()[0]
-        print(f"  accounts={accounts}")
-    except sqlite3.Error:
-        accounts = 0
+        import psycopg
+    except ImportError:
+        sys.exit('--database-url needs psycopg: pip install "psycopg[binary]"')
+    with psycopg.connect(url, autocommit=True) as db:
+        db.execute("SET default_transaction_read_only = on")
+        version, size, name = rows(db, "SELECT version(), pg_size_pretty(pg_database_size(current_database())), current_database()")[0]
+        print(f"\n== Database {name}: {size}\n{version}")
 
-    print("\nLargest tables (bytes of column data):")
-    sizes = []
-    for (table,) in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"):
-        cols = [r[1] for r in db.execute(f'PRAGMA table_info("{table}")')]
-        expr = "+".join(f'COALESCE(LENGTH("{c}"),0)' for c in cols) or "0"
-        total, biggest, rows = db.execute(f'SELECT SUM({expr}),MAX({expr}),COUNT(*) FROM "{table}"').fetchone()
-        sizes.append((total or 0, biggest or 0, rows, table))
-    for total, biggest, rows, table in sorted(sizes, reverse=True)[:12]:
-        per_account = f"  {total / accounts / 1e3:8.1f} KB/account" if accounts else ""
-        print(f"  {table:32} {total / 1e6:8.1f} MB  rows={rows:7}  max_row={biggest / 1e3:8.1f} KB{per_account}")
+        print("\nLargest tables (size incl. indexes and TOAST; dead rows wait for vacuum):")
+        for table, total, live, dead, vacuumed in rows(db, """
+                SELECT relname, pg_size_pretty(pg_total_relation_size(relid)), n_live_tup, n_dead_tup,
+                       COALESCE(GREATEST(last_vacuum, last_autovacuum)::text, 'never')
+                FROM pg_stat_user_tables ORDER BY pg_total_relation_size(relid) DESC LIMIT 15"""):
+            share = f"{100 * dead / max(live + dead, 1):.0f}% dead" if dead else ""
+            print(f"  {table:32} {total:>10}  live={live:<9} dead={dead:<8} {share:9} vacuumed {vacuumed[:19]}")
 
-    print("\nIndexes on watched tables:")
-    for table in ("service_decks", "battle_state", "mails", "mail_notifications"):
-        names = [r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name=?", (table,))]
-        print(f"  {table}: {names}")
+        hit = rows(db, """SELECT round(100.0 * sum(blks_hit) / NULLIF(sum(blks_hit + blks_read), 0), 2)
+                          FROM pg_stat_database WHERE datname = current_database()""")[0][0]
+        print(f"\nBuffer cache hit rate: {hit}% (below ~99% under load: raise shared_buffers or memory)")
 
-    print("\nWatched query plans and timings (second run, warm cache):")
-    for label, sql in WATCHED_QUERIES.items():
-        try:
-            plan = "; ".join(r[3] for r in db.execute("EXPLAIN QUERY PLAN " + sql))
-            db.execute(sql).fetchall()
-            start = time.perf_counter()
-            rows = db.execute(sql).fetchall()
-            ms = (time.perf_counter() - start) * 1000
-            print(f"  {label}: {ms:.2f} ms rows={len(rows)}\n      plan: {plan}")
-        except sqlite3.Error as error:
-            print(f"  {label}: {error}")
+        has_statements = rows(db, "SELECT EXISTS(SELECT 1 FROM pg_extension WHERE extname='pg_stat_statements')")[0][0]
+        if has_statements:
+            print("\nTop statements by total time (pg_stat_statements):")
+            for calls, total, mean, query in rows(db, """
+                    SELECT calls, round(total_exec_time), round(mean_exec_time::numeric, 2), regexp_replace(query, '\\s+', ' ', 'g')
+                    FROM pg_stat_statements WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database())
+                    ORDER BY total_exec_time DESC LIMIT 15"""):
+                print(f"  total={total:>9}ms mean={mean:>8}ms calls={calls:<9} {query[:150]}")
+        else:
+            print("\npg_stat_statements is not installed (see docs/postgresql-migration.md, section 6).")
 
-    print("\nDispatch preparation (in-progress jobs): simulated fight time prepared vs real time elapsed")
-    print("  BEHIND = the round counter stalls and the deadline keeps moving; healthy jobs stay ok.")
-    try:
-        import json
-        from datetime import datetime, timezone
-        snapshot = db.execute("SELECT MAX(last_login) FROM accounts").fetchone()[0]
-        now = datetime.fromisoformat(snapshot).replace(tzinfo=timezone.utc).timestamp() if snapshot else time.time()
-        print(f"  'now' = newest account login in the file: {snapshot} UTC")
-        for account, slot, raw in db.execute("SELECT account,idx,data FROM battle_state WHERE kind='dispatch'"):
-            job = json.loads(raw)
-            sims = job.get("SimulationResults") or []
-            if job.get("State") != "Battle" or not sims:
-                continue
-            prepared = sum(x.get("TimeMs", 0) for x in sims) / 1000
-            elapsed = now - job.get("StartTimestamp", now)
-            done = len(sims) >= job.get("RepeatCount", 0)
-            speed = prepared / elapsed if elapsed > 0 else 0
-            status = "ok" if done or prepared >= elapsed else f"BEHIND (preparing at {speed:.2f}x real time)"
-            print(f"  acct={account} slot={slot} stage={job.get('ChapterIndex')}-{job.get('DungeonIndex')} "
-                  f"prepared {len(sims)}/{job.get('RepeatCount')} = {prepared / 3600:.2f}h of fights, "
-                  f"elapsed {elapsed / 3600:.2f}h: {status}")
-    except (sqlite3.Error, ValueError, KeyError) as error:
-        print(f"  dispatch check failed: {error}")
+        print("\nTransactions open for more than 5 seconds:")
+        long = rows(db, """
+            SELECT pid, state, round(extract(epoch FROM now() - xact_start)), wait_event_type, left(regexp_replace(query, '\\s+', ' ', 'g'), 120)
+            FROM pg_stat_activity WHERE datname = current_database() AND xact_start < now() - interval '5 seconds' AND pid <> pg_backend_pid()
+            ORDER BY xact_start""")
+        for pid, state, seconds, wait, query in long:
+            print(f"  pid={pid} {state} {seconds}s wait={wait} {query}")
+        if not long:
+            print("  (none)")
 
-    try:
-        over = db.execute(
-            "SELECT COUNT(*) FROM (SELECT ROW_NUMBER() OVER (PARTITION BY chapter,dungeon,difficulty,kind "
-            "ORDER BY metric,account) AS rank FROM service_decks) WHERE rank>10").fetchone()[0]
-        print(f"\nservice_decks rows beyond the served top 10 (should be 0 after startup migration): {over}")
-    except sqlite3.Error as error:
-        print(f"\nservice_decks check failed: {error}")
+        print("\nSessions waiting for a lock, and who holds it:")
+        waits = rows(db, """
+            SELECT w.pid, round(extract(epoch FROM now() - w.query_start)), pg_blocking_pids(w.pid),
+                   left(regexp_replace(w.query, '\\s+', ' ', 'g'), 120)
+            FROM pg_stat_activity w WHERE w.datname = current_database() AND cardinality(pg_blocking_pids(w.pid)) > 0""")
+        for pid, seconds, blockers, query in waits:
+            print(f"  pid={pid} waiting {seconds}s on {blockers}: {query}")
+        if not waits:
+            print("  (none)")
+
+        print("\nPlans of hot queries (EXPLAIN, not executed):")
+        for label, sql in WATCHED_QUERIES.items():
+            plan = "\n      ".join(r[0] for r in rows(db, "EXPLAIN " + sql))
+            print(f"  {label}:\n      {plan}")
 
 
 def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--db", type=Path, help="copy of sprk.db (opened read-only, immutable)")
-    parser.add_argument("--log", type=Path, help="sprk-game.log")
+    parser.add_argument("--database-url", help="PostgreSQL URL of the game database (read-only session)")
+    parser.add_argument("--log", help="sprk-game.log")
     args = parser.parse_args()
-    if not args.db and not args.log:
-        parser.error("pass --db and/or --log")
+    if not args.database_url and not args.log:
+        parser.error("pass --database-url and/or --log")
     if args.log:
         report_log(args.log)
-    if args.db:
-        report_db(args.db)
+    if args.database_url:
+        report_db(args.database_url)
 
 
 if __name__ == "__main__":

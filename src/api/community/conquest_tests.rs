@@ -49,7 +49,7 @@ async fn conquest_boss_kill_mails_once_and_final_boss_uses_native_boss_damage() 
     let hp=n(&start["GuildSuppressInfo"],"MonsterHp0");
     let kill=battle(&s,&u,"campaign/end_campaign",&ending(101,0,hp,true)).await;
     assert_eq!(kill["Result"],"Success","{kill}");assert_eq!(kill["GuildSuppressPlayInfo"]["MonsterHp0"],-1);
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM mails WHERE title='Guild Conquest boss defeated'").fetch_one(&s.db).await.unwrap(),1);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM mails WHERE title='Guild Conquest boss defeated'").fetch_one(&s.db).await.unwrap(),1);
     assert_eq!(battle(&s,&u,"campaign/end_campaign",&ending(101,0,hp,true)).await,kill);
     clock(&mut s,74*3600);
     assert_ne!(battle(&s,&u,"campaign/begin_campaign",&begin(101)).await["Result"],"Success");
@@ -62,7 +62,7 @@ async fn conquest_boss_kill_mails_once_and_final_boss_uses_native_boss_damage() 
     let refreshed=call(&s,&u,"guild_suppress/get_guild_suppress_session_info","").await;
     assert_eq!(refreshed["GuildSuppressSessionInfo"]["SessionIndex"],10001);assert_eq!(refreshed["GuildSuppressPlayInfos"][0]["TotalDamage"],0);
     call(&s,&u,"guild_suppress/get_guild_suppress_session_info","").await;
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM mails WHERE title='Guild Conquest session reward'").fetch_one(&s.db).await.unwrap(),1);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM mails WHERE title='Guild Conquest session reward'").fetch_one(&s.db).await.unwrap(),1);
 }
 #[tokio::test]
 async fn conquest_invalid_requests_do_not_spend_or_score() {
@@ -73,9 +73,9 @@ async fn conquest_invalid_requests_do_not_spend_or_score() {
     let start=battle(&s,&u,"campaign/begin_campaign",&begin(101)).await;let hp=n(&start["GuildSuppressInfo"],"MonsterHp0");
     assert_ne!(battle(&s,&u,"campaign/end_campaign",&ending(101,hp+1,10,false)).await["Result"],"Success");
     assert_eq!(call(&s,&u,"guild_suppress/get_guild_suppress_status_board","").await["GuildSuppressGroupRankerInfos"][0]["Score"],0);
-    sqlx::query("DELETE FROM guild_members WHERE guild_id=?").bind(g).execute(&s.db).await.unwrap();
+    crate::db::query("DELETE FROM guild_members WHERE guild_id=$1").bind(g).execute(&s.db).await.unwrap();
     assert_ne!(battle(&s,&u,"campaign/end_campaign",&ending(101,hp-1,1,false)).await["Result"],"Success");
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM guild_battle_scores WHERE kind='suppress'").fetch_one(&s.db).await.unwrap(),0);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM guild_battle_scores WHERE kind='suppress'").fetch_one(&s.db).await.unwrap(),0);
 }
 #[test]
 fn conquest_calendar_matches_archived_weekly_boundaries() {

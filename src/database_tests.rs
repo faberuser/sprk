@@ -1,5 +1,5 @@
-//! Reads routed to the read-only pool must never write. Production readers are
-//! opened read-only, so any misrouted write fails here with SQLITE_READONLY.
+//! Reads routed to the read-only pool must never write. Production readers run
+//! with default_transaction_read_only, so any misrouted write fails here.
 use crate::{api, database, state::AppState};
 use axum::{body::Bytes, extract::State};
 use serde_json::{json, Value};
@@ -7,14 +7,12 @@ use tower::ServiceExt;
 
 #[tokio::test]
 async fn read_pool_serves_routed_reads_and_rejects_writes() {
-    let path = std::env::temp_dir().join(format!("sprk-readers-{}.sqlite", uuid::Uuid::new_v4()));
-    let db = database::open_pool(&path).await.unwrap();
-    database::create_tables(&db).await.unwrap();
-    let reads = database::open_read_pool(&path).await.unwrap();
+    let db = database::test_pool().await;
+    let reads = database::test_read_pool(&db).await;
     let s = AppState::new(db.clone(), crate::tables::test_tables()).with_reads(reads.clone());
 
-    let error = sqlx::query("INSERT INTO global_mails(title) VALUES('x')").execute(&reads).await.unwrap_err();
-    assert!(error.to_string().contains("readonly"), "{error}");
+    let error = crate::db::query("INSERT INTO global_mails(title) VALUES('x')").execute(&reads).await.unwrap_err();
+    assert!(error.to_string().contains("read-only"), "{error}");
 
     let login = api::account::user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=reader-pool")).await.unwrap().0;
     let key = login.user_info.session_key.clone();
@@ -24,7 +22,7 @@ async fn read_pool_serves_routed_reads_and_rejects_writes() {
     // Mail reads see the writer's committed deliveries; pending global mail
     // still takes the writer path and is delivered exactly once.
     api::community::mail::send_system_mail(&s, account, "Reader", "Body", 1, 0, None).await.unwrap();
-    sqlx::query("INSERT INTO global_mails(title,reward_gold) VALUES('Reader announcement',1)").execute(&s.db).await.unwrap();
+    crate::db::query("INSERT INTO global_mails(title,reward_gold) VALUES('Reader announcement',1)").execute(&s.db).await.unwrap();
     let globals = api::community::mail::get_global_mail_list(State(s.clone()), form("")).await.unwrap().0;
     assert_eq!(globals["MailInfos"].as_array().unwrap().len(), 1, "{globals}");
     let again = api::community::mail::get_global_mail_list(State(s.clone()), form("")).await.unwrap().0;
@@ -47,9 +45,9 @@ async fn read_pool_serves_routed_reads_and_rejects_writes() {
     // Inspection and mission-category validation run on readers, so they never
     // queue behind (or wait for) a writer held by another request. A guild
     // member's profile includes the guild info, which must not be persisted.
-    let guild = sqlx::query("INSERT INTO guilds(name,master_account_id) VALUES('ReaderGuild',?)")
-        .bind(account).execute(&s.db).await.unwrap().last_insert_rowid();
-    sqlx::query("INSERT INTO guild_members(account_id,guild_id,role) VALUES(?,?,2)")
+    let guild = crate::db::query_scalar::<i64>("INSERT INTO guilds(name,master_account_id) VALUES('ReaderGuild',$1) RETURNING guild_id")
+        .bind(account).fetch_one(&s.db).await.unwrap();
+    crate::db::query("INSERT INTO guild_members(account_id,guild_id,role) VALUES($1,$2,2)")
         .bind(account).bind(guild).execute(&s.db).await.unwrap();
     {
         let writer = s.db.acquire().await.unwrap();
@@ -71,7 +69,7 @@ async fn read_pool_serves_routed_reads_and_rejects_writes() {
     let request = || api::account::lobby::EnterLobbyRequest { session_id: None, session_key: Some(key.clone()) };
     let lobby = api::account::lobby::enter_lobby_http(State(s.clone()), headers.clone(), axum::extract::Form(request())).await.unwrap().0;
     assert!(lobby["PayShopProductInfos"].as_array().is_some_and(|p| !p.is_empty()), "catalog missing");
-    let unread: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=? AND is_received=0")
+    let unread: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=$1 AND is_received=0")
         .bind(account).fetch_one(&s.db).await.unwrap();
     assert_eq!(lobby["NewMailCount"], unread);
 
@@ -93,20 +91,19 @@ async fn read_pool_serves_routed_reads_and_rejects_writes() {
 
     // A progression cache miss rebuilds on the readers: it must not write
     // (SQLITE_READONLY) or queue behind the writer, which is held here.
-    sqlx::query("UPDATE user_info SET team_level=team_level+1 WHERE account_id=?").bind(account).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET team_level=team_level+1 WHERE account_id=$1").bind(account).execute(&s.db).await.unwrap();
     let writer = s.db.acquire().await.unwrap();
     let rebuilt = tokio::time::timeout(std::time::Duration::from_secs(5), api::progression::cache::get(&s, &key, account))
         .await.expect("cache miss waited for the writer").unwrap();
     assert!(rebuilt["AchievementInfos"].is_array(), "{rebuilt}");
     drop(writer);
     // A new day still needs the writer to count the login before the snapshot.
-    sqlx::query("UPDATE progression_login SET last_day='2000-01-01' WHERE account_id=?").bind(account).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE progression_login SET last_day='2000-01-01' WHERE account_id=$1").bind(account).execute(&s.db).await.unwrap();
     api::progression::cache::get(&s, &key, account).await.unwrap();
-    let day: String = sqlx::query_scalar("SELECT last_day FROM progression_login WHERE account_id=?").bind(account).fetch_one(&s.db).await.unwrap();
-    let today: String = sqlx::query_scalar("SELECT date('now')").fetch_one(&s.db).await.unwrap();
+    let day: String = crate::db::query_scalar("SELECT last_day FROM progression_login WHERE account_id=$1").bind(account).fetch_one(&s.db).await.unwrap();
+    let today: String = crate::db::query_scalar("SELECT sprk_date('now')").fetch_one(&s.db).await.unwrap();
     assert_eq!(day, today);
 
     reads.close().await;
     db.close().await;
-    database::remove_test_database(&path).await;
 }

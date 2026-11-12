@@ -76,7 +76,8 @@ pub(crate) async fn measure(
         .headers_mut()
         .insert("server-timing", format!("app;dur={ms:.3}").parse().unwrap());
     if ms >= SLOW_REQUEST_MS && !path.starts_with("/ws/") {
-        // Includes time queued for the database; pair with "held long" warnings.
+        // Includes waits for the player's or a guild's lock; pair with
+        // "Waited long for a lock" warnings for the same path.
         tracing::warn!(target: "sprk_http", path, status=response.status().as_u16(),
             app_ms=ms, "Slow HTTP request");
     } else {

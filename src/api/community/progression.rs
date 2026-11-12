@@ -5,7 +5,7 @@ fn week() -> String {
     (d - chrono::Duration::days(d.weekday().num_days_from_monday() as i64)).to_string()
 }
 pub(super) async fn mail_reward(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     index: i64,
@@ -48,11 +48,11 @@ pub(super) async fn mail_reward(
         }
         items.push(json!({"ItemIndex":id,"ItemCount":count}));
     }
-    sqlx::query("INSERT INTO mails(account_id,sender,title,content,reward_gold,reward_gem,reward_items,reward_currencies,expires_at) VALUES(?,'Guild',?,'Guild reward',?,?,?,?,?)").bind(a).bind(title).bind(def.roll_gold()).bind(def.roll_gem()).bind(json!(items).to_string()).bind(json!(currencies).to_string()).bind(time(now()+7*86400)).execute(db).await?;
+    crate::db::query("INSERT INTO mails(account_id,sender,title,content,reward_gold,reward_gem,reward_items,reward_currencies,expires_at) VALUES($1,'Guild',$2,'Guild reward',$3,$4,$5,$6,$7)").bind(a).bind(title).bind(def.roll_gold()).bind(def.roll_gem()).bind(json!(items).to_string()).bind(json!(currencies).to_string()).bind(time(now()+7*86400)).execute(db).await?;
     Ok(())
 }
 async fn attendance(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     g: i64,
@@ -66,7 +66,7 @@ async fn attendance(
     if n(&member, "AttendanceVersion") < 2 {
         // Successive is the last claimed perfect-attendance reward step, not the
         // day count. Recover it from receipts written by the previous server.
-        let targets: Vec<i64> = sqlx::query_scalar("SELECT target FROM community_claims WHERE account=? AND kind='guild_attendance_reward' AND period='all'")
+        let targets: Vec<i64> = crate::db::query_scalar("SELECT target FROM community_claims WHERE account=$1 AND kind='guild_attendance_reward' AND period='all'")
             .bind(a).fetch_all(&mut *db).await?;
         let step = s.tables.arena_guild.rows("GuildAttendanceReward").iter()
             .filter(|def| n(def, "Index") == 4 && targets.contains(&(4000000 + n(def, "Day"))))
@@ -141,8 +141,8 @@ async fn attendance(
         }
     }
     put(db, a, "attendance", g, &member).await?;
-    let daily:i64=sqlx::query_scalar("SELECT count(*) FROM community_claims WHERE kind='guild_attend_total' AND target=? AND period=?").bind(g).bind(day()).fetch_one(&mut *db).await?;
-    let weekly:i64=sqlx::query_scalar("SELECT count(*) FROM community_claims WHERE kind='guild_attend_total' AND target=? AND period>=? AND period<=?").bind(g).bind(week()).bind(day()).fetch_one(&mut *db).await?;
+    let daily:i64=crate::db::query_scalar("SELECT count(*) FROM community_claims WHERE kind='guild_attend_total' AND target=$1 AND period=$2").bind(g).bind(day()).fetch_one(&mut *db).await?;
+    let weekly:i64=crate::db::query_scalar("SELECT count(*) FROM community_claims WHERE kind='guild_attend_total' AND target=$1 AND period>=$2 AND period<=$3").bind(g).bind(week()).bind(day()).fetch_one(&mut *db).await?;
     let total = json!({"GuildId":g,"Daily":daily,"Weekly":weekly,"UpdatedTime":time(now()),"LastDaily":daily,"LastDailyUpdatedTime":time(now()),"LastWeekly":weekly,"LastWeeklyUpdatedTime":time(now())});
     if action == "send_guild_attendance_reward" {
         if member["LastDay"] != day() {
@@ -169,7 +169,7 @@ async fn attendance(
                 _ => "all".into(),
             };
             let target = kind * 1000000 + n(def, "Day");
-            let inserted=sqlx::query("INSERT OR IGNORE INTO community_claims(account,kind,target,period) VALUES(?,'guild_attendance_reward',?,?)").bind(a).bind(target).bind(period).execute(&mut *db).await?.rows_affected();
+            let inserted=crate::db::query("INSERT INTO community_claims(account,kind,target,period) VALUES($1,'guild_attendance_reward',$2,$3) ON CONFLICT DO NOTHING").bind(a).bind(target).bind(period).execute(&mut *db).await?.rows_affected();
             if inserted == 1 {
                 mail_reward(db, s, a, n(def, "RewardIndex"), "Guild attendance reward").await?;
                 if kind == 4 {
@@ -182,7 +182,7 @@ async fn attendance(
     Ok(json!({"GuildAttendanceInfo":total,"GuildMemberAttendanceInfo":member}))
 }
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     membership: (i64, i64),
@@ -246,7 +246,7 @@ pub(super) async fn execute(
                 info[kind] = json!(n(&info, kind) + amount);
             }
             put(db, a, "guild_member", g, &m).await?;
-            sqlx::query("UPDATE guild_members SET contribution=contribution+? WHERE account_id=? AND guild_id=?").bind(activity).bind(a).bind(g).execute(&mut *db).await?;
+            crate::db::query("UPDATE guild_members SET contribution=contribution+$1 WHERE account_id=$2 AND guild_id=$3").bind(activity).bind(a).bind(g).execute(&mut *db).await?;
             out["ContributedGem"] = json!(after);
             out["GuildActivityPointResult"] = json!({"NewValue":n(&info,"ActivityPoint")});
             out["GuildMemberAccActivityPointResult"] =
@@ -281,7 +281,7 @@ pub(super) async fn execute(
             }
             info["ActivityPoint"] = json!(n(&info, "ActivityPoint") - cost);
             info["Level"] = json!(current + 1);
-            sqlx::query("UPDATE guilds SET max_members=? WHERE guild_id=?")
+            crate::db::query("UPDATE guilds SET max_members=$1 WHERE guild_id=$2")
                 .bind(n(next, "MaxMember"))
                 .bind(g)
                 .execute(&mut *db)
@@ -423,7 +423,7 @@ pub(super) async fn execute(
                 previous.map(|v| n(v, "SuppressSpent")).unwrap_or(0) + n(next, "SuppressPoint");
             skills.push(json!({"GuildSkillIndex":id,"SkillIndex":id,"EffectSkillIndex":n(target,"SkillIndex"),"SkillLevel":level+1,"GuildSkillLevel":level+1,"ReqCount":0,"UpdatedTime":time(now()),"ActivitySpent":ap,"SuppressSpent":sp}));
             info["SkillInfos"] = json!(skills);
-            sqlx::query("UPDATE community_state SET data=json_set(data,'$.ReqGuildSkill',0) WHERE kind='guild_member' AND idx=? AND json_extract(data,'$.ReqGuildSkill')=?").bind(g).bind(id).execute(&mut *db).await?;
+            crate::db::query("UPDATE community_state SET data=sprk_json_set(data,'$.ReqGuildSkill',0) WHERE kind='guild_member' AND idx=$1 AND sprk_json_int(data,'$.ReqGuildSkill')=$2").bind(g).bind(id).execute(&mut *db).await?;
             if id <= 6 {
                 info[format!("Skill{id}Level")] = json!(level + 1);
             }

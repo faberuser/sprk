@@ -17,9 +17,9 @@ pub(crate) fn supported(protocol: &str) -> bool {
 }
 pub(crate) async fn send(s: &AppState, a: i64, b: i64, protocol: &str, mut content: Value) -> Result<()> {
     if a==b || b<=0 || !s.chat.online(b) { return Err(rule("WrongMember")); }
-    let mut tx=s.db.begin().await?;
+    let mut tx=crate::database::begin(&s.db).await?;
     item::init(&mut tx,s,a).await?;
-    let friends:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM friends WHERE status='accepted' AND ((account_id=? AND friend_account_id=?) OR (account_id=? AND friend_account_id=?)))")
+    let friends:bool=crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM friends WHERE status='accepted' AND ((account_id=$1 AND friend_account_id=$2) OR (account_id=$3 AND friend_account_id=$4)))")
         .bind(a).bind(b).bind(b).bind(a).fetch_one(&mut *tx).await?;
     if !friends { return Err(rule("WrongMember")); }
     let group=content["GroupId"].as_i64().or_else(||content["GroupId"].as_str().and_then(|v|v.parse().ok())).unwrap_or(0);
@@ -29,10 +29,10 @@ pub(crate) async fn send(s: &AppState, a: i64, b: i64, protocol: &str, mut conte
             // The native friend menu uses the inviter's account ID as GroupId;
             // Honor duels add HONOR_DUEL_GROUP_OFFSET to it.
             if group!=a && group!=a+HONOR_DUEL_GROUP_OFFSET {return Err(rule("InvalidValue"));}
-            let busy:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM friendly_duels WHERE status IN ('invited','accepted') AND expires>? AND (requester IN (?,?) OR opponent IN (?,?)))")
+            let busy:bool=crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM friendly_duels WHERE status IN ('invited','accepted') AND expires>$1 AND (requester IN ($2,$3) OR opponent IN ($4,$5)))")
                 .bind(now()).bind(a).bind(b).bind(a).bind(b).fetch_one(&mut *tx).await?;
             if busy {return Err(rule("WaitMore"));}
-            sqlx::query("INSERT INTO friendly_duels(group_id,requester,opponent,status,expires) VALUES(?,?,?,'invited',?) ON CONFLICT(group_id) DO UPDATE SET requester=excluded.requester,opponent=excluded.opponent,status='invited',expires=excluded.expires")
+            crate::db::query("INSERT INTO friendly_duels(group_id,requester,opponent,status,expires) VALUES($1,$2,$3,'invited',$4) ON CONFLICT(group_id) DO UPDATE SET requester=excluded.requester,opponent=excluded.opponent,status='invited',expires=excluded.expires")
                 .bind(group).bind(a).bind(b).bind(now()+180).execute(&mut *tx).await?;
             let user=user(&mut tx,a).await?;
             // The client names the league in the invitation from GroupId.
@@ -43,17 +43,17 @@ pub(crate) async fn send(s: &AppState, a: i64, b: i64, protocol: &str, mut conte
             // receiver replies with GroupId=0, which DuelManager explicitly accepts.
             // Resolve only that pong through the authenticated, live invitation pair.
             let row=if protocol=="DuelPong" && group==0 {
-                sqlx::query("SELECT requester,opponent,status FROM friendly_duels WHERE status IN ('invited','accepted') AND expires>? AND ((requester=? AND opponent=?) OR (requester=? AND opponent=?))")
+                crate::db::query("SELECT requester,opponent,status FROM friendly_duels WHERE status IN ('invited','accepted') AND expires>$1 AND ((requester=$2 AND opponent=$3) OR (requester=$4 AND opponent=$5))")
                     .bind(now()).bind(a).bind(b).bind(b).bind(a).fetch_optional(&mut *tx).await?
             } else {
-                sqlx::query("SELECT requester,opponent,status FROM friendly_duels WHERE group_id=? AND expires>?")
+                crate::db::query("SELECT requester,opponent,status FROM friendly_duels WHERE group_id=$1 AND expires>$2")
                     .bind(group).bind(now()).fetch_optional(&mut *tx).await?
             };
             // Accepting an invitation its sender canceled (or that expired): the
             // native client has already entered the party step. Answer with the
             // inviter's CancelDuel so it shows "canceled" and returns, instead
             // of waiting for a partner who will never start.
-            let withdrawn=|row:&Option<sqlx::sqlite::SqliteRow>| match row {
+            let withdrawn=|row:&Option<sqlx::postgres::PgRow>| match row {
                 None=>true,
                 Some(row)=>row.get::<i64,_>("requester")==b && row.get::<i64,_>("opponent")==a && row.get::<String,_>("status")!="invited",
             };
@@ -67,7 +67,7 @@ pub(crate) async fn send(s: &AppState, a: i64, b: i64, protocol: &str, mut conte
             if !((requester==a && opponent==b)||(requester==b && opponent==a)) {return Err(rule("WrongMember"));}
             if protocol=="AcceptDuel" {
                 if a!=opponent || status!="invited" {return Err(rule("WrongMember"));}
-                sqlx::query("UPDATE friendly_duels SET status='accepted',expires=? WHERE group_id=?")
+                crate::db::query("UPDATE friendly_duels SET status='accepted',expires=$1 WHERE group_id=$2")
                     .bind(now()+900).bind(group).execute(&mut *tx).await?;
             } else if protocol=="CancelDuel" {
                 cancel_waiting(&mut tx,a,b,group).await?;
@@ -81,8 +81,8 @@ pub(crate) async fn send(s: &AppState, a: i64, b: i64, protocol: &str, mut conte
     s.chat.notify(b,a,protocol,content);
     Ok(())
 }
-pub(crate) async fn opponent(db:&mut SqliteConnection,a:i64,group:i64)->Result<i64> {
-    sqlx::query_scalar("SELECT CASE WHEN requester=? THEN opponent ELSE requester END FROM friendly_duels WHERE group_id=? AND status='accepted' AND expires>? AND (requester=? OR opponent=?)")
+pub(crate) async fn opponent(db:&mut PgConnection,a:i64,group:i64)->Result<i64> {
+    crate::db::query_scalar("SELECT CASE WHEN requester=$1 THEN opponent ELSE requester END FROM friendly_duels WHERE group_id=$2 AND status='accepted' AND expires>$3 AND (requester=$4 OR opponent=$5)")
         .bind(a).bind(group).bind(now()).bind(a).bind(a).fetch_optional(db).await?.ok_or_else(||rule("MatchingBlocked"))
 }
 
@@ -92,13 +92,13 @@ pub(crate) async fn opponent(db:&mut SqliteConnection,a:i64,group:i64)->Result<i
 pub(super) async fn registration_failed(s:&AppState,a:i64,r:&Request)->Result<()> {
     if r.number("DuelType",0).ok()!=Some(1) {return Ok(());}
     let Some(group)=r.number("GroupId",0).ok().filter(|v|*v>0) else {return Ok(());};
-    let mut tx=s.db.begin().await?;
-    let partner:Option<i64>=sqlx::query_scalar("SELECT CASE WHEN requester=? THEN opponent ELSE requester END FROM friendly_duels WHERE group_id=? AND status='accepted' AND (requester=? OR opponent=?)")
+    let mut tx=crate::database::begin(&s.db).await?;
+    let partner:Option<i64>=crate::db::query_scalar("SELECT CASE WHEN requester=$1 THEN opponent ELSE requester END FROM friendly_duels WHERE group_id=$2 AND status='accepted' AND (requester=$3 OR opponent=$4)")
         .bind(a).bind(group).bind(a).bind(a).fetch_optional(&mut *tx).await?;
     let Some(b)=partner else {return Ok(());};
     // A bad duplicate request must not cancel an already valid registration or
     // a match in progress. Nor may a forged group cancel another player's duel.
-    let registered:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM arena_runs WHERE account=? AND status IN ('waiting','battle') AND json_extract(data,'$.DuelType')=1 AND json_extract(data,'$.GroupId')=?)")
+    let registered:bool=crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM arena_runs WHERE account=$1 AND status IN ('waiting','battle') AND sprk_json_int(data,'$.DuelType')=1 AND sprk_json_int(data,'$.GroupId')=$2)")
         .bind(a).bind(group).fetch_one(&mut *tx).await?;
     if registered {return Ok(());}
     cancel_waiting(&mut tx,a,b,group).await?;
@@ -110,10 +110,10 @@ pub(super) async fn registration_failed(s:&AppState,a:i64,r:&Request)->Result<()
     Ok(())
 }
 
-pub(super) async fn cancel_waiting(db:&mut SqliteConnection,a:i64,b:i64,group:i64)->Result<()> {
-    sqlx::query("UPDATE friendly_duels SET status='canceled' WHERE group_id=? AND ((requester=? AND opponent=?) OR (requester=? AND opponent=?))")
+pub(super) async fn cancel_waiting(db:&mut PgConnection,a:i64,b:i64,group:i64)->Result<()> {
+    crate::db::query("UPDATE friendly_duels SET status='canceled' WHERE group_id=$1 AND ((requester=$2 AND opponent=$3) OR (requester=$4 AND opponent=$5))")
         .bind(group).bind(a).bind(b).bind(b).bind(a).execute(&mut *db).await?;
-    sqlx::query("UPDATE arena_runs SET status='canceled',data=json_set(data,'$.QueueCancelReason','DuelCanceled') WHERE account IN (?,?) AND status='waiting' AND json_extract(data,'$.DuelType')=1 AND json_extract(data,'$.GroupId')=?")
+    crate::db::query("UPDATE arena_runs SET status='canceled',data=sprk_json_set(data,'$.QueueCancelReason','DuelCanceled') WHERE account IN ($1,$2) AND status='waiting' AND sprk_json_int(data,'$.DuelType')=1 AND sprk_json_int(data,'$.GroupId')=$3")
         .bind(a).bind(b).bind(group).execute(db).await?;
     Ok(())
 }

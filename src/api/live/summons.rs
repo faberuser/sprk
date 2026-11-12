@@ -9,7 +9,7 @@ fn definition(s: &AppState, id: i64) -> Result<(&Value, &Value)> {
     }
     Ok((row(s, "NewEquipGacha", &[("Index", id)])?, cfg))
 }
-async fn state(db: &mut SqliteConnection, a: i64, id: i64) -> Result<Value> {
+async fn state(db: &mut PgConnection, a: i64, id: i64) -> Result<Value> {
     let mut v = get(db, a, "summon", id).await?;
     if v.is_null() {
         v = json!({"GachaIndex":id,"GachaCount":0,"Claimed":0,"DailyFree":0,"LastFree":0,"Step":1,"CompletedStep":0,"CompletedCount":0,"IsTakeLastReward":false,"Day":day()});
@@ -43,7 +43,7 @@ fn gauge(d: &Value, v: &Value) -> i64 {
     (n(v, "GachaCount") - n(v, "Claimed")).max(0) / (n(d, "Bid") + n(d, "BonusBid")).max(1)
 }
 async fn settle_gauge(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     d: &Value,
@@ -98,7 +98,7 @@ fn free_available(d: &Value, v: &Value, at: i64) -> bool {
 fn info(d: &Value, cfg: &Value) -> Value {
     json!({"GachaIndex":d["Index"],"BeginTime":time(n(cfg,"Begin")),"EndTime":time(if n(cfg,"End")>0{n(cfg,"End")}else{4102444800}),"OnSale":true,"Discount":n(cfg,"Discount"),"Durational":n(d,"Durational"),"SaleResetTime":time((day()+1)*86400),"ProgressResetTime":time(4102444800),"IsUTCBeginTime":1,"IsUTCEndTime":1,"IsUTCProgressResetTime":1,"RemainNumberOfDiscount":0})
 }
-pub(super) async fn snapshot(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
+pub(super) async fn snapshot(db: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
     let (mut infos, mut frees, mut ceilings, mut pets, mut starters, mut steps) =
         (vec![], vec![], vec![], vec![], vec![], vec![]);
     if let Some(defs) = s.tables.live.rules["Summons"].as_object() {
@@ -145,7 +145,7 @@ fn pool<'a>(cfg: &'a Value, r: &Request, bonus: bool) -> Result<&'a str> {
         .ok_or_else(|| rule("GachaItemGroupCodeDataNotFound"))
 }
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,

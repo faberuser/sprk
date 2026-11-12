@@ -141,12 +141,12 @@ async fn retired_limit_break_offers_are_hidden_from_cached_may_stock_without_res
         row["PurchasableCount"] = json!(1);
     }
     let expires = state.server_time() + 3600;
-    sqlx::query("INSERT INTO shop_stock(account_id,shop_index,revision,restock_time,restock_count,stock) VALUES (?,1,7,?,3,?)")
+    crate::db::query("INSERT INTO shop_stock(account_id,shop_index,revision,restock_time,restock_count,stock) VALUES ($1,1,7,$2,3,$3)")
         .bind(a).bind(expires).bind(json!(rows).to_string()).execute(&state.db).await.unwrap();
-    sqlx::query("INSERT INTO shop_purchase_ledger(account_id,shop_index,item_index,period,purchased,purchased_time) VALUES (?,1,1,'stock:7',1,0)")
+    crate::db::query("INSERT INTO shop_purchase_ledger(account_id,shop_index,item_index,period,purchased,purchased_time) VALUES ($1,1,1,'stock:7',1,0)")
         .bind(a).execute(&state.db).await.unwrap();
     let balances = || async {
-        sqlx::query_as::<_, (i64, i64)>("SELECT gold,gem FROM user_info WHERE account_id=?")
+        crate::db::query_as::<(i64, i64)>("SELECT gold,gem FROM user_info WHERE account_id=$1")
             .bind(a)
             .fetch_one(&state.db)
             .await
@@ -191,7 +191,7 @@ async fn retired_limit_break_offers_are_hidden_from_cached_may_stock_without_res
     assert_eq!(balances().await, before);
     assert_eq!(count(&state, &u, 9002007).await, 0);
     assert_eq!(count(&state, &u, 9002005).await, 0);
-    let stock: (i64, i64, i64) = sqlx::query_as("SELECT revision,restock_time,restock_count FROM shop_stock WHERE account_id=? AND shop_index=1")
+    let stock: (i64, i64, i64) = crate::db::query_as("SELECT revision,restock_time,restock_count FROM shop_stock WHERE account_id=$1 AND shop_index=1")
         .bind(a).fetch_one(&state.db).await.unwrap();
     assert_eq!(stock, (7, expires, 3));
 }

@@ -84,7 +84,7 @@ pub(crate) fn select_unique(
     Ok(())
 }
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -266,7 +266,7 @@ pub(super) async fn execute(
             super::super::progression::record(db, account, "Enchant", eq.item_index as i64, item_id, 1).await?;
         }
         "confirm_valance_enchant" => {
-            let pending:String=sqlx::query_scalar("SELECT data FROM equipment_pending WHERE account_id=? AND slot_index=? AND kind='valance_enchant'")
+            let pending:String=crate::db::query_scalar("SELECT data FROM equipment_pending WHERE account_id=$1 AND slot_index=$2 AND kind='valance_enchant'")
                 .bind(account).bind(eq.slot_index).fetch_optional(&mut *db).await?.ok_or_else(||rule("UnconfirmedOption"))?;
             let p: Value = serde_json::from_str(&pending).map_err(|_| rule("InvalidOption"))?;
             if matches!(req.text("IsNew"), "true" | "True" | "1") {
@@ -279,7 +279,7 @@ pub(super) async fn execute(
                 }
                 eq = serde_json::from_value(v).map_err(|_| rule("InvalidOption"))?;
             }
-            sqlx::query("DELETE FROM equipment_pending WHERE account_id=? AND slot_index=? AND kind='valance_enchant'").bind(account).bind(eq.slot_index).execute(&mut *db).await?;
+            crate::db::query("DELETE FROM equipment_pending WHERE account_id=$1 AND slot_index=$2 AND kind='valance_enchant'").bind(account).bind(eq.slot_index).execute(&mut *db).await?;
         }
         _ => return Err(rule("Fail")),
     }
@@ -288,7 +288,7 @@ pub(super) async fn execute(
     Ok(out)
 }
 async fn craft(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -388,8 +388,8 @@ async fn craft(
 
 // ValanceCraftWindow multiplies owned-hero discounts independently for base,
 // selected-option and sub-material costs, then rounds to 2 decimals and up.
-async fn discounted_material(db: &mut SqliteConnection, state: &AppState, account: i64, count: i64, kind: i64) -> Result<i64> {
-    let owned = sqlx::query("SELECT hero_index,star,transcend FROM heroes WHERE account_id=? ORDER BY hero_index")
+async fn discounted_material(db: &mut PgConnection, state: &AppState, account: i64, count: i64, kind: i64) -> Result<i64> {
+    let owned = crate::db::query("SELECT hero_index,star,transcend FROM heroes WHERE account_id=$1 ORDER BY hero_index")
         .bind(account).fetch_all(&mut *db).await?;
     let mut ratio = 1.0_f32;
     for h in owned {

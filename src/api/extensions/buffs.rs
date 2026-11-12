@@ -4,13 +4,13 @@ use std::collections::BTreeMap;
 /// Missing records mean locked to the native client. Unlock the base effect at
 /// its table-defined team level without spending currency or replacing upgrades.
 pub(crate) async fn unlock_team_buffs(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
 ) -> Result<Vec<Value>> {
-    let level: i64 = sqlx::query_scalar("SELECT team_level FROM user_info WHERE account_id=?")
+    let level: i64 = crate::db::query_scalar("SELECT team_level FROM user_info WHERE account_id=$1")
         .bind(account).fetch_one(&mut *db).await?;
-    let existing: BTreeSet<i64> = sqlx::query_scalar("SELECT idx FROM extension_state WHERE account_id=? AND kind='team_buff'")
+    let existing: BTreeSet<i64> = crate::db::query_scalar("SELECT idx FROM extension_state WHERE account_id=$1 AND kind='team_buff'")
         .bind(account).fetch_all(&mut *db).await?.into_iter().collect();
     let mut added = Vec::new();
     for row in &state.tables.inventory.team_levels {
@@ -20,20 +20,20 @@ pub(crate) async fn unlock_team_buffs(
             continue;
         }
         let info = json!({"OpenBuffLevel":open_level,"BuffReinforce":0,"UpdatedTime":state.server_time_str()});
-        let result = sqlx::query("INSERT INTO extension_state(account_id,kind,idx,data) VALUES(?,'team_buff',?,?) ON CONFLICT(account_id,kind,idx) DO NOTHING")
+        let result = crate::db::query("INSERT INTO extension_state(account_id,kind,idx,data) VALUES($1,'team_buff',$2,$3) ON CONFLICT(account_id,kind,idx) DO NOTHING")
             .bind(account).bind(open_level).bind(info.to_string()).execute(&mut *db).await?;
         if result.rows_affected() == 1 { added.push(info); }
     }
     Ok(added)
 }
 
-pub(crate) async fn team_snapshot(db: &mut SqliteConnection, state: &AppState, account: i64) -> Result<Vec<Value>> {
+pub(crate) async fn team_snapshot(db: &mut PgConnection, state: &AppState, account: i64) -> Result<Vec<Value>> {
     unlock_team_buffs(db, state, account).await?;
     list(db, account, "team_buff").await
 }
 
 pub(crate) async fn class_snapshot(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
 ) -> Result<Value> {
@@ -51,7 +51,7 @@ pub(crate) async fn class_snapshot(
         earned.insert(tag, 0);
     }
     let heroes =
-        sqlx::query("SELECT hero_index,level,star,transcend FROM heroes WHERE account_id=?")
+        crate::db::query("SELECT hero_index,level,star,transcend FROM heroes WHERE account_id=$1")
             .bind(account)
             .fetch_all(&mut *db)
             .await?;
@@ -65,7 +65,7 @@ pub(crate) async fn class_snapshot(
         }
     }
     // Keep the best awakening of each unique item, so duplicate copies cannot farm points.
-    let equips=sqlx::query("SELECT item_index,MAX(star) AS star FROM equip_items WHERE account_id=? GROUP BY item_index").bind(account).fetch_all(&mut *db).await?;
+    let equips=crate::db::query("SELECT item_index,MAX(star) AS star FROM equip_items WHERE account_id=$1 GROUP BY item_index").bind(account).fetch_all(&mut *db).await?;
     for eq in equips {
         let id: i32 = eq.get("item_index");
         let Some(data) = super::equip_item(state, id as i64) else {
@@ -138,7 +138,7 @@ pub(crate) async fn class_snapshot(
     Ok(json!({"ClassBuffPointInfos":points,"ClassBuffInfos":buffs}))
 }
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -188,7 +188,7 @@ pub(super) async fn execute(
                 -reset[1].as_i64().unwrap_or(0),
             )
             .await?;
-            sqlx::query("DELETE FROM extension_state WHERE account_id=? AND kind='class_buff' AND json_extract(data,'$.TagType')=?").bind(account).bind(tag).execute(&mut *db).await?;
+            crate::db::query("DELETE FROM extension_state WHERE account_id=$1 AND kind='class_buff' AND sprk_json_int(data,'$.TagType')=$2").bind(account).bind(tag).execute(&mut *db).await?;
         } else {
             let index = req.number("ClassBuffIndex", 0)?;
             let level = req.number("ClassBuffLevel", 0)?;
@@ -232,7 +232,7 @@ pub(super) async fn execute(
                 return Err(rule("NotEnoughClassBuffLevel"));
             }
             let heroes: Vec<i32> =
-                sqlx::query_scalar("SELECT hero_index FROM heroes WHERE account_id=?")
+                crate::db::query_scalar("SELECT hero_index FROM heroes WHERE account_id=$1")
                     .bind(account)
                     .fetch_all(&mut *db)
                     .await?;
@@ -259,13 +259,13 @@ pub(super) async fn execute(
     Ok(out)
 }
 async fn team(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
 ) -> Result<Value> {
     let level = req.number("BuffTeamLevel", 0)?;
-    let owned: i64 = sqlx::query_scalar("SELECT team_level FROM user_info WHERE account_id=?")
+    let owned: i64 = crate::db::query_scalar("SELECT team_level FROM user_info WHERE account_id=$1")
         .bind(account)
         .fetch_one(&mut *db)
         .await?;

@@ -12,9 +12,9 @@ async fn eclipse_snapshots_include_only_the_equipped_soul_weapon() {
     let (s, u) = setup().await;
     super::tests::unlock_godking(&s, &u).await;
     let a = account(&u);
-    sqlx::query("INSERT INTO equip_items(account_id,slot_index,item_index,created_time) VALUES(?,90001,1001,'2026-10-03')")
+    crate::db::query("INSERT INTO equip_items(account_id,slot_index,item_index,created_time) VALUES($1,90001,1001,'2026-10-03')")
         .bind(a).execute(&s.db).await.unwrap();
-    sqlx::query("UPDATE heroes SET equip_item_slot_index_1=90001 WHERE account_id=? AND hero_index=1")
+    crate::db::query("UPDATE heroes SET equip_item_slot_index_1=90001 WHERE account_id=$1 AND hero_index=1")
         .bind(a).execute(&s.db).await.unwrap();
     let plain = deck(&s, &u, json!([{"DeckIndex":1,"HeroIndices":"1"}])).await;
     assert!(plain["DeckResults"][0]["CachedHeroInfos"][0]["EquipItemInfo1"]["SoulWeaponInfo"].is_null());
@@ -114,15 +114,15 @@ async fn eclipse_native_entry_result_rewards_and_retry_are_persistent() {
         .await["Result"],
         "Success"
     );
-    let claims: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM battle_reward_claims WHERE account=? AND kind='eclipse'",
+    let claims: i64 = crate::db::query_scalar(
+        "SELECT COUNT(*) FROM battle_reward_claims WHERE account=$1 AND kind='eclipse'",
     )
     .bind(account(&u))
     .fetch_one(&s.db)
     .await
     .unwrap();
     assert_eq!(claims, 1);
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT SUM(value) FROM progression_metrics WHERE account_id=? AND kind='EndEclipse'")
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT SUM(value)::bigint FROM progression_metrics WHERE account_id=$1 AND kind='EndEclipse'")
         .bind(account(&u)).fetch_one(&s.db).await.unwrap(),1);
     let restored = call(&s, &u, "eclipse/get_eclipse_info", "").await;
     assert_eq!(restored["EclipseInfo"]["IsPlayEclipse"], false);
@@ -144,7 +144,7 @@ async fn eclipse_native_entry_result_rewards_and_retry_are_persistent() {
 async fn eclipse_team_switch_does_not_charge_again_and_online_entry_stays_online() {
     let (s, u) = setup().await;
     super::tests::unlock_godking(&s, &u).await;
-    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,2,2,1,1)")
+    crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES($1,2,2,1,1)")
         .bind(account(&u))
         .execute(&s.db)
         .await

@@ -12,7 +12,8 @@ use crate::{
 };
 use axum::{body::Bytes, extract::State, Json};
 use serde_json::{json, Value};
-use sqlx::{Row, SqliteConnection};
+use sqlx::{PgConnection};
+use crate::db::RowExt;
 fn kind(s: &AppState, v: &str) -> Result<i64> {
     s.tables
         .services
@@ -44,7 +45,7 @@ fn constant(s: &AppState, key: &str) -> Result<i64> {
         .filter(|v| *v > 0)
         .ok_or_else(|| rule("Fail"))
 }
-async fn counter(db: &mut SqliteConnection, a: i64, k: i64) -> Result<Value> {
+async fn counter(db: &mut PgConnection, a: i64, k: i64) -> Result<Value> {
     let v = get(db, a, "stamina_recharges", k).await?;
     let days = super::recharge::reset_days(k);
     let day = super::recharge::period(chrono::Utc::now().date_naive(), days).to_string();
@@ -60,7 +61,7 @@ async fn counter(db: &mut SqliteConnection, a: i64, k: i64) -> Result<Value> {
 /// The client's displayed Chicken stamina maximum: the team-level maximum plus
 /// every owned hero's AddStamina bonus. Returns (cap, recharge interval).
 pub(crate) async fn chicken_cap(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     team_level: i64,
@@ -70,7 +71,7 @@ pub(crate) async fn chicken_cap(
         .services
         .find("TeamLevel", &[("Level", team_level)])
         .ok_or_else(|| rule("Fail"))?;
-    let ids: Vec<i32> = sqlx::query_scalar("SELECT hero_index FROM heroes WHERE account_id=?")
+    let ids: Vec<i32> = crate::db::query_scalar("SELECT hero_index FROM heroes WHERE account_id=$1")
         .bind(a)
         .fetch_all(&mut *db)
         .await?;
@@ -82,9 +83,9 @@ pub(crate) async fn chicken_cap(
             .sum::<i64>();
     Ok((cap, n(team, "RechargeStaminaSec").max(1)))
 }
-pub(crate) async fn chicken(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
-    let row = sqlx::query(
-        "SELECT stamina,stamina_recharge_time,team_level FROM user_info WHERE account_id=?",
+pub(crate) async fn chicken(db: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
+    let row = crate::db::query(
+        "SELECT stamina,stamina_recharge_time,team_level FROM user_info WHERE account_id=$1",
     )
     .bind(a)
     .fetch_one(&mut *db)
@@ -105,7 +106,7 @@ pub(crate) async fn chicken(db: &mut SqliteConnection, s: &AppState, a: i64) -> 
     } else {
         last + added * interval
     };
-    sqlx::query("UPDATE user_info SET stamina=?,stamina_recharge_time=? WHERE account_id=?")
+    crate::db::query("UPDATE user_info SET stamina=$1,stamina_recharge_time=$2 WHERE account_id=$3")
         .bind(value)
         .bind(anchor)
         .bind(a)
@@ -121,7 +122,7 @@ pub(crate) async fn chicken(db: &mut SqliteConnection, s: &AppState, a: i64) -> 
     )
 }
 pub(crate) async fn snapshot(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     k: i64,
@@ -136,7 +137,7 @@ pub(crate) async fn snapshot(
     Ok(v)
 }
 pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
-    let mut tx = s.db.begin().await?;
+    let mut tx = crate::database::begin(&s.db).await?;
     crate::api::inventory::item::init(&mut tx, s, a).await?;
     let mut out = vec![];
     for k in (1..=30).filter(|k| !matches!(k, 3 | 4 | 7)) {
@@ -147,17 +148,17 @@ pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
 }
 
 pub(crate) async fn add(
-    db: &mut SqliteConnection, s: &AppState, a: i64, k: i64, amount: i64,
+    db: &mut PgConnection, s: &AppState, a: i64, k: i64, amount: i64,
 ) -> Result<Value> {
     add_inner(db,s,a,k,amount,false).await
 }
 pub(crate) async fn refund(
-    db: &mut SqliteConnection,s:&AppState,a:i64,k:i64,amount:i64,
+    db: &mut PgConnection,s:&AppState,a:i64,k:i64,amount:i64,
 ) -> Result<Value> {
     add_inner(db,s,a,k,amount,true).await
 }
 async fn add_inner(
-    db:&mut SqliteConnection,s:&AppState,a:i64,k:i64,amount:i64,allow_overflow:bool,
+    db:&mut PgConnection,s:&AppState,a:i64,k:i64,amount:i64,allow_overflow:bool,
 ) -> Result<Value> {
     if amount <= 0 { return Err(rule("InvalidCost")); }
     let before = snapshot(db,s,a,k).await?;
@@ -173,12 +174,12 @@ async fn add_inner(
         2 | 20 => { community::tickets(db,s,a,name(s,k)?,amount).await?; }
         10 => { community::guild_ticket(db,s,a,amount).await?; }
         15 => {
-            sqlx::query("UPDATE community_state SET data=json_set(data,'$.Count',?) WHERE owner=? AND kind='guild_conquest_keys' AND idx=0")
+            crate::db::query("UPDATE community_state SET data=sprk_json_set(data,'$.Count',$1) WHERE owner=$2 AND kind='guild_conquest_keys' AND idx=0")
                 .bind(new).bind(a).execute(&mut *db).await?;
         }
         1 | 11 | 13 => {
             let column=match k {1=>"stamina",11=>"world_boss_ticket",_=>"sword2"};
-            sqlx::query(sqlx::AssertSqlSafe(format!("UPDATE user_info SET {column}=? WHERE account_id=?")))
+            crate::db::query(sqlx::AssertSqlSafe(format!("UPDATE user_info SET {column}=$1 WHERE account_id=$2")))
                 .bind(new).bind(a).execute(&mut *db).await?;
         }
         _ => {
@@ -192,7 +193,7 @@ async fn add_inner(
     Ok(result)
 }
 pub(crate) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -317,7 +318,7 @@ pub async fn use_stamina(State(s): State<AppState>, body: Bytes) -> Result<Json<
     if amount <= 0 {
         return Err(rule("InvalidCost"));
     }
-    let mut tx = s.db.begin().await?;
+    let mut tx = crate::database::begin(&s.db).await?;
     crate::api::inventory::item::init(&mut tx, &s, a).await?;
     chicken(&mut tx, &s, a).await?;
     let out = battle::charge_key(&mut tx, &s, a, 1, amount).await?;
