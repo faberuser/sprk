@@ -1,155 +1,220 @@
 # SPRK client
 
-The game's managed code, built from source. Server code lives in `../server`.
+The game's own C# code and the SPRK features built on top of it, the Windows
+launcher, and the tools that build, test and publish client updates.
+
+Run every command from the repository root.
+
+## What is source and what is not
+
+A game folder (`sprk-client`) is a Unity player plus assets. Only two kinds of
+file in it are built from this directory:
+
+| Built here | Comes from an existing game folder or release |
+| --- | --- |
+| `King's Raid_Data/Managed/Assembly-CSharp.dll` (the game's code) | `King's Raid.exe`, `UnityPlayer.dll`, `MonoBleedingEdge/`, `D3D12/` |
+| `King's Raid_Data/Managed/Sprk*.dll` (SPRK features) | Unity, Mono and third-party DLLs in `Managed/` |
+| `SprkLauncher.exe` | Scenes, asset bundles, tables, `King's Raid_Data/Documents/` (19 GB) |
+
+## Layout
 
 | Path | Contents |
 | --- | --- |
 | `managed/Assembly-CSharp/` | The game's C# code |
 | `managed/Sprk*/` | SPRK feature assemblies, one DLL per directory |
-| `launcher/` | `SprkLauncher.exe` (profiles, signed updates) and its tests |
-| `overrides/files/` | Optional replacement assets and tables, by client-relative path |
-| `scripts/build/` | Compiles `managed/`; creates test copies of the game |
-| `scripts/release/` | Signed update building, publishing and baseline pin |
-| `scripts/automation/` | Drives the real client for tests |
+| `managed/Directory.Build.props` | Compiler settings shared by every project |
+| `managed/references.lock.json` | SHA-256 pins of the game runtime DLLs the code compiles against |
+| `launcher/` | `SprkLauncher.exe` (server profiles, signed updates) and its tests |
+| `overrides/files/` | Replacement assets and tables, by client-relative path (empty until needed) |
+| `scripts/build/` | Compile `managed/`; create and remove test copies of the game |
+| `scripts/release/` | Build, sign, publish and pin client updates |
+| `scripts/automation/` | Drive the real game in tests |
 | `scripts/launcher/`, `scripts/android/` | Launcher installation; Android conversion |
-| `tools/ManagedSource/` | Read-only DLL inspection and build verification |
+| `tools/ManagedSource/` | Read-only DLL inspection and comparison |
+| `global.json` | .NET SDK version |
 
-What is **not** source and never built here: the Unity player
-(`King's Raid.exe`, `UnityPlayer.dll`, `MonoBleedingEdge/`), native plugins,
-Unity/Mono/third-party DLLs, scenes, asset bundles, tables and the rest of
-`King's Raid_Data/`. A game folder supplies those as they are. The build replaces
-only `Assembly-CSharp.dll` and `Sprk*.dll` in `King's Raid_Data/Managed/`.
+## Requirements
 
-## Build, install, play
+- Windows.
+- [.NET SDK 10.0.1xx](https://dotnet.microsoft.com/download) (`global.json`
+  accepts any 10.0.1xx patch).
+- Python 3.11+. The build and release scripts need no extra packages.
+- A game folder at `../sprk-client`, next to this repository, kept current by
+  starting it once through its launcher. The build reads the game's runtime
+  DLLs from it and checks each against `managed/references.lock.json`.
 
-Requirements: Windows, Python 3.11+, the .NET SDK selected by `global.json`
-(10.0.1xx), and an installed game folder (default `../sprk-client`, next to this
-repository). Run commands from the repository root.
+## Build
 
 ```powershell
-# Compile all 48 assemblies into artifacts/client-build (about 40 seconds)
 python client/scripts/build/build_managed_client.py
-
-# Compile and copy the DLLs into the game folder (close the game first)
-python client/scripts/build/build_managed_client.py --install ../sprk-client
 ```
 
-Then start the game through the launcher as usual. Use `--references` when the
-runtime DLLs are somewhere else, and `--work` for a different build directory.
+This compiles all 48 assemblies in about 40 seconds into
+`artifacts/client-build/client-code/King's Raid_Data/Managed/`. Add
+`--install <game folder>` to copy them into a game folder (close the game
+first), `--references <Managed folder>` if the game is elsewhere, and
+`--work <folder>` for another build directory.
 
-To change the game, edit the `.cs` files in `managed/` and rebuild. To add a
-feature assembly, create `managed/SprkName/SprkName.csproj` containing
-`<Project Sdk="Microsoft.NET.Sdk" />` plus its source; the build, the release
-and the launcher pick it up automatically. Deleting a directory removes its DLL
-from the next release.
+## Test your changes safely
 
-### Test without touching your game
+Test in a separate copy of the game, not in `../sprk-client`:
 
 ```powershell
-python client/scripts/build/sandbox_client.py create      # ../sprk-client-test, about 2 minutes
+python client/scripts/build/sandbox_client.py create      # makes ../sprk-client-test, about 2 minutes
 python client/scripts/build/build_managed_client.py --install ../sprk-client-test   # after each change
 python client/scripts/build/sandbox_client.py remove      # when done
 ```
 
-The sandbox copies the player files (1.2 GB), shares the real game's 19 GB
-`King's Raid_Data/Documents` through a junction and installs the source-built
-DLLs. Start the local server (`start_server.bat`), close the normal game, then
-run `Play (local server).bat` in the sandbox. `Play (public server).bat` uses
-your real account on the public server.
+The sandbox copies the player files (1.2 GB), shares the real game's
+`King's Raid_Data/Documents` through a junction, and installs DLLs built from
+source. To play it:
 
-- Never start `SprkLauncher.exe` for the sandbox; it would replace the test DLLs
-  with the published ones. The `.bat` files set `SPRK_HOST_URL`, which is all
-  the launcher normally adds.
+1. Start the local server with `start_server.bat` (see the
+   [server README](../server/README.md)).
+2. Close the normal game; only one copy can run at a time.
+3. Run `Play (local server).bat` in the sandbox.
+
+`Play (public server).bat` uses your real account on the public server.
+
+- Never start `SprkLauncher.exe` for the sandbox. It would replace the test
+  DLLs with the published ones. The `.bat` files set `SPRK_HOST_URL`, which is
+  all the launcher normally adds.
 - Delete the sandbox with `sandbox_client.py remove` only. A plain recursive
   delete can follow the junction and delete the real game's assets.
-- Saved settings and logins are shared with the real game (Unity keeps them
-  per Windows user), and only one game instance can run at a time.
+- Saved settings and logins are shared with the real game: Unity keeps them
+  per Windows user.
 
-After installing changed DLLs into the real game, publish a local signed update so the local update
-server and the launcher agree with the game folder; see
-[client updates](../docs/client-updates.md).
+For repeatable checks, [client automation](../docs/client-automation.md) starts
+an isolated server and database and drives the game through scenarios (login,
+lobby, shops, battles). Point it at the sandbox with `--client ../sprk-client-test`.
+
+## Change the game
+
+Edit the `.cs` files under `managed/` and rebuild. The source is ordinary
+maintained code: never regenerate it from a DLL or patch a compiled DLL.
+
+- **New feature assembly.** Create `managed/SprkName/SprkName.csproj` containing
+  `<Project Sdk="Microsoft.NET.Sdk" />`, add its source and call it from the game
+  code. The build, release and launcher pick it up automatically. Deleting a
+  directory removes its DLL from the next release.
+- **Serialized fields.** Unity loads components and assets by field name and
+  declaration order. In `MonoBehaviour`, `ScriptableObject` and `[Serializable]`
+  types, do not reorder, rename, retype or remove existing fields; add new ones
+  at the end or mark them `[NonSerialized]`.
+- **Names.** Keep assembly, namespace and type names that assets, reflection or
+  the server refer to.
+- **Server agreement.** Some server tests read client source, for example the
+  read-only request list in `managed/SprkNetworkPerformance/SprkNetworkPerformance.cs`.
+- **Logs.** Info-level `Debug.Log` output does not reach the game log; write
+  diagnostics to a file when testing.
 
 ### How the build works
 
-`managed/Directory.Build.props` holds the shared compiler settings. Projects
-compile against the game's own runtime DLLs, not the .NET SDK's:
-`managed/references.lock.json` pins those 144 files by SHA-256, and the build
-refuses anything else. The `netstandard2.1` label only enables SDK tooling.
+Projects compile against the game's own runtime DLLs, never the .NET SDK's
+libraries: `references.lock.json` pins those 144 files, and the build refuses
+any other version. The `netstandard2.1` target only enables SDK tooling.
 
-The game calls the feature assemblies and they call the game. The build breaks
-that cycle without any previously built DLL:
+The game calls the feature assemblies and they call the game. The build
+resolves that cycle without any previously built DLL:
 
 1. Compile all source into one temporary assembly.
 2. Compile the feature assemblies against it, then the game against them.
 3. Compile the final feature assemblies, then the final game, against those.
 
-Output is deterministic: the same source and SDK produce byte-identical DLLs.
-An IDE or `dotnet build` on one project works after one complete build, using
-the references staged in `artifacts/client-build/references`.
+The output is deterministic: the same source and SDK give byte-identical DLLs.
+After one complete build, an IDE or `dotnet build` on a single project works too,
+using the references staged in `artifacts/client-build/references`.
 
-## Releases
+## Change assets or tables
 
-`scripts/release/build_client_release.py` assembles a complete signed update in
-an isolated folder:
+There is no source form for assets or tables. To ship a changed file, put its
+final version under `overrides/files/` at its client-relative path, for example
+`overrides/files/King's Raid_Data/Documents/Patch/StandaloneWindows/TableJit/ItemTable.jit`,
+together with any `SPRK-Native*.json` integrity file that covers it. Server-side
+game tables are separate and live in `../tables/`.
 
-```text
-pinned published release (assets, tables, runtime DLLs)   scripts/release/client_baseline.py
-  + overrides/files/                                      replacement assets
-  + DLLs compiled from managed/
-  = signed manifest + client-update.tar.gz
+## Launcher
+
+```powershell
+client/scripts/launcher/build_launcher.ps1 -ClientPath ../sprk-client   # build and install SprkLauncher.exe
+dotnet run --project client/launcher/SprkLauncher.Tests                 # checks
 ```
 
-CI runs it on every merge to `main`, publishes the result as a GitHub release
-and deploys the matching server; see [GitHub client releases](../docs/github-client-updates.md).
-Check a release locally without the signing key or any upload:
+The launcher keeps server profiles in `sprk-launcher.json` next to the game,
+checks the selected server's signed manifest, downloads only changed files and
+starts the game with that server's address in `SPRK_HOST_URL`.
+
+## Publish client updates
+
+### Through CI (normal)
+
+Merging into `main` builds the update from tracked inputs only:
+
+```text
+pinned published release (player, assets, tables, runtime DLLs)   scripts/release/client_baseline.py
+  + overrides/files/
+  + DLLs compiled from managed/
+  = signed manifest + client-update.tar.gz, published as a GitHub release
+```
+
+The matching server image is pinned to that release and installs it at startup.
+Check the complete build locally without a signing key or any upload:
 
 ```powershell
 python client/scripts/release/build_client_release.py --work artifacts/release-check --version check-1 --check-only
 ```
 
-To ship a changed asset or table, put the file under `overrides/files/` at its
-client-relative path, for example
-`overrides/files/King's Raid_Data/Documents/Patch/StandaloneWindows/TableJit/ItemTable.jit`,
-together with any `SPRK-Native*.json` integrity metadata that covers it.
+Details: [GitHub CI and client updates](../docs/github-client-updates.md).
+`scripts/release/pin_client_baseline.py` moves the baseline to a newer published
+release; routine changes never need it.
 
-New players still need a complete game folder (the Google Drive ZIP). It only
-has to contain the player and assets; the launcher brings its managed files up
-to the current release on first start.
+### Locally (for start_server.bat)
 
-## Launcher
+The local update service serves whatever was last published from your game
+folder. After installing new DLLs into `../sprk-client`, publish it:
 
 ```powershell
-client/scripts/launcher/build_launcher.ps1 -ClientPath ../sprk-client
-dotnet run --project client/launcher/SprkLauncher.Tests
+python client/scripts/release/publish_client_update.py --client ../sprk-client --output client-updates --version local-YYYYMMDD-name --signing-key client-updates/update-signing/private.pem
 ```
+
+Use a new version name every time. The default selection keeps every file the
+previous release managed. See [client updates](../docs/client-updates.md),
+including unsigned publishing for contributors without the signing key.
+
+### New players
+
+New players still need a complete game folder (the client ZIP). Any recent one
+works: the launcher brings the managed files up to the current release on its
+first start. Refresh the ZIP occasionally to shorten that first update.
 
 ## Tests
 
 ```powershell
 python -m unittest discover -s client/scripts -t . -p "test_*.py"
+dotnet run --project client/launcher/SprkLauncher.Tests
 ```
 
-[Client automation](../docs/client-automation.md) starts an isolated server and
-database and drives the real game (login, lobby, shops, battles).
+## Inspect a DLL
 
-## Where the source came from
+The source is the reference, but to look at a compiled or third-party DLL:
 
-`managed/` was recovered once from the last DLL-patched release
-(`client-ci-2795d44b755a-43152391931-1`) with ILSpy and repaired until it
-compiled. It is now ordinary maintained source: never regenerate it from a DLL.
-The retired DLL patcher, its scripts and the recovery records were deleted
-afterwards; git history still has them (`git show 470d93a2:client/legacy/README.md`). Checked on 2026-11-12 against that release:
+```powershell
+cd client
+dotnet run --project tools/ManagedSource -- inspect <assembly.dll> <full-type-name> [method-name]
+```
 
-- every type keeps the same serialized field layout, base type and interfaces
-  (15,350 types), with matching assembly identities and embedded resources;
-- on the real client: login, lobby, hero, inventory and Special Shop screens,
-  and a campaign battle through victory and rewards, with no new errors;
-- the server's native battle worker test (`conquest_native_tcp_battle`) passes
-  with these DLLs.
+See [tools/README.md](tools/README.md) for comparing two builds.
 
-Known differences from the patched DLLs: explicit interface methods that the old
-64-bit currency patch left with mismatched `int`/`long` signatures now match
-their interfaces and use checked conversions (a value above the 32-bit range
-throws instead of wrapping), and compiler-generated closure and backing-field
-names differ. Features not covered by the checks above should be play-tested
-before a public release.
+## History
+
+`managed/` was recovered once, with ILSpy, from the last release built by the
+former DLL patcher (`client-ci-2795d44b755a-43152391931-1`), then repaired until
+it compiled. The patcher and the recovery records were deleted afterwards; git
+history still has them (`git show 470d93a2:client/legacy/README.md`).
+
+Checked against that release on 2026-11-12: all 15,350 types keep the same
+serialized field layout, base types and interfaces; login, lobby, hero,
+inventory and Special Shop screens and a campaign battle worked on the real game
+with no new errors; the server's native battle worker test passed. One
+intentional difference: some currency methods now use checked 32-bit
+conversions, so a value above that range throws instead of wrapping.
