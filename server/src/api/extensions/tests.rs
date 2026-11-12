@@ -640,10 +640,10 @@ async fn accessory_sale_charges_existing_price_and_persists_without_double_charg
     let escaped = urlencoding::encode(&body_pos).into_owned();
     let wire = urlencoding::encode(&escaped);
     let bought = call(&s, &login, "hero/buy_customizing_costumes",
-        &format!("HeroIndex=1&CostumeIndex=0&HairCostumeIndex=0&WeaponCostumeIndex=0&HideUniqueWeapon=0&AccessoryCostumePositionInfo={wire}&BuyGem=4000&BuyGold=0")).await;
+        &format!("HeroIndex=1&CostumeIndex=0&HairCostumeIndex=0&WeaponCostumeIndex=0&HideUniqueWeapon=0&AccessoryCostumePositionInfo={wire}&BuyGem=10000&BuyGold=0")).await;
     assert_eq!(bought["Result"], "Success", "{bought}");
     let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
-    assert_eq!(login.user_info.gem, 100000 - price - 4000);
+    assert_eq!(login.user_info.gem, 100000 - price - 10000);
     assert!(login.player_accessory_costume_infos.iter().any(|v| v["HeroIndex"] == 1 && v["AccessoryCostumeIndex"] == 3110025));
     let selected = hero::change_avatar_hero(State(s.clone()),
         Bytes::from(format!("SessionKey={}&HeroIndex=1&AvatarHeroIndex=11", u.user_info.session_key)))
@@ -754,6 +754,70 @@ async fn multiple_accessories_persist_remove_individually_and_reset_together() {
     assert_eq!(cleared["SprkAccessories"],json!([]));
     for part in 1..=6 {assert_eq!(cleared[format!("AccessoryCostumeIndex{part}")],0);}
     assert_eq!(list(&mut s.db.acquire().await.unwrap(),account,"accessory").await.unwrap().len(),8);
+}
+
+#[tokio::test]
+async fn premium_accessory_client_quotes_and_buy_all_are_atomic() {
+    let (s, u) = setup().await;
+    let account = u.user_info.account_id;
+    let buy_args = |indices: &[i64], price: i64| {
+        let positions = indices.iter().map(|id| (id.to_string(), json!({
+            "PositionX":"0","PositionY":"0","PositionZ":"0",
+            "RotationX":"0","RotationY":"0","RotationZ":"0","Scale":"1"
+        }))).collect::<serde_json::Map<String, Value>>();
+        let escaped = urlencoding::encode(&Value::Object(positions).to_string()).into_owned();
+        let wire = urlencoding::encode(&escaped);
+        format!("HeroIndex=1&CostumeIndex=0&HairCostumeIndex=0&WeaponCostumeIndex=0&HideUniqueWeapon=0&BuyGold=0&BuyGem={price}&AccessoryCostumePositionInfo={wire}")
+    };
+    // The native client quotes 10,000 for the Flame of Fighting Spirit head accessory.
+    let first = call(&s, &u, "hero/buy_customizing_costumes", &buy_args(&[3901811], 10000)).await;
+    assert_eq!(first["Result"], "Success", "{first}");
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT gem FROM user_info WHERE account_id=$1")
+        .bind(account).fetch_one(&s.db).await.unwrap(), 90000);
+
+    // Buy All can include multiple premium accessories. Reject incorrect totals
+    // without retaining ownership or spending any rubies.
+    let batch = [3901801, 3110025];
+    for quote in [0, 19999, 20001] {
+        let response = call(&s, &u, "hero/buy_customizing_costumes", &buy_args(&batch, quote)).await;
+        assert_eq!(response["Result"], "InvalidPrice", "{response}");
+        for id in batch {
+            assert!(get(&mut s.db.acquire().await.unwrap(), account, "accessory", cosmetics::accessory_key(1, id).unwrap())
+                .await.unwrap().is_null());
+        }
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT gem FROM user_info WHERE account_id=$1")
+            .bind(account).fetch_one(&s.db).await.unwrap(), 90000);
+    }
+    crate::db::query("UPDATE user_info SET gem=19999,pay_gem=0 WHERE account_id=$1")
+        .bind(account).execute(&s.db).await.unwrap();
+    let insufficient = call(&s, &u, "hero/buy_customizing_costumes", &buy_args(&batch, 20000)).await;
+    assert_eq!(insufficient["Result"], "NotEnoughGem", "{insufficient}");
+    for id in batch {
+        assert!(get(&mut s.db.acquire().await.unwrap(), account, "accessory", cosmetics::accessory_key(1, id).unwrap())
+            .await.unwrap().is_null());
+    }
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT gem FROM user_info WHERE account_id=$1")
+        .bind(account).fetch_one(&s.db).await.unwrap(), 19999);
+
+    crate::db::query("UPDATE user_info SET gem=25000 WHERE account_id=$1")
+        .bind(account).execute(&s.db).await.unwrap();
+    let purchased = call(&s, &u, "hero/buy_customizing_costumes", &buy_args(&batch, 20000)).await;
+    assert_eq!(purchased["Result"], "Success", "{purchased}");
+    let reapplied = call(&s, &u, "hero/buy_customizing_costumes", &buy_args(&batch, 0)).await;
+    assert_eq!(reapplied["Result"], "Success", "{reapplied}");
+    let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    assert_eq!(login.user_info.gem, 5000);
+    for id in [3901811, 3901801, 3110025] {
+        assert!(login.player_accessory_costume_infos.iter().any(|v| n(v, "AccessoryCostumeIndex") == id));
+    }
+
+    // A premium item and an ordinary 500-ruby item use the same price validation.
+    crate::db::query("UPDATE user_info SET gem=20000 WHERE account_id=$1")
+        .bind(account).execute(&s.db).await.unwrap();
+    let mixed = call(&s, &u, "hero/buy_customizing_costumes", &buy_args(&[3901601, 3100013], 10500)).await;
+    assert_eq!(mixed["Result"], "Success", "{mixed}");
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT gem FROM user_info WHERE account_id=$1")
+        .bind(account).fetch_one(&s.db).await.unwrap(), 9500);
 }
 
 #[tokio::test]
