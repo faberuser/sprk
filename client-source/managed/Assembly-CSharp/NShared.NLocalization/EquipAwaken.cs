@@ -1,0 +1,10 @@
+namespace NShared.NLocalization;
+
+[Localizable]
+public enum EquipAwaken
+{
+	EQUIP_AWAKEN_MSG_SELECT_TARGET,
+	EQUIP_AWAKEN_MSG_SELECT_MATERIAL,
+	EQUIP_AWAKEN_AWAKEN_MAX,
+	EQUIP_AWAKEN_CONFIRM_USE_MATERIAL_MSG
+}

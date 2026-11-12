@@ -1,0 +1,35 @@
+namespace NShared;
+
+public enum BattleLogType
+{
+	None,
+	PlayerEnter,
+	PlayerLeave,
+	PlayerAllSkill,
+	CreatureSwitch,
+	CreatureCreate,
+	CreatureFireSkill,
+	CreatureFireNextSkill,
+	CreatureFireEventSkill,
+	CreatureReserveOnSkill,
+	CreatureReserveOffSkill,
+	CreatureManualTarget,
+	CreatureManualMove,
+	CreatureWakeUp,
+	CreatureSetAiBattleLog,
+	WaveCreate,
+	WaveReady,
+	WaveStart,
+	WaveRageMode,
+	WaveClose,
+	WaveEnd,
+	WaveWithdraw,
+	WaveGiveUp,
+	WaveCancel,
+	NextTeamEnterBattleLog,
+	NextDungeonStartBattleLog,
+	CreatureReserveOnDungeonSkill,
+	InitialDungeonBattleLog,
+	KarmaInit,
+	KarmaSelectCard
+}

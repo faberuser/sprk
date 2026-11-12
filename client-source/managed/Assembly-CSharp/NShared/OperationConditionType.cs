@@ -1,0 +1,37 @@
+namespace NShared;
+
+public enum OperationConditionType
+{
+	None,
+	And,
+	Or,
+	Random,
+	HpRatio,
+	HpRatioMore,
+	HpRatioMoreOrEqual,
+	HpRatioLess,
+	HpRatioLessOrEqual,
+	PrevCritical,
+	State,
+	NotState,
+	SummoneeCount,
+	MpRatio,
+	DebuffCount,
+	CompareStat,
+	StateCount,
+	SkillLevel,
+	IsCoolTime,
+	Race,
+	BattleDefineCode,
+	Boss,
+	StaminaType,
+	Chapter,
+	HeroClassCount,
+	HeroClass,
+	HeroClassMyself,
+	CreaturePositionType,
+	CreatureIndex,
+	HeroEquipTypeCount,
+	CompareDamage,
+	CheckMPS
+}

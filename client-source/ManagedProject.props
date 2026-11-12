@@ -1,0 +1,30 @@
+<Project>
+  <PropertyGroup>
+    <!-- The framework name enables SDK tooling; all actual APIs come from the pinned player profile. -->
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+    <NoStdLib>true</NoStdLib>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <LangVersion>12.0</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Deterministic>true</Deterministic>
+    <DebugType>none</DebugType>
+    <Optimize>true</Optimize>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+    <ManagedReferenceDirectory Condition="'$(ManagedReferenceDirectory)' == ''">$(MSBuildThisFileDirectory)../artifacts/client-source-references</ManagedReferenceDirectory>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="$(ManagedReferenceDirectory)/*.dll" Exclude="$(ManagedReferenceDirectory)/$(MSBuildProjectName).dll">
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+  <Target Name="RequirePinnedReferences" BeforeTargets="ResolveReferences">
+    <Error Condition="!Exists('$(ManagedReferenceDirectory)/mscorlib.dll')" Text="Provide the pinned player API references using build_managed_client.py; do not substitute SDK framework assemblies." />
+  </Target>
+</Project>

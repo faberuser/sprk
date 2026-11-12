@@ -1,0 +1,40 @@
+namespace NShared;
+
+[JsonSerializable(Javascript = true)]
+public enum AnyMiscType
+{
+	RecommendPopup,
+	EquipGacha,
+	EquipGachaLastDiscountedTime,
+	EquipGachaNumberOfDiscount,
+	ShakmehPassive,
+	StarterPickup,
+	StarterPickupNewbie,
+	StarterPickupCount,
+	StarterPickupRewarded,
+	SignOutTime,
+	SpecialWebviewEventProgress,
+	SpecialWebviewEventRewarded,
+	RefundsGem,
+	RefundsGemRewarded,
+	ReturnTime,
+	ReturnAttendanceLastTime,
+	JumpingNewbie,
+	JumpingNewbie2,
+	JumpingNewbie3,
+	JumpingNewbieComeback,
+	JumpingNewbieComeback2,
+	JumpingNewbieComeback3,
+	JumpingComeback,
+	JumpingComeback2,
+	JumpingComeback3,
+	GachaCeilingCount,
+	AddNewLoginReward,
+	AccumulateLoginReward,
+	EventStep,
+	PhaseStep,
+	OpenPunishmentRaidTime,
+	PayShopDiscount,
+	RecoverEquipItemRune,
+	MonthlyAcquiredLuaPoint
+}

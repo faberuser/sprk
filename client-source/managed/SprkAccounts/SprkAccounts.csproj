@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../../ManagedProject.props" />
+  <ItemGroup>
+    <EmbeddedResource Include="ChatCommon.png" LogicalName="ChatCommon.png" />
+    <EmbeddedResource Include="ChatCommon.json" LogicalName="ChatCommon.json" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,57 @@
+using System.Collections;
+using System.Collections.Generic;
+using MiniJSON;
+using NShared;
+using NShared.G2R_AddRanker;
+
+public static class JM_NShared_G2R_AddRanker_Request
+{
+	public static NShared.G2R_AddRanker.Request Parse(string s)
+	{
+		return Parse(s, new NShared.G2R_AddRanker.Request());
+	}
+
+	public static NShared.G2R_AddRanker.Request Parse(string s, NShared.G2R_AddRanker.Request o)
+	{
+		return Parse(Json.Deserialize(s) as IDictionary, o);
+	}
+
+	public static NShared.G2R_AddRanker.Request Parse(IDictionary d)
+	{
+		return Parse(d, new NShared.G2R_AddRanker.Request());
+	}
+
+	public static NShared.G2R_AddRanker.Request Parse(IDictionary d, NShared.G2R_AddRanker.Request o)
+	{
+		o.Keyword = BaseJsonMarshaler.ParseValueString(d, "Keyword");
+		o.Score = BaseJsonMarshaler.ParseValueLong(d, "Score");
+		o.ServerName = BaseJsonMarshaler.ParseValueString(d, "ServerName");
+		o.AccountId = BaseJsonMarshaler.ParseValueLong(d, "AccountId");
+		return o;
+	}
+
+	public static string EncodeJsonString(NShared.G2R_AddRanker.Request o)
+	{
+		return Json.Serialize(EncodeJsonObject(o));
+	}
+
+	public static Dictionary<string, object> EncodeJsonObject(NShared.G2R_AddRanker.Request o)
+	{
+		Dictionary<string, object> dictionary = new Dictionary<string, object>();
+		if (o == null)
+		{
+			return dictionary;
+		}
+		if (o.Keyword != null)
+		{
+			dictionary.Add("Keyword", o.Keyword);
+		}
+		dictionary.Add("Score", o.Score.ToString());
+		if (o.ServerName != null)
+		{
+			dictionary.Add("ServerName", o.ServerName);
+		}
+		dictionary.Add("AccountId", o.AccountId.ToString());
+		return dictionary;
+	}
+}

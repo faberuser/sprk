@@ -1,0 +1,39 @@
+namespace NShared;
+
+[JsonSerializable]
+public enum ManualSubCode
+{
+	None,
+	BattleInfo,
+	PartySetting,
+	GetSkill,
+	UpgradeSkill,
+	AwakeSkill,
+	Equip,
+	UpgradeEquipment,
+	EquipRune,
+	HallOfHero,
+	ClassSelect,
+	UnlockSeal,
+	SelectHero,
+	PurifyHero,
+	Intro,
+	Shop,
+	Prison,
+	Arena,
+	PartyMatch,
+	PartyDungeon,
+	PartyReady,
+	Bid,
+	SelectArea,
+	Continue,
+	RewardReset,
+	Occur,
+	Accept,
+	Complete,
+	TowerOfTrial,
+	TowerOfTraining,
+	Individual,
+	Cooperative,
+	Total
+}

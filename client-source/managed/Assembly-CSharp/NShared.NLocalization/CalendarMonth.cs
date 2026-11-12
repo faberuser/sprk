@@ -1,0 +1,18 @@
+namespace NShared.NLocalization;
+
+[Localizable]
+public enum CalendarMonth
+{
+	MONTH_JANUARY = 1,
+	MONTH_FEBRUARY,
+	MONTH_MARCH,
+	MONTH_APRIL,
+	MONTH_MAY,
+	MONTH_JUNE,
+	MONTH_JULY,
+	MONTH_AUGUST,
+	MONTH_SEPTEMBER,
+	MONTH_OCTOBER,
+	MONTH_NOVEMBER,
+	MONTH_DECEMBER
+}

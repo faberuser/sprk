@@ -1,0 +1,14 @@
+namespace NShared.NLocalization;
+
+[Localizable]
+public enum Shop
+{
+	RESTOCK,
+	SHOP_MAX_STOCK,
+	SHOP_RESTOCK_MSG,
+	SHOP_RESTOCK_CONFIRM,
+	SHOP_BOUGHT_MSG,
+	NPC_RESTOCK_SHOP_ITEM_MSG,
+	COSTUME_BOUGHT_MSG,
+	BUY_CONFIRM_MSG
+}
