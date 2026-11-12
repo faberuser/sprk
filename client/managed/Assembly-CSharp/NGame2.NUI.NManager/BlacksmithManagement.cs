@@ -430,18 +430,8 @@ public class BlacksmithManagement : BaseManagement<BlacksmithManagement>, HeroEq
 			RequestRenewEquipOptionWithCurrency(equipItemSlotIndex, optionSlotIndex);
 			return;
 		}
-		int couponItemIndex = itemInfo.ItemIndex;
-		LocalizationManager.GetString(NShared.NLocalization.EquipOptionRenew.ASK_RENEW_OPTION_TITLE);
-		string message = LocalizationManager.GetString(NShared.NLocalization.EquipOptionRenew.ASK_RENEW_OPTION_WITH_COUPON_MESSAGE);
-		string confirmLabel = LocalizationManager.GetString(NShared.NLocalization.Common.USE);
-		string cancelLabel = LocalizationManager.GetString(NShared.NLocalization.Common.COMMON_CANCEL);
-		IconConfirmPopup.Open(message, confirmLabel, cancelLabel, delegate
-		{
-			RequestRenewEquipOptionInternal(equipItemSlotIndex, optionSlotIndex, couponItemIndex);
-		}, delegate
-		{
-			RequestRenewEquipOptionWithCurrency(equipItemSlotIndex, optionSlotIndex);
-		}).AddItem(couponItemIndex, 1);
+		// SPRK: use the reforge coupon directly instead of asking for confirmation.
+		RequestRenewEquipOptionInternal(equipItemSlotIndex, optionSlotIndex, itemInfo.ItemIndex);
 	}
 
 	private void RequestRenewEquipOptionWithCurrency(int equipItemSlotIndex, int optionSlotIndex)
