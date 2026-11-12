@@ -41,8 +41,7 @@ services:
       # Private admin listener. Keep loopback, or choose the Docker host's LAN/VPN IP.
       - "${SPRK_GM_BIND_IP:-127.0.0.1}:${SPRK_GM_PORT:-8082}:8082"
     volumes:
-      # Non-database state (native worker configuration) and, until it is
-      # copied with `sprk-server migrate-sqlite`, the old sprk.db.
+      # Non-database state (native worker configuration).
       - game-data:/data
 
   updates:

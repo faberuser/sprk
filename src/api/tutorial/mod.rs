@@ -533,7 +533,7 @@ async fn complete_in_transaction(
     data: &TutorialDefinition,
 ) -> Result<Value> {
     let now = state.server_time_str();
-    // First statement acquires the SQLite write lock. A concurrent completion must wait.
+    // The conditional upsert claims the row: a concurrent completion waits on it and then changes nothing.
     let claimed = crate::db::query("INSERT INTO tutorial_progress (account_id, tutorial_index, is_completed, completed_time) VALUES ($1, $2, 1, $3) ON CONFLICT(account_id, tutorial_index) DO UPDATE SET is_completed = 1, completed_time = excluded.completed_time WHERE tutorial_progress.is_completed = 0")
         .bind(account_id).bind(index).bind(&now).execute(&mut *tx).await?.rows_affected() > 0;
     if !claimed {

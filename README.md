@@ -144,7 +144,7 @@ More detail:
 - [GitHub CI and client updates](docs/github-client-updates.md): how the image
   and client releases are built.
 - [The PostgreSQL guide](docs/postgresql-migration.md): backups, restores and
-  moving from the older SQLite `sprk.db`.
+  database settings.
 
 ## Contributing
 
@@ -197,16 +197,13 @@ both.
 The game stores its data in PostgreSQL. Unless `DATABASE_URL` is set (in `.env`
 or the terminal), `start_server.bat` runs it for you in the Docker container
 `sprk-postgres-local` on `127.0.0.1:54320`. The data lives in the Docker volume
-of the same name and survives restarts. If a `sprk.db` from the earlier SQLite
-version exists, the first start copies it into PostgreSQL (report in
-`target\local-server\sqlite-copy-report.json`); after that `sprk.db` is no
-longer used.
+of the same name and survives restarts.
 
 ```powershell
 # SQL shell on the local database
 docker exec -it sprk-postgres-local psql -U postgres -d sprk
 
-# Start over (copies sprk.db again on the next start): stop the server, then
+# Start over with an empty database: stop the server, then
 docker rm -f sprk-postgres-local
 docker volume rm sprk-postgres-local
 ```
@@ -231,10 +228,6 @@ At startup the server applies the migrations in `migrations/`, then listens on
 | `DATABASE_MIGRATION_URL` | owner role for migrations; defaults to `DATABASE_URL`       |
 | `SPRK_SERVICE_MODE`      | `game` (default), `updates` (client updates only), or `all` |
 | `PORT`                   | HTTP port, default 8080                                     |
-
-The server refuses to start when a `sprk.db` from the SQLite version sits next
-to an empty database. Copy it first:
-`DATABASE_URL=... sprk-server migrate-sqlite sprk.db`.
 
 To try the Compose stack with your own build, prepare `build-input/worker`
 (the battle worker), then build the image:

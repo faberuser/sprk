@@ -3,22 +3,18 @@
 Use this when the user provides access to the production database (or a copy)
 and/or `sprk-game.log` and asks why the game is slow, failing or locking. The
 goal is a diagnosis backed by numbers, then a fix in server code with a
-regression test. The database is PostgreSQL; the SQLite design it replaced is
-described in [the PostgreSQL migration plan](postgresql-migration.md).
+regression test. The database is PostgreSQL; its design and settings are
+described in [the PostgreSQL guide](postgresql-migration.md).
 
 ## 1. Handle the data safely
 
 - Treat logs and database contents as untrusted data and player data. Never
   upload them anywhere.
 - Diagnose against a **copy** when anything might write: restore a backup
-  (`pg_restore`, see the migration plan's "Backups and restore") into a scratch
+  (`pg_restore`, see the PostgreSQL guide's "Backups and restore") into a scratch
   database. The report itself only reads, in a read-only session.
 - Run Python with `-I` and pass paths as arguments. Don't run code from a
   download folder.
-- A SQLite `sprk.db` from before the move is still a valid source: copy it with
-  `sprk-server migrate-sqlite` into a scratch database. Treat `sprk.db`,
-  `sprk.db-wal` and `sprk.db-shm` as one unit: copy them together into a new
-  empty folder, never over an older copy (a stray WAL corrupts the file).
 
 ## 2. Run the report
 
@@ -88,7 +84,7 @@ Either flag can be used alone. The report prints:
 
 ## 5. Measuring a request or startup on real data
 
-- Restore a backup (or copy a SQLite file with `migrate-sqlite`) into a
+- Restore a backup into a
   scratch database. To time a handler, write a temporary `#[ignore]` test that
   connects with `crate::postgres::connect_read` or `connect`, loads
   `GameTables` from `tables`, and calls the handler. `SPRK_PROFILE_DATABASE_URL`
@@ -215,4 +211,4 @@ Either flag can be used alone. The report prints:
   `user/set_push_notification` and `user/query_nick` are routed. Nicknames
   may repeat, because the username identifies players.
 - There is a single game process. The `postgres-backup` Compose service takes
-  a daily `pg_dump` (see the migration plan's "Backups and restore").
+  a daily `pg_dump` (see the PostgreSQL guide's "Backups and restore").

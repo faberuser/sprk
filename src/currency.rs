@@ -1,4 +1,4 @@
-//! Currency arithmetic must stay integral in SQLite (overflow otherwise becomes REAL).
+//! Currency arithmetic stays within bigint: overflow fails the statement instead of wrapping.
 use crate::{error::Result, api::inventory::item::rule};
 use sqlx::PgConnection;
 

@@ -1,9 +1,7 @@
-//! Tests of the PostgreSQL foundation: schema parity with the final SQLite
-//! schema (tests/fixtures/sqlite_schema.sql), the ported triggers, constraints,
-//! the account lock and the retry wrapper.
+//! Tests of the PostgreSQL foundation: migrations, triggers, constraints, the
+//! account lock, the retry wrapper and the read pool.
 use super::*;
 use sqlx::{AssertSqlSafe, Row};
-use std::collections::BTreeSet;
 
 struct TestDb {
     pool: PgPool,
@@ -23,40 +21,15 @@ fn sqlstate(error: &sqlx::Error) -> Option<String> {
     error.as_database_error().and_then(|e| e.code()).map(|c| c.into_owned())
 }
 
-/// The final SQLite schema, with its triggers, in a private in-memory database.
-pub(crate) async fn sqlite_schema() -> sqlx::SqlitePool {
-    let pool = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1)
-        .connect("sqlite::memory:").await.unwrap();
-    sqlx::raw_sql(include_str!("../tests/fixtures/sqlite_schema.sql")).execute(&pool).await.unwrap();
-    pool
-}
-
 #[tokio::test]
-async fn migrations_cover_every_sqlite_column() {
+async fn rerunning_migrations_is_a_no_op() {
     let Some(db) = TestDb::new().await else { return };
-    // Rerunning is a no-op.
     migrate(&db.pool).await.unwrap();
-
-    let sqlite = sqlite_schema().await;
-    let expected: BTreeSet<String> = sqlx::query_scalar(
-        "SELECT m.name||'.'||p.name FROM sqlite_master m, pragma_table_info(m.name) p \
-         WHERE m.type='table' AND m.name NOT LIKE 'sqlite_%'")
-        .fetch_all(&sqlite).await.unwrap().into_iter().collect();
-    sqlite.close().await;
-
-    let actual: BTreeSet<String> = sqlx::query_scalar(
-        "SELECT table_name||'.'||column_name FROM information_schema.columns \
-         WHERE table_schema='public' AND table_name NOT LIKE '\\_sqlx%' \
-         AND table_name NOT LIKE 'sprk\\_compensation\\_%'")
-        .fetch_all(&db.pool).await.unwrap().into_iter().collect();
-    // A new SQLite table or column needs a matching PostgreSQL migration.
-    assert_eq!(expected.difference(&actual).collect::<Vec<_>>(), Vec::<&String>::new(), "missing in migrations/");
-    assert_eq!(actual.difference(&expected).collect::<Vec<_>>(), Vec::<&String>::new(), "not in SQLite schema");
     db.drop().await;
 }
 
 #[tokio::test]
-async fn currency_constraints_replace_the_sqlite_guards() {
+async fn currency_constraints_reject_invalid_balances() {
     let Some(db) = TestDb::new().await else { return };
     let p = &db.pool;
     sqlx::query("INSERT INTO accounts(account_id,login_id) VALUES(1,'a')").execute(p).await.unwrap();
@@ -75,8 +48,10 @@ async fn currency_constraints_replace_the_sqlite_guards() {
     db.drop().await;
 }
 
-/// The same writes on SQLite (current triggers) and PostgreSQL (ported
-/// triggers) must leave the same derived rows behind.
+/// Writes that exercise every gameplay trigger. The derived rows they leave
+/// behind are recorded in tests/fixtures/trigger_rows.txt; they matched the
+/// original SQLite triggers when the triggers were ported. To change them on
+/// purpose, run this test with SPRK_RECORD_TRIGGER_ROWS=1 and review the diff.
 fn trigger_script() -> Vec<String> {
     let mut script: Vec<String> = [
         "INSERT INTO accounts(account_id,login_id,nick) VALUES(1,'a','A'),(2,'b','B')",
@@ -149,7 +124,7 @@ fn trigger_script() -> Vec<String> {
     script
 }
 
-/// Rows compared between the backends. JSON columns are compared parsed.
+/// Derived rows checked against the recording.
 const DERIVED: &[(&str, &str)] = &[
     ("progression_metrics", "SELECT account_id,day,kind,arg,arg2,value FROM progression_metrics ORDER BY 1,2,3,4,5"),
     ("play_record_values", "SELECT account_id,kind,idx,value FROM play_record_values ORDER BY 1,2,3"),
@@ -160,12 +135,7 @@ const DERIVED: &[(&str, &str)] = &[
     ("response_revisions keys", "SELECT scope,account FROM response_revisions ORDER BY 1,2"),
 ];
 
-fn row_strings<R: Row>(rows: Vec<R>) -> Vec<String>
-where
-    for<'r> Option<i64>: sqlx::Decode<'r, R::Database> + sqlx::Type<R::Database>,
-    for<'r> Option<String>: sqlx::Decode<'r, R::Database> + sqlx::Type<R::Database>,
-    usize: sqlx::ColumnIndex<R>,
-{
+fn row_strings(rows: Vec<sqlx::postgres::PgRow>) -> Vec<String> {
     rows.iter().map(|row| (0..row.len()).map(|i| {
         row.try_get::<Option<i64>, _>(i).map(|v| format!("{v:?}"))
             .or_else(|_| row.try_get::<Option<String>, _>(i).map(|v| format!("{v:?}")))
@@ -173,33 +143,40 @@ where
     }).collect::<Vec<_>>().join("|")).collect()
 }
 
-#[tokio::test]
-async fn ported_triggers_match_sqlite_triggers() {
-    let Some(db) = TestDb::new().await else { return };
-    let sqlite = sqlite_schema().await;
-    for statement in trigger_script() {
-        sqlx::query(AssertSqlSafe(statement.clone())).execute(&sqlite).await
-            .unwrap_or_else(|e| panic!("SQLite: {statement}: {e}"));
-        sqlx::query(AssertSqlSafe(statement.clone())).execute(&db.pool).await
-            .unwrap_or_else(|e| panic!("PostgreSQL: {statement}: {e}"));
-    }
+/// Every DERIVED query's rows plus the parsed arena mission summaries, as text.
+async fn derived_rows(pool: &PgPool) -> String {
+    let mut out = String::new();
     for (name, query) in DERIVED {
-        let old = row_strings(sqlx::query(AssertSqlSafe(*query)).fetch_all(&sqlite).await.unwrap());
-        let new = row_strings(sqlx::query(AssertSqlSafe(*query)).fetch_all(&db.pool).await.unwrap());
-        assert!(!old.is_empty(), "{name}: script produced no rows");
-        assert_eq!(new, old, "{name}");
+        let rows = row_strings(sqlx::query(AssertSqlSafe(*query)).fetch_all(pool).await.unwrap());
+        assert!(!rows.is_empty(), "{name}: script produced no rows");
+        out += &format!("## {name}\n{}\n", rows.join("\n"));
     }
-    // mission_summary is JSON; compare parsed values.
-    let summaries = "SELECT id, CAST(mission_summary AS TEXT) FROM arena_runs ORDER BY id";
-    let parse = |rows: Vec<(i64, Option<String>)>| rows.into_iter()
-        .map(|(id, s)| (id, s.map(|s| serde_json::from_str::<serde_json::Value>(&s).unwrap())))
-        .collect::<Vec<_>>();
-    let old = parse(sqlx::query_as(summaries).fetch_all(&sqlite).await.unwrap());
-    let new = parse(sqlx::query_as(summaries).fetch_all(&db.pool).await.unwrap());
-    assert_eq!(new, old, "arena_runs.mission_summary");
+    out += "## arena_runs.mission_summary\n";
+    let summaries: Vec<(i64, Option<String>)> =
+        sqlx::query_as("SELECT id, mission_summary FROM arena_runs ORDER BY id").fetch_all(pool).await.unwrap();
+    for (id, summary) in summaries {
+        let summary = summary.map(|s| serde_json::from_str::<serde_json::Value>(&s).unwrap().to_string());
+        out += &format!("{id}|{summary:?}\n");
+    }
+    // Metrics are dated by the current UTC day.
+    let today: String = sqlx::query_scalar("SELECT sprk_utc_day()").fetch_one(pool).await.unwrap();
+    out.replace(&today, "TODAY")
+}
 
-    // Revision counts differ by design (SQLite's AFTER triggers rewrote
-    // arena rows and bumped twice), but every watched change must bump.
+#[tokio::test]
+async fn triggers_derive_the_recorded_rows() {
+    let Some(db) = TestDb::new().await else { return };
+    for statement in trigger_script() {
+        sqlx::query(AssertSqlSafe(statement.clone())).execute(&db.pool).await
+            .unwrap_or_else(|e| panic!("{statement}: {e}"));
+    }
+    let actual = derived_rows(&db.pool).await;
+    if std::env::var_os("SPRK_RECORD_TRIGGER_ROWS").is_some() {
+        std::fs::write(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/trigger_rows.txt"), &actual).unwrap();
+    }
+    assert_eq!(actual, include_str!("../tests/fixtures/trigger_rows.txt").replace("\r\n", "\n"));
+
+    // Every watched change bumps its scope's revision; others do not.
     let revision = |scope: &'static str, account: i64| {
         let pool = db.pool.clone();
         async move {
@@ -217,7 +194,6 @@ async fn ported_triggers_match_sqlite_triggers() {
     sqlx::query("UPDATE equip_items SET account_id=1 WHERE account_id=2").execute(&db.pool).await.unwrap();
     assert_eq!(revision("equipment", 2).await, equipment + 1, "moving a row bumps its old owner");
 
-    sqlite.close().await;
     db.drop().await;
 }
 

@@ -253,16 +253,16 @@ def launch(args):
             with socket.socket() as probe:
                 if probe.connect_ex(("127.0.0.1", port)) == 0:
                     raise RuntimeError(f"Port {port} is already in use; choose --external-server explicitly to reuse a server")
-        # A new, isolated database; never the main one.
+        # A new, isolated database; never the main one. --seed-from clones an
+        # existing database, which must have no open connections meanwhile.
+        if args.seed_from and not re.fullmatch(r"[A-Za-z0-9_]{1,63}", args.seed_from):
+            raise ValueError("--seed-from must name a database (letters, digits, underscores)")
+        template = f' TEMPLATE "{args.seed_from}"' if args.seed_from else ""
         with closing(psycopg().connect(ADMIN_URL, autocommit=True)) as admin:
-            admin.execute(f'CREATE DATABASE "{name}"')
+            admin.execute(f'CREATE DATABASE "{name}"{template}')
         env = dict(os.environ, GAME_TABLES_PATH=str(REPO / "tables"), PORT="8080", CHAT_PORT="9001", CHAT_BIND="127.0.0.1", CHAT_ADDRESS="127.0.0.1", RUST_LOG="info",
                    DATABASE_URL=meta["database"])
         env.pop("DATABASE_MIGRATION_URL", None)
-        if args.seed_db:
-            # The server's copy tool loads the SQLite file (read-only) into it.
-            subprocess.run([str(Path(args.server).resolve()), "migrate-sqlite", str(Path(args.seed_db).resolve()),
-                            "--report", str(root / "seed-report.json")], cwd=root, env=env, check=True)
         with (root / "server.log").open("wb") as log:
             proc = subprocess.Popen([str(Path(args.server).resolve())], cwd=root,
                                     env=env, stdout=log, stderr=subprocess.STDOUT,
@@ -382,7 +382,7 @@ def main():
     start = sub.add_parser("launch")
     start.add_argument("--client", default=str(REPO.parent / "sprk-client"))
     start.add_argument("--server", default=str(REPO / "target/release/sprk-server.exe"), help="Server build to launch (debug builds are useful for test/fix iterations)")
-    start.add_argument("--seed-db", help="Copy this SQLite database into the isolated test server's new PostgreSQL database")
+    start.add_argument("--seed-from", help="Clone this PostgreSQL database (e.g. sprk, the local server's) into the isolated test database; stop servers using it first")
     start.add_argument("--external-server", action="store_true", help="Explicitly use an already-running server")
     start.add_argument("--profile", help="Separate test-account preferences; use different names for two clients")
     start.add_argument("--database", help="PostgreSQL URL for read-only assertions with --external-server")

@@ -90,7 +90,7 @@ async fn read_pool_serves_routed_reads_and_rejects_writes() {
     }
 
     // A progression cache miss rebuilds on the readers: it must not write
-    // (SQLITE_READONLY) or queue behind the writer, which is held here.
+    // (the read pool is read-only) or queue behind the writer, which is held here.
     crate::db::query("UPDATE user_info SET team_level=team_level+1 WHERE account_id=$1").bind(account).execute(&s.db).await.unwrap();
     let writer = s.db.acquire().await.unwrap();
     let rebuilt = tokio::time::timeout(std::time::Duration::from_secs(5), api::progression::cache::get(&s, &key, account))

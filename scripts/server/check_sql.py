@@ -21,8 +21,9 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 QUERY = re.compile(
     r'(?:crate::db::query|crate::db::query_scalar|crate::db::query_as|sqlx::query|sqlx::query_scalar|sqlx::query_as)'
     r'(?:::<[^>]*>)?\(\s*(?:sqlx::AssertSqlSafe\()?(r(#*)"(.*?)"\2|"((?:[^"\\]|\\.)*)")', re.S)
-# Statements that only exist at test time (created by test helpers).
-SKIP = ("sprk_test_writes",)
+# Statements on objects that only exist at test time (created by test helpers
+# and by the lock tests' scratch table).
+SKIP = ("sprk_test_writes", "FROM counter", "INTO counter", "UPDATE counter", "TABLE counter")
 
 
 def unescape(body: str) -> str:
@@ -32,8 +33,6 @@ def unescape(body: str) -> str:
 
 def statements():
     for path in sorted((ROOT / "src").rglob("*.rs")):
-        if path.name in ("postgres_tests.rs", "migrate_sqlite.rs"):
-            continue  # these also send SQL to SQLite
         text = path.read_text(encoding="utf-8")
         for m in QUERY.finditer(text):
             sql = m.group(3) if m.group(3) is not None else unescape(m.group(4))

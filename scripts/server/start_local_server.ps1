@@ -55,14 +55,6 @@ if (-not $env:DATABASE_URL) {
     if (-not $ready) { throw 'The local PostgreSQL container did not become ready.' }
     $env:DATABASE_URL = "postgres://postgres:sprk-local@127.0.0.1:${port}/sprk"
 }
-# Copy the SQLite database from before the PostgreSQL move, once. Later runs
-# find accounts in PostgreSQL and leave it untouched.
-$sqlite = Join-Path $project 'sprk.db'
-if (Test-Path -LiteralPath $sqlite) {
-    & $executable migrate-sqlite $sqlite --if-empty --report (Join-Path $logs 'sqlite-copy-report.json')
-    if ($LASTEXITCODE -ne 0) { throw 'Copying sprk.db into PostgreSQL failed; no services were started.' }
-}
-
 $env:SPRK_UPDATES_DIR = $updates
 $env:SPRK_SERVICE_MODE = 'updates'
 $env:PORT = '8081'
