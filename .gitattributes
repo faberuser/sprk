@@ -1,5 +1,5 @@
 # Linux entrypoints must remain executable shell text after Windows checkouts.
-scripts/docker/*.sh text eol=lf
+server/scripts/docker/*.sh text eol=lf
 # sqlx checksums migration bytes; keep them identical on every checkout.
-migrations/*.sql text eol=lf
-tests/fixtures/* text eol=lf
+server/migrations/*.sql text eol=lf
+server/tests/fixtures/* text eol=lf

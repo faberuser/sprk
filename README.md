@@ -1,6 +1,7 @@
 # sprk
 
-A Rust implementation of a server emulator for a real-time RPG mobile game client.
+A monorepo containing the Rust server emulator, maintained C# client code, and
+Windows launcher for a real-time RPG mobile game.
 
 ## Disclaimer
 
@@ -159,7 +160,7 @@ no longer reads. To bring it over once:
 2. Copy the data (`pip install "psycopg[binary]"` first):
 
    ```bash
-   python -I scripts/server/copy_sqlite_to_postgres.py sprk.db
+   python -I server/scripts/database/copy_sqlite_to_postgres.py sprk.db
    ```
 
    That targets the `start_server.bat` database. With Docker Compose the old
@@ -169,7 +170,7 @@ no longer reads. To bring it over once:
    `docker volume ls`):
 
    ```bash
-   docker run --rm --network sprk_default -v sprk_game-data:/data -v "$PWD/scripts/server":/w:ro \
+   docker run --rm --network sprk_default -v sprk_game-data:/data -v "$PWD/server/scripts":/w:ro \
      python:3.12-slim sh -c 'pip install -q "psycopg[binary]" && python -I /w/copy_sqlite_to_postgres.py /data/sprk.db --database-url "postgres://sprk_owner:<SPRK_DB_OWNER_PASSWORD>@postgres:5432/sprk"'
    ```
 
@@ -185,7 +186,7 @@ every table afterwards and leaves `sprk.db` unchanged.
 - [Rust 1.99+](https://rustup.rs) for the server.
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) for the
   database (and Docker image builds).
-- Python 3 for the scripts in `scripts/` and `gm.py`.
+- Python 3 for product scripts under `server/scripts/` and `client/scripts/`, and `server/gm.py`.
 - The [.NET SDK](https://dotnet.microsoft.com/download) for the client patcher
   and the launcher.
 
@@ -196,20 +197,33 @@ toolchain, then run **rust-analyzer: Restart server**:
 rustup component add rust-analyzer rust-src
 ```
 
-The workspace settings use this toolchain's `rust-analyzer` from `PATH`, and the
-parent SPRK workspace links `sprk-server/Cargo.toml`.
+The workspace settings use this toolchain's `rust-analyzer` from `PATH`. Open the
+repository root; its Cargo workspace includes the `server` package. Run Cargo
+commands from the root so the shared `target/` directory and runtime paths stay
+consistent.
 
 ### Source layout
 
-- `src/api/`: account, gameplay, GM, and protocol handlers
-- `src/models/` and `src/tables/`: client response types and table loading
-- `src/updates.rs`: launcher update delivery
-- `migrations/`: PostgreSQL schema, triggers and SQL helper functions
-- `launcher/`: Windows launcher and its checks
-- `scripts/`: client patching, publishing, and local server tools
-- `tests/`: Python tool and Windows process-lifetime checks
+- `server/src/api/`: account, gameplay, GM, and protocol handlers
+- `server/src/models/` and `server/src/tables/`: client response types and table loading
+- `server/src/updates/`: launcher update delivery
+- `server/migrations/`: PostgreSQL schema, triggers and SQL helper functions
+- `client/launcher/`: Windows launcher and its checks
+- `client/managed/`: recovered game source and SPRK companion projects
+- `client/overrides/`: tracked client asset and table replacements
+- `server/scripts/`: local server, database and battle-worker tools
+- `client/scripts/`: client builds, launcher tools, migration and automation
+- `client/tools/`: legacy release patcher and metadata inspection
+- `client/scripts/release/`: client build, signing and update packaging
+- `server/scripts/docker/`: container entrypoints and health checks
+- `server/tests/`: server integration tests and process-lifetime checks
+- `tables/` and `config/`: inputs shared by the server and client tooling
+- `.github/`, Dockerfiles and Compose/Bake files: shared CI and deployment
 
-See [the scripts inventory](scripts/README.md) for active CI and development tools.
+Server commands remain `cargo build` and `cargo test --locked` from the root.
+See [client build instructions](client/README.md) for the managed code and launcher.
+
+See [the scripts inventory](docs/scripts.md) for active CI and development tools.
 
 ### Run a development server (Windows)
 
@@ -251,7 +265,7 @@ docker run -d --name sprk-postgres-dev -e POSTGRES_PASSWORD=dev \
 DATABASE_URL=postgres://postgres:dev@127.0.0.1:5432/postgres cargo run --release
 ```
 
-At startup the server applies the migrations in `migrations/`, then listens on
+At startup the server applies the migrations in `server/migrations/`, then listens on
 `http://0.0.0.0:8080`.
 
 | Variable                 | Meaning                                                     |
@@ -289,27 +303,29 @@ Patch `Assembly-CSharp.dll` and `resources.assets` in one command by pointing
 the patcher at the game client folder:
 
 ```batch
-scripts\client\patch.bat "D:\path\to\game\client"
-scripts\client\patch.bat --restore "D:\path\to\game\client"
+client\scripts\legacy\patch.bat "D:\path\to\game\client"
+client\scripts\legacy\patch.bat --restore "D:\path\to\game\client"
 ```
 
 Or in PowerShell:
 
 ```powershell
-.\scripts\client\patch.ps1 -ClientPath "D:\path\to\game\client"
-.\scripts\client\patch.ps1 -ClientPath "D:\path\to\game\client" -Restore
+.\client\scripts\legacy\patch.ps1 -ClientPath "D:\path\to\game\client"
+.\client\scripts\legacy\patch.ps1 -ClientPath "D:\path\to\game\client" -Restore
 ```
 
-This runs the DLL patcher (`scripts/DllPatcher`, which keeps
+This runs the DLL patcher (`client/tools/DllPatcher`, which keeps
 `Assembly-CSharp.dll.backup_before_patch` from its first run) and points
 `resources.assets` at the local server (`http://127.0.0.1:8080`).
 
-`DllPatcher` and `DllDisasm` also take the client folder directly:
+The legacy patcher takes the client folder directly:
 
 ```bash
-dotnet run --project scripts/DllPatcher -- "D:\path\to\game\client"
-dotnet run --project scripts/DllDisasm -- "D:\path\to\game\client"
+dotnet run --project client/tools/DllPatcher -- "D:\path\to\game\client"
 ```
+
+For read-only assembly inspection, use `ManagedSource inspect` as described in
+[client tools](client/tools/README.md).
 
 ## Credits
 

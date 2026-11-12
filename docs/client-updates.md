@@ -1,7 +1,7 @@
 # Client update service
 
-The Windows launcher is implemented under `launcher/`. See
-[launcher setup](../launcher/README.md) to build `SprkLauncher.exe`, configure
+The Windows launcher is implemented under `client/launcher/`. See
+[client build instructions](../client/README.md) to build `SprkLauncher.exe`, configure
 its update URL, and distribute it alongside the client.
 
 The same `sprk-server` executable/image runs either service, or both. Select the
@@ -27,7 +27,7 @@ image pins its compatible client release; running servers do not poll for change
 Run from the repository root with Python 3.10+:
 
 ```powershell
-python scripts/release/publish_client_update.py --client ../sprk-client --output client-updates --version 1.0.0 --signing-key client-updates/update-signing/private.pem
+python client/scripts/release/publish_client_update.py --client ../sprk-client --output client-updates --version 1.0.0 --signing-key client-updates/update-signing/private.pem
 ```
 
 The default selection includes all files under:
@@ -44,11 +44,11 @@ The full patcher enables native `usePlayerLog` and aligns `app.info` with the
 `sprk` PlayerSettings identity; Unity chooses its initial log path from this file.
 Use `--player-logging-only` for a focused installation and
 `--verify-player-logging` to verify both settings. Restart the game after installing.
-`python scripts/client/verify_player_logging.py` proves the default path with an
+`python client/scripts/verify_player_logging.py` proves the default path with an
 isolated native client and no `-logFile` argument.
 
 Generate release-signing keys once with
-`python scripts/release/create_update_signing_key.py`. Keep `client-updates/update-signing/private.pem`
+`python client/scripts/release/create_update_signing_key.py`. Keep `client-updates/update-signing/private.pem`
 on the publishing machine and give the launcher the public key through its
 configuration. OpenSSL is needed on the publishing machine, not on players'
 machines. Unsigned publishing is supported for localhost development only; omit
@@ -60,7 +60,7 @@ Symlinks/junctions in the input are rejected. Stop client patching/baking while
 publishing so the snapshot represents one tested build.
 
 Complete snapshots that include all default paths also include installed files
-declared under `client-overrides/files`, such as Jane and Maria's restored Legend
+declared under `client/overrides/files`, such as Jane and Maria's restored Legend
 models. The publisher reads the installed copies; apply and verify the overrides
 before publishing. An explicit partial `--include` selection retains its scope.
 
@@ -68,7 +68,7 @@ For other code/assets, use repeated `--include` options. These **replace** the
 defaults, so include the default directories too if they should stay managed:
 
 ```powershell
-python scripts/release/publish_client_update.py --client ../sprk-client --output client-updates --version 1.0.1 --signing-key client-updates/update-signing/private.pem --include "King's Raid_Data/Managed" --include "King's Raid_Data/Documents/Patch/StandaloneWindows/TableData" --include "King's Raid_Data/Documents/Patch/StandaloneWindows/TableJit" --include "King's Raid_Data/Documents/Patch/StandaloneWindows/LocalizationJit" --include "King's Raid_Data/resources.assets"
+python client/scripts/release/publish_client_update.py --client ../sprk-client --output client-updates --version 1.0.1 --signing-key client-updates/update-signing/private.pem --include "King's Raid_Data/Managed" --include "King's Raid_Data/Documents/Patch/StandaloneWindows/TableData" --include "King's Raid_Data/Documents/Patch/StandaloneWindows/TableJit" --include "King's Raid_Data/Documents/Patch/StandaloneWindows/LocalizationJit" --include "King's Raid_Data/resources.assets"
 ```
 
 The first version distributed to players should include every file the launcher
@@ -243,7 +243,6 @@ rate limits or router traffic shaping separately if updates interfere with play.
 
 ```sh
 cargo test --locked
-python -m unittest discover -s scripts -t . -p 'test_*client*.py'
 docker compose -f docker-compose.yml config --quiet
 ```
 

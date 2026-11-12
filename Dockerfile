@@ -1,5 +1,5 @@
 FROM python:3.12-slim-bookworm AS illustration-model
-COPY scripts/DllPatcher/prepare_illustration_runtime.py /prepare.py
+COPY client/tools/DllPatcher/prepare_illustration_runtime.py /prepare.py
 RUN python /prepare.py --server /models
 
 FROM rust:1.99-bookworm AS chef
@@ -8,7 +8,8 @@ WORKDIR /build
 
 FROM chef AS planner
 COPY Cargo.toml Cargo.lock ./
-COPY src ./src
+COPY server/Cargo.toml ./server/Cargo.toml
+COPY server/src ./server/src
 RUN cargo chef prepare --recipe-path recipe.json
 
 # Source edits leave the dependency recipe unchanged, preserving these layers.
@@ -20,9 +21,10 @@ FROM chef AS build
 COPY --from=planner /build/recipe.json recipe.json
 RUN cargo chef cook --locked --release --recipe-path recipe.json
 COPY Cargo.toml Cargo.lock ./
-COPY src ./src
+COPY server/Cargo.toml ./server/Cargo.toml
+COPY server/src ./server/src
 # Embedded at compile time by sqlx::migrate!().
-COPY migrations ./migrations
+COPY server/migrations ./server/migrations
 RUN cargo build --locked --release
 
 FROM scratch AS server-binary
@@ -40,9 +42,9 @@ COPY tables /app/tables
 COPY config/client-update-public.pem /app/client-update-public.pem
 COPY --from=illustration-model /models /app/illustration-models
 COPY --chown=sprk:sprk build-input/worker /opt/sprk-worker
-COPY --chmod=755 scripts/docker/docker-entrypoint.sh /usr/local/bin/sprk-entrypoint
-COPY --chmod=755 scripts/docker/docker-battle-worker.sh /usr/local/bin/sprk-battle-worker
-COPY --chmod=755 scripts/docker/docker-healthcheck.sh /usr/local/bin/sprk-healthcheck
+COPY --chmod=755 server/scripts/docker/docker-entrypoint.sh /usr/local/bin/sprk-entrypoint
+COPY --chmod=755 server/scripts/docker/docker-battle-worker.sh /usr/local/bin/sprk-battle-worker
+COPY --chmod=755 server/scripts/docker/docker-healthcheck.sh /usr/local/bin/sprk-healthcheck
 ARG CLIENT_UPDATE_TAG=""
 ARG CLIENT_UPDATE_REPO=""
 ENV SPRK_UPDATES_GITHUB_TAG=${CLIENT_UPDATE_TAG} SPRK_UPDATES_GITHUB_REPO=${CLIENT_UPDATE_REPO}

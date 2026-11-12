@@ -52,7 +52,7 @@ $paramFile = 'D:\ai\Upscayl\resources\models\remacri-4x.param'
 $weightsFile = 'D:\ai\Upscayl\resources\models\remacri-4x.bin'
 $packedModel = Join-Path $env:TEMP ('sprk-model-' + [guid]::NewGuid().ToString('N') + '.sprkmodel')
 
-python scripts/DllPatcher/prepare_illustration_runtime.py `
+python client/tools/DllPatcher/prepare_illustration_runtime.py `
     --pack-model $packedModel `
     --param $paramFile `
     --weights $weightsFile
@@ -156,5 +156,5 @@ stock anime model, the game keeps that file but selects
 models in `active.sprkmodel` take priority over that migration file. Leave the
 migration file alone when swapping custom models.
 
-See [Illustration AI in the patcher guide](../scripts/DllPatcher/README.md#illustration-ai)
+See [Illustration AI in the patcher guide](../client/tools/DllPatcher/README.md#illustration-ai)
 for runtime behavior and verification commands.

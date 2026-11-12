@@ -1,5 +1,18 @@
 # SPRK development instructions
 
+## Repository layout
+
+The root Cargo workspace contains the Rust package in `server/`. Maintained
+managed source, launcher projects and asset overrides are in `client/`.
+Run build and orchestration commands from the repository root. Shared `tables/`,
+`config/`, documentation, CI and Docker orchestration files stay at root;
+generated builds stay in `target/` or `artifacts/`.
+Product scripts are grouped by purpose in `server/scripts/` and `client/scripts/`.
+Release scripts are in `client/scripts/release/`; container entrypoints are in
+`server/scripts/docker/`. Legacy patching and inspection tools live in
+`client/tools/`; the release pipeline still uses
+DllPatcher until the source build passes runtime parity.
+
 ## Shell and efficient DLL inspection
 
 - On Windows, prefer Git Bash when available for routine repository navigation,
@@ -36,7 +49,7 @@
 When given a game log, a database dump, a diagnostics report or a slow, failing
 or locking server, follow [the database guide](docs/database-diagnostics.md):
 handle the files as player data, load dumps only into a scratch container, run
-`scripts/server/db_diagnostics.py`, and fix the cause in server code with a
+`server/scripts/database/db_diagnostics.py`, and fix the cause in server code with a
 regression test and before/after numbers.
 
 ## Reproducible client changes and CI deployment
@@ -45,26 +58,26 @@ Follow [GitHub client releases](docs/github-client-updates.md) for CI inputs,
 isolated validation, signing and deployment.
 
 - Keep client changes reproducible from tracked inputs. Implement DLL patches
-  and embedded resources under `scripts/DllPatcher`; new patches and their
+  and embedded resources under `client/tools/DllPatcher`; new patches and their
   verifiers must run through its full build path (`--build-release`, including
   `BuildRelease.cs`). Existing patch fixes use their existing calls. Track any
   additional transformation tools and invoke them from the release build.
-- Put replacement tables/assets under `client-overrides/files/` using
+- Put replacement tables/assets under `client/overrides/files/` using
   client-relative paths. Include matching `SPRK-Native*.json` integrity metadata
   whenever the changed data requires it. Changes only in `../sprk-client` or
   ignored local release folders do not become CI inputs automatically.
 - Routine patches do not require a baseline change, a manual CI release version,
-  or `client-build.json`. `scripts/release/client_baseline.py` pins the fixed distributed
+  or `client-build.json`. `client/scripts/release/client_baseline.py` pins the fixed distributed
   snapshot; use the baseline preparation tool only when deliberately replacing
   that snapshot.
 - Preserve complete telemetry cleanup. The Python release builder and
-  `scripts/client/patch.ps1` run `scripts/client/remove_client_telemetry.py` before full DLL
+  `client/scripts/legacy/patch.ps1` run `client/scripts/legacy/remove_client_telemetry.py` before full DLL
   patching, while original type definitions are available for serialized asset
-  cleanup. Keep its dependencies in `scripts/client/requirements-client.txt`. Managed
+  cleanup. Keep its dependencies in `client/scripts/requirements-client.txt`. Managed
   DLL stripping alone does not replace the serialized asset and SDK cleanup.
 - For explicitly source-only work or CI/build-tool changes that do not install
   client assets, validate relevant checks in a fresh isolated workspace. For a
-  complete signed build use `scripts/release/build_client_release.py` without
+  complete signed build use `client/scripts/release/build_client_release.py` without
   `--publish`, with a unique work path/version and the existing signing key.
   Do not change the installed client or normal local stable manifest for that
   validation. Report that no installed-client release was generated. This does
@@ -108,7 +121,7 @@ Use the existing workflow described in [docs/client-updates.md](docs/client-upda
    pass. Use the existing signing key:
 
     ```powershell
-    python scripts/release/publish_client_update.py --client ../sprk-client --output client-updates --channel stable --version <new-release-id> --signing-key client-updates/update-signing/private.pem
+    python client/scripts/release/publish_client_update.py --client ../sprk-client --output client-updates --channel stable --version <new-release-id> --signing-key client-updates/update-signing/private.pem
     ```
 
     Replace `<new-release-id>` with the chosen identifier. The publisher creates

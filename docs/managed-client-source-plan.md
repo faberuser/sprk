@@ -1,7 +1,7 @@
 # Managed client source migration plan
 
 Status: maintained game source, all 47 SPRK helpers and launcher compile through
-the [code-only build](../client-source/README.md). The runtime parity/release gate
+the [code-only build](../client/README.md). The runtime parity/release gate
 has not passed. See [experiment results and tooling](managed-client-source-experiment.md).
 
 Date: 2026-11-11
@@ -22,10 +22,10 @@ the migration should proceed.
 
 - `../sprk-client` is an installed Unity player with `MonoBleedingEdge` and
   `King's Raid_Data/Managed/Assembly-CSharp.dll`.
-- `scripts/DllPatcher` contains IL transformations and C# feature implementations
+- `client/tools/DllPatcher` contains IL transformations and C# feature implementations
   embedded as `Resources/*.cs.txt`. Its own .NET 8 target is a tool requirement,
   not evidence of the game's runtime target.
-- `scripts/DllPatcher/BuildRelease.cs` coordinates the full release patch path,
+- `client/tools/DllPatcher/BuildRelease.cs` coordinates the full release patch path,
   companion assemblies, and verification.
 - CI assembles the client from a pinned distributed baseline, tracked asset
   overrides, telemetry cleanup, and the full patcher build.
@@ -59,10 +59,9 @@ Pinned player/assets + tracked data/asset transformations
      for launcher      for Google Drive
 ```
 
-Use a separate source checkout, provisionally `../sprk-client-source`, while
-keeping `../sprk-client` as an installation. Final repository placement is a
-decision after the feasibility experiment; the experiment can use an isolated
-workspace without creating a remote repository.
+Maintain the recovered source under `client/` in this monorepo, alongside
+`server/`. Keep `../sprk-client` as an installation. Recovery experiments and
+compiled outputs remain in ignored isolated workspaces under `artifacts/`.
 
 Keep maintained C# projects, build configuration, dependency manifests, and tests
 in source control. Fetch large player/assets and required binary dependencies

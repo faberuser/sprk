@@ -8,8 +8,8 @@ slow, failing or locking game from the database and `sprk-game.log`.
 
 - **Access.** sqlx 0.9 through `crate::db` (section 3). CI type-checks every
   literal SQL statement against the migrated schema with
-  `scripts/server/check_sql.py` (a `PREPARE` sweep) instead of `query!` macros.
-- **Schema.** `sqlx::migrate!()` files in `migrations/`, applied at startup with
+  `server/scripts/database/check_sql.py` (a `PREPARE` sweep) instead of `query!` macros.
+- **Schema.** `sqlx::migrate!()` files in `server/migrations/`, applied at startup with
   the owner role. `0001` holds the `sprk_*` helper functions, `0002`–`0007` the
   tables per area (core, progression, battle, community, services,
   compensation audit), `0008` the gameplay triggers and `0009` the
@@ -78,7 +78,7 @@ Lock waits of 250 ms or more are logged as `Waited long for a lock` with the
 ## 3. Writing SQL
 
 All SQL is PostgreSQL with `$1, $2, …` placeholders. Helpers in
-`migrations/0001_helpers.sql`:
+`server/migrations/0001_helpers.sql`:
 
 | Need | Helper |
 | --- | --- |
@@ -104,7 +104,7 @@ Rules that do not show up as syntax errors:
 - A failed statement aborts the transaction; use a savepoint (`tx.begin()`)
   to try something and continue.
 - JSON fields compared in `WHERE` must use the same expression as their index
-  (`sprk_json_int(data,'$.OnlineMatchUid')`, see `migrations/0004` and `0005`).
+  (`sprk_json_int(data,'$.OnlineMatchUid')`, see `server/migrations/0004` and `0005`).
 - `+account` in a `WHERE` clause keeps the planner off the account index on
   purpose (section 7).
 
@@ -128,7 +128,7 @@ replace their sqlx counterparts everywhere outside the database plumbing:
   instead of failing the gameplay write. Currency limits are `CHECK`
   constraints.
 - `triggers_derive_the_recorded_rows` replays a fixed set of writes and
-  compares every derived row with `tests/fixtures/trigger_rows.txt`. To change
+  compares every derived row with `server/tests/fixtures/trigger_rows.txt`. To change
   trigger output on purpose, rerun it with `SPRK_RECORD_TRIGGER_ROWS=1` and
   review the diff.
 - Frequently updated tables use `fillfactor = 85`. JSON expression indexes:
@@ -271,7 +271,7 @@ part; connect as `sprk_owner`, which can read other sessions' activity and
 `pg_stat_statements`):
 
 ```bash
-python -I scripts/server/db_diagnostics.py --log <path/sprk-game.log> --database-url postgres://sprk_owner:...@host:5432/sprk
+python -I server/scripts/database/db_diagnostics.py --log <path/sprk-game.log> --database-url postgres://sprk_owner:...@host:5432/sprk
 ```
 
 Either flag can be used alone. The report prints:

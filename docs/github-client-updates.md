@@ -29,10 +29,10 @@ building and validating the server image and calling Portainer.
    forces a rebuild for toolchain refreshes and cannot be combined with an override.
    Reuse skips Python/.NET setup and patch dependencies. New builds cache pip
    downloads and NuGet packages, and report phase timings in logs and the job summary.
-   When building, Windows downloads the immutable baseline pinned by `scripts/release/client_baseline.py`,
+   When building, Windows downloads the immutable baseline pinned by `client/scripts/release/client_baseline.py`,
    verifies its SHA-256 and file hashes, and verifies the original distribution's
    signed manifest against the existing public key.
-3. It applies tracked files from `client-overrides/files/`, runs telemetry cleanup
+3. It applies tracked files from `client/overrides/files/`, runs telemetry cleanup
    with `remove_client_telemetry.py`, and runs the patcher's single
    `--build-release` command. That command owns the full patch path, companion
    helpers, and verification. Cleanup also supports original clients and is safe
@@ -70,7 +70,7 @@ errors are logged and do not prevent a verified active release from being served
 The initial baseline is the existing distributed signed snapshot plus a support
 file referenced by its baked-data integrity metadata. It preserves existing
 patches, native tables, privacy removals and managed file selection. Its archive
-location and SHA-256 are recorded in `scripts/release/client_baseline.py`. This fixed pin
+location and SHA-256 are recorded in `client/scripts/release/client_baseline.py`. This fixed pin
 is maintained by the baseline preparation tool; routine patcher changes never
 require editing it. No signing keys or user
 configuration enter the archive.
@@ -84,8 +84,8 @@ environments and removes its temporary key file after signing. Private keys neve
 enter Git, release assets or container images.
 
 The current repository's baseline and environment are already configured. For a
-new repository, run `python scripts/release/prepare_client_baseline.py --upload --repo
-owner/repository` once against its signed distribution, commit the generated `scripts/release/client_baseline.py`
+new repository, run `python client/scripts/release/prepare_client_baseline.py --upload --repo
+owner/repository` once against its signed distribution, commit the generated `client/scripts/release/client_baseline.py`
 and the matching public key, and configure the environment secret. Baseline
 preparation refuses to overwrite its local archive or an existing release.
 
@@ -111,14 +111,14 @@ cached-release reuse. Archives are limited to 2 GiB.
 
 ## Changing client inputs
 
-Change patcher code and embedded resources under `scripts/DllPatcher`, commit to
+Change patcher code and embedded resources under `client/tools/DllPatcher`, commit to
 `development`, then merge the PR to `main`. CI builds and publishes the new
 client and server automatically. No release ID, JSON recipe, or manual upload
 is needed. A new patch must be called by the patcher's full build path; existing
 patch fixes use their existing calls. Both the build logic and its verification
 live in patcher code, including `BuildRelease.cs`.
 
-Place native table/asset replacements under `client-overrides/files/`, preserving
+Place native table/asset replacements under `client/overrides/files/`, preserving
 client-relative paths. Keep changed tables and their SPRK-Native*.json integrity
 metadata together. Source-generated transformations belong in the patcher's
 full build code. All sources and tools must be tracked. The sibling table-data project currently
@@ -137,8 +137,8 @@ must restart using the current stable manifest.
 Run a complete local build without modifying the installed client:
 
 ```powershell
-python -m pip install -r scripts/client/requirements-client.txt
-python scripts/release/build_client_release.py --work client-updates/ci-validation/new-build --version validation-unique-id --signing-key client-updates/update-signing/private.pem
+python -m pip install -r client/scripts/requirements-client.txt
+python client/scripts/release/build_client_release.py --work client-updates/ci-validation/new-build --version validation-unique-id --signing-key client-updates/update-signing/private.pem
 ```
 
 Choose a fresh work path and release ID. Without `--publish`, no GitHub release

@@ -1,15 +1,16 @@
 # Share the production toolchain and Wine runtime without building its binary.
 FROM server-test-deps AS test-build
 COPY Cargo.toml Cargo.lock ./
-COPY src ./src
-COPY migrations ./migrations
+COPY server/Cargo.toml ./server/Cargo.toml
+COPY server/src ./server/src
+COPY server/migrations ./server/migrations
 # Embedded by the PostgreSQL trigger test.
-COPY tests/fixtures ./tests/fixtures
+COPY server/tests/fixtures ./server/tests/fixtures
 COPY tables ./tables
 COPY config/mission-rule-gaps.json config/mission-rule-gaps.json
-COPY scripts/DllPatcher/Resources/ArtifactSelectorPools.json scripts/DllPatcher/Resources/ArtifactSelectorPools.json
-COPY scripts/DllPatcher/Resources/LegacyData/RestoredCrafting.json scripts/DllPatcher/Resources/LegacyData/RestoredCrafting.json
-COPY scripts/DllPatcher/Resources/NetworkPerformance.cs.txt scripts/DllPatcher/Resources/NetworkPerformance.cs.txt
+COPY client/tools/DllPatcher/Resources/ArtifactSelectorPools.json client/tools/DllPatcher/Resources/ArtifactSelectorPools.json
+COPY client/tools/DllPatcher/Resources/LegacyData/RestoredCrafting.json client/tools/DllPatcher/Resources/LegacyData/RestoredCrafting.json
+COPY client/tools/DllPatcher/Resources/NetworkPerformance.cs.txt client/tools/DllPatcher/Resources/NetworkPerformance.cs.txt
 RUN cargo test --locked --no-run \
     && find target/debug/deps -maxdepth 1 -type f -executable -name 'sprk_server-*' \
        -exec cp {} /sprk-native-tests \;

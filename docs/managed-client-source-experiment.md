@@ -1,6 +1,6 @@
 # Managed source feasibility experiment
 
-Status: the follow-up [maintained codebase](../client-source/README.md) now builds
+Status: the follow-up [maintained codebase](../client/README.md) now builds
 Assembly-CSharp, all 47 SPRK companions and the launcher. The runtime parity gate
 has **not** passed. The legacy release build remains authoritative. No
 installed-client release was generated. The initial experiment results below are
@@ -11,7 +11,7 @@ historical; its 76 remaining errors have since been repaired in maintained sourc
 From the repository root, with Python 3.11+ and the .NET SDK installed:
 
 ```powershell
-python scripts/client/managed_source_experiment.py --client ../sprk-client --work artifacts/managed-source-new
+python client/scripts/recovery/managed_source_experiment.py --client ../sprk-client --work artifacts/managed-source-new
 ```
 
 The workspace must not exist and must not overlap the installation. Use
@@ -121,16 +121,16 @@ the reference IL, patch implementation and callers before each repair.
 | `DllPatcher/Program.cs` full patch path | Game methods, fields and helper hooks; audit each indexed operation |
 | `DllPatcher/BuildRelease.cs` | Preserve ordering, companion compilation and all verifiers, including Currency64 ordering |
 | `DllPatcher/Resources/*.cs.txt` | Recover ordinary helper projects after dependency-cycle review |
-| `client-overrides/files/` and table generators | Retain data/asset ownership and matching integrity metadata |
+| `client/overrides/files/` and table generators | Retain data/asset ownership and matching integrity metadata |
 | `remove_client_telemetry.py` | Retain serialized asset/SDK cleanup before managed transformations |
-| `scripts/release/` | Preserve pinned baseline, signed complete snapshots and deletion history |
-| `scripts/server/linux_worker.py` | Worker consumes verified client release plus pinned runtime; validate against rebuilt game/helpers |
+| `client/scripts/release/` | Preserve pinned baseline, signed complete snapshots and deletion history |
+| `server/scripts/worker/linux_worker.py` | Worker consumes verified client release plus pinned runtime; validate against rebuilt game/helpers |
 
 Before advancing: certify a known-good reference; finish per-feature ownership
 and baked-baseline audit; resolve remaining compile errors; preserve resources;
 compare API/serialization contracts; then assemble an isolated player and run
 every parity category in the migration plan. Use existing automation scenarios
-under `scripts/automation/scenarios`, release verifiers and worker smoke/native
+under `client/scripts/automation/scenarios`, release verifiers and worker smoke/native
 integration checks. Record reference/candidate results with isolated accounts and
 storage. None of those runtime checks have been claimed as passed here.
 
