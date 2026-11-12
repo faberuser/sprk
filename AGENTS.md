@@ -25,7 +25,7 @@ Folders outside the repository:
 | Path | What it is | Rule |
 | --- | --- | --- |
 | `../sprk-client` | The user's installed game (Unity player + 19 GB of assets) | Change only when a task installs client changes; then publish a release (below) |
-| `../sprk-client-test` | Sandbox made by `sandbox_client.py` | Use for testing; delete only with `sandbox_client.py remove` |
+| `../sprk-client-test` | Test copy made by `client/dev.py test` | Use for testing; delete only with `client/dev.py clean` |
 | `client-updates/` | Local update releases and the signing key | Never edit releases or manifests by hand |
 | `target/`, `artifacts/` | Generated builds and test runs (ignored) | Safe to regenerate |
 
@@ -37,7 +37,7 @@ this repository. The Unity player, assets and tables are never source.
 - `client/managed` is maintained source. Never regenerate it by decompiling a
   DLL, and never patch a compiled DLL.
 - Never point a test client at the public server. Use the local server, the
-  sandbox's `Play (local server).bat`, client automation, or set
+  test copy started by `client/dev.py test`, client automation, or set
   `SPRK_HOST_URL=http://127.0.0.1:8080/host.json`.
 - Never print or commit private keys, `.env` secrets, player databases or
   game assets. Never rotate keys to bypass a problem.
@@ -97,12 +97,14 @@ this repository. The Unity player, assets and tables are never source.
   rename, retype or remove existing fields; append new ones or mark them
   `[NonSerialized]`. Keep assembly, namespace and type names that assets,
   reflection or the server refer to.
-- Compile with `python client/scripts/build/build_managed_client.py`. It must
-  finish without errors before anything is installed or committed.
-- Test in the sandbox first: `python client/scripts/build/sandbox_client.py create`,
-  then `build_managed_client.py --install ../sprk-client-test`, and start it with
-  its `Play (local server).bat`, never with SprkLauncher (which restores the
-  published DLLs). Remove it with `sandbox_client.py remove`.
+- Use `client/dev.py` for the loop: `build` compiles (it must finish without
+  errors before anything is installed or committed), `test` builds into the test
+  copy `../sprk-client-test` and starts it on the local server, `install`
+  builds into `../sprk-client` and publishes a local release, `clean` deletes
+  the test copy.
+- Try changes with `test` before `install`. Never start the test copy with
+  SprkLauncher (it restores the published DLLs) and never delete it other than
+  with `clean`: it links to the real game's assets.
 - Verify user-visible changes on the real game with
   [client automation](docs/client-automation.md)
   (`--client ../sprk-client-test`); it runs an isolated server and database.
@@ -143,10 +145,11 @@ release was generated.
 
 1. Confirm `../sprk-client` exists. Close the local server and the game when
    needed; the user authorizes this.
-2. Build and install:
-   `python client/scripts/build/build_managed_client.py --install ../sprk-client`,
-   then validate the installed game. Never publish an unchanged client as if
-   the change were installed.
+2. Build and install with
+   `python client/scripts/build/build_managed_client.py --install ../sprk-client`
+   (or `python client/dev.py install`, which also performs steps 3-4 with a
+   timestamped release ID), then validate the installed game. Never publish an
+   unchanged client as if the change were installed.
 3. Choose a new release ID, `local-YYYYMMDD-description` with the user's local
    date (add a suffix if needed). Check `client-updates/releases` and
    `client-updates/stable/manifest.json`; never overwrite a release.

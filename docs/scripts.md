@@ -5,7 +5,8 @@ serve; CI and Docker orchestration files stay at the root.
 
 | Directory | Purpose |
 | --- | --- |
-| `client/scripts/build/` | Compile the game and feature assemblies from `client/managed`; test sandbox |
+| `client/dev.py` | Everyday client commands: build, test copy, install, clean |
+| `client/scripts/build/` | Compiler and test-copy code used by `client/dev.py` and CI |
 | `client/scripts/release/` | Build, sign, publish and select client updates; pin the asset baseline |
 | `client/scripts/automation/` | Drive the real client against an isolated server; scenarios |
 | `client/scripts/launcher/` | Build the launcher and install it into a game folder |
@@ -19,8 +20,8 @@ serve; CI and Docker orchestration files stay at the root.
 Main entry points:
 
 ```powershell
-python client/scripts/build/build_managed_client.py --help          # compile, optionally install
-python client/scripts/build/sandbox_client.py --help                # separate test copy of the game
+python client/dev.py --help                                         # build, test, install, clean
+python client/scripts/build/build_managed_client.py --help          # compiler used by dev.py and CI
 python client/scripts/release/build_client_release.py --help        # complete signed release (CI)
 python client/scripts/release/publish_client_update.py --help       # local release from the installed client
 python client/scripts/automation/client_automation.py --help        # real-client tests

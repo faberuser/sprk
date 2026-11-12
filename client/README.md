@@ -26,7 +26,8 @@ file in it are built from this directory:
 | `managed/references.lock.json` | SHA-256 pins of the game runtime DLLs the code compiles against |
 | `launcher/` | `SprkLauncher.exe` (server profiles, signed updates) and its tests |
 | `overrides/files/` | Replacement assets and tables, by client-relative path (empty until needed) |
-| `scripts/build/` | Compile `managed/`; create and remove test copies of the game |
+| `dev.py` | Everyday commands: build, test, install, clean |
+| `scripts/build/` | Compiler and test-copy code used by `dev.py` and CI |
 | `scripts/release/` | Build, sign, publish and pin client updates |
 | `scripts/automation/` | Drive the real game in tests |
 | `scripts/launcher/`, `scripts/android/` | Launcher installation; Android conversion |
@@ -43,50 +44,65 @@ file in it are built from this directory:
   starting it once through its launcher. The build reads the game's runtime
   DLLs from it and checks each against `managed/references.lock.json`.
 
-## Build
+## Everyday commands
+
+One script covers the whole loop:
 
 ```powershell
-python client/scripts/build/build_managed_client.py
+python client/dev.py test       # build, then start a separate test copy of the game
+python client/dev.py install    # build, put it into your real game, publish a local release
+python client/dev.py build      # only compile, to check for errors
+python client/dev.py clean      # delete the test copy
 ```
 
-This compiles all 48 assemblies in about 40 seconds into
-`artifacts/client-build/client-code/King's Raid_Data/Managed/`. Add
-`--install <game folder>` to copy them into a game folder (close the game
-first), `--references <Managed folder>` if the game is elsewhere, and
-`--work <folder>` for another build directory.
+| Command | Changes your real game? | How you play afterwards |
+| --- | --- | --- |
+| `test` | No | It starts the test copy for you |
+| `install` | Yes | SprkLauncher, server **Local** |
 
-## Test your changes safely
-
-Test in a separate copy of the game, not in `../sprk-client`:
-
-```powershell
-python client/scripts/build/sandbox_client.py create      # makes ../sprk-client-test, about 2 minutes
-python client/scripts/build/build_managed_client.py --install ../sprk-client-test   # after each change
-python client/scripts/build/sandbox_client.py remove      # when done
-```
-
-The sandbox copies the player files (1.2 GB), shares the real game's
-`King's Raid_Data/Documents` through a junction, and installs DLLs built from
-source. To play it:
+### Try a change: `test`
 
 1. Start the local server with `start_server.bat` (see the
    [server README](../server/README.md)).
-2. Close the normal game; only one copy can run at a time.
-3. Run `Play (local server).bat` in the sandbox.
+2. Close the game if it is open; only one copy can run at a time.
+3. Run `python client/dev.py test`. Rerun it after each change.
 
-`Play (public server).bat` uses your real account on the public server.
+The first run creates `../sprk-client-test`: the player files are copied
+(1.2 GB) and the 19 GB `King's Raid_Data/Documents` folder is shared with your
+real game through a link. Each run then compiles the code (about 40 seconds),
+puts the DLLs into the test copy and starts it on the local server. Add
+`--public` to play the test copy on the public server with your real account,
+or `--no-build` to start it again without compiling.
 
-- Never start `SprkLauncher.exe` for the sandbox. It would replace the test
-  DLLs with the published ones. The `.bat` files set `SPRK_HOST_URL`, which is
-  all the launcher normally adds.
-- Delete the sandbox with `sandbox_client.py remove` only. A plain recursive
-  delete can follow the junction and delete the real game's assets.
-- Saved settings and logins are shared with the real game: Unity keeps them
-  per Windows user.
+The test copy has no launcher on purpose: the launcher always updates before
+playing, which would replace your new DLLs with the published ones.
+
+Delete the test copy only with `python client/dev.py clean`. It refuses while
+the game runs and never follows the link, whereas a plain recursive delete can
+reach the real game's assets. Saved settings and logins are shared with the
+real game, because Unity keeps them per Windows user.
+
+### Keep a change: `install`
+
+`python client/dev.py install` compiles the code, copies the DLLs into
+`../sprk-client` and publishes them as a new local release. Then play as usual:
+SprkLauncher on the **Local** server finds nothing to replace, because the
+release matches your game. Without the project's signing key the release is
+unsigned; the command explains the one-time launcher setting this needs.
+
+To share a change with players, commit it; CI builds the public release (see
+[Publish client updates](#publish-client-updates)).
+
+### Options
+
+`--game <folder>` uses a game folder other than `../sprk-client`, for example
+`python client/dev.py --game D:\games\sprk-client test`. The scripts under
+`scripts/build/` are the building blocks `dev.py` and CI use;
+`build_managed_client.py --help` lists their lower-level options.
 
 For repeatable checks, [client automation](../docs/client-automation.md) starts
 an isolated server and database and drives the game through scenarios (login,
-lobby, shops, battles). Point it at the sandbox with `--client ../sprk-client-test`.
+lobby, shops, battles). Point it at the test copy with `--client ../sprk-client-test`.
 
 ## Change the game
 
@@ -170,8 +186,10 @@ release; routine changes never need it.
 
 ### Locally (for start_server.bat)
 
-The local update service serves whatever was last published from your game
-folder. After installing new DLLs into `../sprk-client`, publish it:
+The local update service serves the newest release in `client-updates/`. On a
+fresh clone `start_server.bat` downloads the public one; `python client/dev.py
+install` publishes your own build. To publish by hand, for example after
+changing assets:
 
 ```powershell
 python client/scripts/release/publish_client_update.py --client ../sprk-client --output client-updates --version local-YYYYMMDD-name --signing-key client-updates/update-signing/private.pem

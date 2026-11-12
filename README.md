@@ -28,11 +28,11 @@ This project is for educational and preservation purposes only.
 
 ## Which section do you need?
 
-| You want to… | Read | You need to install |
-| --- | --- | --- |
-| Play on your own PC | [Play on your own computer](#play-on-your-own-computer) | Docker Desktop |
-| Run a server for friends or the public | [Host a server for other players](#host-a-server-for-other-players) | Docker on a Linux machine |
-| Change the server or the game | [Contributing](#contributing) | Rust, .NET, Python, Docker |
+| You want to…                           | Read                                                                | You need to install        |
+| -------------------------------------- | ------------------------------------------------------------------- | -------------------------- |
+| Play on your own PC                    | [Play on your own computer](#play-on-your-own-computer)             | Docker Desktop             |
+| Run a server for friends or the public | [Host a server for other players](#host-a-server-for-other-players) | Docker on a Linux machine  |
+| Change the server or the game          | [Contributing](#contributing)                                       | Rust, .NET, Python, Docker |
 
 Players never build anything: the server comes as a ready-made Docker image and
 the game updates itself through its launcher.
@@ -58,27 +58,29 @@ the game updates itself through its launcher.
 3. Copy `.env.example` to a new file named `.env`, open it in a text editor
    (Notepad is fine) and change these lines:
 
-   ```ini
-   SPRK_DB_SUPERUSER_PASSWORD=type_a_long_random_password_here
-   SPRK_DB_OWNER_PASSWORD=type_a_different_one_here
-   SPRK_DB_APP_PASSWORD=and_a_third_one_here
-   SPRK_DB_BACKUP_HOST_DIR=./data/db-backups
-   SPRK_UPDATES_HOST_DIR=./data/client-updates
-   SPRK_GM_KEY=
-   ```
+    ```ini
+    SPRK_DB_SUPERUSER_PASSWORD=type_a_long_random_password_here
+    SPRK_DB_OWNER_PASSWORD=type_a_different_one_here
+    SPRK_DB_APP_PASSWORD=and_a_third_one_here
+    SPRK_DB_BACKUP_HOST_DIR=./data/db-backups
+    SPRK_UPDATES_HOST_DIR=./data/client-updates
+    SPRK_GM_KEY=
+    ```
 
-   Use three different passwords made of letters, digits, `-` and `_`. You never
-   need to type them again; just do not change them later.
+    Use three different passwords made of letters, digits, `-` and `_`. You never
+    need to type them again; just do not change them later.
+
 4. Open a terminal in the folder (in Windows Explorer, right-click the folder
    and choose **Open in Terminal**) and run:
 
-   ```bash
-   docker compose up -d
-   ```
+    ```bash
+    docker compose up -d
+    ```
 
-   The first start downloads the server and the current game update, which can
-   take several minutes. It is ready when <http://localhost:8080/health> and
-   <http://localhost:8081/health> both open in a browser.
+    The first start downloads the server and the current game update, which can
+    take several minutes. It is ready when <http://localhost:8080/health> and
+    <http://localhost:8081/health> both open in a browser.
+
 5. Start `SprkLauncher.exe` from the game folder, choose the **Local** server
    and play. The first time, the launcher brings the game files up to date from
    your server.
@@ -117,10 +119,10 @@ no longer reads. To bring it over once:
    stack's network. Volume and network names start with your folder's name
    (see `docker volume ls`); this example assumes the folder is `sprk`:
 
-   ```bash
-   docker run --rm --network sprk_default -v sprk_game-data:/data -v "$PWD/server/scripts/database":/w:ro \
-     python:3.12-slim sh -c 'pip install -q "psycopg[binary]" && python -I /w/copy_sqlite_to_postgres.py /data/sprk.db --database-url "postgres://sprk_owner:<SPRK_DB_OWNER_PASSWORD>@postgres:5432/sprk"'
-   ```
+    ```bash
+    docker run --rm --network sprk_default -v sprk_game-data:/data -v "$PWD/server/scripts/database":/w:ro \
+      python:3.12-slim sh -c 'pip install -q "psycopg[binary]" && python -I /w/copy_sqlite_to_postgres.py /data/sprk.db --database-url "postgres://sprk_owner:<SPRK_DB_OWNER_PASSWORD>@postgres:5432/sprk"'
+    ```
 
 3. Start the game again with `docker compose start game`.
 
@@ -158,11 +160,11 @@ curl --fail http://localhost:8080/health/battle
 curl --fail http://localhost:8081/health
 ```
 
-| Service           | Address                 | Data                                                 |
-| ----------------- | ----------------------- | ---------------------------------------------------- |
-| `game`            | `http://localhost:8080` | service state in the `game-data` volume              |
-| `updates`         | `http://localhost:8081` | signed client releases in `SPRK_UPDATES_HOST_DIR`    |
-| `postgres`        | internal only           | game database in the `postgres-data` volume          |
+| Service           | Address                 | Data                                                                                                    |
+| ----------------- | ----------------------- | ------------------------------------------------------------------------------------------------------- |
+| `game`            | `http://localhost:8080` | service state in the `game-data` volume                                                                 |
+| `updates`         | `http://localhost:8081` | signed client releases in `SPRK_UPDATES_HOST_DIR`                                                       |
+| `postgres`        | internal only           | game database in the `postgres-data` volume                                                             |
 | `postgres-backup` | none                    | daily `pg_dump` files in `SPRK_DB_BACKUP_HOST_DIR`, optionally copied to `SPRK_DB_BACKUP_COPY_HOST_DIR` |
 
 Chat and battle use `/ws/chat` and `/ws/battle` on the game port. The GM
@@ -188,11 +190,11 @@ More detail:
 ### How the pieces fit
 
 ```text
-client/managed  (C# source) ──build──▶ Assembly-CSharp.dll + Sprk*.dll ─┐
-pinned client release (Unity player, assets, tables) ───────────────────┼─▶ signed client update
-client/overrides/files (changed assets/tables) ─────────────────────────┘        │
-                                                                                  ▼
-server/  (Rust) ──build──▶ sprk-server ──▶ Docker image (pins that update) ──▶ players' launchers
+client/managed (C# source) ── build ──▶ Assembly-CSharp.dll + Sprk*.dll ─┐
+pinned client release (Unity player, assets, tables) ────────────────────┼─▶ signed client update
+client/overrides/files (changed assets/tables) ──────────────────────────┘         │
+                                                                                   ▼
+server/ (Rust) ── build ──▶ sprk-server ──▶ Docker image (pins that update) ──▶ players' launchers
 ```
 
 The Unity player and the 19 GB of game assets are never source and never live in
@@ -202,30 +204,30 @@ from an existing game folder or the pinned release.
 
 ### Repository layout
 
-| Path | Contents |
-| --- | --- |
-| [`server/`](server/README.md) | Rust server, PostgreSQL migrations, tests, GM CLI and server scripts |
-| [`client/`](client/README.md) | Game C# source, launcher, client build/release/automation scripts |
-| `tables/` | Game tables the server loads |
-| `config/` | Client-update public key and shared configuration |
-| `docs/` | Guides: updates, CI, database, automation and more |
-| `.github/workflows/` | Pull-request checks and the build-and-deploy pipeline |
-| `Dockerfile`, `Dockerfile.tests`, `docker-bake.hcl`, `docker-compose.yml` | Server image, test image and the Compose stack |
-| `start_server.bat` | Local Windows development server |
+| Path                                                                      | Contents                                                             |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| [`server/`](server/README.md)                                             | Rust server, PostgreSQL migrations, tests, GM CLI and server scripts |
+| [`client/`](client/README.md)                                             | Game C# source, launcher, client build/release/automation scripts    |
+| `tables/`                                                                 | Game tables the server loads                                         |
+| `config/`                                                                 | Client-update public key and shared configuration                    |
+| `docs/`                                                                   | Guides: updates, CI, database, automation and more                   |
+| `.github/workflows/`                                                      | Pull-request checks and the build-and-deploy pipeline                |
+| `Dockerfile`, `Dockerfile.tests`, `docker-bake.hcl`, `docker-compose.yml` | Server image, test image and the Compose stack                       |
+| `start_server.bat`                                                        | Local Windows development server                                     |
 
 Generated output goes to `target/` (Rust builds, automation runs) and
 `artifacts/` (client builds); both are ignored by Git.
 
 ### Requirements
 
-| Tool | Needed for |
-| --- | --- |
-| Git | Everything |
-| [Rust 1.99+](https://rustup.rs) | The server |
-| [Docker Desktop](https://www.docker.com/products/docker-desktop/) | The local database, and building images |
-| Python 3.11+ | Client build and release scripts, server tools, `server/gm.py` |
-| [.NET SDK 10.0.1xx](https://dotnet.microsoft.com/download) (pinned in `client/global.json`) | The client code and the launcher |
-| Windows | Building and running the client; the server builds on any OS |
+| Tool                                                                                        | Needed for                                                     |
+| ------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Git                                                                                         | Everything                                                     |
+| [Rust 1.99+](https://rustup.rs)                                                             | The server                                                     |
+| [Docker Desktop](https://www.docker.com/products/docker-desktop/)                           | The local database, and building images                        |
+| Python 3.11+                                                                                | Client build and release scripts, server tools, `server/gm.py` |
+| [.NET SDK 10.0.1xx](https://dotnet.microsoft.com/download) (pinned in `client/global.json`) | The client code and the launcher                               |
+| Windows                                                                                     | Building and running the client; the server builds on any OS   |
 
 ### Set up a workspace
 
@@ -257,9 +259,8 @@ configuration, tests, the native battle worker and GM tools.
 ### Work on the client
 
 ```powershell
-python client/scripts/build/build_managed_client.py                 # compile (about 40 s)
-python client/scripts/build/sandbox_client.py create                # separate test copy of the game
-python client/scripts/build/build_managed_client.py --install ../sprk-client-test
+python client/dev.py test       # build and start a separate test copy of the game
+python client/dev.py install    # build into your real game and publish a local release
 ```
 
 [`client/README.md`](client/README.md) covers editing the game code, testing it
@@ -288,14 +289,14 @@ uploaded by hand.
 
 ### Documentation
 
-| Guide | Topic |
-| --- | --- |
-| [docs/client-updates.md](docs/client-updates.md) | Update service, local publishing, Docker hosting |
-| [docs/github-client-updates.md](docs/github-client-updates.md) | CI pipeline, release baseline, signing |
-| [docs/client-automation.md](docs/client-automation.md) | Driving the real game in tests |
-| [docs/database-diagnostics.md](docs/database-diagnostics.md) | PostgreSQL operations and performance |
-| [docs/scripts.md](docs/scripts.md) | Every script and its purpose |
-| [docs/damage-formula.md](docs/damage-formula.md) | Combat damage calculation |
+| Guide                                                          | Topic                                            |
+| -------------------------------------------------------------- | ------------------------------------------------ |
+| [docs/client-updates.md](docs/client-updates.md)               | Update service, local publishing, Docker hosting |
+| [docs/github-client-updates.md](docs/github-client-updates.md) | CI pipeline, release baseline, signing           |
+| [docs/client-automation.md](docs/client-automation.md)         | Driving the real game in tests                   |
+| [docs/database-diagnostics.md](docs/database-diagnostics.md)   | PostgreSQL operations and performance            |
+| [docs/scripts.md](docs/scripts.md)                             | Every script and its purpose                     |
+| [docs/damage-formula.md](docs/damage-formula.md)               | Combat damage calculation                        |
 
 ## Credits
 

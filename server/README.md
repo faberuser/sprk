@@ -52,7 +52,7 @@ processes until you close the window or press Ctrl+C:
 | GM (only when `SPRK_GM_KEY` is set) | `http://127.0.0.1:8082` |
 
 Start the game with SprkLauncher and choose **Local**, or test a source-built
-client with the sandbox's `Play (local server).bat`.
+client with `python client/dev.py test`.
 
 Before the first start:
 
