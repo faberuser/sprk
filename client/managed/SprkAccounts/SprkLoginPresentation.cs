@@ -384,6 +384,12 @@ public sealed class SprkLoginPresentation : MonoBehaviour
 
 	public static void Configure(LoginBackground window)
 	{
+		// The headless battle worker (-batchmode) has no screen and ships without
+		// login backgrounds or music; skip the presentation entirely.
+		if (Application.isBatchMode)
+		{
+			return;
+		}
 		SprkLoginPresentation sprkLoginPresentation = window.GetComponent<SprkLoginPresentation>();
 		if (sprkLoginPresentation == null)
 		{
@@ -979,7 +985,7 @@ public sealed class SprkLoginPresentation : MonoBehaviour
 
 	public static AudioClip FilterMusic(AudioClip incoming)
 	{
-		if (!AtLogin)
+		if (Application.isBatchMode || !AtLogin)
 		{
 			return incoming;
 		}

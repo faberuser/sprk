@@ -12,7 +12,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from client.scripts.release.client_update_bundle import package
-from server.scripts.worker.linux_worker import DATA, assemble, digest, extract_runtime, runtime_files
+from server.scripts.worker.linux_worker import DATA, PATCH, assemble, battle_unused, digest, extract_runtime, runtime_files
 from client.scripts.release.publish_client_update import find_openssl, publish
 
 
@@ -32,7 +32,8 @@ class LinuxWorkerTests(unittest.TestCase):
         subprocess.run([find_openssl(), "genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:2048", "-out", str(self.private)], check=True, capture_output=True)
         subprocess.run([find_openssl(), "pkey", "-in", str(self.private), "-pubout", "-out", str(self.public)], check=True, capture_output=True)
         self.client = self.root / "client"
-        for name in (DATA + "/globalgamemanagers", DATA + "/Managed/SprkConquest.dll", DATA + "/obsolete"):
+        for name in (DATA + "/globalgamemanagers", DATA + "/Managed/SprkConquest.dll", DATA + "/obsolete",
+                     PATCH + "Video/Opening.mp4"):
             path = self.client / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(b"signed data")
@@ -54,10 +55,20 @@ class LinuxWorkerTests(unittest.TestCase):
     def build(self, tag="client-current"):
         assemble(self.output, self.runtime, self.release, self.pin, self.public, tag)
 
+    def test_battle_unused_files_are_dropped_after_verification(self):
+        self.assertTrue(battle_unused(PATCH + "Video/Opening.mp4"))
+        self.assertTrue(battle_unused(PATCH + "LoginPresentation/01-original-party/background.png"))
+        self.assertTrue(battle_unused(PATCH + "LocalizationJit/LocalizationAll_Korean.jit"))
+        for kept in (PATCH + "LocalizationJit/LocalizationAll_English.jit",
+                     PATCH + "LocalizationJit/Localization_EnumRedirection.jit",
+                     PATCH + "TableJit/ItemTable.jit", DATA + "/Managed/SprkConquest.dll", DATA + "/resources.assets"):
+            self.assertFalse(battle_unused(kept), kept)
+
     def test_verified_snapshot_overlays_runtime_and_applies_deletions(self):
         self.build()
         self.assertEqual((self.output / "King's Raid.exe").read_bytes(), b"engine")
         self.assertEqual((self.output / DATA / "Managed/SprkConquest.dll").read_bytes(), b"signed data")
+        self.assertFalse((self.output / PATCH / "Video/Opening.mp4").exists())
         self.assertFalse((self.output / DATA / "obsolete").exists())
         with self.assertRaisesRegex(ValueError, "fresh"):
             self.build()

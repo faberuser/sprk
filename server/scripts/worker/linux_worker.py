@@ -23,6 +23,21 @@ REPO = Path(__file__).resolve().parents[3]
 DATA = "King's Raid_Data"
 
 
+PATCH = DATA + "/Documents/Patch/StandaloneWindows/"
+
+
+def battle_unused(path: str) -> bool:
+    """Client files a headless battle never reads: videos, login backgrounds,
+    and text in languages other than English (the worker's language).
+
+    Removing them keeps about 355 MB out of the server image. Every native
+    battle test passes without them; extend this list only with the same proof.
+    """
+    if path.startswith((PATCH + "Video/", PATCH + "LoginPresentation/")):
+        return True
+    return path.startswith(PATCH + "LocalizationJit/LocalizationAll_") and not path.endswith("_English.jit")
+
+
 def digest(path):
     with path.open("rb") as stream:
         return hashlib.file_digest(stream, "sha256").hexdigest()
@@ -141,6 +156,10 @@ def assemble(output, runtime, release, pin, public_key, tag):
         client.mkdir()
         extract_runtime(runtime, client, pin["sha256"])
         raw = apply_release(release, client, public_key, tag)
+        # Drop unused files only after the whole signed release has been verified.
+        for path in sorted(client.rglob("*")):
+            if path.is_file() and battle_unused(path.relative_to(client).as_posix()):
+                path.unlink()
         for name in ("King's Raid.exe", "UnityPlayer.dll", "MonoBleedingEdge/EmbedRuntime/mono-2.0-bdwgc.dll",
                      DATA + "/globalgamemanagers", DATA + "/Managed/SprkConquest.dll"):
             if not (client / name).is_file():

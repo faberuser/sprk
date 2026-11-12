@@ -9,19 +9,19 @@ workspace containing this package, so builds go to the shared `target/`.
 
 ## Layout
 
-| Path | Contents |
-| --- | --- |
-| `src/api/` | Request handlers by area: account, gameplay, battle, community, GM, system |
-| `src/models/`, `src/tables/` | Response types and game-table loading |
-| `src/updates/` | Client update service (manifests, release sync from GitHub) |
-| `migrations/` | PostgreSQL schema, triggers and SQL functions, applied at startup |
-| `tests/` | Integration tests and their fixtures |
-| `gm.py` | GM command-line tool |
-| `scripts/local/` | `start_server.bat` implementation |
-| `scripts/database/` | SQL type checks, diagnostics, SQLite→PostgreSQL copy |
-| `scripts/worker/` | Native battle worker preparation and image smoke test |
-| `scripts/docker/` | Container entrypoint, health check, image build helpers |
-| `scripts/performance/` | HTTP latency measurement |
+| Path                         | Contents                                                                   |
+| ---------------------------- | -------------------------------------------------------------------------- |
+| `src/api/`                   | Request handlers by area: account, gameplay, battle, community, GM, system |
+| `src/models/`, `src/tables/` | Response types and game-table loading                                      |
+| `src/updates/`               | Client update service (manifests, release sync from GitHub)                |
+| `migrations/`                | PostgreSQL schema, triggers and SQL functions, applied at startup          |
+| `tests/`                     | Integration tests and their fixtures                                       |
+| `gm.py`                      | GM command-line tool                                                       |
+| `scripts/local/`             | `start_server.bat` implementation                                          |
+| `scripts/database/`          | SQL type checks, diagnostics, SQLite→PostgreSQL copy                       |
+| `scripts/worker/`            | Native battle worker preparation and image smoke test                      |
+| `scripts/docker/`            | Container entrypoint, health check, image build helpers                    |
+| `scripts/performance/`       | HTTP latency measurement                                                   |
 
 The server also reads `../tables/` (game tables) and `../config/`.
 
@@ -45,11 +45,11 @@ start_server.bat
 It builds the release server, starts PostgreSQL in Docker, and runs two
 processes until you close the window or press Ctrl+C:
 
-| Service | Address |
-| --- | --- |
-| Game | `http://127.0.0.1:8080` |
-| Client updates | `http://127.0.0.1:8081/updates/stable/manifest.json` |
-| GM (only when `SPRK_GM_KEY` is set) | `http://127.0.0.1:8082` |
+| Service                             | Address                                              |
+| ----------------------------------- | ---------------------------------------------------- |
+| Game                                | `http://127.0.0.1:8080`                              |
+| Client updates                      | `http://127.0.0.1:8081/updates/stable/manifest.json` |
+| GM (only when `SPRK_GM_KEY` is set) | `http://127.0.0.1:8082`                              |
 
 Start the game with SprkLauncher and choose **Local**, or test a source-built
 client with `python client/dev.py test`.
@@ -69,15 +69,16 @@ Before the first start:
 - **Your own client changes.** To serve DLLs you built and installed, publish a
   local release from your game folder ([details](../docs/client-updates.md)):
 
-  ```powershell
-  python client/scripts/release/publish_client_update.py --client ../sprk-client --output client-updates --version local-YYYYMMDD-name
-  ```
+    ```powershell
+    python client/scripts/release/publish_client_update.py --client ../sprk-client --output client-updates --version local-YYYYMMDD-name
+    ```
 
-  Without the project's signing key this release is unsigned. The launcher
-  accepts that only for a loopback server whose profile has no public key: in
-  **Manage Servers**, edit **Local**, untick **Use the launcher's default public
-  key** and leave the key empty. Maintainers sign with
-  `--signing-key client-updates/update-signing/private.pem`.
+    Without the project's signing key this release is unsigned. The launcher
+    accepts that only for a loopback server whose profile has no public key: in
+    **Manage Servers**, edit **Local**, untick **Use the launcher's default public
+    key** and leave the key empty. Maintainers sign with
+    `--signing-key client-updates/update-signing/private.pem`.
+
 - **Second checkout or worktree.** `client-updates/`, `.env` and
   `conquest-service.*` are local files that Git ignores, so a new checkout starts
   without them and downloads the release again. To keep one shared set of local
@@ -109,17 +110,17 @@ DATABASE_URL=postgres://postgres:dev@127.0.0.1:5432/postgres GAME_TABLES_PATH=ta
 At startup the server applies `migrations/`, then listens on
 `http://0.0.0.0:8080`. Main settings:
 
-| Variable | Meaning |
-| --- | --- |
-| `DATABASE_URL` | Game database (required in `game` and `all` modes) |
-| `DATABASE_MIGRATION_URL` | Owner role for migrations; defaults to `DATABASE_URL` |
-| `SPRK_SERVICE_MODE` | `game` (default), `updates` (client updates only) or `all` |
-| `PORT` | HTTP port, default 8080 |
-| `GAME_TABLES_PATH` | Game tables directory |
-| `SPRK_UPDATES_DIR` | Published client releases, in `updates`/`all` mode |
-| `SERVER_HOST`, `SERVER_HTTPS` | Address the server advertises to clients |
-| `SPRK_GM_KEY`, `SPRK_GM_BIND` | GM access key and listener address |
-| `RUST_LOG` | Log filter, for example `info,tower_http=debug` |
+| Variable                      | Meaning                                                    |
+| ----------------------------- | ---------------------------------------------------------- |
+| `DATABASE_URL`                | Game database (required in `game` and `all` modes)         |
+| `DATABASE_MIGRATION_URL`      | Owner role for migrations; defaults to `DATABASE_URL`      |
+| `SPRK_SERVICE_MODE`           | `game` (default), `updates` (client updates only) or `all` |
+| `PORT`                        | HTTP port, default 8080                                    |
+| `GAME_TABLES_PATH`            | Game tables directory                                      |
+| `SPRK_UPDATES_DIR`            | Published client releases, in `updates`/`all` mode         |
+| `SERVER_HOST`, `SERVER_HTTPS` | Address the server advertises to clients                   |
+| `SPRK_GM_KEY`, `SPRK_GM_BIND` | GM access key and listener address                         |
+| `RUST_LOG`                    | Log filter, for example `info,tower_http=debug`            |
 
 `start_server.bat` (`scripts/local/start_local_server.ps1`) shows a complete
 local configuration; `.env.example` and `docker-compose.yml` show the hosted one.
@@ -129,7 +130,9 @@ local configuration; `.env.example` and `docker-compose.yml` show the hosted one
 Some battles (Conquest, co-op raids, dragon and story parties) are simulated by
 a headless copy of the game, the battle worker, which connects back to the
 server. In Docker the image includes a Linux/Wine worker built from the pinned
-client release. Locally it is optional and configured in the repository root:
+client release, without the files a headless battle never reads (videos, login
+backgrounds, non-English text; see `battle_unused` in
+`scripts/worker/linux_worker.py`). Locally it is optional and configured in the repository root:
 
 - `conquest-service.json`: `{"Executable": "<path to a game .exe>"}`, or the
   `BATTLE_WORKER_EXECUTABLE` variable;
