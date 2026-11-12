@@ -17,9 +17,9 @@ pub async fn decrypt_request(
 }
 
 /// Record the player a request acts for, so `database::begin` can take that
-/// player's account lock in each of its transactions. The single SQLite writer
-/// ran a player's transactions one at a time; this keeps that per player while
-/// different players run in parallel. Requests without a valid session (and
+/// player's account lock in each of its transactions: one player's
+/// transactions run one at a time while different players run in parallel.
+/// Requests without a valid session (and
 /// GETs) run without an acting account.
 pub async fn acting_account(
     axum::extract::State(state): axum::extract::State<crate::state::AppState>,

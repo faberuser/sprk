@@ -1,6 +1,6 @@
 //! Game database: PostgreSQL. Schema lives in `migrations/`; connection
 //! settings, the account lock and the retry wrapper in `crate::postgres`.
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 
 pub type DbPool = sqlx::PgPool;
 
@@ -12,8 +12,8 @@ tokio::task_local! {
 }
 
 /// Begin a write transaction. Within a player's request it first takes that
-/// player's account lock, so one player's transactions run one at a time (as
-/// on the single SQLite writer) while different players run in parallel.
+/// player's account lock, so one player's transactions run one at a time
+/// while different players run in parallel.
 /// Background work has no acting account and takes explicit locks instead.
 pub(crate) async fn begin(pool: &DbPool) -> Result<sqlx::Transaction<'static, sqlx::Postgres>, sqlx::Error> {
     let mut tx = pool.begin().await?;
@@ -32,7 +32,7 @@ where F: std::future::Future + Send + 'static, F::Output: Send + 'static {
 
 fn database_url() -> anyhow::Result<String> {
     std::env::var("DATABASE_URL").map_err(|_| anyhow::anyhow!(
-        "DATABASE_URL is not set; it must name the game's PostgreSQL database (see docs/postgresql-migration.md)"))
+        "DATABASE_URL is not set; it must name the game's PostgreSQL database (see docs/database-diagnostics.md)"))
 }
 
 /// Run pending migrations with the owner role (DATABASE_MIGRATION_URL, or
@@ -45,24 +45,8 @@ pub async fn init_database() -> anyhow::Result<DbPool> {
     owner.close().await;
 
     let pool = crate::postgres::connect(&url).await?;
-    refuse_unmigrated_sqlite(&pool).await?;
     tracing::info!("Database initialized successfully");
     Ok(pool)
-}
-
-/// The SQLite file is the only copy of the player data until the copy tool
-/// has loaded it. Starting on an empty PostgreSQL database next to it would
-/// let players create accounts whose IDs collide with the import.
-async fn refuse_unmigrated_sqlite(pool: &DbPool) -> anyhow::Result<()> {
-    let sqlite = std::env::var("SPRK_SQLITE_PATH").unwrap_or_else(|_| "sprk.db".into());
-    if !Path::new(&sqlite).exists() {
-        return Ok(());
-    }
-    let accounts: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM accounts").fetch_one(pool).await?;
-    anyhow::ensure!(accounts > 0,
-        "{sqlite} exists but the PostgreSQL database has no accounts. Copy it with `sprk-server migrate-sqlite {sqlite}` \
-         before starting the game, or move the file away if it is not needed.");
-    Ok(())
 }
 
 /// Read-only pool for `AppState.reads`: same server for now, a replica later.
@@ -74,21 +58,6 @@ pub(crate) async fn open_read_pool() -> anyhow::Result<DbPool> {
 /// Connections per test pool.
 #[cfg(test)]
 pub(crate) const TEST_POOL_SIZE: u32 = 8;
-
-/// Delete a test SQLite file. Windows can hold the handle briefly after the
-/// pool closes; retry only sharing violations.
-#[cfg(test)]
-pub(crate) async fn remove_sqlite_file(path: &Path) {
-    for attempt in 0..20 {
-        match std::fs::remove_file(path) {
-            Ok(()) => return,
-            Err(error) if cfg!(windows) && matches!(error.raw_os_error(), Some(32 | 33)) && attempt < 19 => {
-                tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-            }
-            Err(error) => panic!("Could not remove {}: {error}", path.display()),
-        }
-    }
-}
 
 /// Fresh, migrated database for one test, cloned from a template that is
 /// migrated once per schema version. Needs SPRK_TEST_POSTGRES_URL: a server
@@ -109,7 +78,7 @@ pub(crate) async fn fail_trigger(db: &DbPool, name: &str, timing: &str, when: Op
         .execute(db).await.unwrap();
 }
 
-/// Rows written so far in this test database, like SQLite's total_changes().
+/// Rows written so far in this test database (inserts, updates and deletes).
 /// The first call installs a counting trigger on every table.
 #[cfg(test)]
 pub(crate) async fn row_changes(db: &DbPool) -> i64 {

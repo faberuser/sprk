@@ -31,6 +31,14 @@
   output when helpful, checking the source DLL hash to avoid stale results and
   keeping generated output out of tracked source unless intentionally required.
 
+## Database performance and diagnostics
+
+When given a game log, a database dump, a diagnostics report or a slow, failing
+or locking server, follow [the database guide](docs/database-diagnostics.md):
+handle the files as player data, load dumps only into a scratch container, run
+`scripts/server/db_diagnostics.py`, and fix the cause in server code with a
+regression test and before/after numbers.
+
 ## Reproducible client changes and CI deployment
 
 Follow [GitHub client releases](docs/github-client-updates.md) for CI inputs,

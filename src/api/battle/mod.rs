@@ -49,8 +49,8 @@ pub(crate) mod bonuses;
 mod loot_booster;
 
 /// Dispatch jobs still awaiting battle simulation. Shared verbatim by the
-/// partial index and the preparation poller: SQLite only uses a partial index
-/// when the query repeats its WHERE terms, so the poller reads just pending rows
+/// partial index and the preparation poller: PostgreSQL only uses a partial
+/// index when the query implies its WHERE terms, so the poller reads just pending rows
 /// instead of parsing every account's battle_state JSON every few seconds.
 pub(crate) const PENDING_DISPATCH_SIMULATION: &str = "kind='dispatch' AND sprk_json_int(data,'$.SimulationVersion') IN (1,2) AND sprk_json_text(data,'$.State') NOT IN ('Complete','Cancel') AND COALESCE(sprk_json_array_length(data,'$.SimulationResults'),0)<sprk_json_int(data,'$.RepeatCount')";
 pub fn routes(tables: &crate::tables::BattleTable) -> axum::Router<AppState> {
