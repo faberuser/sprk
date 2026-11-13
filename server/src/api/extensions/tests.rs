@@ -1286,6 +1286,67 @@ async fn reforge_same_stat_requires_a_strictly_larger_value() {
 }
 
 #[tokio::test]
+async fn reforge_until_target_spends_coupons_then_rubies_and_leaves_one_pending_roll() {
+    let (mut s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let mut eq=give(&s,a,101001,1).await.equipment.remove(0);
+    eq.star=5;eq.option_index_1=9002;eq.option_step_1=2;eq.option_index_2=0;
+    save_equip(&mut s.db.acquire().await.unwrap(),a,&eq).await.unwrap();
+    {
+        let inventory=std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).inventory);
+        // Target Type 40 (9003) is practically unreachable, so the budget decides the stop.
+        inventory.option_groups.insert(11,vec![9001,9003]);
+        inventory.options.get_mut(&9001).unwrap()["Ratio"]=json!(1_000_000_000i64);
+        inventory.options.get_mut(&9003).unwrap()["Ratio"]=json!(1);
+    }
+    let args=format!("EquipItemSlotIndex={}&OptionSlotIndex=1",eq.slot_index);
+    let gems=|v:i64| crate::db::query("UPDATE user_info SET gem=$1,pay_gem=0 WHERE account_id=$2").bind(v).bind(a);
+    let state=|s:&AppState| {let db=s.db.clone(); async move {
+        let gem:i64=crate::db::query_scalar("SELECT gem FROM user_info WHERE account_id=$1").bind(a).fetch_one(&db).await.unwrap();
+        let coupons:i64=crate::db::query_scalar("SELECT COALESCE(SUM(count)::bigint,0) FROM items WHERE account_id=$1 AND item_index=2200").bind(a).fetch_one(&db).await.unwrap();
+        let pending:i64=crate::db::query_scalar("SELECT COUNT(*) FROM equipment_pending WHERE account_id=$1").bind(a).fetch_one(&db).await.unwrap();
+        (gem,coupons,pending)
+    }};
+    gems(0).execute(&s.db).await.unwrap();
+    // Preview reports odds and charges nothing.
+    let preview=call(&s,&u,"renew_equip_option",&format!("{args}&SprkTargetOptionType=40&SprkPreview=1")).await;
+    assert_eq!(preview["Result"],"Success","{preview}");
+    assert_eq!((n(&preview,"SprkHitWeight"),n(&preview,"SprkTotalWeight")),(1,1_000_000_001));
+    // A stat the line cannot roll, or an empty budget, is refused without changes.
+    assert_eq!(call(&s,&u,"renew_equip_option",&format!("{args}&SprkTargetOptionType=999&SprkMaxTries=5")).await["Result"],"NoAvailableOption");
+    assert_eq!(call(&s,&u,"renew_equip_option",&format!("{args}&SprkTargetOptionType=40&SprkMaxTries=5")).await["Result"],"NotEnoughGem");
+    assert_ne!(call(&s,&u,"renew_equip_option",&format!("{args}&SprkTargetOptionType=40&SprkMaxTries=0")).await["Result"],"Success");
+    assert_eq!(state(&s).await,(0,0,0));
+    assert_eq!(json!(equip(&mut s.db.acquire().await.unwrap(),a,eq.slot_index as i64).await.unwrap()),json!(eq));
+    // Two coupons, then 400 rubies for the third try; the fourth (800) is unaffordable.
+    give(&s,a,2200,2).await;
+    gems(700).execute(&s.db).await.unwrap();
+    let run=call(&s,&u,"renew_equip_option",&format!("{args}&SprkTargetOptionType=40&SprkMaxTries=5")).await;
+    assert_eq!(run["Result"],"Success","{run}");
+    assert_eq!((n(&run,"SprkTries"),n(&run,"SprkCouponsUsed"),n(&run,"SprkGemsSpent")),(3,2,400),"{run}");
+    assert_eq!(run["SprkHit"],false);
+    assert_eq!(run["NewOptionIndex"],9001);
+    assert_eq!(run["ResultEquipItem"]["OptionRenewCount1"],3);
+    assert_eq!(run["ResultEquipItem"]["OptionIndex1"],9002,"the roll stays pending");
+    assert_eq!(state(&s).await,(300,0,1));
+    // An unconfirmed roll blocks another run until the player keeps or discards it.
+    assert_ne!(call(&s,&u,"renew_equip_option",&format!("{args}&SprkTargetOptionType=40&SprkMaxTries=5")).await["Result"],"Success");
+    let kept=call(&s,&u,"renew_confirm_equip_option",&format!("{args}&IsNew=false&ConfirmOptionIndex=9002")).await;
+    assert_eq!(kept["Result"],"Success","{kept}");
+    // A reachable target stops at the first hit.
+    std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).inventory).option_groups.insert(11,vec![9003]);
+    give(&s,a,2200,10).await;
+    let run=call(&s,&u,"renew_equip_option",&format!("{args}&SprkTargetOptionType=40&SprkMaxTries=10")).await;
+    assert_eq!(run["Result"],"Success","{run}");
+    assert_eq!((n(&run,"SprkTries"),n(&run,"SprkCouponsUsed"),n(&run,"SprkGemsSpent")),(1,1,0),"{run}");
+    assert_eq!(run["SprkHit"],true);
+    assert_eq!(run["NewOptionIndex"],9003);
+    assert_eq!(state(&s).await,(300,9,1));
+    let accepted=call(&s,&u,"renew_confirm_equip_option",&format!("{args}&IsNew=true&ConfirmOptionIndex=9003")).await;
+    assert_eq!(accepted["ResultEquipItem"]["OptionIndex1"],9003,"{accepted}");
+}
+
+#[tokio::test]
 async fn enchant_same_stat_strictly_improves_and_capped_rolls_are_not_charged() {
     let (mut s, u) = setup().await;
     let a = u.user_info.account_id;

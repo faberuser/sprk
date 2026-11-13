@@ -625,6 +625,11 @@ pub(super) fn reforge_step_range(
 }
 
 fn reforge_option(state: &AppState, candidates: &[i64], current: i64, current_step: i64, star: i32, allow_same: bool) -> Result<(i64, i64)> {
+    choose_option(&reforge_pool(state, candidates, current, current_step, star, allow_same)?)
+}
+
+/// Weighted outcomes of one option reforge: (option, weight, first step, last step).
+fn reforge_pool(state: &AppState, candidates: &[i64], current: i64, current_step: i64, star: i32, allow_same: bool) -> Result<Vec<(i64, i64, i64, i64)>> {
     let mut pool = Vec::new();
     for &id in candidates {
         let Some(data) = state.tables.inventory.options.get(&(id as i32)) else { continue; };
@@ -635,7 +640,162 @@ fn reforge_option(state: &AppState, candidates: &[i64], current: i64, current_st
     }
     // Preserve option weights, then roll uniformly within the permitted steps.
     // A fully exhausted pool fails before charging rather than retrying forever.
-    choose_option(&pool)
+    Ok(pool)
+}
+
+/// Most reforges one "reforge until" request may perform.
+pub(super) const RENEW_UNTIL_MAX_TRIES: i64 = 1000;
+
+/// Unlocked, unreserved count of one item.
+async fn spendable_item(db: &mut PgConnection, account: i64, index: i64) -> Result<i64> {
+    let count: Option<i32> = crate::db::query_scalar(
+        "SELECT count FROM items WHERE account_id=$1 AND item_index=$2 AND locked=0",
+    )
+    .bind(account)
+    .bind(index as i32)
+    .fetch_optional(&mut *db)
+    .await?;
+    let held = crate::api::battle::entry_costs::held(db, account, "Item", index).await?;
+    Ok((i64::from(count.unwrap_or(0)) - held).max(0))
+}
+
+/// Free plus paid rubies, less any amount reserved by a pending battle entry.
+async fn spendable_gem(db: &mut PgConnection, account: i64) -> Result<i64> {
+    let row = crate::db::query("SELECT gem,pay_gem FROM user_info WHERE account_id=$1")
+        .bind(account)
+        .fetch_one(&mut *db)
+        .await?;
+    let total = row.try_get::<i64, _>("gem")?.max(0) + row.try_get::<i64, _>("pay_gem")?.max(0);
+    let held = crate::api::battle::entry_costs::held(db, account, "Currency", 4).await?;
+    Ok((total - held).max(0))
+}
+
+/// SPRK "reforge until": reroll one option line until its stat type is `target`.
+///
+/// `SprkPreview=1` only reports the per-try odds. Otherwise up to `SprkMaxTries`
+/// rolls run in memory, paying each like a normal reforge (coupon first, then
+/// the table currency, plus any per-try items). The run stops at the first hit
+/// or when the next try is unaffordable; the costs are charged once and only
+/// the last roll is left pending, so the client confirms it as usual.
+#[allow(clippy::too_many_arguments)]
+async fn renew_until(
+    db: &mut PgConnection,
+    state: &AppState,
+    account: i64,
+    req: &Request,
+    eq: &EquipItemInfo,
+    mut value: Value,
+    detail: &Value,
+    slot: i64,
+    candidates: &[i64],
+    target: i64,
+) -> Result<Value> {
+    let options = &state.tables.inventory.options;
+    let stat = |id: i64| options.get(&(id as i32)).map(|o| n(o, "Type")).unwrap_or(0);
+    let pool = reforge_pool(
+        state,
+        candidates,
+        n(&value, &format!("OptionIndex{slot}")),
+        n(&value, &format!("OptionStep{slot}")),
+        eq.star,
+        detail["EnableRenewSameOption"] == true,
+    )?;
+    let total: i64 = pool.iter().map(|r| r.1).sum();
+    let hit: i64 = pool.iter().filter(|r| stat(r.0) == target).map(|r| r.1).sum();
+    if total <= 0 || hit <= 0 {
+        return Err(rule("NoAvailableOption"));
+    }
+    if matches!(req.text("SprkPreview"), "1" | "true" | "True") {
+        return Ok(json!({"BaseResult":"Success","Result":"Success","SprkHitWeight":hit,"SprkTotalWeight":total}));
+    }
+    let used = (1..=4)
+        .filter(|i| n(&value, &format!("IsRenewedOption{i}")) != 0)
+        .count() as i64;
+    if used >= n(detail, "RenewableOptionCount") && n(&value, &format!("IsRenewedOption{slot}")) == 0 {
+        return Err(rule("InvalidOption"));
+    }
+    let max_tries = req.number("SprkMaxTries", 0)?;
+    if !(1..=RENEW_UNTIL_MAX_TRIES).contains(&max_tries) {
+        return Err(rule("InvalidOption"));
+    }
+    // Budget, read once: coupons, then the table currency, plus per-try items.
+    let coupon = n(detail, "RenewTicketItemIndex");
+    let coupons = if coupon > 0 { spendable_item(db, account, coupon).await? } else { 0 };
+    let currency = n(detail, "RenewCurrencyType");
+    let prices: Vec<i64> = detail["RenewPrice"]
+        .as_array()
+        .map(|p| p.iter().filter_map(Value::as_i64).collect())
+        .unwrap_or_default();
+    let mut money = match currency {
+        0 => 0,
+        2 if !prices.is_empty() => spendable_gem(db, account).await?,
+        _ => return Err(rule("InvalidPriceType")),
+    };
+    let mut per_try = vec![];
+    for i in 1..=3 {
+        let count = n(detail, &format!("RenewItemCount{i}"));
+        if count > 0 {
+            let index = n(detail, &format!("RenewItemIndex{i}"));
+            per_try.push((index, count, spendable_item(db, account, index).await?));
+        }
+    }
+    let count_key = format!("OptionRenewCount{slot}");
+    let mut renew_count = n(&value, &count_key);
+    let (mut tries, mut coupons_used, mut spent) = (0i64, 0i64, 0i64);
+    let mut last = None;
+    while tries < max_tries {
+        if per_try.iter().any(|(_, count, have)| have / count <= tries) {
+            break;
+        }
+        if coupons_used < coupons {
+            coupons_used += 1;
+        } else if currency != 0 {
+            let price = prices[(renew_count as usize).min(prices.len() - 1)];
+            if price > money {
+                break;
+            }
+            money -= price;
+            spent += price;
+        } else if coupon > 0 {
+            break; // A coupon-only item with none left.
+        }
+        tries += 1;
+        renew_count += 1;
+        let roll = choose_option(&pool)?;
+        last = Some(roll);
+        if stat(roll.0) == target {
+            break;
+        }
+    }
+    let Some((new, step)) = last else {
+        return Err(rule(if !per_try.is_empty() { "NotEnoughItem" } else if currency != 0 { "NotEnoughGem" } else { "NotEnoughCouponItem" }));
+    };
+    pending(db, account, eq.slot_index, "option", &json!({"Slot":slot,"Index":new,"Step":step})).await?;
+    let mut out = item::success();
+    let mut consumed = vec![];
+    if coupons_used > 0 {
+        consumed.push(item::consume(db, account, coupon as i32, coupons_used as i32).await?);
+    }
+    if spent > 0 {
+        out["CurrencyResult"] = hero::currency(db, account, "Gem", -spent).await?;
+    }
+    for (index, count, _) in &per_try {
+        consumed.push(item::consume(db, account, *index as i32, (count * tries) as i32).await?);
+    }
+    value[&count_key] = json!(renew_count);
+    value[format!("IsRenewedOption{slot}")] = json!(1);
+    let eq: EquipItemInfo = serde_json::from_value(value).map_err(|_| rule("InvalidOption"))?;
+    save_equip(db, account, &eq).await?;
+    out["ResultEquipItem"] = json!(eq);
+    out["ItemResults"] = json!(consumed);
+    out["NewOptionIndex"] = json!(new);
+    out["NewOptionStep"] = json!(step);
+    out["SprkTries"] = json!(tries);
+    out["SprkHit"] = json!(stat(new) == target);
+    out["SprkCouponsUsed"] = json!(coupons_used);
+    out["SprkGemsSpent"] = json!(spent);
+    super::super::progression::record(db, account, "RenewEquipOption", eq.item_index as i64, 0, tries).await?;
+    Ok(out)
 }
 async fn renew(
     db: &mut PgConnection,
@@ -727,6 +887,10 @@ async fn renew(
         });
     }
     let candidates = candidates.into_iter().collect::<Vec<_>>();
+    let target = if skill { 0 } else { req.number("SprkTargetOptionType", 0)? };
+    if target > 0 {
+        return renew_until(db, state, account, req, &eq, value, detail, slot, &candidates, target).await;
+    }
     let (new, step) = if skill {
         option(state, &candidates)?
     } else {
