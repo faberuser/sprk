@@ -454,10 +454,16 @@ pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
     }
     let mut out = json!({"Towers":towers,"UnderPrisonInfos":under,"RaidInfos":raid,"GodkingTrialDungeonInfos":god});
     let mut progress = vec![];
-    for p in list(&mut tx, a, "dungeon").await? {
-        progress.push(
-            campaign::progress(&mut tx, s, a, n(&p, "ChapterIndex"), n(&p, "DungeonIndex")).await?,
-        );
+    // Stored rows only need the daily reset that campaign::progress applies;
+    // re-reading each row costs one round trip per cleared dungeon.
+    // Rows without their indices (older writes) keep the full lookup.
+    for mut p in list(&mut tx, a, "dungeon").await? {
+        if p["ChapterIndex"].is_i64() && p["DungeonIndex"].is_i64() {
+            campaign::reset_daily(&mut p);
+            progress.push(p);
+        } else {
+            progress.push(campaign::progress(&mut tx, s, a, n(&p, "ChapterIndex"), n(&p, "DungeonIndex")).await?);
+        }
     }
     out["DungeonInfos"] = json!(progress);
     out["BattleKeyResults"] = dungeons::key_snapshot(&mut tx, s, a).await?;

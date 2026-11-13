@@ -102,6 +102,7 @@ pub(super) async fn charge_reserved(
         let def = s.tables.services.find("Stamina", &[("StaminaType", kind)])
             .ok_or_else(|| rule("InvalidStaminaType"))?;
         let mut info = get(db, a, "key", kind).await?;
+        let stored = info.clone();
         // Older saves retained only Day/Count. Recover the last known spend
         // time when its response agrees with that balance; otherwise start
         // a timer now without inventing elapsed recovery time.
@@ -122,7 +123,7 @@ pub(super) async fn charge_reserved(
             }
         }
         let (info, result) = tower_key_at(&info, def, Utc::now(), cost)?;
-        put(db, a, "key", kind, &info).await?;
+        if info != stored { put(db, a, "key", kind, &info).await?; }
         return Ok(result);
     }
     if kind == 26 {
@@ -130,9 +131,9 @@ pub(super) async fn charge_reserved(
         // not a daily replacement balance like ordinary dungeon keys.
         let def = s.tables.services.find("Stamina", &[("StaminaType", kind)])
             .ok_or_else(|| rule("InvalidStaminaType"))?;
-        let info = get(db, a, "key", kind).await?;
-        let (info, result) = shakmeh_key_at(&info, def, Utc::now(), cost)?;
-        put(db, a, "key", kind, &info).await?;
+        let stored = get(db, a, "key", kind).await?;
+        let (info, result) = shakmeh_key_at(&stored, def, Utc::now(), cost)?;
+        if info != stored { put(db, a, "key", kind, &info).await?; }
         return Ok(result);
     }
     if let Some(def) = s.tables.services.find("Stamina", &[("StaminaType", kind)]) {
@@ -143,6 +144,7 @@ pub(super) async fn charge_reserved(
             )).and_then(Value::as_i64))
             .or_else(|| s.tables.battle.rules["DungeonKeyDailyDefaults"][name].as_i64()).unwrap_or(0);
         let mut info = get(db, a, "key", kind).await?;
+        let stored = info.clone();
         let column = match kind { 11 => Some("world_boss_ticket"), 13 => Some("sword2"), _ => None };
         if let Some(column) = column {
             let count:i64 = crate::db::query_scalar(sqlx::AssertSqlSafe(format!("SELECT {column} FROM user_info WHERE account_id=$1")))
@@ -152,19 +154,21 @@ pub(super) async fn charge_reserved(
             info["Count"] = json!(if initial_record {count.max(initial)}else{count});
         }
         let (info, result) = crate::api::account::recharge::at(&info, def, overrides, initial, Utc::now(), cost)?;
-        if let Some(column) = column {
-            crate::db::query(sqlx::AssertSqlSafe(format!("UPDATE user_info SET {column}=$1 WHERE account_id=$2")))
-                .bind(n(&info,"Count")).bind(a).execute(&mut *db).await?;
+        if info != stored {
+            if let Some(column) = column {
+                crate::db::query(sqlx::AssertSqlSafe(format!("UPDATE user_info SET {column}=$1 WHERE account_id=$2")))
+                    .bind(n(&info,"Count")).bind(a).execute(&mut *db).await?;
+            }
+            put(db, a, "key", kind, &info).await?;
         }
-        put(db, a, "key", kind, &info).await?;
         return Ok(result);
     }
     if !matches!(kind,3 | 4 | 7) {
         let initial=s.tables.battle.rules["DungeonKeyDailyDefaults"][name].as_i64().unwrap_or(0);
         let def=json!({"AttributeName":name,"UpdateType":2,"ResetCount":[initial],"MaxCountValue":initial.to_string()});
-        let info=get(db,a,"key",kind).await?;
-        let (info,result)=crate::api::account::recharge::at(&info,&def,&Value::Null,initial,Utc::now(),cost)?;
-        put(db,a,"key",kind,&info).await?;
+        let stored=get(db,a,"key",kind).await?;
+        let (info,result)=crate::api::account::recharge::at(&stored,&def,&Value::Null,initial,Utc::now(),cost)?;
+        if info!=stored { put(db,a,"key",kind,&info).await?; }
         return Ok(result);
     }
     let currency = match kind { 3 => "Gold", 4 => "Gem", _ => "Mileage" };

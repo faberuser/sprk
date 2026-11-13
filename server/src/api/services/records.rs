@@ -285,7 +285,7 @@ async fn honor(
         let mut deck = vec![];
         if matches!(kind, 3 | 4) {
             // Honor keeps the registration in arena_snapshots; older runs inline.
-            let saved:Option<String>=crate::db::query_scalar::<Option<String>>("SELECT COALESCE(p.data,sprk_json_text(r.data,'$.Register.AccountInfo')) FROM arena_runs r LEFT JOIN arena_snapshots p ON p.run=r.id WHERE r.account=$1 AND r.kind=$2 AND r.status='complete' AND sprk_json_int(r.data,'$.Season')=$3 ORDER BY r.id DESC LIMIT 1").bind(id).bind(if kind==3{0}else{1}).bind(selected).fetch_optional(&mut *db).await?.flatten();
+            let saved:Option<String>=crate::db::query_scalar::<Option<String>>("SELECT COALESCE(p.data,sprk_json_text(r.data,'$.Register.AccountInfo')) FROM arena_runs r LEFT JOIN arena_snapshots p ON p.run=r.id WHERE r.account=$1 AND r.kind=$2 AND r.status='complete' AND r.season=$3 ORDER BY r.id DESC LIMIT 1").bind(id).bind(if kind==3{0}else{1}).bind(selected).fetch_optional(&mut *db).await?.flatten();
             if let Some(saved) = saved {
                 let saved: Value = serde_json::from_str(&saved).map_err(|_| rule("Fail"))?;
                 for h in saved["HeroInfos"]
