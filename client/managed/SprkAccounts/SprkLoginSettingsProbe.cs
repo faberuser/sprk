@@ -49,6 +49,7 @@ public sealed class SprkLoginSettingsProbe : MonoBehaviour
 		EventDelegate.Execute(button.onClick);
 		yield return new WaitForSecondsRealtime(1f);
 		GameOptionWindow settings = manager.GetInstance<GameOptionWindow>();
+		AssertNoNotificationToast();
 		if (settings == null || !settings.IsOpen())
 		{
 			throw new Exception("Native settings did not open");
@@ -68,6 +69,9 @@ public sealed class SprkLoginSettingsProbe : MonoBehaviour
 			throw new Exception("Native settings rows missing: " + rows.Length);
 		}
 		yield return VerifyLoginNotifications(rows);
+		CenterMessage consentMessage = GlobalAutoBehaviour<PopupManegement>.instance.PopUpExist<CenterMessage>();
+		if (consentMessage != null) consentMessage.Close2(immediately: true);
+		yield return null;
 		int num = 0;
 		UISpriteAtlasAssigner[] componentsInChildren2 = settings.GetComponentsInChildren<UISpriteAtlasAssigner>(includeInactive: true);
 		foreach (UISpriteAtlasAssigner uISpriteAtlasAssigner in componentsInChildren2)
@@ -114,10 +118,12 @@ public sealed class SprkLoginSettingsProbe : MonoBehaviour
 		}
 		settings.ReOpen();
 		yield return null;
+		AssertNoNotificationToast();
 		settings.Close();
 		yield return null;
 		EventDelegate.Execute(button.onClick);
 		yield return null;
+		AssertNoNotificationToast();
 		if (!settings.IsOpen() || settings.GetComponents<SprkLoginSettings.LoginContext>().Length != 1)
 		{
 			throw new Exception("Reopen or duplicate context");
@@ -163,6 +169,9 @@ public sealed class SprkLoginSettingsProbe : MonoBehaviour
 		{
 			throw new Exception("Login cleanup leaked into a reused in-game panel");
 		}
+		settings.SetupOptionGrids();
+		yield return new WaitForSecondsRealtime(0.3f);
+		AssertNoNotificationToast();
 		GameOptionWindow.TabUIInfo[] mainTabs2 = settings.MainTabs;
 		foreach (GameOptionWindow.TabUIInfo tabUIInfo in mainTabs2)
 		{
@@ -228,7 +237,7 @@ public sealed class SprkLoginSettingsProbe : MonoBehaviour
 		File.WriteAllBytes(Path.Combine(path, "others.png"), texture2D.EncodeToPNG());
 		UnityEngine.Object.Destroy(texture2D);
 		File.WriteAllText(Path.Combine(path, "others-result.txt"), "PASS: native Others prefab Coupon above Language, upper alignment, eight refreshes, single callbacks and red Normal/Hover/Pressed backgrounds.");
-		File.WriteAllText(Path.Combine(path, "result.txt"), "PASS: native login buttons cleaned, one Settings callback, native settings opened before login with " + rows.Length + " rows; translated labels, GameOption and PayShop artwork, all tabs, login texture changes, refresh, close/reopen, pool cleanup and download-state preservation; visible panel screenshot exported.");
+		File.WriteAllText(Path.Combine(path, "result.txt"), "PASS: native login buttons cleaned, one Settings callback, native settings opened before login with " + rows.Length + " rows; translated labels, GameOption and PayShop artwork, all tabs, login texture changes, refresh, close/reopen, pool cleanup and download-state preservation; no consent toast on initial setup, refresh, reopen or reuse without login context; explicit notification changes still show consent messages; visible panel screenshot exported.");
 		Application.Quit();
 	}
 
@@ -256,6 +265,12 @@ public sealed class SprkLoginSettingsProbe : MonoBehaviour
 				bool original = (bool)row.GetOptionValue(row.gameOptionData.ClassName, row.gameOptionData.FieldName);
 				row.SetOptionValue(!original, null, callBack: false);
 				yield return null;
+				if (callback == "RequestEventNotificationValue" || callback == "RequestNightNotificationValue")
+				{
+					CenterMessage message = GlobalAutoBehaviour<PopupManegement>.instance.PopUpExist<CenterMessage>();
+					if (message == null || !message.IsOpen() || string.IsNullOrEmpty(message.Label_Message.text))
+						throw new Exception("Explicit notification change no longer confirms consent: " + callback);
+				}
 				row.SetOptionValue(original, null, callBack: false);
 				yield return null;
 				checkedRows++;
@@ -270,5 +285,12 @@ public sealed class SprkLoginSettingsProbe : MonoBehaviour
 		{
 			Application.logMessageReceived -= capture;
 		}
+	}
+
+	private static void AssertNoNotificationToast()
+	{
+		CenterMessage message = GlobalAutoBehaviour<PopupManegement>.instance.PopUpExist<CenterMessage>();
+		if (message != null && message.IsOpen())
+			throw new Exception("Opening or refreshing Settings displayed a notification consent message: " + message.Label_Message.text);
 	}
 }

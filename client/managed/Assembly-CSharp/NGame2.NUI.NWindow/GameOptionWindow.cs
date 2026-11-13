@@ -236,6 +236,20 @@ public class GameOptionWindow : BaseWindow, GameOptionBaseComponent.Listener
 
 	public void SetupOptionGrids()
 	{
+		bool wasInitializing = GameOptionBaseComponent.InitializingOptions;
+		GameOptionBaseComponent.InitializingOptions = true;
+		try
+		{
+			SetupOptionGridsCore();
+		}
+		finally
+		{
+			GameOptionBaseComponent.InitializingOptions = wasInitializing;
+		}
+	}
+
+	private void SetupOptionGridsCore()
+	{
 		TabUIInfo[] mainTabs;
 		if (gameOptionDic == null)
 		{
