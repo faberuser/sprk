@@ -22,6 +22,7 @@ public static class JM_NShared_RenewEquipOption_Response
 
 	public static NShared.RenewEquipOption.Response Parse(IDictionary d, NShared.RenewEquipOption.Response o)
 	{
+		SprkReforgeUntil.Capture(d, o);
 		o.CurrencyResult = BaseJsonMarshaler.ParseObject(d, "CurrencyResult", JM_NShared_CurrencyResultInfo3.Parse);
 		o.ItemResults = BaseJsonMarshaler.ParseArray(d, "ItemResults", JM_NShared_ItemResultInfo.Parse);
 		o.ResultEquipItem = BaseJsonMarshaler.ParseObject(d, "ResultEquipItem", JM_NShared_EquipItemInfo.Parse);

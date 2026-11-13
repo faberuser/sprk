@@ -170,6 +170,7 @@ missing), run that script by hand in the `postgres` container.
 | `SPRK_DB_APP_PASSWORD` | `sprk_app` |
 | `SPRK_DB_SHARED_BUFFERS` | about 25% of the memory available to PostgreSQL (default 512MB) |
 | `SPRK_DB_MAX_WAL_SIZE` | default 4GB |
+| `SPRK_DB_SYNCHRONOUS_COMMIT` | default `off`: a commit returns before its WAL flush (as the former SQLite `synchronous=NORMAL`). A host or PostgreSQL crash can lose the last ~0.6 s of commits but never corrupts. `on` waits for the disk on every commit (2–20 ms on the production disk). |
 | `SPRK_DB_MAX_CONNECTIONS` | connections per pool (default 16) |
 
 Use long random URL-safe passwords (letters, digits, `-` and `_`). They take
@@ -281,7 +282,7 @@ Either flag can be used alone. The report prints:
 | PostgreSQL contention errors | Deadlocks (40P01), serialization failures (40001), `lock_timeout`, `statement_timeout`, idle-in-transaction kills, too many connections, by path. A few deadlocks under heavy play are tolerable (the request fails and the client retries); a growing count names a hot row or an inconsistent lock order. |
 | Pool acquire timeouts, slow acquires | All pooled connections were busy. Look for long transactions first, then raise `SPRK_DB_MAX_CONNECTIONS`. |
 | `Waited long for a lock` | Waits of 250 ms or more for the same player's, a guild's or the arena queue's previous transaction, by lock and path. The holder is the slow path to fix. |
-| `Slow HTTP request` by path | Requests of 1 s or more. |
+| `Slow HTTP request` by path | Requests of 100 ms or more (`SLOW_REQUEST_MS` in `performance.rs`). |
 | sqlx `slow statement` | Single statements of 1 s or more, including lock waits. |
 | Largest tables, dead rows, last vacuum | Growth and bloat. A table with many dead rows and no recent vacuum needs autovacuum tuning. |
 | Buffer cache hit rate | Below about 99% under load means the working set does not fit in `shared_buffers`/memory. |
@@ -393,8 +394,7 @@ Either flag can be used alone. The report prints:
 ## 8. Later
 
 - **Tuning.** Hot JSON fields to columns or `jsonb`, text timestamps to
-  `timestamptz`, 0/1 flags to `boolean`, `synchronous_commit = off` for
-  low-value writes, batching hot counters, autovacuum settings. Measure first
+  `timestamptz`, 0/1 flags to `boolean`, batching hot counters, autovacuum settings. Measure first
   with the report.
 - **Compatibility layer.** `crate::db`'s lenient binds and decodes are needed
   while columns are `bigint` and Rust fields are `i32`/`u8`/`bool`; it shrinks

@@ -47,6 +47,7 @@ public static class JM_NShared_ValanceEnchant_Request
 		{
 			dictionary.Add("SessionId", o.SessionId);
 		}
+		SprkEnchantUntil.Encode(dictionary, o);
 		return dictionary;
 	}
 }

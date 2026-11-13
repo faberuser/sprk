@@ -401,6 +401,10 @@ public class BlacksmithManagement : BaseManagement<BlacksmithManagement>, HeroEq
 
 	private void RenewEquipOptionInternal(NGame2.NUI.NWindow.EquipOptionRenew window, int equipItemSlotIndex, int optionSlotIndex)
 	{
+		if (SprkReforgeUntil.TryStart(this, equipItemSlotIndex, optionSlotIndex))
+		{
+			return;
+		}
 		EquipItemInfo equipItemInfo = GlobalAutoBehaviour<AccountManager>.instance.EquipItemManager.Get(equipItemSlotIndex);
 		if (equipItemInfo == null)
 		{
@@ -430,18 +434,8 @@ public class BlacksmithManagement : BaseManagement<BlacksmithManagement>, HeroEq
 			RequestRenewEquipOptionWithCurrency(equipItemSlotIndex, optionSlotIndex);
 			return;
 		}
-		int couponItemIndex = itemInfo.ItemIndex;
-		LocalizationManager.GetString(NShared.NLocalization.EquipOptionRenew.ASK_RENEW_OPTION_TITLE);
-		string message = LocalizationManager.GetString(NShared.NLocalization.EquipOptionRenew.ASK_RENEW_OPTION_WITH_COUPON_MESSAGE);
-		string confirmLabel = LocalizationManager.GetString(NShared.NLocalization.Common.USE);
-		string cancelLabel = LocalizationManager.GetString(NShared.NLocalization.Common.COMMON_CANCEL);
-		IconConfirmPopup.Open(message, confirmLabel, cancelLabel, delegate
-		{
-			RequestRenewEquipOptionInternal(equipItemSlotIndex, optionSlotIndex, couponItemIndex);
-		}, delegate
-		{
-			RequestRenewEquipOptionWithCurrency(equipItemSlotIndex, optionSlotIndex);
-		}).AddItem(couponItemIndex, 1);
+		// SPRK: use the reforge coupon directly instead of asking for confirmation.
+		RequestRenewEquipOptionInternal(equipItemSlotIndex, optionSlotIndex, itemInfo.ItemIndex);
 	}
 
 	private void RequestRenewEquipOptionWithCurrency(int equipItemSlotIndex, int optionSlotIndex)
@@ -504,6 +498,13 @@ public class BlacksmithManagement : BaseManagement<BlacksmithManagement>, HeroEq
 		request.EquipItemSlotIndex = equipItemSlotIndex;
 		request.OptionSlotIndex = optionSlotIndex;
 		request.CouponItemIndex = couponItemIndex;
+		SprkSendRenewEquipOption(request, null);
+	}
+
+	public void SprkSendRenewEquipOption(NShared.RenewEquipOption.Request request, System.Action<NShared.RenewEquipOption.Response> onApplied)
+	{
+		int equipItemSlotIndex = request.EquipItemSlotIndex;
+		int optionSlotIndex = request.OptionSlotIndex;
 		SingletonUpdater<WebServiceManager>.instance.Requester.Request(request, delegate(NShared.RenewEquipOption.Response response)
 		{
 			if (response != null)
@@ -541,6 +542,7 @@ public class BlacksmithManagement : BaseManagement<BlacksmithManagement>, HeroEq
 					GlobalAutoBehaviour<AccountManager>.instance.UserManager.MiscInfo.RenewOptionResultIndex = response.NewOptionIndex;
 					GlobalAutoBehaviour<AccountManager>.instance.UserManager.MiscInfo.RenewOptionResultStep = response.NewOptionStep;
 					GetInstance<EquipOptionRenewScene>().Open(this, equipItemSlotIndex, optionSlotIndex);
+					onApplied?.Invoke(response);
 				}
 			}
 		});

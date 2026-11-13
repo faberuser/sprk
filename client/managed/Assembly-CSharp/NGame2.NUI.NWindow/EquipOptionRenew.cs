@@ -58,15 +58,18 @@ public class EquipOptionRenew : EquipEnhanceBase, EquipAwakenScene.IDataProvider
 		base.Reset();
 		ClearStatGauge();
 		ClearRenewableOption();
+		SprkReforgeUntil.ClearTarget();
 	}
 
 	private void ClearStatGauge()
 	{
+		SprkReforgeUntil.ReleaseGauge();
 		FactoryBase.SafeReleaseComponent(ref _statGaugeComponent);
 	}
 
 	private void ClearRenewableOption()
 	{
+		SprkReforgeUntil.ReleasePool();
 		FactoryBase.ReleaseAndClearList(_renewableOptionList);
 	}
 
@@ -305,9 +308,11 @@ public class EquipOptionRenew : EquipEnhanceBase, EquipAwakenScene.IDataProvider
 					singleStatComponent.OpenNotAppliedEquipOption(optionDisplay);
 					singleStatComponent.SetStatColor(RenewableOptionColor);
 					_renewableOptionList.Add(singleStatComponent);
+					SprkReforgeUntil.AddPoolEntry(data4.OptionType, optionValueMin, optionValueMax);
 				}
 			}
 		}
+		SprkReforgeUntil.PoolBuilt(this, base.SelectedEquipItemInfo.SlotIndex);
 		RenewableOptionGrid.RepositionGrid();
 	}
 

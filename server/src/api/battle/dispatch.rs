@@ -394,6 +394,8 @@ pub(super) async fn execute(
     if !deferred && n(&info, "CostType") == 1 && wins > 0 {
         let spent=n(&info, "Cost") / total * wins;
         out["ExpResult"] = dungeons::stamina_exp(db, s, a, spent).await?;
+        let award = dungeons::eclipse_points(db, s, a, spent).await?;
+        dungeons::attach_eclipse_points(&mut out, &award);
         entry_costs::fill_stamina_flasks(db,s,a,&mut json!({"Heroes":heroes}),spent,&mut out).await?;
     }
     out["TeamExpResult"] = out["ExpResult"].clone();
@@ -405,7 +407,9 @@ pub(super) async fn execute(
         info["ServerResult"] = json!(vec!["1"; count as usize].join(","));
     }
     info["CollectionResponse"] = out.clone();
-    if !out["StaminaResult"].is_null() {
+    // CancelDispatch applies only EclipseStaminaResult, so it carries the
+    // stamina refund there. Completion applies both and keeps any key award.
+    if !out["StaminaResult"].is_null() && (cancel || out["EclipseStaminaResult"].is_null()) {
         out["EclipseStaminaResult"] = out["StaminaResult"].clone();
     }
     put(db, a, "dispatch", slot, &info).await?;
@@ -489,6 +493,10 @@ pub(super) async fn sweep(
         }
     }
     out["CampaignResults"] = json!(campaigns.into_values().collect::<Vec<_>>());
+    let mut stamina = stamina;
+    if let Some(award) = stamina.as_object_mut().and_then(|v| v.remove("EclipsePointAward")) {
+        dungeons::attach_eclipse_points(&mut out, &award);
+    }
     out["StaminaResult"] = stamina;
     out["StartDungeonIndex"] = json!(int(&stages[0],"DungeonIndex")?);
     out["EndDungeonIndex"] = json!(int(stages.last().unwrap(),"DungeonIndex")?);

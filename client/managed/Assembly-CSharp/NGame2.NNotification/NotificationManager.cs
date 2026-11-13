@@ -269,6 +269,12 @@ public class NotificationManager : SingletonAuto<NotificationManager>, IUserObse
 
 	public void RequestNotificationValue(PushNotificationType type, bool value)
 	{
+		// Login settings also run these callbacks while initializing option rows.
+		// Preferences are saved locally; the account endpoint needs a live session.
+		if (!AccountManager.IsLogined())
+		{
+			return;
+		}
 		NShared.SetPushNotification.Request request = new NShared.SetPushNotification.Request
 		{
 			PushType = type,

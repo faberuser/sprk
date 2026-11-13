@@ -232,9 +232,13 @@ pub(super) async fn charge(
         note(entry, "Stamina", kind, amount);
         Ok(result)
     } else {
-        let result=dungeons::charge(db, s, a, kind, amount).await?;
+        let mut result=dungeons::charge(db, s, a, kind, amount).await?;
         if kind==1 && amount>0 {
             entry["FlaskStaminaSpent"]=json!(n(entry,"FlaskStaminaSpent")+amount);
+        }
+        // Points are granted with the charge; the end-of-battle popup shows them.
+        if let Some(award) = result.as_object_mut().and_then(|v| v.remove("EclipsePointAward")) {
+            entry["EclipsePointAward"] = award;
         }
         Ok(result)
     }
@@ -339,6 +343,9 @@ pub(crate) async fn settle(
 ) -> Result<()> {
     super::punishment::settle_shards(db,a,entry,won,out).await?;
     super::loot_booster::settle(db,a,entry,won,out).await?;
+    if let Some(award) = entry.as_object_mut().and_then(|v| v.remove("EclipsePointAward")) {
+        dungeons::attach_eclipse_points(out, &award);
+    }
     if entry["EntryCostsSettled"] == true {
         return Ok(());
     }
@@ -469,6 +476,8 @@ pub(crate) async fn settle(
     }
     if exp_cost > 0 {
         out["ExpResult2"] = dungeons::stamina_exp(db, s, a, exp_cost).await?;
+        let award = dungeons::eclipse_points(db, s, a, exp_cost).await?;
+        dungeons::attach_eclipse_points(out, &award);
     }
     if flask_cost > 0 {fill_stamina_flasks(db,s,a,entry,flask_cost,out).await?;}
     if let Some(state) = entry["EntryCostGate"]["State"].as_str() {

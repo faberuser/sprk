@@ -378,6 +378,7 @@ public class ValanceWebManager : SingletonAuto<ValanceWebManager>
 			EquipItemSlotIndex = equipItemSlotIndex,
 			ConsumeItemIndex = enchantCoreItemIndex
 		};
+		SprkEnchantUntil.Arm(request);
 		SingletonUpdater<WebServiceManager>.instance.Requester.Request(request, delegate(NShared.ValanceEnchant.Response res)
 		{
 			if (res.BaseResult != BaseResultType.Success)
@@ -400,6 +401,7 @@ public class ValanceWebManager : SingletonAuto<ValanceWebManager>
 				{
 					e.OnValanceEnchant(resOptionInfo);
 				});
+				SprkEnchantUntil.Done(res);
 			}
 		});
 	}

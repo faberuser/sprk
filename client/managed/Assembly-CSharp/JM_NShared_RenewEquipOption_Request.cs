@@ -49,6 +49,7 @@ public static class JM_NShared_RenewEquipOption_Request
 		{
 			dictionary.Add("SessionId", o.SessionId);
 		}
+		SprkReforgeUntil.Encode(dictionary, o);
 		return dictionary;
 	}
 }

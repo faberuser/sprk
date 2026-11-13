@@ -34,15 +34,19 @@ pub(super) async fn initialize(
 }
 pub(super) async fn reconcile(db: &mut PgConnection, account: i64, v: &mut Value) -> Result<BTreeSet<i64>> {
     let mut missing = BTreeSet::new();
+    let referenced: Vec<i64> = (1..=10).map(|part| n(v, &format!("EquipItemSlotIndex{part}"))).filter(|slot| *slot > 0).collect();
+    // One round trip for all ten parts instead of one per part.
+    let owned: BTreeSet<i64> = if referenced.is_empty() { BTreeSet::new() } else {
+        crate::db::query_scalar::<i64>("SELECT slot_index FROM equip_items WHERE account_id=$1 AND slot_index IN (SELECT sprk_json_ints($2))")
+            .bind(account).bind(json!(referenced).to_string()).fetch_all(&mut *db).await?.into_iter().collect()
+    };
     for part in 1..=10 {
         let key = format!("EquipItemSlotIndex{part}");
         let slot = n(v, &key);
         if slot <= 0 { continue; }
         // A preset is a reference, not an ownership lock. Keep references to
         // chest gear, but remove deleted/foreign gear when the preset is used.
-        let owned: bool = crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM equip_items WHERE account_id=$1 AND slot_index=$2)")
-            .bind(account).bind(slot).fetch_one(&mut *db).await?;
-        if !owned {
+        if !owned.contains(&slot) {
             v[key] = json!(0);
             missing.insert(part);
         }

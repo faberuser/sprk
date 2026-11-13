@@ -16,19 +16,6 @@ impl ExtensionTable {
                 data.0.insert(key, rows);
             }
         }
-        if let Some(rows) = data.0.get_mut("AccessoryCostume") {
-            for row in rows {
-                if row["IsBuy"] == false && row["PreviewableWhenOwned"] == true && row["ReqBuyGem"] == 10000 {
-                    let price = match row["PartType"].as_i64() {
-                        Some(1) => 1000,
-                        Some(2 | 3) => 500,
-                        Some(4) => 4000,
-                        _ => continue,
-                    };
-                    row["ReqBuyGem"] = serde_json::json!(price);
-                }
-            }
-        }
         Ok(data)
     }
     pub fn rows(&self, name: &str) -> &[Value] {
@@ -50,11 +37,19 @@ mod cosmetic_sale_tests {
     fn archived_cosmetic_flags_and_prices_are_preserved_on_load() {
         let directory=std::env::temp_dir().join(format!("sprk-archive-cosmetics-{}",uuid::Uuid::new_v4()));
         std::fs::create_dir(&directory).unwrap();
-        let rows=json!({"AccessoryCostume":[{"Index":1,"ReqBuyGem":0,"IsBuy":false,"IsOpen":false}],
+        let mut rows=json!({"AccessoryCostume":[{"Index":1,"ReqBuyGem":0,"IsBuy":false,"IsOpen":false}],
             "HairCostume":[{"Index":2,"ReqBuyGem":0,"NeedCostume":[],"IsOpen":false}]});
+        for part in 1..=6 {
+            for price in [10000, 20000] {
+                rows["AccessoryCostume"].as_array_mut().unwrap().push(json!({
+                    "Index":part * 100000 + price,"PartType":part,"ReqBuyGem":price,
+                    "IsBuy":false,"PreviewableWhenOwned":true,"IsOpen":false
+                }));
+            }
+        }
         let file=directory.join("ExtensionSupport.json");std::fs::write(&file,rows.to_string()).unwrap();
         let table=ExtensionTable::load(&file).unwrap();
-        assert_eq!(table.rows("AccessoryCostume")[0],rows["AccessoryCostume"][0]);
+        assert_eq!(table.rows("AccessoryCostume"),rows["AccessoryCostume"].as_array().unwrap().as_slice());
         assert_eq!(table.rows("HairCostume")[0],rows["HairCostume"][0]);
         std::fs::remove_file(file).unwrap();std::fs::remove_dir(directory).unwrap();
     }

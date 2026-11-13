@@ -43,6 +43,10 @@ pub(crate) async fn charge(
     let mut result = charge_reserved(db, s, a, kind, cost).await?;
     if kind == 1 && cost > 0 {
         result["RaiderExpResult"] = stamina_exp(db, s, a, cost).await?;
+        let award = Box::pin(eclipse_points(db, s, a, cost)).await?;
+        if !award.is_null() {
+            result["EclipsePointAward"] = award;
+        }
     }
     Ok(result)
 }
@@ -98,6 +102,7 @@ pub(super) async fn charge_reserved(
         let def = s.tables.services.find("Stamina", &[("StaminaType", kind)])
             .ok_or_else(|| rule("InvalidStaminaType"))?;
         let mut info = get(db, a, "key", kind).await?;
+        let stored = info.clone();
         // Older saves retained only Day/Count. Recover the last known spend
         // time when its response agrees with that balance; otherwise start
         // a timer now without inventing elapsed recovery time.
@@ -118,7 +123,7 @@ pub(super) async fn charge_reserved(
             }
         }
         let (info, result) = tower_key_at(&info, def, Utc::now(), cost)?;
-        put(db, a, "key", kind, &info).await?;
+        if info != stored { put(db, a, "key", kind, &info).await?; }
         return Ok(result);
     }
     if kind == 26 {
@@ -126,9 +131,9 @@ pub(super) async fn charge_reserved(
         // not a daily replacement balance like ordinary dungeon keys.
         let def = s.tables.services.find("Stamina", &[("StaminaType", kind)])
             .ok_or_else(|| rule("InvalidStaminaType"))?;
-        let info = get(db, a, "key", kind).await?;
-        let (info, result) = shakmeh_key_at(&info, def, Utc::now(), cost)?;
-        put(db, a, "key", kind, &info).await?;
+        let stored = get(db, a, "key", kind).await?;
+        let (info, result) = shakmeh_key_at(&stored, def, Utc::now(), cost)?;
+        if info != stored { put(db, a, "key", kind, &info).await?; }
         return Ok(result);
     }
     if let Some(def) = s.tables.services.find("Stamina", &[("StaminaType", kind)]) {
@@ -139,6 +144,7 @@ pub(super) async fn charge_reserved(
             )).and_then(Value::as_i64))
             .or_else(|| s.tables.battle.rules["DungeonKeyDailyDefaults"][name].as_i64()).unwrap_or(0);
         let mut info = get(db, a, "key", kind).await?;
+        let stored = info.clone();
         let column = match kind { 11 => Some("world_boss_ticket"), 13 => Some("sword2"), _ => None };
         if let Some(column) = column {
             let count:i64 = crate::db::query_scalar(sqlx::AssertSqlSafe(format!("SELECT {column} FROM user_info WHERE account_id=$1")))
@@ -148,19 +154,21 @@ pub(super) async fn charge_reserved(
             info["Count"] = json!(if initial_record {count.max(initial)}else{count});
         }
         let (info, result) = crate::api::account::recharge::at(&info, def, overrides, initial, Utc::now(), cost)?;
-        if let Some(column) = column {
-            crate::db::query(sqlx::AssertSqlSafe(format!("UPDATE user_info SET {column}=$1 WHERE account_id=$2")))
-                .bind(n(&info,"Count")).bind(a).execute(&mut *db).await?;
+        if info != stored {
+            if let Some(column) = column {
+                crate::db::query(sqlx::AssertSqlSafe(format!("UPDATE user_info SET {column}=$1 WHERE account_id=$2")))
+                    .bind(n(&info,"Count")).bind(a).execute(&mut *db).await?;
+            }
+            put(db, a, "key", kind, &info).await?;
         }
-        put(db, a, "key", kind, &info).await?;
         return Ok(result);
     }
     if !matches!(kind,3 | 4 | 7) {
         let initial=s.tables.battle.rules["DungeonKeyDailyDefaults"][name].as_i64().unwrap_or(0);
         let def=json!({"AttributeName":name,"UpdateType":2,"ResetCount":[initial],"MaxCountValue":initial.to_string()});
-        let info=get(db,a,"key",kind).await?;
-        let (info,result)=crate::api::account::recharge::at(&info,&def,&Value::Null,initial,Utc::now(),cost)?;
-        put(db,a,"key",kind,&info).await?;
+        let stored=get(db,a,"key",kind).await?;
+        let (info,result)=crate::api::account::recharge::at(&stored,&def,&Value::Null,initial,Utc::now(),cost)?;
+        if info!=stored { put(db,a,"key",kind,&info).await?; }
         return Ok(result);
     }
     let currency = match kind { 3 => "Gold", 4 => "Gem", _ => "Mileage" };
@@ -358,6 +366,68 @@ pub(super) async fn stamina_exp(db: &mut PgConnection, s: &AppState, a: i64, cos
     tutorial::team_exp(db, s, a, amount, &mut rewards).await?;
     Ok(json!(rewards.team_exp.first()))
 }
+/// Darkness Corruption gauge. Spent stamina fills EclipsePoint; each full
+/// gauge (CurrencyType.ExchangeCostValue) becomes one EclipseKey while the
+/// player holds fewer than the cap. With every key held the gauge stops at
+/// full, matching the native "charging now resets the level" warning.
+///
+/// Returns null when nothing changed, otherwise `{"CurrencyResults":[..],
+/// "KeyResult":..}`. The first currency result reports the uncapped sum the
+/// native reward gauge animates (it derives converted keys from it); the second
+/// leaves the client holding the stored remainder.
+pub(super) async fn eclipse_points(db: &mut PgConnection, s: &AppState, a: i64, stamina: i64) -> Result<Value> {
+    const KEY: i64 = 22;
+    let gain = stamina.max(0).saturating_mul(settings(s, "EclipsePointPerStamina", 100).max(0));
+    let exchange = s.tables.live.find("CurrencyType", &[("CurrencyType", 41)])
+        .map(|v| n(v, "ExchangeCostValue")).filter(|v| *v > 0).unwrap_or(140_000);
+    if gain <= 0 {
+        return Ok(Value::Null);
+    }
+    let cap = s.tables.services.find("Stamina", &[("StaminaType", KEY)])
+        .and_then(|v| v["MaxCountValue"].as_str()).and_then(|v| v.parse::<i64>().ok())
+        .unwrap_or_else(|| s.tables.hero_shop.constant("MaxEclipseTicket", 5));
+    let keys = n(&charge(db, s, a, KEY, 0).await?, "NewValue");
+    let old = n(&hero::currency(db, a, "EclipsePoint", 0).await?, "NewValue");
+    let total = old.saturating_add(gain);
+    let made = (total / exchange).min((cap - keys).max(0));
+    let mut stored = total - made * exchange;
+    if keys + made >= cap {
+        stored = stored.min(exchange);
+    }
+    let applied = stored + made * exchange - old;
+    if applied <= 0 {
+        return Ok(Value::Null);
+    }
+    let result = hero::currency(db, a, "EclipsePoint", stored - old).await?;
+    let mut shown = result.clone();
+    shown["AddValue"] = json!(applied);
+    shown["NewValue"] = json!(old + applied);
+    let mut settled = result;
+    settled["AddValue"] = json!(0);
+    let mut key = Value::Null;
+    if made > 0 {
+        let mut info = get(db, a, "key", KEY).await?;
+        info["Count"] = json!(keys + made);
+        put(db, a, "key", KEY, &info).await?;
+        key = charge(db, s, a, KEY, 0).await?;
+        key["AddValue"] = json!(made);
+    }
+    Ok(json!({"CurrencyResults":[shown, settled],"KeyResult":key}))
+}
+
+/// Adds an `eclipse_points` award to a battle response the native reward
+/// popup reads (CurrencyResults + EclipseStaminaResult).
+pub(super) fn attach_eclipse_points(out: &mut Value, award: &Value) {
+    let Some(results) = award["CurrencyResults"].as_array() else { return };
+    if !out["CurrencyResults"].is_array() {
+        out["CurrencyResults"] = json!([]);
+    }
+    out["CurrencyResults"].as_array_mut().unwrap().extend(results.iter().cloned());
+    if !award["KeyResult"].is_null() {
+        out["EclipseStaminaResult"] = award["KeyResult"].clone();
+    }
+}
+
 pub(super) async fn key_snapshot(db: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
     let mut out = vec![];
     for (k, key) in KEYS.iter().enumerate().skip(5) {

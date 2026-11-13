@@ -65,7 +65,7 @@ pub async fn handle(
         Request::parse_with_integer_arrays(&body, &["ItemIndices", "ItemCount"])?
     } else if uri.path().starts_with("/valance/") {
         Request::parse_with_integer_arrays(&body, &["EquipItemSlotIndices", "SelectEquipOptionIndices"])?
-    } else if uri.path() == "/equip/break_equip" {
+    } else if matches!(uri.path(), "/equip/break_equip" | "/equip/soul_break") {
         Request::parse_with_integer_arrays(&body, &["EquipItemSlotIndices"])?
     } else if uri.path() == "/hero/buy_customizing_costumes" {
         Request::parse_with_integer_arrays(&body, &["UnsetAccessoryCostumeIndices"])?
@@ -132,6 +132,9 @@ pub async fn handle(
             }
             if action == "upgrade_equip_tier" {
                 tracing::warn!(account, slot = req.text("EquipItemSlotIndex"), reason = %code, "Equipment tier upgrade/restoration rejected");
+            }
+            if action.contains("valance") {
+                tracing::warn!(action, account, slot = req.text("EquipItemSlotIndex"), targets = req.text("SprkTargetOptionTypes"), reason = %code, "Technomagic request rejected");
             }
             let code = if matches!(action, "upgrade_equip_option" | "max_upgrade_equip_option") {
                 tracing::warn!(action, account, slot = req.text("EquipItemSlotIndex"), reason = %code, "Equipment option enhancement rejected");

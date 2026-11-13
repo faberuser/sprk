@@ -85,6 +85,13 @@ services:
       - shared_buffers=${SPRK_DB_SHARED_BUFFERS:-512MB}
       - -c
       - max_wal_size=${SPRK_DB_MAX_WAL_SIZE:-4GB}
+      # Commits return before the WAL fsync, like the former SQLite
+      # synchronous=NORMAL: a host crash can lose the last ~0.6 s of commits,
+      # never corrupts. Set to "on" for strict per-commit durability.
+      - -c
+      - synchronous_commit=${SPRK_DB_SYNCHRONOUS_COMMIT:-off}
+      - -c
+      - track_io_timing=on
     environment:
       # Bootstrap superuser, used only by the init script and maintenance.
       POSTGRES_PASSWORD: ${SPRK_DB_SUPERUSER_PASSWORD:-}

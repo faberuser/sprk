@@ -56,7 +56,7 @@ pub(crate) fn cosmetic(path: &str) -> bool {
     )
 }
 
-const SLOW_REQUEST_MS: f64 = 1000.0;
+const SLOW_REQUEST_MS: f64 = 100.0;
 
 /// Measure application processing without buffering downloads or WebSockets.
 /// Paths exclude query strings; request bodies and credentials are never logged.

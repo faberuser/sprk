@@ -106,7 +106,7 @@ def report_log(path) -> None:
             print(f"  total={sum(values):8.0f}ms  {summarize(key, values)}")
 
     slow = [fields(line) for line in lines if "Slow HTTP request" in line]
-    print(f"\n'Slow HTTP request' (>=1s): {len(slow)}")
+    print(f"\n'Slow HTTP request' (>=100ms): {len(slow)}")
     if slow:
         by_path: dict[str, list[float]] = collections.defaultdict(list)
         for f in slow:

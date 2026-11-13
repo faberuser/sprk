@@ -263,6 +263,7 @@ configuration, tests, the native battle worker and GM tools.
 ```powershell
 python client/dev.py test       # build and start a separate test copy of the game
 python client/dev.py install    # build into your real game and publish a local release
+python client/dev.py clean      # remove the sprk-client-test dir
 ```
 
 [`client/README.md`](client/README.md) covers editing the game code, testing it

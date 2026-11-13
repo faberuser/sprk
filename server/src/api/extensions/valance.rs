@@ -203,48 +203,17 @@ pub(super) async fn execute(
                     ("SubType", n(data, "SubType")),
                 ],
             )?;
-            let pool = state
-                .tables
-                .inventory
-                .option_groups
-                .get(&(n(r, "OptionGroupIndex") as i32))
-                .ok_or_else(|| rule("InvalidOption"))?;
-            let rows: Vec<_> = state
-                .tables
-                .extensions
-                .rows("ValanceEnchantOptionCount")
-                .iter()
-                .filter(|v| n(v, "ItemIndex") == item_id)
-                .collect();
-            let total: i64 = rows.iter().map(|v| n(v, "Rate")).sum();
-            if total <= 0 {
-                return Err(rule("ItemDataNotFound"));
-            }
-            let mut roll = rand::rng().random_range(0..total);
-            let count = n(
-                rows.into_iter()
-                    .find(|v| {
-                        roll -= n(v, "Rate");
-                        roll < 0
-                    })
-                    .unwrap(),
-                "OptionCount",
-            );
-            if !(1..=3).contains(&count) {
-                return Err(rule("InvalidOption"));
+            let pool = enchant_pool(state, r)?;
+            let counts = enchant_counts(state, item_id)?;
+            let targets = enchant_targets(req)?;
+            if !targets.is_empty() {
+                return enchant_until(db, state, account, req, eq, data, item_id, r, &pool, &counts, &targets).await;
             }
             let mut pending =
                 json!({"ConsumeItemIndex":item_id,"EnchantEquipItemSlotIndex":eq.slot_index});
-            let mut candidates: Vec<_> = pool.iter().map(|i| *i as i64).collect();
-            for i in 1..=3 {
-                let (id, step) = if i <= count {
-                    equipment::option(state, &candidates)?
-                } else {
-                    (0, 0)
-                };
-                candidates.retain(|v| *v != id);
-                pending[format!("EnchantOptionIndex{i}")] = json!(id);
-                pending[format!("EnchantOptionStep{i}")] = json!(step);
+            for (i, (id, step)) in roll_enchant(state, &pool, &counts)?.into_iter().enumerate() {
+                pending[format!("EnchantOptionIndex{}", i + 1)] = json!(id);
+                pending[format!("EnchantOptionStep{}", i + 1)] = json!(step);
             }
             if eq.enchant_option_index_1 == 0 && eq.enchant_option_index_2 == 0 && eq.enchant_option_index_3 == 0 {
                 // The native first-enchant flow has no confirmation UI. Only
@@ -415,4 +384,212 @@ fn craft_enum(req: &Request, key: &str, names: &[&str]) -> Result<i64> {
     } else {
         req.number(key, 0)
     }
+}
+
+/// Option IDs a Technomagic enchant core can roll for this gear part.
+fn enchant_pool(state: &AppState, r: &Value) -> Result<Vec<i64>> {
+    Ok(state
+        .tables
+        .inventory
+        .option_groups
+        .get(&(n(r, "OptionGroupIndex") as i32))
+        .ok_or_else(|| rule("InvalidOption"))?
+        .iter()
+        .map(|i| *i as i64)
+        .collect())
+}
+
+/// (line count, weight) rows for one enchant core.
+fn enchant_counts(state: &AppState, core: i64) -> Result<Vec<(i64, i64)>> {
+    let counts: Vec<(i64, i64)> = state
+        .tables
+        .extensions
+        .rows("ValanceEnchantOptionCount")
+        .iter()
+        .filter(|v| n(v, "ItemIndex") == core)
+        .map(|v| (n(v, "OptionCount"), n(v, "Rate")))
+        .filter(|(_, rate)| *rate > 0)
+        .collect();
+    if counts.is_empty() || counts.iter().any(|(count, _)| !(1..=3).contains(count)) {
+        return Err(rule("ItemDataNotFound"));
+    }
+    Ok(counts)
+}
+
+/// One enchant roll: a weighted line count, then that many distinct options.
+fn roll_enchant(state: &AppState, pool: &[i64], counts: &[(i64, i64)]) -> Result<[(i64, i64); 3]> {
+    let total: i64 = counts.iter().map(|c| c.1).sum();
+    let mut roll = rand::rng().random_range(0..total);
+    let count = counts
+        .iter()
+        .find(|c| {
+            roll -= c.1;
+            roll < 0
+        })
+        .map(|c| c.0)
+        .ok_or_else(|| rule("InvalidOption"))?;
+    let mut candidates = pool.to_vec();
+    let mut lines = [(0, 0); 3];
+    for (i, line) in lines.iter_mut().enumerate() {
+        if (i as i64) < count {
+            *line = equipment::option(state, &candidates)?;
+            candidates.retain(|v| *v != line.0);
+        }
+    }
+    Ok(lines)
+}
+
+/// Most enchants one "enchant until" request may perform.
+pub(super) const ENCHANT_UNTIL_MAX_TRIES: i64 = 5000;
+
+/// SPRK "enchant until" targets: up to 3 distinct stat types, separated by `_`
+/// (the client form-escapes commas twice, so `,` arrives as a literal `%2c`).
+fn enchant_targets(req: &Request) -> Result<Vec<i64>> {
+    let text = req.text("SprkTargetOptionTypes").replace("%2c", "_").replace("%2C", "_");
+    if text.is_empty() {
+        return Ok(vec![]);
+    }
+    let mut targets = vec![];
+    for part in text.split(['_', ',']) {
+        let value: i64 = part.trim().parse().map_err(|_| rule("InvalidOption"))?;
+        if value <= 0 || targets.contains(&value) {
+            return Err(rule("InvalidOption"));
+        }
+        targets.push(value);
+    }
+    if targets.len() > 3 {
+        return Err(rule("InvalidOption"));
+    }
+    Ok(targets)
+}
+
+fn stat_type(state: &AppState, option: i64) -> i64 {
+    state.tables.inventory.options.get(&(option as i32)).map(|o| n(o, "Type")).unwrap_or(0)
+}
+
+/// Exact chance that one enchant with this core rolls every target stat.
+pub(super) fn enchant_chance(state: &AppState, pool: &[i64], counts: &[(i64, i64)], targets: &[i64]) -> f64 {
+    // Same weights as `equipment::option`: options with a positive Ratio.
+    let items: Vec<(i64, f64)> = pool
+        .iter()
+        .filter_map(|id| state.tables.inventory.options.get(&(*id as i32)))
+        .filter(|o| n(o, "Ratio") > 0)
+        .map(|o| (n(o, "Type"), n(o, "Ratio") as f64))
+        .collect();
+    fn draw(items: &[(i64, f64)], draws: i64, need: &[i64]) -> f64 {
+        if need.is_empty() {
+            return 1.0;
+        }
+        if draws < need.len() as i64 || items.is_empty() {
+            return 0.0;
+        }
+        let total: f64 = items.iter().map(|i| i.1).sum();
+        let mut chance = 0.0;
+        for (k, item) in items.iter().enumerate() {
+            let rest: Vec<_> = items[..k].iter().chain(&items[k + 1..]).copied().collect();
+            let still: Vec<_> = need.iter().copied().filter(|t| *t != item.0).collect();
+            chance += item.1 / total * draw(&rest, draws - 1, &still);
+        }
+        chance
+    }
+    let total: i64 = counts.iter().map(|c| c.1).sum();
+    if total <= 0 {
+        return 0.0;
+    }
+    counts.iter().map(|(count, rate)| *rate as f64 / total as f64 * draw(&items, *count, targets)).sum()
+}
+
+/// SPRK "enchant until": re-enchant until the rolled lines include every target
+/// stat type (any order; other lines are free).
+///
+/// `SprkPreview=1` returns the per-try chance for this core and for every core
+/// that fits the gear, without charging. Otherwise up to `SprkMaxTries` rolls run
+/// in memory, each costing one core and its gold; the run stops at the first hit
+/// or when the next try is unaffordable. Costs are charged once, and only the last
+/// roll is kept: applied directly on a first enchant (as the native flow does),
+/// otherwise left pending for the usual choice.
+#[allow(clippy::too_many_arguments)]
+async fn enchant_until(
+    db: &mut PgConnection,
+    state: &AppState,
+    account: i64,
+    req: &Request,
+    mut eq: EquipItemInfo,
+    data: &Value,
+    core: i64,
+    r: &Value,
+    pool: &[i64],
+    counts: &[(i64, i64)],
+    targets: &[i64],
+) -> Result<Value> {
+    let chance = enchant_chance(state, pool, counts, targets);
+    let mut out = item::success();
+    if matches!(req.text("SprkPreview"), "1" | "true" | "True") {
+        let mut cores = vec![];
+        for row in state.tables.extensions.rows("ValanceEnchant") {
+            if n(row, "PartType") != n(data, "PartType") || n(row, "SubType") != n(data, "SubType") {
+                continue;
+            }
+            let other = n(row, "ItemIndex");
+            let (Ok(other_pool), Ok(other_counts)) = (enchant_pool(state, row), enchant_counts(state, other)) else {
+                continue;
+            };
+            cores.push(json!({"ItemIndex":other,"ReqGold":n(row,"ReqGold"),
+                "Chance":enchant_chance(state, &other_pool, &other_counts, targets)}));
+        }
+        out["SprkChance"] = json!(chance);
+        out["SprkCores"] = json!(cores);
+        return Ok(out);
+    }
+    if chance <= 0.0 {
+        return Err(rule("FailGenerateValanceEnchantOption"));
+    }
+    let max_tries = req.number("SprkMaxTries", 0)?;
+    if !(1..=ENCHANT_UNTIL_MAX_TRIES).contains(&max_tries) {
+        return Err(rule("InvalidOption"));
+    }
+    let price = n(r, "ReqGold").max(0);
+    let cores = equipment::spendable_item(db, account, core).await?;
+    let gold = equipment::spendable_gold(db, account).await?;
+    let (mut tries, mut last, mut hit) = (0i64, None, false);
+    while tries < max_tries && tries < cores && price * (tries + 1) <= gold {
+        tries += 1;
+        let lines = roll_enchant(state, pool, counts)?;
+        hit = targets.iter().all(|t| lines.iter().any(|(id, _)| *id != 0 && stat_type(state, *id) == *t));
+        last = Some(lines);
+        if hit {
+            break;
+        }
+    }
+    let Some(lines) = last else {
+        return Err(rule(if cores == 0 { "ItemNotOwned" } else { "NotEnoughGold" }));
+    };
+    let mut pending = json!({"ConsumeItemIndex":core,"EnchantEquipItemSlotIndex":eq.slot_index});
+    for (i, (id, step)) in lines.into_iter().enumerate() {
+        pending[format!("EnchantOptionIndex{}", i + 1)] = json!(id);
+        pending[format!("EnchantOptionStep{}", i + 1)] = json!(step);
+    }
+    if eq.enchant_option_index_1 == 0 && eq.enchant_option_index_2 == 0 && eq.enchant_option_index_3 == 0 {
+        let mut value = json!(eq);
+        for i in 1..=3 {
+            for field in ["Index", "Step"] {
+                let key = format!("EnchantOption{field}{i}");
+                value[&key] = pending[&key].clone();
+            }
+        }
+        eq = serde_json::from_value(value).map_err(|_| rule("InvalidOption"))?;
+    } else {
+        equipment::pending(db, account, eq.slot_index, "valance_enchant", &pending).await?;
+    }
+    out["CurrencyResult"] = hero::currency(db, account, "Gold", -(price * tries)).await?;
+    out["ItemResultInfo"] = item::consume(db, account, core as i32, tries as i32).await?;
+    out["NewValanceEnchantOptionInfo"] = pending;
+    out["SprkTries"] = json!(tries);
+    out["SprkHit"] = json!(hit);
+    out["SprkGoldSpent"] = json!(price * tries);
+    out["SprkCoresUsed"] = json!(tries);
+    super::super::progression::record(db, account, "Enchant", eq.item_index as i64, core, tries).await?;
+    save_equip(db, account, &eq).await?;
+    out["ResultEquipItem"] = json!(eq);
+    Ok(out)
 }

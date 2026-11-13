@@ -248,12 +248,14 @@ async fn honor(
     for row in rows {
         let id = row.get::<i64, _>("id");
         let rank = row.get::<i64, _>("ranking");
+        // Native Records of Honor and contents-notice widgets add one for display.
+        let wire_rank = rank - 1;
         let score = row.get::<i64, _>("score");
         total = total.saturating_add(score);
         if id == me {
             for typ in ["Server", "World"] {
                 my.push(
-                    json!({"ContentType":kind,"RankingType":typ,"Season":selected,"Rank":rank}),
+                    json!({"ContentType":kind,"RankingType":typ,"Season":selected,"Rank":wire_rank}),
                 );
             }
         }
@@ -283,7 +285,7 @@ async fn honor(
         let mut deck = vec![];
         if matches!(kind, 3 | 4) {
             // Honor keeps the registration in arena_snapshots; older runs inline.
-            let saved:Option<String>=crate::db::query_scalar::<Option<String>>("SELECT COALESCE(p.data,sprk_json_text(r.data,'$.Register.AccountInfo')) FROM arena_runs r LEFT JOIN arena_snapshots p ON p.run=r.id WHERE r.account=$1 AND r.kind=$2 AND r.status='complete' AND sprk_json_int(r.data,'$.Season')=$3 ORDER BY r.id DESC LIMIT 1").bind(id).bind(if kind==3{0}else{1}).bind(selected).fetch_optional(&mut *db).await?.flatten();
+            let saved:Option<String>=crate::db::query_scalar::<Option<String>>("SELECT COALESCE(p.data,sprk_json_text(r.data,'$.Register.AccountInfo')) FROM arena_runs r LEFT JOIN arena_snapshots p ON p.run=r.id WHERE r.account=$1 AND r.kind=$2 AND r.status='complete' AND r.season=$3 ORDER BY r.id DESC LIMIT 1").bind(id).bind(if kind==3{0}else{1}).bind(selected).fetch_optional(&mut *db).await?.flatten();
             if let Some(saved) = saved {
                 let saved: Value = serde_json::from_str(&saved).map_err(|_| rule("Fail"))?;
                 for h in saved["HeroInfos"]
@@ -295,11 +297,11 @@ async fn honor(
                 }
             }
         }
-        server.push(json!({"ContentType":kind,"RankingType":"Server","Season":selected,"Rank":rank,"ServerGroup":group,"Id":id,"Name":name,"Level":level,"PictureIndex":picture,"CountryCode":"","Score":score,"MasterAvatarIndex":picture.to_string(),"Win":row.get::<i64,_>("wins"),"Lose":row.get::<i64,_>("losses"),"SuccessiveWin":0,"Deck":deck,"Index":row.get::<i64,_>("idx")}));
+        server.push(json!({"ContentType":kind,"RankingType":"Server","Season":selected,"Rank":wire_rank,"ServerGroup":group,"Id":id,"Name":name,"Level":level,"PictureIndex":picture,"CountryCode":"","Score":score,"MasterAvatarIndex":picture.to_string(),"Win":row.get::<i64,_>("wins"),"Lose":row.get::<i64,_>("losses"),"SuccessiveWin":0,"Deck":deck,"Index":row.get::<i64,_>("idx")}));
     }
     if popup {
         return Ok(
-            json!({"ChapterIndex":0,"DungeonIndex":0,"RankerInfos":server.iter().map(|v|json!({"Rank":v["Rank"],"Nick":v["Name"],"Score":v["Score"],"AvatarHeroIndex":v["PictureIndex"],"CountryCode":"","ServerGroup":group})).collect::<Vec<_>>(),"ServerRankInfos":if server.is_empty(){json!([])}else{json!([{"Rank":1,"ServerGroup":group,"Score":total}])}}),
+            json!({"ChapterIndex":0,"DungeonIndex":0,"RankerInfos":server.iter().map(|v|json!({"Rank":v["Rank"],"Nick":v["Name"],"Score":v["Score"],"AvatarHeroIndex":v["PictureIndex"],"CountryCode":"","ServerGroup":group})).collect::<Vec<_>>(),"ServerRankInfos":if server.is_empty(){json!([])}else{json!([{"Rank":0,"ServerGroup":group,"Score":total}])}}),
         );
     }
     let world: Vec<_> = server

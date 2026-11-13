@@ -67,6 +67,7 @@ public sealed class SprkLoginSettingsProbe : MonoBehaviour
 		{
 			throw new Exception("Native settings rows missing: " + rows.Length);
 		}
+		yield return VerifyLoginNotifications(rows);
 		int num = 0;
 		UISpriteAtlasAssigner[] componentsInChildren2 = settings.GetComponentsInChildren<UISpriteAtlasAssigner>(includeInactive: true);
 		foreach (UISpriteAtlasAssigner uISpriteAtlasAssigner in componentsInChildren2)
@@ -229,5 +230,45 @@ public sealed class SprkLoginSettingsProbe : MonoBehaviour
 		File.WriteAllText(Path.Combine(path, "others-result.txt"), "PASS: native Others prefab Coupon above Language, upper alignment, eight refreshes, single callbacks and red Normal/Hover/Pressed backgrounds.");
 		File.WriteAllText(Path.Combine(path, "result.txt"), "PASS: native login buttons cleaned, one Settings callback, native settings opened before login with " + rows.Length + " rows; translated labels, GameOption and PayShop artwork, all tabs, login texture changes, refresh, close/reopen, pool cleanup and download-state preservation; visible panel screenshot exported.");
 		Application.Quit();
+	}
+
+	private IEnumerator VerifyLoginNotifications(GameOptionBaseComponent[] rows)
+	{
+		List<string> errors = new List<string>();
+		Application.LogCallback capture = (message, stack, type) =>
+		{
+			if (message.Contains("Response error") || message.Contains("temporary data error"))
+			{
+				errors.Add(message);
+			}
+		};
+		Application.logMessageReceived += capture;
+		try
+		{
+			int checkedRows = 0;
+			foreach (GameOptionBaseComponent row in rows)
+			{
+				string callback = row.gameOptionData?.PostProcessFunction;
+				if (callback == null || !callback.StartsWith("Request") || !callback.EndsWith("NotificationValue"))
+				{
+					continue;
+				}
+				bool original = (bool)row.GetOptionValue(row.gameOptionData.ClassName, row.gameOptionData.FieldName);
+				row.SetOptionValue(!original, null, callBack: false);
+				yield return null;
+				row.SetOptionValue(original, null, callBack: false);
+				yield return null;
+				checkedRows++;
+			}
+			yield return new WaitForSecondsRealtime(2f);
+			if (checkedRows != 4 || errors.Count != 0)
+			{
+				throw new Exception("Login notification callbacks: rows=" + checkedRows + " errors=" + string.Join("; ", errors.ToArray()));
+			}
+		}
+		finally
+		{
+			Application.logMessageReceived -= capture;
+		}
 	}
 }

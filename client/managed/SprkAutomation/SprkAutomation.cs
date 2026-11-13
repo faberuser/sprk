@@ -1033,6 +1033,25 @@ public sealed class SprkAutomation : MonoBehaviour
 				StartCoroutine(ProbeTowerContinuous(command));
 				return;
 			}
+			if (command.action == "honor-ranking-probe")
+			{
+				PrepareInstalledProbeAssets();
+				var honorReport = SprkHonorRankingProbe.Run(command.target == 1);
+				reply = Snapshot(command.id);
+				reply.materials.AddRange(honorReport);
+				Write(reply);
+				return;
+			}
+			if (command.action == "reward-boosters-probe")
+			{
+				ProbeRewardBoosters(command);
+				return;
+			}
+			if (command.action == "archive-dialogue-probe")
+			{
+				ProbeArchiveDialogue(command);
+				return;
+			}
 			if (command.action == "native-stop-cycle")
 			{
 				if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Login" || command.target < 0 || command.target > 10)
@@ -3464,6 +3483,192 @@ public sealed class SprkAutomation : MonoBehaviour
 			busy = false;
 		}
 		Write(reply);
+	}
+
+	private void ProbeArchiveDialogue(Command cmd)
+	{
+		if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Login" ||
+			!(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE") ?? "").StartsWith("archive-dialogue-"))
+		{
+			throw new InvalidOperationException("Archive dialogue probe requires an isolated archive-dialogue profile at Login");
+		}
+		const string relative = "PlainAsset/Text/CutScene/HeroDungeon/RebelClause/RebelClause_9_1.bjs";
+		string path = string.IsNullOrEmpty(cmd.text)
+			? Path.Combine(Application.dataPath, "Documents/Patch/StandaloneWindows", relative)
+			: Path.GetFullPath(cmd.text);
+		LitJson.JsonData json = PlainAssetHelper.LoadLitJsonFromJsonBin(File.ReadAllBytes(path), path, encrypted: false);
+		CutSceneManager manager = SceneAutoBehaviour<CutSceneManager>.instance;
+		bool loaded = (bool)typeof(CutSceneManager).GetMethod("LoadFromJson", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(manager, new object[] { json });
+		if (!loaded || manager.GroupList.Count != 31)
+		{
+			throw new InvalidOperationException("Rebel Clause 9-1 scene is missing or invalid; expected 31 script groups");
+		}
+		SingletonAuto<NClientData.LocalizationLoader>.instance.SetEnableLoadFromPatch(enableLoad: true);
+		var dialogue = manager.GroupList.SelectMany(group => group.ScriptList)
+			.Select(script => script.Value).OfType<NGame2.NCutScene.NScript.DisplayText>()
+			.Where(line => !string.IsNullOrEmpty(line.TextLink.Key)).ToArray();
+		if (dialogue.Length != 14 || cmd.target < 0 || cmd.target >= dialogue.Length)
+		{
+			throw new InvalidOperationException("Expected 14 Rebel Clause 9-1 dialogue lines and a valid line index");
+		}
+		foreach (var line in dialogue)
+		{
+			if (!line.TextLink.IsValid() || string.IsNullOrEmpty(line.TextLink.GetLocalize()) ||
+				(!string.IsNullOrEmpty(line.TitleLink.Key) && !line.TitleLink.IsValid()))
+			{
+				throw new InvalidOperationException("Unresolved archive dialogue localization: " + line.TextLink.Key);
+			}
+		}
+		PrepareInstalledProbeAssets();
+		CommonManagement common = SceneAutoBehaviour<CommonManagement>.instance;
+		var window = common.GetInstance<NGame2.NUI.NWindow.NCutScene.CutSceneWindow>();
+		if (window == null)
+		{
+			common.AddInstance<NGame2.NUI.NWindow.NCutScene.CutSceneWindow>(NGame2.NUI.NWindow.NCutScene.CutSceneWindow.PrefabPath, NGame2.GameUIRoot.ELayerType.CutSceneUI);
+			window = common.GetInstance<NGame2.NUI.NWindow.NCutScene.CutSceneWindow>();
+		}
+		var selected = dialogue[cmd.target];
+		window.OpenWindow();
+		window.Show(true);
+		window.HideTitle(selected.HideTitle);
+		window.SetText(selected.TitleLink.GetLocalize(), selected.TextLink.GetLocalize());
+		if (window.TitleLabel.text == "Empty" || string.IsNullOrEmpty(window.TextLabel.text))
+		{
+			throw new InvalidOperationException("Restored archive dialogue was not assigned to the native window");
+		}
+		Reply reply = Snapshot(cmd.id);
+		reply.materials.Add("PASS: Rebel Clause 9-1 parsed 31 groups; all 14 dialogue lines and speaker keys resolve; native dialogue window displays line " + cmd.target);
+		Write(reply);
+	}
+
+	private void ProbeRewardBoosters(Command cmd)
+	{
+		if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Login" ||
+			!(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE") ?? "").StartsWith("reward-boosters-"))
+		{
+			throw new InvalidOperationException("Reward booster probe requires an isolated reward-boosters profile at Login");
+		}
+		PrepareInstalledProbeAssets();
+		SingletonAuto<NClientData.LocalizationLoader>.instance.SetEnableLoadFromPatch(true);
+		var events = GlobalAutoBehaviour<NGame2.NDropBonusEvent.DropBonusEventManager>.instance;
+		var oldEvents = events.GetAllEffectiveEvent().ToArray();
+		var fixtures = new List<DropBonusEvent>();
+		for (int i = 0; i < 14; i++)
+		{
+			// The same hidden event shapes used for seven episode unlocks and six
+			// shops, plus a real gold bonus to ensure boosts remain visible.
+			fixtures.Add(new DropBonusEvent
+			{
+				Id = 970000 + i,
+				BeginTime = "2020-01-01 00:00:00", EndTime = "2099-01-01 00:00:00",
+				DungeonType = new[] { BattleType.EventDungeon },
+				BonusType = i < 7 ? EventBonusType.EventDungeon : i < 13 ? EventBonusType.EventShop : EventBonusType.BonusGold,
+				Condition = i.ToString(), ItemCode = "", MoveTaskValue = "",
+				BonusPercentage = i == 13 ? 100 : 0,
+				BuffPosition = i == 13 ? DropBonusEvnetBuffPosition.Top : DropBonusEvnetBuffPosition.None,
+				LocalInfo = new[] { new DropBonusEventLocalInfo { Language = "English", Title = "Booster regression fixture", Message = "" } }
+			});
+		}
+		var boosters = GlobalAutoBehaviour<NGame2.NUI.NManager.BoosterManager>.instance;
+		var cache = boosters.GetAllEffectiveBooster();
+		var oldCache = cache.ToArray();
+		var battle = SingletonAuto<BattleContext>.instance;
+		var oldProvider = battle.DataProvider;
+		var campaign = SingletonAuto<CampaignContext>.instance;
+		var oldDungeon = campaign.EnterDungeon;
+		var providerSetter = typeof(BattleContext).GetProperty("DataProvider").GetSetMethod(true);
+		var common = SceneAutoBehaviour<CommonManagement>.instance;
+		var window = common.GetInstance<EndBattleReward>();
+		if (window == null)
+		{
+			common.AddInstance<EndBattleReward>(EndBattleReward.PrefabPath);
+			window = common.GetInstance<EndBattleReward>();
+		}
+		window.Open();
+		window.enabled = false; // Only the real booster grid is exercised, without reward/account mutations.
+		var report = new List<object>();
+		try
+		{
+			events.Set(fixtures.ToArray());
+			events.ClearAllEffectCacheTime();
+			var native = (List<NGame2.NUI.NManager.NBooster.BoosterInfo>)typeof(NGame2.NUI.NManager.BoosterManager)
+				.GetMethod("GetAllEffectHotTimeEvent", BindingFlags.Instance | BindingFlags.NonPublic)
+				.Invoke(boosters, new object[] { BattleType.EventDungeon });
+			if (native.Count != 14) throw new Exception("Expected all 13 content markers and the real gold bonus in the event list");
+			cache.Clear(); cache.AddRange(native);
+			providerSetter.Invoke(battle, new object[] { campaign });
+			foreach (string code in new[] { "2020RebellionClause", "Scenario", "Campaign" })
+			{
+				campaign.EnterDungeon = new EnterDungeonData();
+				typeof(EnterDungeonData).GetField("_linkedDungeonDataCache", BindingFlags.Instance | BindingFlags.NonPublic)
+					.SetValue(campaign.EnterDungeon, new CampaignDungeonData { BattleType = code == "2020RebellionClause" ? BattleType.EventDungeon : BattleType.Campaign, BattleDefineCode = code });
+				if ((((NGame2.NBattleField.NManager.NPlay.IDataProvider)campaign).GetBattleDefine().BattleMenu & EBattleMenu.BoosterStatus) == 0)
+					throw new Exception("Fixture battle definition does not display boosters: " + code);
+				for (int repeat = 0; repeat < 2; repeat++)
+				{
+					window.SetupBooster();
+					var shown = window.BoosterGrid.GetComponentsInChildren<BoosterComponent>(true)
+						.Select(component => component.GetBoosterInfo()).ToArray();
+					int markers = shown.Count(info => info.BonusType == EventBonusType.EventDungeon || info.BonusType == EventBonusType.EventShop);
+					int gold = shown.Count(info => info.BonusType == EventBonusType.BonusGold);
+					report.Add(new Dictionary<string, object> { { "battle", code }, { "refresh", repeat }, { "contentMarkers", markers }, { "goldBoosters", gold } });
+					if (cmd.target == 1 && (markers != 0 || gold != 1 || shown.Length != 1))
+						throw new Exception(code + " displayed " + markers + " content markers and " + gold + " real boosters");
+				}
+			}
+			if (events.GetAllEffectiveEvent().Count != 14) throw new Exception("Filtering battle icons removed content-unlock events");
+			if (cmd.target == 1)
+			{
+				foreach (var type in new[] { EventBonusType.BonusGold, EventBonusType.BonusExp, EventBonusType.BonusItem, EventBonusType.SaveStamina })
+				{
+					var info = new NGame2.NUI.NManager.NBooster.HotTimeEventBoosterInfo { BonusType = type };
+					if (!info.IsShowAtBattle()) throw new Exception("A real booster was hidden: " + type);
+				}
+				if (!new NGame2.NUI.NManager.NBooster.CostumeBoosterInfo().IsShowAtBattle() ||
+					!new NGame2.NUI.NManager.NBooster.ItemBoosterInfo { ShowAtBattle = true }.IsShowAtBattle())
+					throw new Exception("Costume or item booster visibility regressed");
+			}
+		}
+		finally
+		{
+			events.Set(oldEvents);
+			events.ClearAllEffectCacheTime();
+			cache.Clear(); cache.AddRange(oldCache);
+			campaign.EnterDungeon = oldDungeon;
+			providerSetter.Invoke(battle, new object[] { oldProvider });
+		}
+		Reply reply = Snapshot(cmd.id);
+		reply.materials.AddRange(report);
+		Write(reply);
+	}
+
+	private static void PrepareInstalledProbeAssets()
+	{
+		// This isolated Login fixture needs the same installed-asset index as a
+		// logged-in scene so the native CutScene atlas can be loaded normally.
+		if (!NGameAsset.Define.PatchDownloaded)
+		{
+			TableRoot.Instance.SetPatchDownLoadComplete(isComplete: true);
+			string patch = Path.Combine(Application.dataPath, "Documents/Patch/StandaloneWindows");
+			var assets = new Dictionary<string, AssetInfo>();
+			MethodInfo setEntry = typeof(AssetInfo).GetProperty("EntryName").GetSetMethod(nonPublic: true);
+			foreach (string file in Directory.GetFiles(Path.Combine(patch, "Assetbundle"), "*", SearchOption.AllDirectories))
+			{
+				string entry = file.Substring(patch.Length + 1).Replace('\\', '/');
+				var info = new AssetInfo();
+				setEntry.Invoke(info, new object[] { entry });
+				assets.Add(entry, info);
+			}
+			SingletonAuto<AssetFileManager>.instance.Setup(assets);
+			typeof(UnityCache).GetProperty("persistentDataPath").GetSetMethod(nonPublic: true).Invoke(null, new object[] { Application.dataPath });
+			_ = SingletonAuto<BundleManager>.instance;
+			if (!JsonRead.CreateRoot(File.ReadAllBytes(Path.Combine(patch, "Assetbundle/BundlePack.bin")), out var pack))
+			{
+				throw new InvalidOperationException("Installed bundle index is unavailable");
+			}
+			SingletonUpdater<LoaderPlaying>.instance.InfoContainer.LoadFromJson(pack["BundleFileInfo"]);
+			NGameAsset.Define.PatchDownloaded = true;
+		}
 	}
 
 	private IEnumerator ProbeNativeStop(Command cmd)

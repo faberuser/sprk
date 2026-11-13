@@ -50,12 +50,16 @@ pub(super) async fn progress(
             .unwrap_or(0);
         p = json!({"ChapterIndex":c,"DungeonIndex":d,"MaxStar":if count>0{diff*10+star}else{0},"FirstRewardedDiff":if count>0{1<<diff}else{0},"ScenarioComplete":if count>0{1}else{0},"CompletedTime":old.as_ref().and_then(|r|r.get::<Option<String>,_>("completed_time")),"DailyCompletedCount":0,"ResetCount":0,"Day":day()});
     }
+    reset_daily(&mut p);
+    Ok(p)
+}
+/// Daily counters of a stored dungeon progress row restart each UTC day.
+pub(super) fn reset_daily(p: &mut Value) {
     if p["Day"] != day() {
         p["DailyCompletedCount"] = json!(0);
         p["ResetCount"] = json!(0);
         p["Day"] = json!(day());
     }
-    Ok(p)
 }
 fn story_party<'a>(s: &'a AppState, d: &Value) -> Option<&'a Value> {
     if n(d, "BattleType") != 23 { return None; }

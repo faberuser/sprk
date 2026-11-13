@@ -146,3 +146,20 @@ decoded frame, dimensions and resolved URL. Set `text` to a valid video-table
 code to play that movie through the native manager; `target=1` invokes native
 Skip. It does not mark tutorials or stages complete. This probe requires the
 automation environment and is unavailable in ordinary client launches.
+
+`reward-boosters-probe` requires Login and a `reward-boosters-*` automation
+profile. It recreates the seven episode-unlock markers, six shop markers and a
+real gold bonus through the native event/booster managers and reward grid.
+Set `target=1` to assert that only the gold bonus appears after repeated
+refreshes using Rebel Clause, scenario and campaign battle definitions. The
+probe also checks that the hidden event records and normal item/costume
+booster visibility are preserved. This tests the shared result UI without
+completing battles or changing account rewards.
+
+`honor-ranking-probe` requires Login and an `honor-ranking-*` automation
+profile. It loads the native Records of Honor prefab with synthetic ranking
+rows. Set `target=1` to verify ranks 1–8 for both Arena leagues, World Boss
+and Guild Conquest on both ranking tabs, including row reuse. It also checks
+player and guild level/name spacing, centering and shadow labels across
+several text lengths. This fixture does not load account portraits or replace
+the server ranking regression tests.
