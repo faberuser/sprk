@@ -395,7 +395,7 @@ async fn world_boss_honor_ranking_accepts_max_scores_on_multiple_days() {
     let v=call(&s,&u,"records_of_honor/get_records_of_honor_ranking_list","ContentType=1&Season=43").await;
     ok(&v);
     assert_eq!(v["ServerInfo"][0]["Score"],i64::MAX);
-    assert_eq!(v["MyInfo"][0]["Rank"],1);
+    assert_eq!(v["MyInfo"][0]["Rank"],0);
 }
 
 #[tokio::test]
@@ -418,7 +418,7 @@ async fn honor_ranking_uses_scores_and_deterministic_ties() {
     .await;
     ok(&v);
     assert_eq!(v["ServerInfo"][0]["Score"], 1234);
-    assert_eq!(v["MyInfo"][0]["Rank"], 1);
+    assert_eq!(v["MyInfo"][0]["Rank"], 0);
     assert_eq!(v["ServerInfo"][0]["Win"], 4);
     let v = call(
         &s,
@@ -438,6 +438,63 @@ async fn honor_ranking_uses_scores_and_deterministic_ties() {
     .await;
     ok(&v);
     assert!(v["ServerInfo"].as_array().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn honor_ranking_wire_indices_start_at_zero_in_every_category() {
+    let (s, u) = setup().await;
+    let other = json!(user::test_login(State(s.clone()), Bytes::from("LoginId=honor-second")).await.unwrap().0);
+    let third = json!(user::test_login(State(s.clone()), Bytes::from("LoginId=honor-third")).await.unwrap().0);
+    let accounts = [aid(&u), aid(&other), aid(&third)];
+    let mut guilds = vec![];
+    for (i, account) in accounts.into_iter().enumerate() {
+        let score = if i < 2 { 2000_i64 } else { 1000 };
+        for arena_kind in [0_i64, 1] {
+            crate::db::query("INSERT INTO arena_scores(account,kind,season,score,wins,losses) VALUES($1,$2,7,$3,4,2)")
+                .bind(account).bind(arena_kind).bind(score).execute(&s.db).await.unwrap();
+        }
+        crate::db::query("INSERT INTO battle_scores(family,boss,season,account,day,score) VALUES('world_boss',3,7,$1,'2026-11-13',$2)")
+            .bind(account).bind(score).execute(&s.db).await.unwrap();
+        let guild = crate::db::query_scalar::<i64>("INSERT INTO guilds(name,master_account_id) VALUES($1,$2) RETURNING guild_id")
+            .bind(format!("Honor ranking {i}")).bind(account).fetch_one(&s.db).await.unwrap();
+        guilds.push(guild);
+        crate::db::query("INSERT INTO guild_members(guild_id,account_id) VALUES($1,$2)")
+            .bind(guild).bind(account).execute(&s.db).await.unwrap();
+        crate::db::query("INSERT INTO guild_battle_scores(guild_id,account,kind,season,stage,score) VALUES($1,$2,'suppress',7,1,$3)")
+            .bind(guild).bind(account).bind(score).execute(&s.db).await.unwrap();
+    }
+    for kind in 1..=4 {
+        let response = call(&s, &u, "records_of_honor/get_records_of_honor_ranking_list", &format!("ContentType={kind}&Season=7")).await;
+        ok(&response);
+        for list in ["ServerInfo", "WorldInfo"] {
+            assert_eq!(response[list].as_array().unwrap().len(), 3);
+            for rank in 0..3 {
+                assert_eq!(response[list][rank]["Rank"], rank as i64, "{kind} {list}: {response}");
+                assert_eq!(response[list][rank]["Id"], if kind == 2 { guilds[rank] } else { accounts[rank] });
+            }
+        }
+        for mine in response["MyInfo"].as_array().unwrap() { assert_eq!(mine["Rank"], 0); }
+        let second = call(&s, &other, "records_of_honor/get_records_of_honor_ranking_list", &format!("ContentType={kind}&Season=7")).await;
+        for mine in second["MyInfo"].as_array().unwrap() { assert_eq!(mine["Rank"], 1); }
+        let popup = call(&s, &u, "records_of_honor/get_contents_notice_popup_ranker_list", &format!("ContentsType={}&SeasonIndex=7", kind - 1)).await;
+        ok(&popup);
+        for rank in 0..3 { assert_eq!(popup["RankerInfos"][rank]["Rank"], rank as i64); }
+        assert_eq!(popup["ServerRankInfos"][0]["Rank"], 0);
+    }
+
+    // Keep the 100-entry cap while retaining a player's true rank outside it.
+    crate::db::query("INSERT INTO accounts(login_id,nick) SELECT 'honor-limit-'||g,'Ranker '||g FROM generate_series(1,104) g")
+        .execute(&s.db).await.unwrap();
+    crate::db::query("INSERT INTO user_info(account_id) SELECT account_id FROM accounts WHERE login_id LIKE 'honor-limit-%'")
+        .execute(&s.db).await.unwrap();
+    crate::db::query("INSERT INTO arena_scores(account,kind,season,score,wins,losses) SELECT account_id,0,7,10000-account_id,0,0 FROM accounts WHERE login_id LIKE 'honor-limit-%'")
+        .execute(&s.db).await.unwrap();
+    let capped = call(&s, &u, "records_of_honor/get_records_of_honor_ranking_list", "ContentType=3&Season=7").await;
+    ok(&capped);
+    assert_eq!(capped["ServerInfo"].as_array().unwrap().len(), 100);
+    assert_eq!(capped["ServerInfo"][0]["Rank"], 0);
+    assert_eq!(capped["ServerInfo"][99]["Rank"], 99);
+    assert_eq!(capped["MyInfo"][0]["Rank"], 104);
 }
 
 #[tokio::test]

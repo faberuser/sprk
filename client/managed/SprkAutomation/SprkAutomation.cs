@@ -1033,6 +1033,15 @@ public sealed class SprkAutomation : MonoBehaviour
 				StartCoroutine(ProbeTowerContinuous(command));
 				return;
 			}
+			if (command.action == "honor-ranking-probe")
+			{
+				PrepareInstalledProbeAssets();
+				var honorReport = SprkHonorRankingProbe.Run(command.target == 1);
+				reply = Snapshot(command.id);
+				reply.materials.AddRange(honorReport);
+				Write(reply);
+				return;
+			}
 			if (command.action == "reward-boosters-probe")
 			{
 				ProbeRewardBoosters(command);

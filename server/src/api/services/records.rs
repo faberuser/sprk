@@ -248,12 +248,14 @@ async fn honor(
     for row in rows {
         let id = row.get::<i64, _>("id");
         let rank = row.get::<i64, _>("ranking");
+        // Native Records of Honor and contents-notice widgets add one for display.
+        let wire_rank = rank - 1;
         let score = row.get::<i64, _>("score");
         total = total.saturating_add(score);
         if id == me {
             for typ in ["Server", "World"] {
                 my.push(
-                    json!({"ContentType":kind,"RankingType":typ,"Season":selected,"Rank":rank}),
+                    json!({"ContentType":kind,"RankingType":typ,"Season":selected,"Rank":wire_rank}),
                 );
             }
         }
@@ -295,11 +297,11 @@ async fn honor(
                 }
             }
         }
-        server.push(json!({"ContentType":kind,"RankingType":"Server","Season":selected,"Rank":rank,"ServerGroup":group,"Id":id,"Name":name,"Level":level,"PictureIndex":picture,"CountryCode":"","Score":score,"MasterAvatarIndex":picture.to_string(),"Win":row.get::<i64,_>("wins"),"Lose":row.get::<i64,_>("losses"),"SuccessiveWin":0,"Deck":deck,"Index":row.get::<i64,_>("idx")}));
+        server.push(json!({"ContentType":kind,"RankingType":"Server","Season":selected,"Rank":wire_rank,"ServerGroup":group,"Id":id,"Name":name,"Level":level,"PictureIndex":picture,"CountryCode":"","Score":score,"MasterAvatarIndex":picture.to_string(),"Win":row.get::<i64,_>("wins"),"Lose":row.get::<i64,_>("losses"),"SuccessiveWin":0,"Deck":deck,"Index":row.get::<i64,_>("idx")}));
     }
     if popup {
         return Ok(
-            json!({"ChapterIndex":0,"DungeonIndex":0,"RankerInfos":server.iter().map(|v|json!({"Rank":v["Rank"],"Nick":v["Name"],"Score":v["Score"],"AvatarHeroIndex":v["PictureIndex"],"CountryCode":"","ServerGroup":group})).collect::<Vec<_>>(),"ServerRankInfos":if server.is_empty(){json!([])}else{json!([{"Rank":1,"ServerGroup":group,"Score":total}])}}),
+            json!({"ChapterIndex":0,"DungeonIndex":0,"RankerInfos":server.iter().map(|v|json!({"Rank":v["Rank"],"Nick":v["Name"],"Score":v["Score"],"AvatarHeroIndex":v["PictureIndex"],"CountryCode":"","ServerGroup":group})).collect::<Vec<_>>(),"ServerRankInfos":if server.is_empty(){json!([])}else{json!([{"Rank":0,"ServerGroup":group,"Score":total}])}}),
         );
     }
     let world: Vec<_> = server
