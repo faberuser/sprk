@@ -133,6 +133,9 @@ pub async fn handle(
             if action == "upgrade_equip_tier" {
                 tracing::warn!(account, slot = req.text("EquipItemSlotIndex"), reason = %code, "Equipment tier upgrade/restoration rejected");
             }
+            if action.contains("valance") {
+                tracing::warn!(action, account, slot = req.text("EquipItemSlotIndex"), targets = req.text("SprkTargetOptionTypes"), reason = %code, "Technomagic request rejected");
+            }
             let code = if matches!(action, "upgrade_equip_option" | "max_upgrade_equip_option") {
                 tracing::warn!(action, account, slot = req.text("EquipItemSlotIndex"), reason = %code, "Equipment option enhancement rejected");
                 match code.as_str() {

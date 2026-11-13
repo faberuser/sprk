@@ -81,6 +81,17 @@ public static class SprkReforgeUntil
 
 		public readonly List<KeyValuePair<Transform, Vector3>> Moved = new List<KeyValuePair<Transform, Vector3>>();
 
+		public readonly List<KeyValuePair<GameObject, bool>> Shown = new List<KeyValuePair<GameObject, bool>>();
+
+		public void SetActive(GameObject gameObject, bool active)
+		{
+			if (gameObject != null)
+			{
+				Shown.Add(new KeyValuePair<GameObject, bool>(gameObject, gameObject.activeSelf));
+				gameObject.SetActive(active);
+			}
+		}
+
 		/// Shifts a part of the popup down by a fraction of the title-to-button distance.
 		public void MoveDown(Transform part, Transform title, Transform button, float fraction)
 		{
@@ -145,9 +156,17 @@ public static class SprkReforgeUntil
 					item2.Key.localPosition = item2.Value;
 				}
 			}
+			for (int i = Shown.Count - 1; i >= 0; i--)
+			{
+				if (Shown[i].Key != null)
+				{
+					Shown[i].Key.SetActive(Shown[i].Value);
+				}
+			}
 			Texts.Clear();
 			Disabled.Clear();
 			Moved.Clear();
+			Shown.Clear();
 		}
 	}
 
@@ -286,7 +305,7 @@ public static class SprkReforgeUntil
 		}
 	}
 
-	private static string StatName(OperationType type)
+	internal static string StatName(OperationType type)
 	{
 		try
 		{
@@ -785,7 +804,7 @@ public static class SprkReforgeUntil
 		return stringBuilder.ToString();
 	}
 
-	private static string Percent(double value)
+	internal static string Percent(double value)
 	{
 		value *= 100.0;
 		if (value >= 99.95)
@@ -795,7 +814,7 @@ public static class SprkReforgeUntil
 		return ((value < 10.0) ? value.ToString("0.0") : value.ToString("0")) + "%";
 	}
 
-	private static UILabel PopupLabel(CountMessagePopup popup, string path)
+	internal static UILabel PopupLabel(CountMessagePopup popup, string path)
 	{
 		Transform transform = popup.transform.Find(path);
 		return (transform == null) ? null : transform.GetComponent<UILabel>();

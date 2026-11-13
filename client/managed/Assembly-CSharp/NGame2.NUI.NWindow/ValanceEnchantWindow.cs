@@ -258,8 +258,21 @@ public class ValanceEnchantWindow : ValanceEnhanceBase, ValanceEnchantOptionComp
 		MessagePopup.Open(stringDirect, stringDirect2, null);
 	}
 
+	public EquipItemInfo SprkTargetItem => (TargetComponent == null) ? null : SprkCurrentEnchantTarget(TargetComponent);
+
+	public ItemData SprkSelectedCore => (selectedCoreItem == null) ? null : selectedCoreItem.ItemData;
+
+	public void SprkRefreshPanels()
+	{
+		OnChangeSelectedItem();
+	}
+
 	public void OnClickEnchant()
 	{
+		if (SprkEnchantUntil.TryStart(this))
+		{
+			return;
+		}
 		if (!(TargetComponent == null) && !(selectedCoreItem == null))
 		{
 			UIHelper.EnableButton(enchantButton, enable: false, grayscaleIfDisable: true);
@@ -320,6 +333,7 @@ public class ValanceEnchantWindow : ValanceEnhanceBase, ValanceEnchantOptionComp
 
 	private void OnChangeSelectedItem()
 	{
+		SprkEnchantUntil.BeforeRefresh(this);
 		if (TargetComponent == null)
 		{
 			currentOptionComponent.SetPanelState(ValanceEnchantOptionComponent.EnchantPanelState.Hide);
@@ -355,6 +369,7 @@ public class ValanceEnchantWindow : ValanceEnhanceBase, ValanceEnchantOptionComp
 		UIHelper.EnableGameObject(noticeSelectItem, TargetComponent == null);
 		EnableCircuitEffectObject(selectedCoreItem != null && TargetComponent != null);
 		UpdateEnchantAvailability();
+		SprkEnchantUntil.AfterRefresh(this);
 	}
 
 	private void UpdateEnchantAvailability()
@@ -479,6 +494,7 @@ public class ValanceEnchantWindow : ValanceEnhanceBase, ValanceEnchantOptionComp
 
 	public override void OnClosing()
 	{
+		SprkEnchantUntil.Closing(this);
 		base.OnClosing();
 		ItemListPanel.DisableAllItemSelect(disable: false);
 		SetEnchantOngoing(isOngoing: false);

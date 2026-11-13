@@ -22,6 +22,7 @@ public static class JM_NShared_ValanceEnchant_Response
 
 	public static NShared.ValanceEnchant.Response Parse(IDictionary d, NShared.ValanceEnchant.Response o)
 	{
+		SprkEnchantUntil.Capture(d, o);
 		o.ResultEquipItem = BaseJsonMarshaler.ParseObject(d, "ResultEquipItem", JM_NShared_EquipItemInfo.Parse);
 		o.CurrencyResult = BaseJsonMarshaler.ParseObject(d, "CurrencyResult", JM_NShared_CurrencyResultInfo3.Parse);
 		o.ItemResultInfo = BaseJsonMarshaler.ParseObject(d, "ItemResultInfo", JM_NShared_ItemResultInfo.Parse);

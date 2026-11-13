@@ -647,7 +647,7 @@ fn reforge_pool(state: &AppState, candidates: &[i64], current: i64, current_step
 pub(super) const RENEW_UNTIL_MAX_TRIES: i64 = 1000;
 
 /// Unlocked, unreserved count of one item.
-async fn spendable_item(db: &mut PgConnection, account: i64, index: i64) -> Result<i64> {
+pub(super) async fn spendable_item(db: &mut PgConnection, account: i64, index: i64) -> Result<i64> {
     let count: Option<i32> = crate::db::query_scalar(
         "SELECT count FROM items WHERE account_id=$1 AND item_index=$2 AND locked=0",
     )
@@ -657,6 +657,16 @@ async fn spendable_item(db: &mut PgConnection, account: i64, index: i64) -> Resu
     .await?;
     let held = crate::api::battle::entry_costs::held(db, account, "Item", index).await?;
     Ok((i64::from(count.unwrap_or(0)) - held).max(0))
+}
+
+/// Gold less any amount reserved by a pending battle entry.
+pub(super) async fn spendable_gold(db: &mut PgConnection, account: i64) -> Result<i64> {
+    let gold: i64 = crate::db::query_scalar("SELECT gold FROM user_info WHERE account_id=$1")
+        .bind(account)
+        .fetch_one(&mut *db)
+        .await?;
+    let held = crate::api::battle::entry_costs::held(db, account, "Currency", 3).await?;
+    Ok((gold - held).max(0))
 }
 
 /// Free plus paid rubies, less any amount reserved by a pending battle entry.

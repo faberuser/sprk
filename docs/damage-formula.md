@@ -1,13 +1,10 @@
 # Damage formula
 
-This is the hit-damage formula used by the SPRK client. It comes from the game
-code in `client/managed/Assembly-CSharp` and the client's `TableJit` tables. All battle maths is integer maths in
-**permille** (1000 = 100%), and each step truncates toward zero. The formulas
-below use percentages for readability. The exact integer form is given where
-rounding or a curve matters.
+All battle maths is integer maths in **permille** (1000 = 100%), and each step
+truncates toward zero. The formulas below use percentages for readability. The
+exact integer form is given where rounding or a curve matters.
 
-Entry point: `NShared.StatController.GiveDamage` →
-`GiveDamage_Season1`. Every damaging operation (`GetDamage`, `GetDamageR`, DoT
+Entry point: Every damaging operation (`GetDamage`, `GetDamageR`, DoT
 ticks and so on) works out a raw amount and then passes it through this
 pipeline.
 

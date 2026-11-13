@@ -340,6 +340,87 @@ async fn valance_identification_and_enchantment_restore_pending_choices() {
     );
 }
 #[tokio::test]
+async fn enchant_until_targets_reports_exact_odds_and_charges_only_tries_made() {
+    let (mut s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let mut eq = give(&s, a, 911301, 1).await.equipment.remove(0);
+    eq.identified = 0;
+    save_equip(&mut s.db.acquire().await.unwrap(), a, &eq).await.unwrap();
+    assert_eq!(call(&s, &u, "valance_identified", &format!("EquipItemSlotIndices={}", eq.slot_index)).await["Result"], "Success");
+    let data = meta(&s, eq.item_index).unwrap().clone();
+    let core_row = |core: i64| s.tables.extensions.rows("ValanceEnchant").iter()
+        .find(|v| n(v, "ItemIndex") == core && n(v, "PartType") == n(&data, "PartType") && n(v, "SubType") == n(&data, "SubType"))
+        .unwrap().clone();
+    let (blue, yellow) = (core_row(990108), core_row(990111));
+    let group = n(&yellow, "OptionGroupIndex") as i32;
+    let pool = s.tables.inventory.option_groups[&group].clone();
+    let ty = |id: i32| n(&s.tables.inventory.options[&id], "Type");
+    let (ta, tb, tc) = (ty(pool[0]), ty(pool[1]), ty(pool[2]));
+    let base = format!("EquipItemSlotIndex={}&ConsumeItemIndex=", eq.slot_index);
+    // Exact odds on the real 20-stat pool: 3 of 20 lines for one stat, 18/1140 for two.
+    let preview = call(&s, &u, "valance_enchant", &format!("{base}990111&SprkTargetOptionTypes={ta}&SprkPreview=1")).await;
+    assert_eq!(preview["Result"], "Success", "{preview}");
+    assert!((preview["SprkChance"].as_f64().unwrap() - 3.0 / pool.len() as f64).abs() < 1e-9, "{preview}");
+    assert_eq!(preview["SprkCores"].as_array().unwrap().len(), 4);
+    let two = call(&s, &u, "valance_enchant", &format!("{base}990111&SprkTargetOptionTypes={ta}_{tb}&SprkPreview=1")).await;
+    assert!((two["SprkChance"].as_f64().unwrap() - 18.0 / 1140.0).abs() < 1e-9, "{two}");
+    let blue_two = call(&s, &u, "valance_enchant", &format!("{base}990108&SprkTargetOptionTypes={ta},{tb}&SprkPreview=1")).await;
+    assert_eq!(blue_two["SprkChance"].as_f64().unwrap(), 0.0);
+    // Impossible or malformed targets are refused before anything is charged.
+    give(&s, a, 990108, 3).await;
+    crate::db::query("UPDATE user_info SET gold=$1 WHERE account_id=$2").bind(10 * n(&blue, "ReqGold")).bind(a).execute(&s.db).await.unwrap();
+    for bad in [format!("{ta},{tb}"), "1,2,3,4".to_string(), format!("{ta},{ta}")] {
+        let r = call(&s, &u, "valance_enchant", &format!("{base}990108&SprkTargetOptionTypes={bad}&SprkMaxTries=5")).await;
+        assert_ne!(r["Result"], "Success", "{bad}: {r}");
+    }
+    let held = |s: &AppState| { let db = s.db.clone(); async move {
+        let gold: i64 = crate::db::query_scalar("SELECT gold FROM user_info WHERE account_id=$1").bind(a).fetch_one(&db).await.unwrap();
+        let blue: i64 = crate::db::query_scalar("SELECT COALESCE(SUM(count)::bigint,0) FROM items WHERE account_id=$1 AND item_index=990108").bind(a).fetch_one(&db).await.unwrap();
+        let yellow: i64 = crate::db::query_scalar("SELECT COALESCE(SUM(count)::bigint,0) FROM items WHERE account_id=$1 AND item_index=990111").bind(a).fetch_one(&db).await.unwrap();
+        let pending: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM equipment_pending WHERE account_id=$1").bind(a).fetch_one(&db).await.unwrap();
+        (gold, blue, yellow, pending)
+    }};
+    assert_eq!(held(&s).await, (10 * n(&blue, "ReqGold"), 3, 0, 0));
+    {
+        // Blue rolls one line; target `tb` is practically unreachable, so the 3 cores decide the stop.
+        let inventory = std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).inventory);
+        inventory.option_groups.insert(group, vec![pool[0], pool[1]]);
+        inventory.options.get_mut(&pool[0]).unwrap()["Ratio"] = json!(1_000_000_000i64);
+        inventory.options.get_mut(&pool[1]).unwrap()["Ratio"] = json!(1);
+    }
+    let run = call(&s, &u, "valance_enchant", &format!("{base}990108&SprkTargetOptionTypes={tb}&SprkMaxTries=10")).await;
+    assert_eq!(run["Result"], "Success", "{run}");
+    assert_eq!((n(&run, "SprkTries"), run["SprkHit"].clone()), (3, json!(false)), "{run}");
+    assert_eq!(n(&run, "SprkGoldSpent"), 3 * n(&blue, "ReqGold"));
+    // A first enchant applies the last roll directly, as the native flow does.
+    assert_eq!(run["ResultEquipItem"]["EnchantOptionIndex1"], pool[0]);
+    assert_eq!(held(&s).await, (7 * n(&blue, "ReqGold"), 0, 0, 0));
+    // Yellow always rolls 3 distinct lines; with exactly 3 options every roll hits all targets.
+    std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).inventory).option_groups.insert(group, pool[..3].to_vec());
+    give(&s, a, 990111, 5).await;
+    crate::db::query("UPDATE user_info SET gold=$1 WHERE account_id=$2").bind(5 * n(&yellow, "ReqGold")).bind(a).execute(&s.db).await.unwrap();
+    let run = call(&s, &u, "valance_enchant", &format!("{base}990111&SprkTargetOptionTypes={tc}%252c{ta}_{tb}&SprkMaxTries=5")).await;
+    assert_eq!(run["Result"], "Success", "{run}");
+    assert_eq!((n(&run, "SprkTries"), run["SprkHit"].clone()), (1, json!(true)), "{run}");
+    assert_eq!(held(&s).await, (4 * n(&yellow, "ReqGold"), 0, 4, 1));
+    assert_eq!(run["ResultEquipItem"]["EnchantOptionIndex1"], pool[0], "existing lines stay until confirmed");
+    let mut rolled: Vec<i64> = (1..=3).map(|i| n(&run["NewValanceEnchantOptionInfo"], &format!("EnchantOptionIndex{i}"))).collect();
+    rolled.sort();
+    let mut expected: Vec<i64> = pool[..3].iter().map(|v| *v as i64).collect();
+    expected.sort();
+    assert_eq!(rolled, expected);
+    // Previewing odds is allowed while a roll is pending (it changes nothing).
+    let pending_preview = call(&s, &u, "valance_enchant", &format!("{base}990111&SprkTargetOptionTypes={ta},{tb}&SprkPreview=1")).await;
+    assert_eq!(pending_preview["Result"], "Success", "{pending_preview}");
+    assert_eq!(held(&s).await, (4 * n(&yellow, "ReqGold"), 0, 4, 1));
+    let confirmed = call(&s, &u, "confirm_valance_enchant", &format!("EquipItemSlotIndex={}&IsNew=true", eq.slot_index)).await;
+    assert_eq!(confirmed["ResultEquipItem"]["EnchantOptionIndex1"], run["NewValanceEnchantOptionInfo"]["EnchantOptionIndex1"], "{confirmed}");
+    // An unaffordable run is refused without changes.
+    crate::db::query("UPDATE user_info SET gold=0 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
+    assert_ne!(call(&s, &u, "valance_enchant", &format!("{base}990111&SprkTargetOptionTypes={ta}&SprkMaxTries=5")).await["Result"], "Success");
+    assert_eq!(held(&s).await, (0, 0, 4, 0));
+}
+#[tokio::test]
 async fn team_and_class_buff_upgrades_validate_price_points_and_replays() {
     let (s, u) = setup().await;
     crate::db::query("UPDATE user_info SET team_level=2")
