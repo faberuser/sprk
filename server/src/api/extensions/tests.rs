@@ -2207,6 +2207,26 @@ async fn soul_weapon_advancement_ticket_unlocks_plain_weapon_and_persists() {
 }
 
 #[tokio::test]
+async fn soul_break_accepts_native_repeated_slot_fields() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let slot = give(&s, a, 1001, 1).await.equipment[0].slot_index;
+    give(&s, a, 111001, 1).await;
+    assert_eq!(call(&s, &u, "soul_weapon_liberation", &format!("EquipItemSlotIndex={slot}")).await["Result"], "Success");
+    let mut info = get(&mut s.db.acquire().await.unwrap(), a, "soul", slot as i64).await.unwrap();
+    info["Grade"] = json!(2);
+    info["ReinforceLevel"] = json!(20);
+    put(&mut s.db.acquire().await.unwrap(), a, "soul", slot as i64, &info).await.unwrap();
+    // Unity's WWWForm sends int[] as one field per element, not a JSON array.
+    let r = call(&s, &u, "soul_break", &format!("EquipItemSlotIndices={slot}")).await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert!(!r["ItemResults"].as_array().unwrap().is_empty(), "{r}");
+    assert!(get(&mut s.db.acquire().await.unwrap(), a, "soul", slot as i64).await.unwrap().is_null());
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM equip_items WHERE account_id=$1 AND slot_index=$2")
+        .bind(a).bind(slot).fetch_one(&s.db).await.unwrap(), 0);
+}
+
+#[tokio::test]
 async fn soul_weapon_advancement_ticket_preserves_ether_and_refunds_existing_investment() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;
