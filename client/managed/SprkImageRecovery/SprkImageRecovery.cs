@@ -348,6 +348,54 @@ public static class SprkImageRecovery
 		}
 	}
 
+	private static readonly Dictionary<string, Texture2D> iconOverrides = new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
+
+	// Icons SPRK ships as PNGs embedded in this assembly, named SprkIcons.<Folder>.<Name>.png for
+	// the sprite path Icon/<Folder>/<Name>. Used for art the game never had, such as Maya's
+	// framed perk icons (docs/heroes/maya-art.md). Returns false for every other path.
+	public static bool TryIconTexture(string spritePath, out Texture2D texture)
+	{
+		texture = null;
+		if (spritePath == null || !spritePath.StartsWith("Icon/", StringComparison.OrdinalIgnoreCase))
+		{
+			return false;
+		}
+		if (iconOverrides.TryGetValue(spritePath, out texture))
+		{
+			return texture != null;
+		}
+		string resource = "SprkIcons." + spritePath.Substring(5).Replace('/', '.') + ".png";
+		using (Stream stream = typeof(SprkImageRecovery).Assembly.GetManifestResourceStream(resource))
+		{
+			if (stream != null)
+			{
+				byte[] bytes = new byte[(int)stream.Length];
+				int read;
+				for (int i = 0; i < bytes.Length; i += read)
+				{
+					read = stream.Read(bytes, i, bytes.Length - i);
+					if (read == 0)
+					{
+						throw new EndOfStreamException();
+					}
+				}
+				texture = new Texture2D(2, 2, TextureFormat.RGBA32, mipChain: false);
+				if (texture.LoadImage(bytes, markNonReadable: true))
+				{
+					texture.name = "SPRK " + spritePath;
+					texture.hideFlags = HideFlags.HideAndDontSave;
+				}
+				else
+				{
+					UnityEngine.Object.Destroy(texture);
+					texture = null;
+				}
+			}
+		}
+		iconOverrides[spritePath] = texture;
+		return texture != null;
+	}
+
 	public static bool TryTpIcon(UIBundleLoader loader)
 	{
 		if (loader == null)

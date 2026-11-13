@@ -83315,6 +83315,38 @@
       "MaterialItemCount": 8,
       "ReqGold": 40000000,
       "MaterialItemIndex": 111010
+    },
+    {
+      "ItemIndex": 1014,
+      "Grade": 0,
+      "MaterialItemCode": "SOULSTONE_MAYA_1",
+      "MaterialItemCount": 1,
+      "ReqGold": 10000000,
+      "MaterialItemIndex": 111014
+    },
+    {
+      "ItemIndex": 1014,
+      "Grade": 1,
+      "MaterialItemCode": "SOULSTONE_MAYA_1",
+      "MaterialItemCount": 2,
+      "ReqGold": 20000000,
+      "MaterialItemIndex": 111014
+    },
+    {
+      "ItemIndex": 1014,
+      "Grade": 2,
+      "MaterialItemCode": "SOULSTONE_MAYA_1",
+      "MaterialItemCount": 4,
+      "ReqGold": 30000000,
+      "MaterialItemIndex": 111014
+    },
+    {
+      "ItemIndex": 1014,
+      "Grade": 3,
+      "MaterialItemCode": "SOULSTONE_MAYA_1",
+      "MaterialItemCount": 8,
+      "ReqGold": 40000000,
+      "MaterialItemIndex": 111014
     }
   ],
   "SoulWeaponEther": [
@@ -252336,7 +252368,7 @@
         2
       ],
       "SubType": 0,
-      "IsOpenSoulWeapon": false,
+      "IsOpenSoulWeapon": true,
       "CreatureIndex": [
         14
       ],

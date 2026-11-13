@@ -1,0 +1,17 @@
+{
+  "table": "SoulWeaponSkillTable",
+  "upsert": [
+    {
+      "ItemCode": "WEAPON_UNIQUE_MAYA_1",
+      "ActiveConditionSkillIndices": [
+        93001410
+      ],
+      "BasicSkillIndex": 93001400,
+      "AddSkillIndex1": 93001401,
+      "AddSkillIndex2": 93001402,
+      "CheckState": "SoulWeapon14",
+      "StackTypeName": "Time",
+      "MaxUseCount": 7
+    }
+  ]
+}

@@ -275,7 +275,11 @@ public class GetNewHero2 : FrameControlWindow, ITouchDisabler, LateUpdaterBefore
 			yield return null;
 		}
 		while (!_cinema.IsCompleteLoad());
-		_cinema.StartNodeTree(OnEndCinema);
+		// SPRK: a hero without this cinematic would otherwise leave the screen waiting forever.
+		if (!_cinema.StartNodeTree(OnEndCinema))
+		{
+			OnEndCinema();
+		}
 		CinemaTexture.mainTexture = _cinema.RenderTarget;
 		CinemaTexture.alpha = 1f;
 		sceneChanger.Close();
@@ -442,7 +446,11 @@ public class GetNewHero2 : FrameControlWindow, ITouchDisabler, LateUpdaterBefore
 			yield return null;
 		}
 		while (!_cinema.IsCompleteLoad());
-		_cinema.StartNodeTree(OnEndCinema);
+		// SPRK: a hero without this cinematic would otherwise leave the screen waiting forever.
+		if (!_cinema.StartNodeTree(OnEndCinema))
+		{
+			OnEndCinema();
+		}
 	}
 
 	private void AddClassBuffPoint()

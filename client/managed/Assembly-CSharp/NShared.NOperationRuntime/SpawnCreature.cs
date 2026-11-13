@@ -51,6 +51,7 @@ public class SpawnCreature : BaseOperationRuntime
 		{
 			int randomSeed = base.OperationInfo.Creature.NextRandom(100, "SpawnCreature " + base.OperationInfo.FiredSkillData);
 			BattleCreatureCreateInfo battleCreatureCreateInfo = BattleCreatureCreateInfo.Create(valueInt, star, level, randomSeed, num, grade, 0, valueInt3);
+			SprkInheritSummonerStats(battleCreatureCreateInfo, firedCreature, valueInt3);
 			switch (valueEnum)
 			{
 			case SpawnPositionType.Ground:
@@ -73,5 +74,36 @@ public class SpawnCreature : BaseOperationRuntime
 			battleCreature.TransformController.SetPosition(battleCreatureCreateInfo.Position, raiseEvent: true, SetPosition.SetPositionMethodType.Spawn, 0L);
 			battleCreature.SetSummoner(base.OperationInfo.Creature.Uid);
 		}
+	}
+
+	private static readonly StatType[] SprkScaledSummonStats = new StatType[5]
+	{
+		StatType.PhysicalAttack,
+		StatType.MagicalAttack,
+		StatType.PhysicalDefense,
+		StatType.MagicalDefense,
+		StatType.MaxHp
+	};
+
+	// SPRK: a summon without stat rows of its own (Maya's beast Seves, creature
+	// 25004) takes the summoner's battle stats. ATK, DEF and Max HP are scaled by
+	// the operation's ratio (per mille); every other stat is inherited as is.
+	// Summons with their own stat rows (all monster summons) are unchanged.
+	private static void SprkInheritSummonerStats(BattleCreatureCreateInfo createInfo, BattleCreature summoner, int statRatio)
+	{
+		if (createInfo?.StatData == null || summoner?.CreateInfo?.StatData == null || createInfo.StatData.GetStat(StatType.MaxHp) > 0)
+		{
+			return;
+		}
+		StatData statData = new StatData();
+		statData.AddStat(summoner.CreateInfo.StatData);
+		if (statRatio > 0)
+		{
+			foreach (StatType statType in SprkScaledSummonStats)
+			{
+				statData.ModifyStat(statType, (long stat) => stat * statRatio / 1000);
+			}
+		}
+		createInfo.StatData = statData;
 	}
 }

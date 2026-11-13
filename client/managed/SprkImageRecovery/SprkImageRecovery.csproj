@@ -3,5 +3,6 @@
     <EmbeddedResource Include="SprkTpIcons.10.png" LogicalName="SprkTpIcons.10.png" />
     <EmbeddedResource Include="SprkTpIcons.15.png" LogicalName="SprkTpIcons.15.png" />
     <EmbeddedResource Include="SprkTpIcons.9900001.png" LogicalName="SprkTpIcons.9900001.png" />
+    <EmbeddedResource Include="SprkIcons.*.png" LogicalName="%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

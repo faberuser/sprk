@@ -1,9 +1,13 @@
 """Separate test copy of the game, used by `client/dev.py test`.
 
-The copy holds the small player files (about 1.2 GB) and links the 19 GB
-King's Raid_Data/Documents folder of the real game through a junction, so the
-real game is never modified.
+The copy holds the small player files (about 1.2 GB) and the game's data
+folders (TableJit, LocalizationJit, TableData, PlainAsset, ... about 0.5 GB),
+and links only the large media folders of the real game (Assetbundle, Video,
+LoginPresentation, about 18 GB) through junctions. Table and text overrides
+from client/overrides/files are applied to the copy, never through a link, so
+the real game is never modified.
 """
+import filecmp
 import os
 from pathlib import Path
 import shutil
@@ -12,6 +16,9 @@ import subprocess
 
 DATA = "King's Raid_Data"
 ASSETS = DATA + "/Documents"
+NATIVE = ASSETS + "/Patch/StandaloneWindows"
+# Large, read-only media folders shared with the real game through junctions.
+LINKED = {"Assetbundle", "Video", "LoginPresentation"}
 MARKER = ".sprk-sandbox"
 PLAYER_FILES = ["King's Raid.exe", "UnityPlayer.dll", "WinPixEventRuntime.dll", "MonoBleedingEdge", "D3D12"]
 
@@ -59,8 +66,30 @@ def is_sandbox(path: Path) -> bool:
     return (path / MARKER).is_file()
 
 
+def junction(target: Path, link: Path) -> None:
+    # A junction needs no administrator rights, unlike a directory symlink.
+    subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(target)], check=True, capture_output=True)
+
+
+def link_assets(client: Path, sandbox: Path) -> None:
+    """Copy the data folders of Documents and link only the large media folders."""
+    def mirror(source: Path, target: Path, native: bool) -> None:
+        target.mkdir(parents=True, exist_ok=True)
+        for entry in source.iterdir():
+            if native and entry.name in LINKED and entry.is_dir():
+                junction(entry, target / entry.name)
+            elif entry.is_dir():
+                if (client / NATIVE).resolve() == entry.resolve() or (client / NATIVE).resolve().is_relative_to(entry.resolve()):
+                    mirror(entry, target / entry.name, (client / NATIVE).resolve() == entry.resolve())
+                else:
+                    shutil.copytree(entry, target / entry.name)
+            else:
+                shutil.copy2(entry, target / entry.name)
+    mirror(client / ASSETS, sandbox / ASSETS, False)
+
+
 def create(client: Path, sandbox: Path) -> None:
-    """Copy the player and link the assets; compiled DLLs are installed separately."""
+    """Copy the player and data, link the media; compiled DLLs are installed separately."""
     client = client.resolve(strict=True)
     if not (client / "King's Raid.exe").is_file() or not (client / ASSETS).is_dir():
         raise SystemExit(f"Not a game folder: {client}")
@@ -74,20 +103,76 @@ def create(client: Path, sandbox: Path) -> None:
     for source in (client / DATA).iterdir():
         if source.name != "Documents":
             (shutil.copytree if source.is_dir() else shutil.copy2)(source, sandbox / DATA / source.name)
-    # A junction needs no administrator rights, unlike a directory symlink.
-    subprocess.run(["cmd", "/c", "mklink", "/J", str(sandbox / ASSETS), str(client / ASSETS)],
-                   check=True, capture_output=True)
+    link_assets(client, sandbox)
+
+
+def upgrade(client: Path, sandbox: Path) -> None:
+    """Older test copies linked all of Documents; give them their own data folders."""
+    assets = sandbox / ASSETS
+    if is_link(assets):
+        os.rmdir(assets)  # removes the junction only, never the linked assets
+        print("Upgrading the test copy: copying the game's data folders (about 0.5 GB, once)...")
+        link_assets(client.resolve(strict=True), sandbox)
+
+
+def linked_part(root: Path, target: Path) -> Path | None:
+    """The first link between root and target (exclusive of root), if any."""
+    current = root
+    for part in target.relative_to(root).parts:
+        current = current / part
+        if is_link(current):
+            return current
+    return None
+
+
+def refresh_data(client: Path, sandbox: Path) -> int:
+    """Copy changed files of the game's copied data folders into the test copy."""
+    copied = 0
+    source_root = client / NATIVE
+    for folder, directories, files in os.walk(source_root):
+        directories[:] = [d for d in directories if not (Path(folder) == source_root and d in LINKED)]
+        for name in files:
+            source = Path(folder) / name
+            target = sandbox / NATIVE / source.relative_to(source_root)
+            if linked_part(sandbox, target) is not None:
+                continue
+            if not target.exists() or not filecmp.cmp(source, target, shallow=True):
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, target)
+                copied += 1
+    return copied
+
+
+def apply_overrides(overrides: Path, game: Path) -> list[str]:
+    """Copy client/overrides/files into a game folder; refuse to write through a link."""
+    files = sorted(p for p in overrides.rglob("*") if p.is_file())
+    targets = []
+    for source in files:
+        target = game / source.relative_to(overrides)
+        link = linked_part(game, target)
+        if link is not None:
+            raise SystemExit(f"Override {source.relative_to(overrides)} lies inside the linked folder {link}; "
+                             "it cannot be tested in the test copy without changing the real game.")
+        targets.append((source, target))
+    changed = []
+    for source, target in targets:
+        if not target.exists() or not filecmp.cmp(source, target, shallow=False):
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, target)
+            changed.append(source.relative_to(overrides).as_posix())
+    return changed
 
 
 def remove(sandbox: Path) -> None:
-    """Delete a test copy without ever following its link into the real assets."""
+    """Delete a test copy without ever following its links into the real assets."""
     sandbox = Path(os.path.abspath(sandbox))
     if not is_sandbox(sandbox):
         raise SystemExit(f"{sandbox} is not a test copy made by client/dev.py; nothing removed.")
     require_closed(sandbox)
-    assets = sandbox / ASSETS
-    if is_link(assets):
-        os.rmdir(assets)  # removes the junction only, never the linked assets
+    for link in links_inside(sandbox):
+        if not link.is_relative_to(sandbox / ASSETS):
+            raise SystemExit(f"Refusing to delete: unexpected link {link}")
+        os.rmdir(link)  # removes the junction only, never the linked assets
     remaining = links_inside(sandbox)
     if remaining:
         raise SystemExit(f"Refusing to delete: unexpected links remain: {remaining}")

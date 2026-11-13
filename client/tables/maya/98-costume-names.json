@@ -1,0 +1,44 @@
+{
+  "localization": {
+    "English": {
+      "COSTUME_NAME_1403": "Maya (3 Star)",
+      "COSTUME_NAME_1404": "Maya (4 Star)",
+      "COSTUME_NAME_1405": "Maya (5 Star)"
+    },
+    "Korean": {
+      "COSTUME_NAME_1403": "{1} 기본 (3성)",
+      "COSTUME_NAME_1404": "{1} 기본 (4성)",
+      "COSTUME_NAME_1405": "{1} 기본 (5성)"
+    },
+    "Japanese": {
+      "COSTUME_NAME_1403": "マヤ(星3)",
+      "COSTUME_NAME_1404": "マヤ(星4)",
+      "COSTUME_NAME_1405": "マヤ(星5)"
+    },
+    "ChineseSimplified": {
+      "COSTUME_NAME_1403": "玛雅基本\n（3星）",
+      "COSTUME_NAME_1404": "玛雅基本\n（4星）",
+      "COSTUME_NAME_1405": "玛雅基本\n（5星）"
+    },
+    "ChineseTraditional": {
+      "COSTUME_NAME_1403": "瑪雅基本\n（3星）",
+      "COSTUME_NAME_1404": "瑪雅基本\n（4星）",
+      "COSTUME_NAME_1405": "瑪雅基本\n（5星）"
+    },
+    "French": {
+      "COSTUME_NAME_1403": "Maya (3★)",
+      "COSTUME_NAME_1404": "Maya (4★)",
+      "COSTUME_NAME_1405": "Maya (5★)"
+    },
+    "German": {
+      "COSTUME_NAME_1403": "{1} (3★)",
+      "COSTUME_NAME_1404": "{1} (4★)",
+      "COSTUME_NAME_1405": "{1} (5★)"
+    },
+    "Russian": {
+      "COSTUME_NAME_1403": "Базовый костюм Майи (3 зв.)",
+      "COSTUME_NAME_1404": "Базовый костюм Майи (4 зв.)",
+      "COSTUME_NAME_1405": "Базовый костюм Майи (5 зв.)"
+    }
+  }
+}

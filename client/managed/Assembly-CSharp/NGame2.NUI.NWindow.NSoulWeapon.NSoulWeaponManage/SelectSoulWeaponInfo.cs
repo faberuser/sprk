@@ -221,7 +221,12 @@ public class SelectSoulWeaponInfo : MonoBehaviour
 			return;
 		}
 		CostumeData dataByHeroStar = GameRoot.Instance.CostumeDataContainer.GetDataByHeroStar(cachedHeroInfo.HeroIndex, cachedHeroInfo.Star);
-		if (dataByHeroStar != null)
+		if (dataByHeroStar == null)
+		{
+			// SPRK: a hero without costume rows (Maya) has no avatar; show the hero icon instead.
+			UIHelper.ResetPlaneAssetTextureAsync(this, CreatureTexture, UIHelper.GetPlainTexture(UIHelper.GetHeroIconPath(cachedHeroInfo)));
+		}
+		else
 		{
 			string iconPath = UIAvatarHelper.GetIconPath(new UIAvatarHelper.AvatarInfo(dataByHeroStar).AvatarIndex);
 			if (!String_Extension_Method.IsNullOrEmpty(iconPath))

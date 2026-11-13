@@ -22,6 +22,7 @@ Main entry points:
 ```powershell
 python client/dev.py --help                                         # build, test, install, clean
 python client/scripts/build/build_managed_client.py --help          # compiler used by dev.py and CI
+python client/scripts/build/build_tables.py --help                  # table/text patches -> overrides (docs/jit-tables.md)
 python client/scripts/release/build_client_release.py --help        # complete signed release (CI)
 python client/scripts/release/publish_client_update.py --help       # local release from the installed client
 python client/scripts/automation/client_automation.py --help        # real-client tests

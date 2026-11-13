@@ -2207,6 +2207,28 @@ async fn soul_weapon_advancement_ticket_unlocks_plain_weapon_and_persists() {
 }
 
 #[tokio::test]
+async fn maya_soul_weapon_liberates_and_advances_with_her_soulstone() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let slot = give(&s, a, 1014, 1).await.equipment[0].slot_index;
+    give(&s, a, 111014, 1000).await;
+    let r = call(&s, &u, "soul_weapon_liberation", &format!("EquipItemSlotIndex={slot}")).await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!(r["ResultSoulWeaponInfo"]["ItemIndex"], 1014);
+    for grade in 1..=2 {
+        let mut info = get(&mut s.db.acquire().await.unwrap(), a, "soul", slot as i64).await.unwrap();
+        info["ReinforceLevel"] = json!(grade * 5);
+        put(&mut s.db.acquire().await.unwrap(), a, "soul", slot as i64, &info).await.unwrap();
+        let r = call(&s, &u, "soul_weapon_upgrade", &format!("EquipItemSlotIndex={slot}")).await;
+        assert_eq!(r["Result"], "Success", "grade {grade}: {r}");
+        assert_eq!(r["ResultSoulWeaponInfo"]["Grade"], grade);
+    }
+    let left: i32 = crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=111014")
+        .bind(a).fetch_one(&s.db).await.unwrap();
+    assert!(left < 1000);
+}
+
+#[tokio::test]
 async fn soul_break_accepts_native_repeated_slot_fields() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;

@@ -69,6 +69,7 @@ public class PackLoad : IAsyncLoad<PackData>, IAsyncLoadBase
 			IsDone = true;
 			return;
 		}
+		SprkNodeTreeFallbacks.Apply(PathName, json);
 		PackData packData = new PackData();
 		if (!packData.LOADFROMJSON(json))
 		{

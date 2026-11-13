@@ -1,0 +1,26 @@
+{
+  "table": "EquipItemTable",
+  "upsert": [
+    {
+      "EquipCode": "WEAPON_UNIQUE_MAYA_1",
+      "PartType": "Weapon",
+      "TagType": [
+        "Archer"
+      ],
+      "CreatureIndex": [
+        14
+      ],
+      "Tier": 10,
+      "ReqLevel": 1,
+      "FixedOptionIndex1": 11014,
+      "BodyPrefix": "",
+      "WeaponPrefix": "Unique01",
+      "MinRuneCount": 3,
+      "MaxRuneCount": 3,
+      "DetailIndex": 90001,
+      "PhysicalAttack": 547,
+      "MagicalAttack": 547,
+      "IsOpenSoulWeapon": true
+    }
+  ]
+}

@@ -10,6 +10,10 @@
       "sha256": "1c5123def223090b3032d270e60afaa6eed321419478a39e1ab354dd3f892ece",
       "originalSha256": "e7337c433c268741668da9d390201db3b497f2fc33dbf574feab8e80ea55fed0"
     },
+    "PlainAsset/Text/CutScene/HeroDungeon/RebelClause/RebelClause_9_1.bjs": {
+      "sha256": "4099d6220803b3c6e6af8b262efd133ed52722d061bef8e5aa650f6cef83c094",
+      "originalSha256": "e05d274cb52e964da8b8789b2cc25dcc01589befb4a7dac1e5bff62505abdaf8"
+    },
     "TableJit/AccessoryCostumeTable.jit": {
       "sha256": "ad424f4b984893b0edec91deaed27e04dd091b3716841f26deb7b5a75141ca78",
       "originalSha256": "9cbc16478412dc04fb84e64d5267174f27238a7232fd7796b2e387a6b27c6a3e"
@@ -22,8 +26,24 @@
       "sha256": "6e75d37fab725eab0a901739b518090c095fa93e9178d87f5b66a66a4a62f90b",
       "originalSha256": "6e75d37fab725eab0a901739b518090c095fa93e9178d87f5b66a66a4a62f90b"
     },
+    "TableJit/ClientCreatureTable.jit": {
+      "sha256": "9d2e915999fb58c299db3338156565a880fa94509c985dee87364b508df25cd3",
+      "originalSha256": "4e31bf0544fa684194f38b3a3dbec588eee632e4caf2beb60e0469706f551916"
+    },
+    "TableJit/ConstantTable.jit": {
+      "originalSha256": "c47977d7a01032122af9c66be7c0af7b48bb1454983effc2f6643c73d790db06",
+      "sha256": "d291be7fc325becec9096b813157d32307476dc0fbe0f1b2201f5f3deeb73ec8"
+    },
+    "TableJit/CostumeGroupTable.jit": {
+      "sha256": "7f488601a2f5ad7e41b367dd23377c73ef6b91a1b878dfac78d6f0e96b21a01d",
+      "originalSha256": "8e467a59191f91079522d9e5efde58e13e5d40d1929a03a9664e51420591570d"
+    },
+    "TableJit/CostumeSelectItemTable.jit": {
+      "sha256": "e40e6368bc97809ef20fd0613f8aa56da2252b669dab97cdd09e07d51415cbec",
+      "originalSha256": "0784558f671f6d74fab4d715d6d0fb966e70dcf25c056a3291a929241137fff2"
+    },
     "TableJit/CostumeTable.jit": {
-      "sha256": "60e91d2a26e25a8bf5ab4c2f6b98413cbadeb2f0ee8c734b5d46c0c9824179bb",
+      "sha256": "c0e53eb235b6ac0bd40b16ed1328b31275391bec19b6ea2c748091c3f2a65407",
       "originalSha256": "a7180625258d920e309d47dea8a2ed76335db47bbb1d43fdeee3ee58f677dd22"
     },
     "TableJit/CraftItemTable.jit": {
@@ -31,8 +51,12 @@
       "originalSha256": "4808cae77c0ae41b16b076b83ba1fba464a036ab60c206c04bb5b5d4a5eb018b"
     },
     "TableJit/CreatureTable.jit": {
-      "sha256": "a94d0223b4a3b5b6b8aecbd6e7c4baca260a82681c9106877c1f59606034bd4a",
+      "sha256": "c4d359b7ff0dfe23ca66af19b118608eeaf28c4eccbe4544c1e133126ff6e5b8",
       "originalSha256": "a94d0223b4a3b5b6b8aecbd6e7c4baca260a82681c9106877c1f59606034bd4a"
+    },
+    "TableJit/EquipItemTable.jit": {
+      "sha256": "e32decfca6955e47b1880562d5780e28a9f821191a3493da1c238f40cf2e2dfd",
+      "originalSha256": "a0664178e07ee5a1d0ec3e2bfdfb1d0bce7aba18b4861a06d50537716bdfe362"
     },
     "TableJit/GodkingTrialGroupTable.jit": {
       "sha256": "c5b32e18082bd8705100ff671d12ec4b4e07a564817a3967748fc0025a84f29a",
@@ -46,13 +70,45 @@
       "sha256": "70354f602f18829e85836ecf2faf2bc38c9a41ac0bf312313fb09f982820e199",
       "originalSha256": "70354f602f18829e85836ecf2faf2bc38c9a41ac0bf312313fb09f982820e199"
     },
+    "TableJit/HeroAnimationViewTable.jit": {
+      "sha256": "0fb279a918af573885a34bd0e9cc5c9ffb7f6dd9ad44bf01971c8386257ec797",
+      "originalSha256": "a4448bb7d7d88d1a594c632dd6f91101be79a74fe7d378bef496cf8ba3488df4"
+    },
+    "TableJit/HeroFriendlyActionTable.jit": {
+      "sha256": "a518d263d5b853c71e82cf536e94ff7b4e20c2e5508b125ed21e8c34a478da40",
+      "originalSha256": "92cc71172dc43c4ec9e830d459a49186040df566719236a4902a640bbfdee0ce"
+    },
+    "TableJit/HeroFriendlyTable.jit": {
+      "sha256": "07031ec2fb779d7444cd215e658e5c5fee1b9cff6540929f5bc8ddbe32e5aecc",
+      "originalSha256": "2b04afe70fd4de5757501e8ee0b96e580e23ad44203bea97ff4c10ac84cb968c"
+    },
+    "TableJit/HeroProfileTable.jit": {
+      "sha256": "bb24999ead5ba649d3403ed689474e11005598e7dbdf5e5e91bd214cf4308a2c",
+      "originalSha256": "4be5fbe12aab7d64d70d6cb5deaa51752e6f8f63f65f60eb2a29cb3a1bda8eff"
+    },
     "TableJit/HeroSelectItemTable.jit": {
-      "sha256": "d549a292db84809d92989ef0040d25b78674db5a1f292bbcc788fb2cc3fd7b64",
+      "sha256": "bbf776ce3588afa43becc605c11561ba1da5828d4a67095ad24dcd038c6732c3",
       "originalSha256": "d549a292db84809d92989ef0040d25b78674db5a1f292bbcc788fb2cc3fd7b64"
+    },
+    "TableJit/HeroVoiceTable.jit": {
+      "sha256": "e10100c9b8ad391f9444dfc7c218f522ccde27e6642b530a26dde5c0727a413b",
+      "originalSha256": "e16d2563234c2b39f49cbd19e0ed48a6e38a54b4488153fcf95e1c0943d11f5e"
+    },
+    "TableJit/InfinityTable.jit": {
+      "originalSha256": "a96f41e4fdf2f1c58405cb860b2760b6ceb592b5bdd9baa9516f2f02162f5f44",
+      "sha256": "397be10a0f3b39d9c3560df89a434900d3641ddcf5c608372208fa197137e517"
     },
     "TableJit/InventoryExtendTable.jit": {
       "sha256": "5d5f9cb25785f61382fa914c79aef9099689705df10e9e8ca9bef88b25991520",
       "originalSha256": "8bf19aefb08af18c8760f18cbec330d6ec75e3357bbefe3e4e1e4e4f486a3b9d"
+    },
+    "TableJit/ItemGroupTable.jit": {
+      "originalSha256": "fbd4e77915cc90a2318fedc75971ef0a8be91a304c3247722d21876b1c4a8575",
+      "sha256": "7fc5c440e06e401573ea7ba4ea66d71b81a18dc8d8af2b6cc05d8c69cc1bb188"
+    },
+    "TableJit/ItemTable.jit": {
+      "sha256": "2f3443da44efc225d49ea844b190e295a734464ee70746eb31abf55da51578fc",
+      "originalSha256": "72d9404c61449b05eaec317ce82f1720b04ea99507d4a82be43d3f797fd5bb3a"
     },
     "TableJit/MainStoryTable.jit": {
       "sha256": "ea1ac2f9fad67b337b1b1e3d54f3be548a6791e16f4fecbcaef5640d438cdf11",
@@ -61,6 +117,10 @@
     "TableJit/NPCTable.jit": {
       "sha256": "888d9a6322443499b6291db88fe902d7586df5d18521053633924c20ae446eac",
       "originalSha256": "ad6b3ba5a4210ff90145a547928e2eeee41ef2bf5bc388b62daa5c75a4f8ffc7"
+    },
+    "TableJit/NewEquipGachaTable.jit": {
+      "originalSha256": "d299263adf4884a8c3cf5320a6a28f2c89733183f54cabcb0ca3491371f06ad2",
+      "sha256": "45a303bbbfafcefd10e0eae07f380e3a88175f5747765bcb1d72f16e147fbf89"
     },
     "TableJit/OptionSellTable.jit": {
       "sha256": "d996eb18896a8743856ecabbc13e90b3c980995230e70a4f7a7527c0cafcb3e9",
@@ -79,56 +139,44 @@
       "originalSha256": "33469d38380589cfe9b79d9e3289d4270078fb49a5a673814c4a481c217d639e"
     },
     "TableJit/SelectItemTable.jit": {
-      "sha256": "5a3677e4e4b3f13adfef0ce42d957140ab923fca6b18327977e8be8ebe14b8a4",
+      "sha256": "9551f919c9eee25b95bd7bd075308f11bfc312da3d470b99aecbeed659bde56e",
       "originalSha256": "9fe85fe191b375f02124ea953dcf788fa34f811230a7ab47a9f1baafb03632b1"
     },
     "TableJit/ShopItemTable.jit": {
       "sha256": "3430278eb5534ffcc8d85de28a0d3a8d2e31f463a7e88b0d02cb2ccb6a879279",
       "originalSha256": "f9befbe469e7c167c8f30e75aeb7d8d6fcc0b49b21e4a72239cf164718f0e1b6"
     },
-    "TableJit/WeaponCostumeTable.jit": {
-      "sha256": "cd8441e99fc8564460cbe02370f852afc6551df0bab82d45bbf9746025d0a2b1",
-      "originalSha256": "cd8441e99fc8564460cbe02370f852afc6551df0bab82d45bbf9746025d0a2b1"
+    "TableJit/SkillTable.jit": {
+      "sha256": "13392dab380d225ea0a959087074da4b5cd03c5440539645362169232fca7030",
+      "originalSha256": "2743fc236f2aadf1f7df49a00868a7cf1209577fbc4dd44ded73e4c027e74c8e"
     },
-    "TableJit/WeaponUniqueSelectItemTable.jit": {
-      "sha256": "1bcea9325b4352127969e00fc351ba5656b3e813369a64d01cf188f11f48b1a9",
-      "originalSha256": "5305fb34d45468f6b30b8316146657d84562e9d0da42114106635a08f158fa28"
+    "TableJit/SoulWeaponNodeTreeTable.jit": {
+      "sha256": "c39d68f30ff903eae865ba2d814e93185d6310716fc8092f2c3dd7082073d490",
+      "originalSha256": "3c4e72d94770b71935e10ad6d79bec4088c95914ecf82308d56e7350419e9d22"
     },
-    "TableJit/ItemTable.jit": {
-      "sha256": "85c2cda5580dae00d59f8274195c80b849f51c3b238ebc06a078b8fdf3740c10",
-      "originalSha256": "72d9404c61449b05eaec317ce82f1720b04ea99507d4a82be43d3f797fd5bb3a"
+    "TableJit/SoulWeaponSkillTable.jit": {
+      "sha256": "a22ca6f340caa1178e552e8cfa1a163a60fc086709a59fd4ee32966c15d3b47c",
+      "originalSha256": "2c6ee022a5050c8e83eed68b84dfa5a0c13621c891642a7941a504a329dd4870"
     },
-    "TableJit/CostumeSelectItemTable.jit": {
-      "sha256": "e40e6368bc97809ef20fd0613f8aa56da2252b669dab97cdd09e07d51415cbec",
-      "originalSha256": "0784558f671f6d74fab4d715d6d0fb966e70dcf25c056a3291a929241137fff2"
-    },
-    "TableJit/CostumeGroupTable.jit": {
-      "sha256": "7f488601a2f5ad7e41b367dd23377c73ef6b91a1b878dfac78d6f0e96b21a01d",
-      "originalSha256": "8e467a59191f91079522d9e5efde58e13e5d40d1929a03a9664e51420591570d"
-    },
-    "TableJit/InfinityTable.jit": {
-      "originalSha256": "a96f41e4fdf2f1c58405cb860b2760b6ceb592b5bdd9baa9516f2f02162f5f44",
-      "sha256": "397be10a0f3b39d9c3560df89a434900d3641ddcf5c608372208fa197137e517"
-    },
-    "TableJit/ItemGroupTable.jit": {
-      "originalSha256": "fbd4e77915cc90a2318fedc75971ef0a8be91a304c3247722d21876b1c4a8575",
-      "sha256": "7fc5c440e06e401573ea7ba4ea66d71b81a18dc8d8af2b6cc05d8c69cc1bb188"
+    "TableJit/SoulWeaponUpgradePriceTable.jit": {
+      "sha256": "ca293a6a36905ae46f4f8017ca2bc3081ba7dfe29b8b0b01e9dde987c408b8ec",
+      "originalSha256": "f2eea546f2a740d8ca01d22f5a98737a2353bf71c46af9178d42157b8540984c"
     },
     "TableJit/StaminaTable.jit": {
       "originalSha256": "d3fc66b2ff01923ca4129a425aea92aaa773c421ccbb8f1a01ce4e77ad913133",
       "sha256": "e85ab891745e5078cd9651754e1d8d39ca8decfbfc56a37dd26cebc81f301679"
     },
-    "TableJit/ConstantTable.jit": {
-      "originalSha256": "c47977d7a01032122af9c66be7c0af7b48bb1454983effc2f6643c73d790db06",
-      "sha256": "d291be7fc325becec9096b813157d32307476dc0fbe0f1b2201f5f3deeb73ec8"
+    "TableJit/StateTable.jit": {
+      "sha256": "14e3fd417a3734cf0ac987b020999829112e796265eed4e2abacc4fb9e019c56",
+      "originalSha256": "84b9439d6f4983b9104bb19574953fe67d472f58553eacb21a2e6f9ed3fa91ed"
     },
-    "TableJit/NewEquipGachaTable.jit": {
-      "originalSha256": "d299263adf4884a8c3cf5320a6a28f2c89733183f54cabcb0ca3491371f06ad2",
-      "sha256": "45a303bbbfafcefd10e0eae07f380e3a88175f5747765bcb1d72f16e147fbf89"
+    "TableJit/WeaponCostumeTable.jit": {
+      "sha256": "cd8441e99fc8564460cbe02370f852afc6551df0bab82d45bbf9746025d0a2b1",
+      "originalSha256": "cd8441e99fc8564460cbe02370f852afc6551df0bab82d45bbf9746025d0a2b1"
     },
-    "PlainAsset/Text/CutScene/HeroDungeon/RebelClause/RebelClause_9_1.bjs": {
-      "sha256": "4099d6220803b3c6e6af8b262efd133ed52722d061bef8e5aa650f6cef83c094",
-      "originalSha256": "e05d274cb52e964da8b8789b2cc25dcc01589befb4a7dac1e5bff62505abdaf8"
+    "TableJit/WeaponUniqueSelectItemTable.jit": {
+      "sha256": "4208f21817bb4b8b5013008c9a92bac5f5bf509bdb3d11ea1798cff865b1ed96",
+      "originalSha256": "5305fb34d45468f6b30b8316146657d84562e9d0da42114106635a08f158fa28"
     }
   },
   "staticRuntimeDataOverrides": false,

@@ -1,0 +1,149 @@
+{
+  "table": "HeroAnimationViewTable",
+  "upsert": [
+    {
+      "Index": 1400,
+      "HeroIndex": 14,
+      "Animation": "Idle",
+      "AnimationText": "HERO_ACTION_IDLE",
+      "IconType": "Icon_Idle",
+      "VoiceCode": ""
+    },
+    {
+      "Index": 1401,
+      "HeroIndex": 14,
+      "Animation": "BattleIdle",
+      "AnimationText": "HERO_ACTION_BATTLEIDLE",
+      "IconType": "Icon_Idle",
+      "VoiceCode": ""
+    },
+    {
+      "Index": 1402,
+      "HeroIndex": 14,
+      "Animation": "Run",
+      "AnimationText": "HERO_ACTION_RUN",
+      "IconType": "Icon_Dash",
+      "VoiceCode": ""
+    },
+    {
+      "Index": 1403,
+      "HeroIndex": 14,
+      "Animation": "Walk",
+      "AnimationText": "HERO_ACTION_WALK",
+      "IconType": "Icon_Dash",
+      "VoiceCode": ""
+    },
+    {
+      "Index": 1404,
+      "HeroIndex": 14,
+      "Animation": "Die",
+      "AnimationText": "HERO_ACTION_DIE",
+      "IconType": "Icon_Lose",
+      "VoiceCode": ""
+    },
+    {
+      "Index": 1405,
+      "HeroIndex": 14,
+      "Animation": "Damage",
+      "AnimationText": "HERO_ACTION_DAMAGE",
+      "IconType": "Icon_Idle",
+      "VoiceCode": ""
+    },
+    {
+      "Index": 1406,
+      "HeroIndex": 14,
+      "Animation": "Stun",
+      "AnimationText": "HERO_ACTION_STUN",
+      "IconType": "Icon_Idle",
+      "VoiceCode": ""
+    },
+    {
+      "Index": 1407,
+      "HeroIndex": 14,
+      "Animation": "Down",
+      "AnimationText": "HERO_ACTION_DOWN",
+      "IconType": "Icon_Lose",
+      "VoiceCode": ""
+    },
+    {
+      "Index": 1408,
+      "HeroIndex": 14,
+      "Animation": "Getup",
+      "AnimationText": "HERO_ACTION_GETUP2",
+      "IconType": "Icon_Idle",
+      "VoiceCode": ""
+    },
+    {
+      "Index": 1409,
+      "HeroIndex": 14,
+      "Animation": "Attack1",
+      "AnimationText": "HERO_ACTION_ATTACK1",
+      "IconType": "Icon_Attack",
+      "VoiceCode": ""
+    },
+    {
+      "Index": 1410,
+      "HeroIndex": 14,
+      "Animation": "Skill1",
+      "AnimationText": "SKILL_NAME_1410",
+      "IconType": "Icon_Attack",
+      "VoiceCode": ""
+    },
+    {
+      "Index": 1411,
+      "HeroIndex": 14,
+      "Animation": "Skill2",
+      "AnimationText": "SKILL_NAME_1420",
+      "IconType": "Icon_Attack",
+      "VoiceCode": ""
+    },
+    {
+      "Index": 1412,
+      "HeroIndex": 14,
+      "Animation": "Skill3",
+      "AnimationText": "SKILL_NAME_1430",
+      "IconType": "Icon_Attack",
+      "VoiceCode": ""
+    },
+    {
+      "Index": 1413,
+      "HeroIndex": 14,
+      "Animation": "Victory",
+      "AnimationText": "HERO_ACTION_VICTORY",
+      "IconType": "Icon_Positive",
+      "VoiceCode": ""
+    },
+    {
+      "Index": 1414,
+      "HeroIndex": 14,
+      "Animation": "Purify",
+      "AnimationText": "HERO_ACTION_PURIFY",
+      "IconType": "Icon_Purify",
+      "VoiceCode": ""
+    },
+    {
+      "Index": 1415,
+      "HeroIndex": 14,
+      "Animation": "PurifyReaction",
+      "AnimationText": "HERO_ACTION_PURIFYREACTION1",
+      "IconType": "Icon_Purify",
+      "VoiceCode": ""
+    },
+    {
+      "Index": 1416,
+      "HeroIndex": 14,
+      "Animation": "InnIdle",
+      "AnimationText": "HERO_ACTION_INNIDLE",
+      "IconType": "Icon_Idle",
+      "VoiceCode": ""
+    },
+    {
+      "Index": 1417,
+      "HeroIndex": 14,
+      "Animation": "InnReaction",
+      "AnimationText": "HERO_ACTION_INNREACTION",
+      "IconType": "Icon_Positive",
+      "VoiceCode": ""
+    }
+  ]
+}

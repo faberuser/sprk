@@ -1,0 +1,80 @@
+{
+  "table": "HeroFriendlyActionTable",
+  "upsert": [
+    {
+      "HeroIndex": 14,
+      "BaseSpeak": [
+        "INN_MAYA_INNIDLE01"
+      ],
+      "Action1": "Greeting",
+      "ActionResponse1": [
+        "INN_MAYA_GREETING01",
+        "InnReaction.Maya01",
+        "InnReaction"
+      ],
+      "Action2": "Conversation",
+      "ActionResponse2": [
+        "INN_MAYA_CONVERSATION01",
+        "InnReaction.Maya01",
+        "InnReaction",
+        "INN_MAYA_CONVERSATION02",
+        "InnReaction.Maya01",
+        "InnReaction",
+        "INN_MAYA_CONVERSATION03",
+        "InnReaction.Maya01",
+        "InnReaction"
+      ],
+      "Action3": "Gift",
+      "ActionResponse3": [
+        "INN_MAYA_GIFT01",
+        "InnReaction.Maya01",
+        "InnReaction"
+      ],
+      "Action4": "Closeness_Greeting",
+      "ActionResponse4": [
+        "INN_MAYA_GREETING02",
+        "InnReaction.Maya01",
+        "InnReaction"
+      ],
+      "Action5": "Closeness_Conversation",
+      "ActionResponse5": [
+        "INN_MAYA_CONVERSATION04",
+        "InnReaction.Maya01",
+        "InnReaction",
+        "INN_MAYA_CONVERSATION05",
+        "InnReaction.Maya01",
+        "InnReaction"
+      ],
+      "Action6": "Closeness_Gift",
+      "ActionResponse6": [
+        "INN_MAYA_GIFT02",
+        "InnReaction.Maya01",
+        "InnReaction"
+      ],
+      "Action1_MAX": "Greeting_Max",
+      "Response1_MAX": [
+        "INN_MAYA_CONNECT_GREETING_MAX",
+        "InnReaction.Maya01",
+        "InnReaction"
+      ],
+      "MaxAction1": "Connect_Talk_1",
+      "MaxResponse1": [
+        "INN_MAYA_CONNECT_CONVERSATION01",
+        "InnReaction.Maya01",
+        "InnReaction"
+      ],
+      "MaxAction2": "Connect_Talk_2",
+      "MaxResponse2": [
+        "INN_MAYA_CONNECT_CONVERSATION02",
+        "InnReaction.Maya01",
+        "InnReaction"
+      ],
+      "MaxAction3": "Connect_Talk_3",
+      "MaxResponse3": [
+        "INN_MAYA_CONNECT_CONVERSATION03",
+        "InnReaction.Maya01",
+        "InnReaction"
+      ]
+    }
+  ]
+}

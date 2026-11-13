@@ -15,8 +15,9 @@ repository root.
 | `client/managed/` | The game's C# code (`Assembly-CSharp`) and SPRK feature assemblies (`Sprk*`) |
 | `client/launcher/` | Windows launcher and its tests |
 | `client/overrides/files/` | Replacement assets/tables, by client-relative path |
+| `client/tables/` | JSON patches for game tables and text, built into overrides ([guide](docs/jit-tables.md)) |
 | `client/scripts/` | `build/`, `release/`, `automation/`, `launcher/`, `android/` |
-| `client/tools/` | Read-only DLL inspection |
+| `client/tools/` | Read-only DLL inspection; `JitTables` table/localization editor |
 | `tables/`, `config/` | Server game tables; client-update public key and shared configuration |
 | `docs/`, `.github/`, `Dockerfile*`, `docker-compose.yml` | Guides, CI and containers ([scripts inventory](docs/scripts.md)) |
 
@@ -112,6 +113,11 @@ this repository. The Unity player, assets and tables are never source.
   under `client/overrides/files/` at its client-relative path, with matching
   `SPRK-Native*.json` integrity metadata when the data requires it. Changes
   made only in `../sprk-client` or in ignored folders never reach CI.
+- Edit `TableJit` and `LocalizationJit` only through JSON patches in
+  `client/tables/` and `python client/scripts/build/build_tables.py`, which
+  regenerates their overrides and metadata from the pinned baseline
+  ([guide](docs/jit-tables.md)); commit the patches with the regenerated files
+  and check with `--check`.
 - `client/scripts/release/client_baseline.py` pins the published release that
   supplies assets and runtime DLLs. Change it only with `pin_client_baseline.py`
   when deliberately adopting a newer release.

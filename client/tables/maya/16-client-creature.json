@@ -1,0 +1,99 @@
+{
+  "table": "ClientCreatureTable",
+  "upsert": [
+    {
+      "Code": "Hero.Maya",
+      "HeroViewZoomInViewSize": 0.4000000059604645,
+      "HeroViewZoomInOffset": [
+        0,
+        -0.07999999821186066,
+        0
+      ],
+      "HeroViewZoomOutViewSize": 1.2799999713897705,
+      "HeroViewZoomOutOffset": [
+        0,
+        0.1599999964237213,
+        0
+      ],
+      "DetailViewZoomInOffset": [
+        0,
+        -0.10000000149011612,
+        0
+      ],
+      "DetailViewZoomInDistance": 2,
+      "DetailViewZoomOutOffset": [
+        0,
+        -0.10000000149011612,
+        0
+      ],
+      "DetailViewZoomOutDistance": 7,
+      "PurifyDarknessOffset": [
+        0.1,
+        0.65,
+        0.45
+      ],
+      "PurifyCameraScale": 1,
+      "PurifyCameraOffset": [
+        0,
+        -0.7,
+        0
+      ],
+      "PayShopOffset": [
+        140,
+        -500
+      ],
+      "PayShopScale": 500,
+      "HeroInnOffset": [
+        0,
+        -700,
+        300
+      ],
+      "HeroInnScale": 670,
+      "HeroInnMotion": "InnIdle",
+      "EntryMenuOffset": [
+        0.25,
+        0,
+        0
+      ],
+      "EntryMenuScale": 1.059999942779541,
+      "MatchPickBanOffset": [
+        0,
+        -1100,
+        0
+      ],
+      "MatchPickBanScale": 700,
+      "FullViewZoomInOffset": [
+        0,
+        -0.10000000149011612,
+        0
+      ],
+      "FullViewZoomInDistance": 2,
+      "FullViewZoomOutOffset": [
+        0,
+        -0.10000000149011612,
+        0
+      ],
+      "FullViewZoomOutDistance": 7,
+      "ArchiveViewZoomInOffset": [
+        0,
+        -0.10000000149011612,
+        0
+      ],
+      "ArchiveViewZoomInDistance": 2,
+      "ArchiveViewZoomOutOffset": [
+        0,
+        -0.10000000149011612,
+        0
+      ],
+      "ArchiveViewZoomOutDistance": 7,
+      "ArchivePreviewBg": "",
+      "StepUpGachaOffset": [
+        -80,
+        -432
+      ],
+      "StepUpScale": 0.7799999713897705,
+      "PayShopAnimationKey": "",
+      "LookRotationZ": -1
+    }
+  ]
+}

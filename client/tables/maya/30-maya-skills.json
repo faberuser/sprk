@@ -1,0 +1,1113 @@
+{
+  "table": "SkillTable",
+  "upsert": [
+    {
+      "Index": 1410,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerRatio": 1000,
+      "Mp": 3000,
+      "CoolTimeMs": 7500,
+      "ActingTimeMs": 1300,
+      "DurationTimeMs": [
+        2400
+      ],
+      "CancelOnWaveEnd": true,
+      "TickTimeValue": [
+        "1300"
+      ],
+      "AttrType": "Physical",
+      "TargetType": "Enemy",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "GetPhysicalDamageR",
+      "OperationValue1": [
+        "2500",
+        "550",
+        "None"
+      ],
+      "OperationValueFactor1": [
+        0,
+        0,
+        5,
+        550
+      ],
+      "OperationConditionType1": "NotState",
+      "OperationConditionValue1": [
+        "Bleeding"
+      ],
+      "OperationTargetType1": "Target",
+      "OperationRadiusMm1": 15000,
+      "OperationAngle1": 30,
+      "OperationDelayMs1": [
+        0,
+        100,
+        0
+      ],
+      "OperationState1": "",
+      "OperationType2": "GetPhysicalDamageR",
+      "OperationValue2": [
+        "2500",
+        "550",
+        "None"
+      ],
+      "OperationValueFactor2": [
+        0,
+        0,
+        5,
+        550
+      ],
+      "OperationConditionType2": "State",
+      "OperationConditionValue2": [
+        "Bleeding"
+      ],
+      "OperationTargetType2": "Target",
+      "OperationRadiusMm2": 15000,
+      "OperationAngle2": 30,
+      "OperationDelayMs2": [
+        0,
+        100,
+        0
+      ],
+      "OperationState2": "",
+      "OperationType3": "GetPhysicalDamageR",
+      "OperationValue3": [
+        "2500",
+        "550",
+        "Critical"
+      ],
+      "OperationValueFactor3": [
+        0,
+        0,
+        5,
+        550
+      ],
+      "OperationConditionType3": "State",
+      "OperationConditionValue3": [
+        "Bleeding"
+      ],
+      "OperationFlags3": [
+        "Disabled"
+      ],
+      "OperationTargetType3": "Target",
+      "OperationRadiusMm3": 15000,
+      "OperationAngle3": 30,
+      "OperationDelayMs3": [
+        0,
+        100,
+        0
+      ],
+      "OperationState3": "",
+      "OperationType4": "GetPhysicalDotR",
+      "OperationValue4": [
+        "200",
+        "0",
+        "Unavoidable|IgnoreBlock"
+      ],
+      "OperationDurationMs4": 10000,
+      "OperationTickTimeMs4": 1000,
+      "OperationState4": "Bleeding",
+      "OperationTargetType4": "Target",
+      "OperationRadiusMm4": 15000,
+      "OperationAngle4": 30,
+      "OperationDelayMs4": [
+        0,
+        100,
+        0
+      ]
+    },
+    {
+      "Index": 1413,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillDisabled",
+      "OperationValue1": [
+        "1410",
+        "2"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillEnabled",
+      "OperationValue2": [
+        "1410",
+        "3"
+      ],
+      "OperationState2": ""
+    },
+    {
+      "Index": 1420,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerRatio": 1000,
+      "Mp": 4000,
+      "CoolTimeMs": 25000,
+      "ActingTimeMs": 600,
+      "DurationTimeMs": [
+        1900
+      ],
+      "CancelOnWaveEnd": true,
+      "TickTimeValue": [
+        "600"
+      ],
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "SpawnCreature",
+      "OperationValue1": [
+        "25004",
+        "1",
+        "500"
+      ],
+      "OperationConditionType1": "SummoneeCount",
+      "OperationState1": "",
+      "OperationType2": "UseSommoneeSkill",
+      "OperationValue2": [
+        "2500450",
+        "false"
+      ],
+      "OperationConditionType2": "SummoneeCount",
+      "OperationConditionValue2": [
+        "1"
+      ],
+      "OperationState2": "",
+      "OperationType3": "UseSommoneeSkill",
+      "OperationValue3": [
+        "2500451",
+        "false"
+      ],
+      "OperationConditionType3": "SummoneeCount",
+      "OperationConditionValue3": [
+        "1"
+      ],
+      "OperationFlags3": [
+        "Disabled",
+        "DelayIgnoreAttackSpeed",
+        "CheckConditionOnReady"
+      ],
+      "OperationState3": "",
+      "OperationType4": "UseSommoneeSkill",
+      "OperationValue4": [
+        "2500452",
+        "false"
+      ],
+      "OperationConditionType4": "SummoneeCount",
+      "OperationConditionValue4": [
+        "1"
+      ],
+      "OperationFlags4": [
+        "Disabled",
+        "DelayIgnoreAttackSpeed",
+        "CheckConditionOnReady"
+      ],
+      "OperationState4": "",
+      "OperationType5": "UseSommoneeSkill",
+      "OperationValue5": [
+        "2500453",
+        "false"
+      ],
+      "OperationConditionType5": "SummoneeCount",
+      "OperationConditionValue5": [
+        "1"
+      ],
+      "OperationFlags5": [
+        "Disabled",
+        "DelayIgnoreAttackSpeed",
+        "CheckConditionOnReady"
+      ],
+      "OperationState5": "",
+      "OperationType6": "UseSommoneeSkill",
+      "OperationValue6": [
+        "2500454",
+        "false"
+      ],
+      "OperationConditionType6": "SummoneeCount",
+      "OperationConditionValue6": [
+        "1"
+      ],
+      "OperationFlags6": [
+        "Disabled",
+        "DelayIgnoreAttackSpeed",
+        "CheckConditionOnReady"
+      ],
+      "OperationState6": "",
+      "OperationType7": "UseSommoneeSkill",
+      "OperationValue7": [
+        "2500455",
+        "false"
+      ],
+      "OperationConditionType7": "SummoneeCount",
+      "OperationConditionValue7": [
+        "1"
+      ],
+      "OperationFlags7": [
+        "Disabled",
+        "DelayIgnoreAttackSpeed",
+        "CheckConditionOnReady"
+      ],
+      "OperationState7": "",
+      "OperationType8": "UseSommoneeSkill",
+      "OperationValue8": [
+        "2500456",
+        "false"
+      ],
+      "OperationConditionType8": "SummoneeCount",
+      "OperationConditionValue8": [
+        "1"
+      ],
+      "OperationFlags8": [
+        "Disabled",
+        "DelayIgnoreAttackSpeed",
+        "CheckConditionOnReady"
+      ],
+      "OperationState8": "",
+      "OperationDelayMs2": [
+        0,
+        0,
+        500
+      ],
+      "OperationFlags2": [
+        "DelayIgnoreAttackSpeed",
+        "CheckConditionOnReady"
+      ],
+      "OperationDelayMs3": [
+        0,
+        0,
+        500
+      ],
+      "OperationDelayMs4": [
+        0,
+        0,
+        500
+      ],
+      "OperationDelayMs5": [
+        0,
+        0,
+        500
+      ],
+      "OperationDelayMs6": [
+        0,
+        0,
+        500
+      ],
+      "OperationDelayMs7": [
+        0,
+        0,
+        500
+      ],
+      "OperationDelayMs8": [
+        0,
+        0,
+        500
+      ]
+    },
+    {
+      "Index": 1423,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillEnabled",
+      "OperationValue1": [
+        "1420",
+        "3"
+      ],
+      "OperationState1": ""
+    },
+    {
+      "Index": 1443,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillEnabled",
+      "OperationValue1": [
+        "1420",
+        "4"
+      ],
+      "OperationState1": ""
+    },
+    {
+      "Index": 1430,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerRatio": 1000,
+      "Mp": 3000,
+      "CoolTimeMs": 12000,
+      "ActingTimeMs": 1100,
+      "DurationTimeMs": [
+        2700
+      ],
+      "TickTimeValue": [
+        "1500"
+      ],
+      "AttrType": "Physical",
+      "TargetType": "Enemy",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "GetPhysicalDamageR",
+      "OperationTargetType1": "Target",
+      "OperationValue1": [
+        "4750",
+        "1040",
+        "None"
+      ],
+      "OperationValueFactor1": [
+        0,
+        0,
+        5,
+        1040
+      ],
+      "OperationDelayMs1": [
+        0,
+        100,
+        0
+      ],
+      "OperationState1": "",
+      "OperationType2": "UseSommoneeSkill",
+      "OperationValue2": [
+        "2500430",
+        "false"
+      ],
+      "OperationState2": "",
+      "OperationType3": "GetPhysicalDamageR",
+      "OperationTargetType3": "Target",
+      "OperationValue3": [
+        "1900",
+        "420",
+        "None"
+      ],
+      "OperationValueFactor3": [
+        0,
+        0,
+        5,
+        420
+      ],
+      "OperationConditionType3": "State",
+      "OperationConditionValue3": [
+        "Bleeding"
+      ],
+      "OperationDelayMs3": [
+        0,
+        100,
+        0
+      ],
+      "OperationFlags3": [
+        "Disabled"
+      ],
+      "OperationState3": "",
+      "OperationType4": "UseSommoneeSkill",
+      "OperationValue4": [
+        "2500435",
+        "false"
+      ],
+      "OperationFlags4": [
+        "Disabled"
+      ],
+      "OperationState4": "",
+      "OperationType5": "ModPhysicalDefenceR",
+      "OperationTargetType5": "Target",
+      "OperationValue5": [
+        "-150"
+      ],
+      "OperationDurationMs5": 10000,
+      "OperationState5": "91001430",
+      "OperationConditionType5": "State",
+      "OperationConditionValue5": [
+        "Bleeding"
+      ],
+      "OperationFlags5": [
+        "Disabled"
+      ]
+    },
+    {
+      "Index": 1434,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnKill",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TriggerValue": [
+        "1430",
+        "None",
+        "Dot"
+      ],
+      "OperationType1": "ModActiveCooltime",
+      "OperationValue1": [
+        "1",
+        "0",
+        "InCoolTime",
+        "3"
+      ],
+      "OperationState1": ""
+    },
+    {
+      "Index": 1433,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnKill",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TriggerValue": [
+        "1430",
+        "None",
+        "Dot"
+      ],
+      "OperationType1": "ModPowerR",
+      "OperationValue1": [
+        "200"
+      ],
+      "OperationDurationMs1": 10000,
+      "OperationState1": "1433"
+    },
+    {
+      "Index": 1440,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnAttack",
+      "TriggerValue": [
+        "None",
+        "None",
+        "Dot"
+      ],
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetType": "Enemy",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "GetPhysicalDamageR",
+      "OperationTargetType1": "Target",
+      "OperationValue1": [
+        "1000",
+        "220",
+        "IgnoreAttackersTrigger"
+      ],
+      "OperationValueFactor1": [
+        0,
+        0,
+        5,
+        220
+      ],
+      "OperationConditionType1": "State",
+      "OperationConditionValue1": [
+        "Bleeding"
+      ],
+      "OperationState1": "",
+      "OperationType2": "GetPhysicalDamageR",
+      "OperationTargetType2": "Target",
+      "OperationValue2": [
+        "200",
+        "40",
+        "IgnoreAttackersTrigger"
+      ],
+      "OperationValueFactor2": [
+        0,
+        0,
+        5,
+        40
+      ],
+      "OperationConditionType2": "StateCount",
+      "OperationConditionValue2": [
+        "Bleeding",
+        "1",
+        "MoreOrEqual"
+      ],
+      "OperationFlags2": [
+        "Disabled"
+      ],
+      "OperationState2": "",
+      "OperationType3": "GetPhysicalDamageR",
+      "OperationTargetType3": "Target",
+      "OperationValue3": [
+        "200",
+        "40",
+        "IgnoreAttackersTrigger"
+      ],
+      "OperationValueFactor3": [
+        0,
+        0,
+        5,
+        40
+      ],
+      "OperationConditionType3": "StateCount",
+      "OperationConditionValue3": [
+        "Bleeding",
+        "2",
+        "MoreOrEqual"
+      ],
+      "OperationFlags3": [
+        "Disabled"
+      ],
+      "OperationState3": "",
+      "OperationType4": "GetPhysicalDamageR",
+      "OperationTargetType4": "Target",
+      "OperationValue4": [
+        "200",
+        "40",
+        "IgnoreAttackersTrigger"
+      ],
+      "OperationValueFactor4": [
+        0,
+        0,
+        5,
+        40
+      ],
+      "OperationConditionType4": "StateCount",
+      "OperationConditionValue4": [
+        "Bleeding",
+        "3",
+        "MoreOrEqual"
+      ],
+      "OperationFlags4": [
+        "Disabled"
+      ],
+      "OperationState4": ""
+    },
+    {
+      "Index": 1460,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnFireSkill",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TriggerValue": [
+        "1420"
+      ],
+      "TriggerDisabled": true,
+      "OperationType1": "UseSommoneeSkill",
+      "OperationValue1": [
+        "2500460",
+        "false"
+      ],
+      "OperationConditionType1": "SummoneeCount",
+      "OperationConditionValue1": [
+        "1"
+      ],
+      "OperationState1": "",
+      "OperationDelayMs1": [
+        0,
+        0,
+        500
+      ],
+      "OperationFlags1": [
+        "DelayIgnoreAttackSpeed",
+        "CheckConditionOnReady"
+      ]
+    },
+    {
+      "Index": 1461,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnFireSkill",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TriggerValue": [
+        "1420"
+      ],
+      "TriggerDisabled": true,
+      "OperationType1": "UseSommoneeSkill",
+      "OperationValue1": [
+        "2500461",
+        "false"
+      ],
+      "OperationConditionType1": "SummoneeCount",
+      "OperationConditionValue1": [
+        "1"
+      ],
+      "OperationState1": "",
+      "OperationDelayMs1": [
+        0,
+        0,
+        500
+      ],
+      "OperationFlags1": [
+        "DelayIgnoreAttackSpeed",
+        "CheckConditionOnReady"
+      ]
+    },
+    {
+      "Index": 1462,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnFireSkill",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TriggerValue": [
+        "1420"
+      ],
+      "TriggerDisabled": true,
+      "OperationType1": "UseSommoneeSkill",
+      "OperationValue1": [
+        "2500462",
+        "false"
+      ],
+      "OperationConditionType1": "SummoneeCount",
+      "OperationConditionValue1": [
+        "1"
+      ],
+      "OperationState1": "",
+      "OperationDelayMs1": [
+        0,
+        0,
+        500
+      ],
+      "OperationFlags1": [
+        "DelayIgnoreAttackSpeed",
+        "CheckConditionOnReady"
+      ]
+    },
+    {
+      "Index": 1463,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnFireSkill",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TriggerValue": [
+        "1420"
+      ],
+      "TriggerDisabled": true,
+      "OperationType1": "UseSommoneeSkill",
+      "OperationValue1": [
+        "2500463",
+        "false"
+      ],
+      "OperationConditionType1": "SummoneeCount",
+      "OperationConditionValue1": [
+        "1"
+      ],
+      "OperationState1": "",
+      "OperationDelayMs1": [
+        0,
+        0,
+        500
+      ],
+      "OperationFlags1": [
+        "DelayIgnoreAttackSpeed",
+        "CheckConditionOnReady"
+      ]
+    },
+    {
+      "Index": 1464,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnFireSkill",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TriggerValue": [
+        "1420"
+      ],
+      "TriggerDisabled": true,
+      "OperationType1": "UseSommoneeSkill",
+      "OperationValue1": [
+        "2500464",
+        "false"
+      ],
+      "OperationConditionType1": "SummoneeCount",
+      "OperationConditionValue1": [
+        "1"
+      ],
+      "OperationState1": "",
+      "OperationDelayMs1": [
+        0,
+        0,
+        500
+      ],
+      "OperationFlags1": [
+        "DelayIgnoreAttackSpeed",
+        "CheckConditionOnReady"
+      ]
+    },
+    {
+      "Index": 1465,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnFireSkill",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TriggerValue": [
+        "1420"
+      ],
+      "TriggerDisabled": true,
+      "OperationType1": "UseSommoneeSkill",
+      "OperationValue1": [
+        "2500465",
+        "false"
+      ],
+      "OperationConditionType1": "SummoneeCount",
+      "OperationConditionValue1": [
+        "1"
+      ],
+      "OperationState1": "",
+      "OperationDelayMs1": [
+        0,
+        0,
+        500
+      ],
+      "OperationFlags1": [
+        "DelayIgnoreAttackSpeed",
+        "CheckConditionOnReady"
+      ]
+    },
+    {
+      "Index": 1470,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnBaseAttack",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TargetType": "Enemy",
+      "CoolTimeMs": 1000,
+      "TriggerDisabled": true,
+      "OperationType1": "GetPhysicalDamageR",
+      "OperationTargetType1": "Target",
+      "OperationValue1": [
+        "2000",
+        "0",
+        "IgnoreDefence|IgnoreAttackersTrigger"
+      ],
+      "OperationConditionType1": "State",
+      "OperationConditionValue1": [
+        "Bleeding"
+      ],
+      "OperationState1": ""
+    },
+    {
+      "Index": 1471,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnKill",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TriggerValue": [
+        "1430",
+        "None",
+        "Dot"
+      ],
+      "TriggerDisabled": true,
+      "OperationType1": "GetMana",
+      "OperationValue1": [
+        "1000"
+      ],
+      "OperationState1": ""
+    },
+    {
+      "Index": 60001410,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillPowerR",
+      "OperationValue1": [
+        "1410",
+        "1",
+        "400"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillPowerR",
+      "OperationValue2": [
+        "1410",
+        "2",
+        "400"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ModSkillPowerR",
+      "OperationValue3": [
+        "1410",
+        "3",
+        "400"
+      ],
+      "OperationState3": "",
+      "OperationType4": "ModSkill",
+      "OperationValue4": [
+        "1410",
+        "4",
+        "DurationMs",
+        "5000"
+      ],
+      "OperationState4": ""
+    },
+    {
+      "Index": 60001411,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkill",
+      "OperationValue1": [
+        "1410",
+        "0",
+        "SkillMp",
+        "-1000"
+      ],
+      "OperationState1": ""
+    },
+    {
+      "Index": 60001420,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillEnabled",
+      "OperationValue1": [
+        "1420",
+        "5"
+      ],
+      "OperationState1": ""
+    },
+    {
+      "Index": 60001421,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillEnabled",
+      "OperationValue1": [
+        "1420",
+        "6"
+      ],
+      "OperationState1": ""
+    },
+    {
+      "Index": 60001430,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillPowerR",
+      "OperationValue1": [
+        "1430",
+        "1",
+        "400"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillEnabled",
+      "OperationValue2": [
+        "1430",
+        "3"
+      ],
+      "OperationState2": ""
+    },
+    {
+      "Index": 60001431,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillDisabled",
+      "OperationValue1": [
+        "1430",
+        "2"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillEnabled",
+      "OperationValue2": [
+        "1430",
+        "4"
+      ],
+      "OperationState2": "",
+      "OperationType3": "EnablePassiveSkill",
+      "OperationValue3": [
+        "1471",
+        "True"
+      ],
+      "OperationState3": ""
+    },
+    {
+      "Index": 60001440,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillEnabled",
+      "OperationValue1": [
+        "1440",
+        "2"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillEnabled",
+      "OperationValue2": [
+        "1440",
+        "3"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ModSkillEnabled",
+      "OperationValue3": [
+        "1440",
+        "4"
+      ],
+      "OperationState3": ""
+    },
+    {
+      "Index": 60001441,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnAttack",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TriggerValue": [
+        "None",
+        "None",
+        "Dot"
+      ],
+      "TargetType": "TriggerTarget",
+      "OperationType1": "ModPhysicalWeakness",
+      "OperationTargetType1": "Target",
+      "OperationValue1": [
+        "150"
+      ],
+      "OperationDurationMs1": 10000,
+      "OperationState1": "60001441",
+      "OperationConditionType1": "State",
+      "OperationConditionValue1": [
+        "Bleeding"
+      ],
+      "OperationType2": "ModRecoverPower",
+      "OperationTargetType2": "Target",
+      "OperationValue2": [
+        "-300"
+      ],
+      "OperationDurationMs2": 10000,
+      "OperationState2": "60001441_2",
+      "OperationConditionType2": "State",
+      "OperationConditionValue2": [
+        "Bleeding"
+      ]
+    },
+    {
+      "Index": 60001450,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModMaxHpR",
+      "OperationValue1": [
+        "150"
+      ],
+      "OperationDurationMs1": 999999,
+      "OperationState1": "",
+      "OperationType2": "ModDefenceR",
+      "OperationValue2": [
+        "150"
+      ],
+      "OperationDurationMs2": 9999999,
+      "OperationState2": "",
+      "OperationType3": "ModPowerR",
+      "OperationValue3": [
+        "150"
+      ],
+      "OperationDurationMs3": 99999999,
+      "OperationState3": "",
+      "OperationType4": "ModCriticalPower",
+      "OperationValue4": [
+        "200"
+      ],
+      "OperationDurationMs4": 99999999,
+      "OperationState4": ""
+    },
+    {
+      "Index": 60001451,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillEnabled",
+      "OperationValue1": [
+        "1420",
+        "7"
+      ],
+      "OperationState1": "",
+      "OperationType2": "EnablePassiveSkill",
+      "OperationValue2": [
+        "1470",
+        "True"
+      ],
+      "OperationState2": ""
+    }
+  ]
+}

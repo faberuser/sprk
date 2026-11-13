@@ -1,0 +1,36 @@
+{
+  "table": "HeroFriendlyTable",
+  "upsert": [
+    {
+      "HeroIndex": 14,
+      "NeedFriendlyPoint": 1000,
+      "Action1": "Greeting",
+      "GetMinPoint1": 15,
+      "GetMaxPoint1": 15,
+      "Action2": "Conversation",
+      "GetMinPoint2": 40,
+      "GetMaxPoint2": 50,
+      "ActionCostType2": "FriendshipPoint",
+      "ActionCostValue2": 160,
+      "Action3": "Gift",
+      "GetMinPoint3": 20,
+      "GetMaxPoint3": 30,
+      "ActionCostType3": "Gold",
+      "ActionCostValue3": 40000,
+      "Action4": "Closeness_Greeting",
+      "GetMinPoint4": 20,
+      "GetMaxPoint4": 20,
+      "Action5": "Closeness_Conversation",
+      "GetMinPoint5": 45,
+      "GetMaxPoint5": 55,
+      "ActionCostType5": "FriendshipPoint",
+      "ActionCostValue5": 50,
+      "Action6": "Closeness_Gift",
+      "GetMinPoint6": 25,
+      "GetMaxPoint6": 35,
+      "ActionCostType6": "Gold",
+      "ActionCostValue6": 25000,
+      "HeroSelectChance": 9
+    }
+  ]
+}

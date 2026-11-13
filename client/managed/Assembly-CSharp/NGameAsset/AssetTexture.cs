@@ -85,6 +85,13 @@ public class AssetTexture : IAsyncLoadBase
 	{
 		Path = path;
 		IsDone = false;
+		// SPRK: icons shipped as embedded PNGs (art the game never had) take precedence.
+		if (SprkImageRecovery.TryIconTexture(path, out var sprkTexture))
+		{
+			_load = new SprkFixedTexture(sprkTexture);
+			OnComplete();
+			return;
+		}
 		AtlasDataContainer.AtlasLink atlasLink = SingletonAuto<AtlasDataContainer>.instance.GetAtlasLink(path);
 		if (atlasLink != null)
 		{
@@ -139,5 +146,33 @@ public class AssetTexture : IAsyncLoadBase
 	private void OnComplete()
 	{
 		IsDone = true;
+	}
+
+	// A texture SPRK owns and caches; closing a view never destroys it.
+	private sealed class SprkFixedTexture : ILoad
+	{
+		private readonly TextureInfo _info;
+
+		public SprkFixedTexture(Texture2D texture)
+		{
+			_info = new TextureInfo
+			{
+				SrcType = ESrcType.PlainAsset,
+				Tex = texture,
+				Width = texture.width,
+				Height = texture.height,
+				UvRect = Rect.MinMaxRect(0f, 0f, 1f, 1f)
+			};
+		}
+
+		TextureInfo ILoad.Value => _info;
+
+		void ILoad.Close()
+		{
+		}
+
+		void ILoad.CloseAndRelease()
+		{
+		}
 	}
 }

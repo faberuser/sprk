@@ -1,0 +1,527 @@
+{
+  "table": "SkillTable",
+  "upsert": [
+    {
+      "Index": 2500410,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerRatio": 1000,
+      "CoolTimeMs": 7000,
+      "ActingTimeMs": 500,
+      "DurationTimeMs": [
+        1200
+      ],
+      "CancelOnWaveEnd": true,
+      "TickTimeValue": [
+        "0[2]",
+        "500[1]"
+      ],
+      "AttrType": "Physical",
+      "TargetType": "Enemy",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "MaxRangeMm": 8000,
+      "IgnoreBlock": true,
+      "TriggerType": "OnAuto",
+      "InitialCoolTimeMs": 3000,
+      "OperationType1": "GetPhysicalDamageR",
+      "OperationTargetType1": "Target",
+      "OperationValue1": [
+        "2500"
+      ],
+      "OperationState1": "",
+      "OperationType2": "DashToTarget",
+      "OperationValue2": [
+        "1500",
+        "500"
+      ],
+      "OperationState2": ""
+    },
+    {
+      "Index": 2500420,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerRatio": 1000,
+      "CoolTimeMs": 25000,
+      "ActingTimeMs": 600,
+      "DurationTimeMs": [
+        1400
+      ],
+      "CancelOnWaveEnd": true,
+      "TickTimeValue": [
+        "600"
+      ],
+      "AttrType": "Physical",
+      "TargetType": "Enemy",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "MaxRangeMm": 2000,
+      "IgnoreBlock": true,
+      "TriggerType": "OnAuto",
+      "InitialCoolTimeMs": 8000,
+      "OperationType1": "GetPhysicalDamageR",
+      "OperationTargetType1": "Target",
+      "OperationRadiusMm1": 3000,
+      "OperationValue1": [
+        "1500"
+      ],
+      "OperationState1": ""
+    },
+    {
+      "Index": 2500430,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "NextIndex": 2500431,
+      "TriggerRatio": 1000,
+      "CoolTimeMs": 10000,
+      "ActingTimeMs": 1600,
+      "DurationTimeMs": [
+        1600
+      ],
+      "CancelOnWaveEnd": true,
+      "TickTimeValue": [
+        "0[2]"
+      ],
+      "AttrType": "Physical",
+      "TargetType": "SummonerTarget",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "RetargetOnFire": true,
+      "OperationType1": "GetPhysicalDamageR",
+      "OperationTargetType1": "Target",
+      "OperationRadiusMm1": 1000,
+      "OperationValue1": [
+        "1100"
+      ],
+      "OperationState1": "",
+      "OperationType2": "DashToTarget",
+      "OperationValue2": [
+        "1000",
+        "800"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ImmuneCc",
+      "OperationDurationMs3": 3000,
+      "OperationFlags3": [
+        "WhileSkillUse"
+      ],
+      "OperationState3": "",
+      "Mp": 99000
+    },
+    {
+      "Index": 2500431,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "NextIndex": 2500432,
+      "TriggerType": "NextSkill",
+      "TriggerRatio": 1000,
+      "DurationTimeMs": [
+        200
+      ],
+      "AttrType": "Physical",
+      "TargetType": "Enemy",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "RetargetOnFire": true,
+      "OperationType1": "GetPhysicalDamageR",
+      "OperationRadiusMm1": 1000,
+      "OperationAngle1": 180,
+      "OperationValue1": [
+        "1100"
+      ],
+      "OperationState1": "",
+      "OperationType2": "DashToTarget",
+      "OperationValue2": [
+        "-2000",
+        "900"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ImmuneCc",
+      "OperationDurationMs3": 3000,
+      "OperationFlags3": [
+        "WhileSkillUse"
+      ],
+      "OperationState3": ""
+    },
+    {
+      "Index": 2500432,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "NextSkill",
+      "TriggerRatio": 1000,
+      "DurationTimeMs": [
+        900
+      ],
+      "CancelOnWaveEnd": true,
+      "TickTimeValue": [
+        "0",
+        "100[1]",
+        "200[1]",
+        "300[1]",
+        "400[1]",
+        "500[1]",
+        "600[1]",
+        "700[1]",
+        "800[1]"
+      ],
+      "AttrType": "Physical",
+      "TargetType": "Enemy",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "RetargetOnFire": true,
+      "OperationType1": "GetPhysicalDamageR",
+      "OperationRadiusMm1": 1000,
+      "OperationAngle1": 180,
+      "OperationValue1": [
+        "1100"
+      ],
+      "OperationState1": "",
+      "OperationType2": "DashToTarget",
+      "OperationValue2": [
+        "-2000",
+        "900"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ImmuneCc",
+      "OperationDurationMs3": 3000,
+      "OperationFlags3": [
+        "WhileSkillUse"
+      ],
+      "OperationState3": ""
+    },
+    {
+      "Index": 2500440,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnAttack",
+      "TriggerValue": [
+        "None",
+        "None",
+        "Dot"
+      ],
+      "TriggerRatio": 1000,
+      "DurationTimeMs": [
+        100
+      ],
+      "CancelOnWaveEnd": true,
+      "AttrType": "Physical",
+      "TargetType": "Enemy",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "GetPhysicalDamageR",
+      "OperationTargetType1": "Target",
+      "OperationValue1": [
+        "1100",
+        "0",
+        "IgnoreAttackersTrigger"
+      ],
+      "OperationConditionType1": "State",
+      "OperationConditionValue1": [
+        "Bleeding"
+      ],
+      "OperationState1": ""
+    },
+    {
+      "Index": 2500450,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "None",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TargetType": "Myself",
+      "OperationType1": "GetHealR",
+      "OperationValue1": [
+        "2000",
+        "440",
+        "NoCritical"
+      ],
+      "OperationState1": "",
+      "TriggerDisabled": true
+    },
+    {
+      "Index": 2500451,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "None",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TargetType": "Myself",
+      "OperationType1": "ModPowerR",
+      "OperationValue1": [
+        "300"
+      ],
+      "OperationDurationMs1": 10000,
+      "OperationState1": "1423",
+      "TriggerDisabled": true
+    },
+    {
+      "Index": 2500452,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "None",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TargetType": "Myself",
+      "OperationType1": "ModHpStealPower",
+      "OperationValue1": [
+        "500"
+      ],
+      "OperationDurationMs1": 99999999,
+      "OperationState1": "MayaSevesLifesteal",
+      "TriggerDisabled": true
+    },
+    {
+      "Index": 2500435,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "NextIndex": 2500431,
+      "TriggerRatio": 1000,
+      "CoolTimeMs": 10000,
+      "ActingTimeMs": 1600,
+      "DurationTimeMs": [
+        1600
+      ],
+      "CancelOnWaveEnd": true,
+      "TickTimeValue": [
+        "0[2]"
+      ],
+      "AttrType": "Physical",
+      "TargetType": "MinHpEnemy",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "RetargetOnFire": true,
+      "OperationType1": "GetPhysicalDamageR",
+      "OperationTargetType1": "Target",
+      "OperationRadiusMm1": 1000,
+      "OperationValue1": [
+        "1100"
+      ],
+      "OperationState1": "",
+      "OperationType2": "DashToTarget",
+      "OperationValue2": [
+        "1000",
+        "800"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ImmuneCc",
+      "OperationDurationMs3": 3000,
+      "OperationFlags3": [
+        "WhileSkillUse"
+      ],
+      "OperationState3": "",
+      "Mp": 99000
+    },
+    {
+      "Index": 2500453,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "None",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TargetType": "Myself",
+      "OperationType1": "ModPowerR",
+      "OperationValue1": [
+        "300"
+      ],
+      "OperationDurationMs1": 15000,
+      "OperationState1": "60001420",
+      "OperationType2": "CreateShieldR",
+      "OperationValue2": [
+        "3000",
+        "0",
+        "NoCritical"
+      ],
+      "OperationDurationMs2": 15000,
+      "OperationState2": "60001420_2",
+      "TriggerDisabled": true
+    },
+    {
+      "Index": 2500454,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "None",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TargetType": "Myself",
+      "OperationType1": "Cleanse",
+      "OperationState1": "",
+      "OperationType2": "ImmuneCc",
+      "OperationDurationMs2": 5000,
+      "OperationState2": "",
+      "TriggerDisabled": true
+    },
+    {
+      "Index": 2500455,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "None",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TargetType": "Myself",
+      "OperationType1": "ModPowerR",
+      "OperationValue1": [
+        "1000"
+      ],
+      "OperationDurationMs1": 99999999,
+      "OperationState1": "60001451",
+      "TriggerDisabled": true
+    },
+    {
+      "Index": 2500456,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "None",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TargetType": "Myself",
+      "OperationType1": "ModDamage",
+      "OperationValue1": [
+        "99999999",
+        "-200"
+      ],
+      "OperationDurationMs1": 99999999,
+      "OperationState1": "91001440",
+      "TriggerDisabled": true
+    },
+    {
+      "Index": 2500460,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "None",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TargetType": "Myself",
+      "OperationType1": "ModPowerR",
+      "OperationValue1": [
+        "100"
+      ],
+      "OperationDurationMs1": 15000,
+      "OperationState1": "91001420",
+      "TriggerDisabled": true
+    },
+    {
+      "Index": 2500461,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "None",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TargetType": "Myself",
+      "OperationType1": "ModPowerR",
+      "OperationValue1": [
+        "120"
+      ],
+      "OperationDurationMs1": 15000,
+      "OperationState1": "91001420",
+      "TriggerDisabled": true
+    },
+    {
+      "Index": 2500462,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "None",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TargetType": "Myself",
+      "OperationType1": "ModPowerR",
+      "OperationValue1": [
+        "140"
+      ],
+      "OperationDurationMs1": 15000,
+      "OperationState1": "91001420",
+      "TriggerDisabled": true
+    },
+    {
+      "Index": 2500463,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "None",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TargetType": "Myself",
+      "OperationType1": "ModPowerR",
+      "OperationValue1": [
+        "170"
+      ],
+      "OperationDurationMs1": 15000,
+      "OperationState1": "91001420",
+      "TriggerDisabled": true
+    },
+    {
+      "Index": 2500464,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "None",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TargetType": "Myself",
+      "OperationType1": "ModPowerR",
+      "OperationValue1": [
+        "210"
+      ],
+      "OperationDurationMs1": 15000,
+      "OperationState1": "91001420",
+      "TriggerDisabled": true
+    },
+    {
+      "Index": 2500465,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "None",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TargetType": "Myself",
+      "OperationType1": "ModPowerR",
+      "OperationValue1": [
+        "250"
+      ],
+      "OperationDurationMs1": 15000,
+      "OperationState1": "91001420",
+      "TriggerDisabled": true
+    }
+  ]
+}
