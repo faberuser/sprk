@@ -278,7 +278,7 @@ public sealed class SprkForgeAwakenChance : MonoBehaviour
 	private void UpdateLabel()
 	{
 		int value = ((window.GetMaterialEquipSlotIndexArray() != null) ? Math.Min(100, (int)Rate.Invoke(window, null)) : 0);
-		label.text = "Success: " + value + "%";
+		label.text = SprkText.Format("Success: {0}%", value);
 		if (chances != null && chances.Length > 1)
 		{
 			int num = Array.IndexOf(chances, value);

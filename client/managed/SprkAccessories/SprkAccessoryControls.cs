@@ -34,7 +34,7 @@ public sealed class SprkAccessoryControls : MonoBehaviour
 			{
 				originalLabels.Add(uILabel, uILabel.text);
 			}
-			uILabel.text = "Apply";
+			uILabel.text = SprkText.Get("Apply");
 		}
 	}
 
@@ -101,9 +101,9 @@ public sealed class SprkAccessoryControls : MonoBehaviour
 		UILabel[] array = removeLabels;
 		foreach (UILabel uILabel in array)
 		{
-			if (uILabel != null && uILabel.text != "Remove")
+			if (uILabel != null && uILabel.text != SprkText.Get("Remove"))
 			{
-				uILabel.text = "Remove";
+				uILabel.text = SprkText.Get("Remove");
 			}
 		}
 		AlignRemoveButton();

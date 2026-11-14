@@ -21,6 +21,12 @@ public class SubCreatureInstance
 	public bool Open(ICreatureOpenData parentOpenData, ISubCreatureData subCreatureData)
 	{
 		Data = subCreatureData;
+		if (string.IsNullOrEmpty(Data?.CreatureCode))
+		{
+			// SPRK: unfinished model data (Maya's model lists an empty sub-creature);
+			// skip it instead of failing a load and logging an error.
+			return false;
+		}
 		CreatureStock stock = parentOpenData.GetStock();
 		stock.Code = Data.CreatureCode;
 		_creatureAsync = SingletonAuto<CreatureContainer>.instance.CreateAsync(stock);

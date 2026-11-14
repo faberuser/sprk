@@ -69,7 +69,7 @@ public static class SprkHonorDuel
 			return;
 		}
 		UIButton duelButton = menu.DuelButton;
-		Rename(duelButton.gameObject, "Victory Duel");
+		Rename(duelButton.gameObject, SprkText.Get("Victory Duel"));
 		Transform parent = duelButton.transform.parent;
 		Transform transform = parent.Find("SprkHonorDuelButton");
 		GameObject gameObject;
@@ -92,7 +92,7 @@ public static class SprkHonorDuel
 			}
 		}
 		gameObject.transform.SetSiblingIndex(duelButton.transform.GetSiblingIndex() + 1);
-		Rename(gameObject, "Honor Duel");
+		Rename(gameObject, SprkText.Get("Honor Duel"));
 		if (gameObject.activeSelf != duelButton.gameObject.activeSelf)
 		{
 			gameObject.SetActive(duelButton.gameObject.activeSelf);
@@ -275,7 +275,7 @@ public static class SprkHonorDuel
 
 	public static string InviteMessage(long groupId)
 	{
-		return (IsHonor(groupId) ? "Honor" : "Victory") + " Duel Request sent.";
+		return SprkText.Get(IsHonor(groupId) ? "Honor Duel Request sent." : "Victory Duel Request sent.");
 	}
 
 	public static void SetInviteMessage(DuelRequestNotify notify, NShared.NMessage.NProtocol.RequestDuel data)

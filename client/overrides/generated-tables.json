@@ -1,0 +1,30 @@
+{
+  "files": [
+    "LocalizationJit/LocalizationAll_ChineseSimplified.jit",
+    "LocalizationJit/LocalizationAll_ChineseTraditional.jit",
+    "LocalizationJit/LocalizationAll_English.jit",
+    "LocalizationJit/LocalizationAll_French.jit",
+    "LocalizationJit/LocalizationAll_German.jit",
+    "LocalizationJit/LocalizationAll_Japanese.jit",
+    "LocalizationJit/LocalizationAll_Korean.jit",
+    "LocalizationJit/LocalizationAll_Russian.jit",
+    "TableJit/ClientCreatureTable.jit",
+    "TableJit/CostumeTable.jit",
+    "TableJit/CreatureTable.jit",
+    "TableJit/EquipItemTable.jit",
+    "TableJit/HeroAnimationViewTable.jit",
+    "TableJit/HeroFriendlyActionTable.jit",
+    "TableJit/HeroFriendlyTable.jit",
+    "TableJit/HeroProfileTable.jit",
+    "TableJit/HeroSelectItemTable.jit",
+    "TableJit/HeroVoiceTable.jit",
+    "TableJit/ItemTable.jit",
+    "TableJit/SelectItemTable.jit",
+    "TableJit/SkillTable.jit",
+    "TableJit/SoulWeaponNodeTreeTable.jit",
+    "TableJit/SoulWeaponSkillTable.jit",
+    "TableJit/SoulWeaponUpgradePriceTable.jit",
+    "TableJit/StateTable.jit",
+    "TableJit/WeaponUniqueSelectItemTable.jit"
+  ]
+}

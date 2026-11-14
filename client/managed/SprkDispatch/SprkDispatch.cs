@@ -147,7 +147,7 @@ public sealed class SprkDispatch : MonoBehaviour
 	{
 		if (response == null)
 		{
-			MessagePopup.OpenError("Unable to start dispatch. Please try again.");
+			MessagePopup.OpenError(SprkText.Get("Unable to start dispatch. Please try again."));
 		}
 		else if (response.BaseResult != BaseResultType.Success)
 		{
@@ -155,7 +155,7 @@ public sealed class SprkDispatch : MonoBehaviour
 		}
 		else if (response.Result == NShared.StartDispatch.ResultType.Fail)
 		{
-			MessagePopup.Open("Dispatch", "Unable to start dispatch. Check the stage requirements, selected Heroes and available Stamina, then try again.");
+			MessagePopup.Open(SprkText.Get("Dispatch"), SprkText.Get("Unable to start dispatch. Check the stage requirements, selected Heroes and available Stamina, then try again."));
 		}
 		else
 		{

@@ -129,7 +129,7 @@ public sealed class SprkShopQuantity : MonoBehaviour
 		{
 			Set(Count);
 		});
-		UILabel uILabel = Label(row.transform, "QuantityHeading", "Quantity", 160, 24);
+		UILabel uILabel = Label(row.transform, "QuantityHeading", SprkText.Get("Quantity"), 160, 24);
 		uILabel.color = new Color(0.36f, 0.3f, 0.23f, 1f);
 		uILabel.transform.localPosition = new Vector3(0f, 38f, 0f);
 	}

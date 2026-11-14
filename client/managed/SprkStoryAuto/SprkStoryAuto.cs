@@ -423,7 +423,7 @@ public static class SprkStoryAuto
 		{
 			return false;
 		}
-		MessagePopup3Button.Open("Story battle", "Play once, or advance through available story battles and unlocked chapters automatically. Continuous Story skips skippable dialogue and stops on defeat or when entry requires your attention.", delegate
+		MessagePopup3Button.Open(SprkText.Get("Story battle"), SprkText.Get("Play once, or advance through available story battles and unlocked chapters automatically. Continuous Story skips skippable dialogue and stops on defeat or when entry requires your attention."), delegate
 		{
 			party.TryStartBattle(null);
 		}, delegate
@@ -451,7 +451,7 @@ public static class SprkStoryAuto
 				waitingForEvent = true;
 				retryAfter = lastProgress + 0.5f;
 			}
-		}, "Battle Once", "Continuous Story");
+		}, SprkText.Get("Battle Once"), SprkText.Get("Continuous Story"));
 		return true;
 	}
 
@@ -735,7 +735,7 @@ public static class SprkStoryAuto
 					if (!RestoreParty(battlePartySetting, dataProvider))
 					{
 						Stop();
-						GlobalCenterMessage.Open("Continuous Story stopped: your party needs attention for this stage.");
+						GlobalCenterMessage.Open(SprkText.Get("Continuous Story stopped: your party needs attention for this stage."));
 					}
 					else if (!SingletonUpdater<TutorialManager>.instance.IsProgressing && !GlobalAutoBehaviour<PopupManegement>.instance.AnyPopupExist())
 					{
@@ -1449,7 +1449,7 @@ public static class SprkStoryAuto
 			if (Time.realtimeSinceStartup - lastProgress > 90f)
 			{
 				Stop();
-				GlobalCenterMessage.Open("Continuous Story stopped: an event or entry requires your attention.");
+				GlobalCenterMessage.Open(SprkText.Get("Continuous Story stopped: an event or entry requires your attention."));
 			}
 		}
 		catch (Exception ex)

@@ -138,7 +138,9 @@ pub struct ItemResultInfo {
 
 /// Default available hero indices for the Hero Inn
 /// These are heroes that can appear in the inn for recruitment
-pub const INN_RECRUITMENT_EXCLUDED_HEROES: &[i32] = &[14]; // Maya
+/// Heroes that never visit the inn and cannot be recruited there. Empty since
+/// Maya was enabled; kept so a hero can be withheld again without new code.
+pub const INN_RECRUITMENT_EXCLUDED_HEROES: &[i32] = &[];
 
 pub fn get_available_inn_hero_indices() -> Vec<i32> {
     // Common heroes available in the inn (excluding starter heroes 1-4)
@@ -153,7 +155,7 @@ pub fn get_available_inn_hero_indices() -> Vec<i32> {
         11,  // Selene - Archer
         12,  // Rephy - Priest
         13,  // Baudouin - Priest
-        14,  // Maya (excluded from the recruitment pool below)
+        14,  // Maya - Archer
         15,  // Maria - Wizard
         16,  // Lorraine - Wizard
         17,  // Pavel - Wizard

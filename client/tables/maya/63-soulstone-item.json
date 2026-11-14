@@ -1,0 +1,41 @@
+{
+  "table": "ItemTable",
+  "upsert": [
+    {
+      "Index": 111014,
+      "Code": "SOULSTONE_MAYA_1",
+      "ItemStory": "ITEM_STORY_111014",
+      "IsArchive": true,
+      "Item3DPath": "Scene.Gacha.SoulStone.Selene.1",
+      "Item3DScale": 1.2000000476837158,
+      "Item3DFlip": true,
+      "Type": "SoulStone",
+      "Value": [
+        "14",
+        "Archer"
+      ],
+      "Grade": 90,
+      "BuyGold": 4000000,
+      "BuyGem": 15000,
+      "BuyPvpCoin": 30000,
+      "BuyGuildPoint": 30000,
+      "BuyRoyalPoint": 30000,
+      "BuyRaidPoint": 30000,
+      "BuyWorldBossPoint": 40000,
+      "SellGold": 7000,
+      "AssetGroup": "SoulStone",
+      "NotForSale": true,
+      "Breakable": true,
+      "Item3dModelNodeTree": [
+        "Item/3dModel_SoulStone",
+        "SOULSTONE_SELENE_1"
+      ],
+      "GlobalNotify": true,
+      "GetEffect": "ExceptionalUnique",
+      "DropItemNodeTreeCode": "",
+      "ReplaceNameKey": "",
+      "ReplaceDesc2Key": "ITEM_DESC_111014",
+      "BuyChallengeRaidPoint": 1000
+    }
+  ]
+}

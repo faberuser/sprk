@@ -187,7 +187,7 @@ public class BattleStats : BaseWindow
 			return;
 		}
 		UIHelper.EnableGameObject(WaveRoot, enable: true);
-		UIHelper.SetLabelText(WaveLabel, "Wave " + _waveIndex);
+		UIHelper.SetLabelText(WaveLabel, SprkText.Format("Wave {0}", _waveIndex));
 	}
 
 	private void SetupCreatureStatistics(bool left, bool right)

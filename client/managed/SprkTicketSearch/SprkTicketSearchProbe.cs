@@ -831,9 +831,80 @@ public static class SprkTicketSearchProbe
 		return "PASS: Hero Info class/name intersection, zero results, clear, bookmark indices, reopen, selection and layout; heroes=" + func();
 	}
 
+	private sealed class InspectSelectionListener : InspectUserList.Listener
+	{
+		public HeroPortraitComponent selected;
+		public void OnClickHeroPortrait(HeroPortraitComponent portrait) { selected = portrait; }
+		public void OnClickEquipIcon(ItemIconComponent caller) { }
+		public void OnClickDetailView() { }
+		public void OnClickChatting() { }
+		public void OnClickRunehengeIcon() { }
+		public void OnClose() { }
+	}
+
+	private static string InspectHeroTest()
+	{
+		EnsureAccount();
+		Show("InspectUserList");
+		InspectUserList inspect = shown.GetComponent<InspectUserList>();
+		CachedHeroInfo[] heroes = GameRoot.Instance.CreatureDataContainer.GetAllData()
+			.Where(h => h.OpenType == CreatureOpenType.Opened).Take(24)
+			.Select(h => new CachedHeroInfo(h) { Level = 30, Star = 2 }).ToArray();
+		InspectSelectionListener listener = new InspectSelectionListener();
+		typeof(InspectUserList).GetField("_HeroInfos", Any).SetValue(inspect, heroes);
+		typeof(InspectUserList).GetField("_SelectedHeroIndex", Any).SetValue(inspect, heroes[0].HeroIndex);
+		typeof(InspectUserList).GetField("_listener", Any).SetValue(inspect, listener);
+		Method(typeof(InspectUserList), "Setup", 0).Invoke(inspect, null);
+		bool downloaded = Define.PatchDownloaded;
+		Define.PatchDownloaded = true;
+		try
+		{
+			SprkTicketSearch.EnsureInspectAllHeroes(inspect);
+			Vector4 clip = inspect.HeroListGrid.ClippingPanel.baseClipRegion;
+			SprkTicketSearch.EnsureInspectAllHeroes(inspect);
+			Check(inspect.HeroListGrid.ClippingPanel.baseClipRegion == clip, "inspect layout idempotence");
+			UIButton button = shown.GetComponentsInChildren<UIButton>().Single(b => b.transform.parent.name == "SprkInspectAllHeroes");
+			Check(button.transform.parent.GetComponentInChildren<UILabel>() != null, "inspect button includes its localized label");
+			EventDelegate.Execute(button.onClick);
+			NGame2.NUI.WindowPrefab<HeroPortraitList> prefab = (NGame2.NUI.WindowPrefab<HeroPortraitList>)typeof(InspectUserList).GetField("_allHeroes", Any).GetValue(inspect);
+			HeroPortraitList grid = prefab.instance;
+			SprkHeroGridState state = grid.GetComponent<SprkHeroGridState>();
+			SprkTicketSearchBox box = grid.GetComponent<SprkTicketSearchBox>();
+			Check(state != null && state.heroes.Count == heroes.Length && state.heroes.All(h => heroes.Contains(h.HeroInfo)), "inspected roster only");
+			int tag = (int)state.heroes[1].CreatureData.TagType;
+			state.classes.SelectItem(tag);
+			box.input.value = state.heroes[1].CreatureData.Name;
+			box.OnSubmitted();
+			Check(state.heroes.Any(h => h.gameObject.activeSelf) && state.heroes.Where(h => h.gameObject.activeSelf).All(h => (int)h.CreatureData.TagType == tag), "inspect class and search combine");
+			box.input.value = "zzzzzzzzzzzzzzzzzz";
+			box.OnSubmitted();
+			Check(state.heroes.All(h => !h.gameObject.activeSelf), "inspect zero results");
+			box.Clear();
+			Check(state.heroes.Where(h => h.gameObject.activeSelf).All(h => (int)h.CreatureData.TagType == tag), "inspect clear preserves class");
+			((HeroPortraitComponent.Listener)grid).OnClick(state.heroes[1]);
+			Check(listener.selected != null && listener.selected.HeroInfo == heroes[1] && !grid.IsOpen(), "grid selection forwards inspected sidebar portrait and closes");
+			inspect.OnClickAllHero();
+			Check(box.text == "" && state.classes.CurrentKey == 0 && state.heroes.All(h => h.gameObject.activeSelf), "inspect reopen resets filters");
+			Check((int)typeof(HeroPortraitList).GetField("_SelectedHeroIndex", Any).GetValue(grid) == heroes[1].HeroIndex, "inspect selected hero persists");
+			LoadSpecAtlases(shown);
+			LoadSpecAtlases(grid.gameObject);
+			prefab.CloseWindow();
+			foreach (UIPanel panel in shown.GetComponentsInChildren<UIPanel>(includeInactive: true))
+			{
+				panel.alpha = 1f;
+			}
+			return "PASS: inspected roster; class and search; no matches; clear; selection callback; reopen reset; selected hero; idempotent layout.";
+		}
+		finally { Define.PatchDownloaded = downloaded; }
+	}
+
 	public static string Run(string mode)
 	{
 		Prepare();
+		if (mode == "inspect-hero-test")
+		{
+			return InspectHeroTest();
+		}
 		if (mode == "hero-info-test")
 		{
 			return HeroInfoTest();

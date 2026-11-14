@@ -439,7 +439,7 @@ pub async fn gm_reset_account(
     for table in ["play_record_values","progression_claims","progression_metrics","progression_login","attendance_calendar_state","progression_world_events","progression_main_quest"] {
         crate::db::query(sqlx::AssertSqlSafe(format!("DELETE FROM {table} WHERE account_id=$1"))).bind(account_id).execute(&mut *tx).await?;
     }
-    for table in if keep_heroes {vec![]}else{vec!["equipment_pending","extension_state","hero_details"]} {
+    for table in if keep_heroes {vec![]}else{vec!["equipment_pending","sprk_target_pity","extension_state","hero_details"]} {
         crate::db::query(sqlx::AssertSqlSafe(format!("DELETE FROM {table} WHERE account_id=$1"))).bind(account_id).execute(&mut *tx).await?;
     }
     tx.commit().await?;

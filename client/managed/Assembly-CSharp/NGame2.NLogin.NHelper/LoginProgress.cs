@@ -268,7 +268,7 @@ public class LoginProgress
 			}
 			else if (LoginResponse.Result == NShared.Login.ResultType.ServerClosed && LoginData.IsNewAccount)
 			{
-				GlobalMessagePopup.OpenGlobalError("Server is closed", GlobalAutoBehaviour<LoadingManager>.instance.Quit);
+				GlobalMessagePopup.OpenGlobalError(SprkText.Get("Server is closed"), GlobalAutoBehaviour<LoadingManager>.instance.Quit);
 				Status = EStatus.Error_Login;
 			}
 			else if (LoginResponse.Result == NShared.Login.ResultType.InactiveAccount)

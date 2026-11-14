@@ -92,6 +92,8 @@ def solution(path: Path, members: list[Path]) -> Path:
 
 def compile_managed(references: Path, work: Path, dotnet: str = "dotnet") -> dict[str, Path]:
     """Build into a new `work` directory and return {assembly name: DLL path}."""
+    # Do not ship a new English UI string with a stale or incomplete catalog.
+    subprocess.run([sys.executable, str(CLIENT / "scripts/build/build_sprk_localization.py"), "--check"], check=True)
     references, work = references.resolve(strict=True), work.resolve()
     if work == SOURCE or SOURCE in work.parents or work in SOURCE.parents:
         raise ValueError("Work directory must not overlap client/managed")

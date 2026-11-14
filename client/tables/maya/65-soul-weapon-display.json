@@ -1,0 +1,56 @@
+{
+  "table": "SoulWeaponNodeTreeTable",
+  "upsert": [
+    {
+      "ItemCode": "WEAPON_UNIQUE_MAYA_1",
+      "SoulStoneItemIndex": 111014,
+      "WeaponCreatureIndex": 901014,
+      "SoulStoneCreatureIndex": 911014,
+      "ManageWeaponPosition": [
+        -0.2,
+        2.35,
+        0.0
+      ],
+      "ManageWeaponRotation": [
+        0,
+        90,
+        0
+      ],
+      "ManageWeaponScale": 1.8,
+      "UpgradeWeaponPosition": [
+        -0.2,
+        2.35,
+        0.0
+      ],
+      "UpgradeWeaponRotation": [
+        0,
+        90,
+        0
+      ],
+      "UpgradeWeaponScale": 1.8,
+      "UpgradeResultWeaponPosition": [
+        -0.2,
+        2.35,
+        0.0
+      ],
+      "UpgradeResultWeaponRotation": [
+        0,
+        90,
+        0
+      ],
+      "UpgradeResultWeaponScale": 1.8,
+      "Liberation": [
+        "Hero/Maya",
+        "GetSoulWeapon"
+      ],
+      "ReinforceSuccess": [
+        "Item/3dModel_SoulWeapon",
+        "SOULWEAPON_MAYA_REINFORCESUCCESS"
+      ],
+      "ReinforceFail": [
+        "Item/3dModel_SoulWeapon",
+        "SOULWEAPON_MAYA_REINFORCEFAIL"
+      ]
+    }
+  ]
+}

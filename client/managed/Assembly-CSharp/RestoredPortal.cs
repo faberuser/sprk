@@ -123,7 +123,7 @@ public static class RestoredPortal
 		{
 			return false;
 		}
-		MessagePopup.Open("Equipment bag full", response.InternalErrorMessage);
+		MessagePopup.Open(SprkText.Get("Equipment bag full"), SprkText.Get(response.InternalErrorMessage));
 		return true;
 	}
 
@@ -148,7 +148,7 @@ public static class RestoredPortal
 		{
 			return true;
 		}
-		MessagePopup.Open("Content locked", "Clear 6-21 and complete the God King's Temple story to unlock God King's Trial and Eclipse.");
+		MessagePopup.Open(SprkText.Get("Content locked"), SprkText.Get("Clear 6-21 and complete the God King's Temple story to unlock God King's Trial and Eclipse."));
 		return false;
 	}
 
@@ -173,8 +173,8 @@ public static class RestoredPortal
 			{
 				if (script.Value is DisplayText displayText)
 				{
-					displayText.TitleLink.Key = "Temple of the God King";
-					displayText.TextLink.Key = "This story scene is unavailable in the recovered game files. Tap to continue to the next stage.";
+					displayText.TitleLink.Key = SprkText.Get("Temple of the God King");
+					displayText.TextLink.Key = SprkText.Get("This story scene is unavailable in the recovered game files. Tap to continue to the next stage.");
 				}
 			}
 		}
@@ -185,14 +185,14 @@ public static class RestoredPortal
 		NGame2.NAccount.UserCampaignManager campaignManager = GlobalAutoBehaviour<AccountManager>.instance.CampaignManager;
 		if (!campaignManager.IsCompleted(97, 2))
 		{
-			MessagePopup.Open("Content locked", "Complete the World Tree story in Chapter 9.5 to access The Shadow of Aegina.");
+			MessagePopup.Open(SprkText.Get("Content locked"), SprkText.Get("Complete the World Tree story in Chapter 9.5 to access The Shadow of Aegina."));
 			return false;
 		}
 		if (campaignManager.IsCompleted(50000, 210))
 		{
 			return true;
 		}
-		MessagePopup.Open("Content locked", "Continue The Shadow of Aegina story and clear its Devourer Shakmeh battle first.");
+		MessagePopup.Open(SprkText.Get("Content locked"), SprkText.Get("Continue The Shadow of Aegina story and clear its Devourer Shakmeh battle first."));
 		return false;
 	}
 
@@ -200,10 +200,10 @@ public static class RestoredPortal
 	{
 		return category switch
 		{
-			PortalRenewalCategory.TechnoRaid => "Clear 10-9 to unlock Technomagic Raid. Siegfried and Ascalon require 10-30.", 
-			PortalRenewalCategory.PunishmentRaid => "Clear X-10 to unlock Apocalypsion Raid.", 
-			PortalRenewalCategory.Shakmeh => "Complete the World Tree story in Chapter 9.5 to access The Shadow of Aegina.", 
-			_ => "Complete the God King's Temple story after 6-21.", 
+			PortalRenewalCategory.TechnoRaid => SprkText.Get("Clear 10-9 to unlock Technomagic Raid. Siegfried and Ascalon require 10-30."),
+			PortalRenewalCategory.PunishmentRaid => SprkText.Get("Clear X-10 to unlock Apocalypsion Raid."),
+			PortalRenewalCategory.Shakmeh => SprkText.Get("Complete the World Tree story in Chapter 9.5 to access The Shadow of Aegina."),
+			_ => SprkText.Get("Complete the God King's Temple story after 6-21."),
 		};
 	}
 
@@ -263,7 +263,7 @@ public static class RestoredPortal
 		{
 			return true;
 		}
-		MessagePopup.Open("Content locked", UnlockMessage(PortalRenewalCategory.PunishmentRaid));
+		MessagePopup.Open(SprkText.Get("Content locked"), UnlockMessage(PortalRenewalCategory.PunishmentRaid));
 		return false;
 	}
 
@@ -308,7 +308,7 @@ public static class RestoredPortal
 		{
 			return true;
 		}
-		MessagePopup.Open("Dispatch", "No dispatches in progress.");
+		MessagePopup.Open(SprkText.Get("Dispatch"), SprkText.Get("No dispatches in progress."));
 		return false;
 	}
 
@@ -442,7 +442,7 @@ public static class RestoredPortal
 		}
 		if (!GlobalAutoBehaviour<AccountManager>.instance.CampaignManager.IsCompleted(50000, 601))
 		{
-			MessagePopup.Open("Content locked", "Complete The Shadow of Aegina story to unlock the Shakmeh boss shortcuts.");
+			MessagePopup.Open(SprkText.Get("Content locked"), SprkText.Get("Complete The Shadow of Aegina story to unlock the Shakmeh boss shortcuts."));
 			return true;
 		}
 		bool flag = values[0] == "Final";
@@ -484,7 +484,7 @@ public static class RestoredPortal
 		NGame2.NAccount.UserCampaignManager campaignManager = GlobalAutoBehaviour<AccountManager>.instance.CampaignManager;
 		if (dungeon == 10 && !campaignManager.IsCompleted(50000, 601))
 		{
-			MessagePopup.Open("Content locked", "Finish The Shadow of Aegina story by defeating Otherworldly Darkness Shakmeh first.");
+			MessagePopup.Open(SprkText.Get("Content locked"), SprkText.Get("Finish The Shadow of Aegina story by defeating Otherworldly Darkness Shakmeh first."));
 			return false;
 		}
 		return ShakmehGaugeAccess(dungeon == 11);
@@ -500,7 +500,7 @@ public static class RestoredPortal
 		{
 			return true;
 		}
-		MessagePopup.Open("Shakmeh", final ? ("Shakmeh's Wrath is " + userStat + "/" + ((data == null) ? "600" : data.MaxValue.ToString()) + ". Defeat Devourer Shakmeh to fill it before challenging Otherworldly Darkness Shakmeh.") : "Otherworldly Darkness Shakmeh has appeared. Challenge him before returning to Devourer Shakmeh.");
+		MessagePopup.Open(SprkText.Get("Shakmeh"), final ? (SprkText.Format("Shakmeh's Wrath is {0}/{1}. Defeat Devourer Shakmeh to fill it before challenging Otherworldly Darkness Shakmeh.", userStat, (data == null) ? "600" : data.MaxValue.ToString())) : SprkText.Get("Otherworldly Darkness Shakmeh has appeared. Challenge him before returning to Devourer Shakmeh."));
 		return false;
 	}
 
@@ -524,7 +524,7 @@ public static class RestoredPortal
 		{
 			return true;
 		}
-		CenterMessage.Open("Requires a hero of level " + raidPartySetting.RaidData.ReqHeroLevel + " or higher.");
+		CenterMessage.Open(SprkText.Format("Requires a hero of level {0} or higher.", raidPartySetting.RaidData.ReqHeroLevel));
 		return false;
 	}
 

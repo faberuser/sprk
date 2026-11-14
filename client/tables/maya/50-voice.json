@@ -1,0 +1,50 @@
+{
+  "table": "HeroVoiceTable",
+  "removeWhere": [
+    {
+      "HeroIndex": 14
+    }
+  ],
+  "append": [
+    {
+      "HeroIndex": 14,
+      "VoiceNameText": "SKILL_NAME_1410",
+      "VoiceCode": "BeginFireSkill.1410"
+    },
+    {
+      "HeroIndex": 14,
+      "VoiceNameText": "SKILL_NAME_1430",
+      "VoiceCode": "BeginFireSkill.1430"
+    },
+    {
+      "HeroIndex": 14,
+      "VoiceNameText": "SKILL_NAME_1440",
+      "VoiceCode": "BeginFireSkill.1440"
+    },
+    {
+      "HeroIndex": 14,
+      "VoiceNameText": "HERO_VOICE_HIT",
+      "VoiceCode": "Damage.Hero.Maya"
+    },
+    {
+      "HeroIndex": 14,
+      "VoiceNameText": "HERO_VOICE_LOSE",
+      "VoiceCode": "Dead.Hero.Maya"
+    },
+    {
+      "HeroIndex": 14,
+      "VoiceNameText": "HERO_VOICE_JOIN",
+      "VoiceCode": "Select.Hero.Maya"
+    },
+    {
+      "HeroIndex": 14,
+      "VoiceNameText": "HERO_VOICE_VICTORY",
+      "VoiceCode": "Victory.Hero.Maya"
+    },
+    {
+      "HeroIndex": 14,
+      "VoiceNameText": "HERO_VOICE_AWAKE",
+      "VoiceCode": "Get.Maya"
+    }
+  ]
+}

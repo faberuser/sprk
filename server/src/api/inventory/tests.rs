@@ -1171,7 +1171,8 @@ async fn class_unique_weapon_selector_is_dedicated_and_regular_pools_are_restore
     }
     assert_eq!(count(&state, &u, ticket).await, 0);
     for ticket in [2000,700066,700314,700338,700308,700067,700335,700334,700333,700316] {
-        assert_eq!(state.tables.inventory.equipment_selectors[&ticket]["ItemIndices"].as_array().unwrap().len(), 91);
+        // 91 archived weapons plus Maya's (1014), enabled by SPRK.
+        assert_eq!(state.tables.inventory.equipment_selectors[&ticket]["ItemIndices"].as_array().unwrap().len(), 92);
         put(&state, &u, ticket, 1).await;
         let result = item::use_weapon_unique_select_item(State(state.clone()),
             form(&u, &format!("ItemIndex={ticket}&WeaponUniqueItemIndex=900001&ItemCount=1")))
@@ -2400,13 +2401,18 @@ async fn restored_selectors_grant_late_hero_weapons_treasures_and_souls() {
     let (s, u) = setup().await;
     // The archived normal UW ticket excludes NPC-only weapons. Universal
     // treasure/soul selectors keep their separate archived pools.
-    assert_eq!(s.tables.inventory.equipment_selectors[&2000]["ItemIndices"].as_array().unwrap().len(), 91);
+    // Both also offer Maya's weapon and four treasures, enabled by SPRK.
+    assert_eq!(s.tables.inventory.equipment_selectors[&2000]["ItemIndices"].as_array().unwrap().len(), 92);
     assert!(!s.tables.inventory.equipment_selectors[&2000]["ItemIndices"].as_array().unwrap().contains(&json!(1111)));
-    assert_eq!(s.tables.inventory.equipment_selectors[&2017]["ItemIndices"].as_array().unwrap().len(), 408);
+    assert!(s.tables.inventory.equipment_selectors[&2000]["ItemIndices"].as_array().unwrap().contains(&json!(1014)));
+    assert_eq!(s.tables.inventory.equipment_selectors[&2017]["ItemIndices"].as_array().unwrap().len(), 412);
+    for maya in [101014, 102014, 103014, 104014] {
+        assert!(s.tables.inventory.equipment_selectors[&2017]["ItemIndices"].as_array().unwrap().contains(&json!(maya)));
+    }
     for (ticket, selected) in [(2000, 1083), (2017, 104111)] {
         put(&s, &u, ticket, 1).await;
         let bad = item::use_weapon_unique_select_item(State(s.clone()), form(&u,
-            &format!("ItemIndex={ticket}&ItemCount=1&WeaponUniqueItemIndex=1014"))).await.unwrap().0;
+            &format!("ItemIndex={ticket}&ItemCount=1&WeaponUniqueItemIndex=1111"))).await.unwrap().0;
         assert_ne!(bad["Result"], "Success");
         assert_eq!(count(&s, &u, ticket).await, 1);
         let result = item::use_weapon_unique_select_item(State(s.clone()), form(&u,

@@ -1,0 +1,683 @@
+{
+  "table": "SkillTable",
+  "upsert": [
+    {
+      "Index": 91001410,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillPowerR",
+      "OperationValue1": [
+        "1410",
+        "1",
+        "200"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillPowerR",
+      "OperationValue2": [
+        "1410",
+        "2",
+        "200"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ModSkillPowerR",
+      "OperationValue3": [
+        "1410",
+        "3",
+        "200"
+      ],
+      "OperationState3": "",
+      "OperationType4": "ModSkill",
+      "OperationValue4": [
+        "1410",
+        "4",
+        "AddStateCount",
+        "1"
+      ],
+      "OperationState4": ""
+    },
+    {
+      "Index": 91001420,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkill",
+      "OperationValue1": [
+        "1420",
+        "0",
+        "SkillCoolTimeMs",
+        "-7500"
+      ],
+      "OperationState1": "",
+      "OperationType2": "EnablePassiveSkill",
+      "OperationValue2": [
+        "1460",
+        "True"
+      ],
+      "OperationState2": ""
+    },
+    {
+      "Index": 91001430,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillPowerR",
+      "OperationValue1": [
+        "1430",
+        "1",
+        "200"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillEnabled",
+      "OperationValue2": [
+        "1430",
+        "5"
+      ],
+      "OperationState2": ""
+    },
+    {
+      "Index": 91001440,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillPowerR",
+      "OperationValue1": [
+        "1440",
+        "1",
+        "200"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillEnabled",
+      "OperationValue2": [
+        "1420",
+        "8"
+      ],
+      "OperationState2": ""
+    },
+    {
+      "Index": 91001411,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillPowerR",
+      "OperationValue1": [
+        "1410",
+        "1",
+        "240"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillPowerR",
+      "OperationValue2": [
+        "1410",
+        "2",
+        "240"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ModSkillPowerR",
+      "OperationValue3": [
+        "1410",
+        "3",
+        "240"
+      ],
+      "OperationState3": "",
+      "OperationType4": "ModSkill",
+      "OperationValue4": [
+        "1410",
+        "4",
+        "AddStateCount",
+        "1"
+      ],
+      "OperationState4": ""
+    },
+    {
+      "Index": 91001421,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkill",
+      "OperationValue1": [
+        "1420",
+        "0",
+        "SkillCoolTimeMs",
+        "-7500"
+      ],
+      "OperationState1": "",
+      "OperationType2": "EnablePassiveSkill",
+      "OperationValue2": [
+        "1461",
+        "True"
+      ],
+      "OperationState2": ""
+    },
+    {
+      "Index": 91001431,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillPowerR",
+      "OperationValue1": [
+        "1430",
+        "1",
+        "240"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillEnabled",
+      "OperationValue2": [
+        "1430",
+        "5"
+      ],
+      "OperationState2": ""
+    },
+    {
+      "Index": 91001441,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillPowerR",
+      "OperationValue1": [
+        "1440",
+        "1",
+        "240"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillEnabled",
+      "OperationValue2": [
+        "1420",
+        "8"
+      ],
+      "OperationState2": ""
+    },
+    {
+      "Index": 91001412,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillPowerR",
+      "OperationValue1": [
+        "1410",
+        "1",
+        "290"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillPowerR",
+      "OperationValue2": [
+        "1410",
+        "2",
+        "290"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ModSkillPowerR",
+      "OperationValue3": [
+        "1410",
+        "3",
+        "290"
+      ],
+      "OperationState3": "",
+      "OperationType4": "ModSkill",
+      "OperationValue4": [
+        "1410",
+        "4",
+        "AddStateCount",
+        "1"
+      ],
+      "OperationState4": ""
+    },
+    {
+      "Index": 91001422,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkill",
+      "OperationValue1": [
+        "1420",
+        "0",
+        "SkillCoolTimeMs",
+        "-7500"
+      ],
+      "OperationState1": "",
+      "OperationType2": "EnablePassiveSkill",
+      "OperationValue2": [
+        "1462",
+        "True"
+      ],
+      "OperationState2": ""
+    },
+    {
+      "Index": 91001432,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillPowerR",
+      "OperationValue1": [
+        "1430",
+        "1",
+        "290"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillEnabled",
+      "OperationValue2": [
+        "1430",
+        "5"
+      ],
+      "OperationState2": ""
+    },
+    {
+      "Index": 91001442,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillPowerR",
+      "OperationValue1": [
+        "1440",
+        "1",
+        "290"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillEnabled",
+      "OperationValue2": [
+        "1420",
+        "8"
+      ],
+      "OperationState2": ""
+    },
+    {
+      "Index": 91001413,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillPowerR",
+      "OperationValue1": [
+        "1410",
+        "1",
+        "350"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillPowerR",
+      "OperationValue2": [
+        "1410",
+        "2",
+        "350"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ModSkillPowerR",
+      "OperationValue3": [
+        "1410",
+        "3",
+        "350"
+      ],
+      "OperationState3": "",
+      "OperationType4": "ModSkill",
+      "OperationValue4": [
+        "1410",
+        "4",
+        "AddStateCount",
+        "1"
+      ],
+      "OperationState4": ""
+    },
+    {
+      "Index": 91001423,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkill",
+      "OperationValue1": [
+        "1420",
+        "0",
+        "SkillCoolTimeMs",
+        "-7500"
+      ],
+      "OperationState1": "",
+      "OperationType2": "EnablePassiveSkill",
+      "OperationValue2": [
+        "1463",
+        "True"
+      ],
+      "OperationState2": ""
+    },
+    {
+      "Index": 91001433,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillPowerR",
+      "OperationValue1": [
+        "1430",
+        "1",
+        "350"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillEnabled",
+      "OperationValue2": [
+        "1430",
+        "5"
+      ],
+      "OperationState2": ""
+    },
+    {
+      "Index": 91001443,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillPowerR",
+      "OperationValue1": [
+        "1440",
+        "1",
+        "350"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillEnabled",
+      "OperationValue2": [
+        "1420",
+        "8"
+      ],
+      "OperationState2": ""
+    },
+    {
+      "Index": 91001414,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillPowerR",
+      "OperationValue1": [
+        "1410",
+        "1",
+        "420"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillPowerR",
+      "OperationValue2": [
+        "1410",
+        "2",
+        "420"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ModSkillPowerR",
+      "OperationValue3": [
+        "1410",
+        "3",
+        "420"
+      ],
+      "OperationState3": "",
+      "OperationType4": "ModSkill",
+      "OperationValue4": [
+        "1410",
+        "4",
+        "AddStateCount",
+        "1"
+      ],
+      "OperationState4": ""
+    },
+    {
+      "Index": 91001424,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkill",
+      "OperationValue1": [
+        "1420",
+        "0",
+        "SkillCoolTimeMs",
+        "-7500"
+      ],
+      "OperationState1": "",
+      "OperationType2": "EnablePassiveSkill",
+      "OperationValue2": [
+        "1464",
+        "True"
+      ],
+      "OperationState2": ""
+    },
+    {
+      "Index": 91001434,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillPowerR",
+      "OperationValue1": [
+        "1430",
+        "1",
+        "420"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillEnabled",
+      "OperationValue2": [
+        "1430",
+        "5"
+      ],
+      "OperationState2": ""
+    },
+    {
+      "Index": 91001444,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillPowerR",
+      "OperationValue1": [
+        "1440",
+        "1",
+        "420"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillEnabled",
+      "OperationValue2": [
+        "1420",
+        "8"
+      ],
+      "OperationState2": ""
+    },
+    {
+      "Index": 91001415,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillPowerR",
+      "OperationValue1": [
+        "1410",
+        "1",
+        "500"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillPowerR",
+      "OperationValue2": [
+        "1410",
+        "2",
+        "500"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ModSkillPowerR",
+      "OperationValue3": [
+        "1410",
+        "3",
+        "500"
+      ],
+      "OperationState3": "",
+      "OperationType4": "ModSkill",
+      "OperationValue4": [
+        "1410",
+        "4",
+        "AddStateCount",
+        "1"
+      ],
+      "OperationState4": ""
+    },
+    {
+      "Index": 91001425,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkill",
+      "OperationValue1": [
+        "1420",
+        "0",
+        "SkillCoolTimeMs",
+        "-7500"
+      ],
+      "OperationState1": "",
+      "OperationType2": "EnablePassiveSkill",
+      "OperationValue2": [
+        "1465",
+        "True"
+      ],
+      "OperationState2": ""
+    },
+    {
+      "Index": 91001435,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillPowerR",
+      "OperationValue1": [
+        "1430",
+        "1",
+        "500"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillEnabled",
+      "OperationValue2": [
+        "1430",
+        "5"
+      ],
+      "OperationState2": ""
+    },
+    {
+      "Index": 91001445,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillPowerR",
+      "OperationValue1": [
+        "1440",
+        "1",
+        "500"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillEnabled",
+      "OperationValue2": [
+        "1420",
+        "8"
+      ],
+      "OperationState2": ""
+    }
+  ]
+}

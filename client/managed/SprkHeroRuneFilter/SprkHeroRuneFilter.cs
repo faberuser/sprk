@@ -68,7 +68,7 @@ public sealed class SprkHeroRuneFilter : MonoBehaviour, RuneSelectItemFilterOpti
 			Layout(gameObject, 220, 226f, sort: true);
 			buttonLabel = gameObject.GetComponentInChildren<UILabel>(includeInactive: true);
 			buttonLabel.fontSize = 26;
-			buttonLabel.text = "Sort Option";
+			buttonLabel.text = SprkText.Get("Sort Option");
 			gameObject.SetActive(value: true);
 		}
 	}
@@ -115,7 +115,7 @@ public sealed class SprkHeroRuneFilter : MonoBehaviour, RuneSelectItemFilterOpti
 	{
 		if (buttonLabel != null)
 		{
-			buttonLabel.text = ((selected.Count == 0) ? "Sort Option" : ("Sort Option (" + selected.Count + ")"));
+			buttonLabel.text = SprkText.Get(((selected.Count == 0) ? "Sort Option" : (SprkText.Format("Sort Option ({0})", selected.Count))));
 		}
 	}
 
@@ -319,7 +319,7 @@ public sealed class SprkHeroRuneFilter : MonoBehaviour, RuneSelectItemFilterOpti
 		HeroRuneListPanel runeListPanel2 = instance.RuneListPanel;
 		runeListPanel2.gameObject.SetActive(value: true);
 		Open(runeListPanel2);
-		runeListPanel2.Label_SelectedCategory.text = "Normal Rune";
+		runeListPanel2.Label_SelectedCategory.text = SprkText.Get("Normal Rune");
 		SprkHeroRuneFilter component6 = runeListPanel2.GetComponent<SprkHeroRuneFilter>();
 		component6.OnClick();
 		Check(component6.popup != null && component6.popup.IsOpen(), "management-owned stat picker opens");
@@ -340,7 +340,7 @@ public sealed class SprkHeroRuneFilter : MonoBehaviour, RuneSelectItemFilterOpti
 		camera.backgroundColor = new Color(0.15f, 0.12f, 0.1f, 1f);
 		camera.depth = 100000f;
 		camera.transform.position = new Vector3(10000f, 0f, -1000f);
-		runeListPanel.Label_SelectedCategory.text = "Normal Rune";
+		runeListPanel.Label_SelectedCategory.text = SprkText.Get("Normal Rune");
 		GameObject obj2 = UnityEngine.Object.Instantiate(componentInParent.transform.parent.gameObject, gameObject2.transform, worldPositionStays: false);
 		obj2.transform.localPosition = Vector3.zero;
 		obj2.transform.localScale = Vector3.one;

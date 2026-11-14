@@ -340,6 +340,77 @@ async fn valance_identification_and_enchantment_restore_pending_choices() {
     );
 }
 #[tokio::test]
+async fn reforge_until_guarantees_the_target_on_the_100th_try_across_runs() {
+    let (mut s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let mut eq=give(&s,a,101001,1).await.equipment.remove(0);
+    eq.star=5;eq.option_index_1=9002;eq.option_step_1=2;eq.option_index_2=0;
+    save_equip(&mut s.db.acquire().await.unwrap(),a,&eq).await.unwrap();
+    {
+        let inventory=std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).inventory);
+        inventory.option_groups.insert(11,vec![9001,9003]);
+        inventory.options.get_mut(&9001).unwrap()["Ratio"]=json!(1_000_000_000i64);
+        inventory.options.get_mut(&9003).unwrap()["Ratio"]=json!(1);
+    }
+    give(&s,a,2200,200).await;
+    let args=format!("EquipItemSlotIndex={}&OptionSlotIndex=1",eq.slot_index);
+    let keep=format!("{args}&IsNew=false&ConfirmOptionIndex=9002");
+    // 60 misses are remembered for the next run.
+    let run=call(&s,&u,"renew_equip_option",&format!("{args}&SprkTargetOptionType=40&SprkMaxTries=60")).await;
+    assert_eq!((n(&run,"SprkTries"),run["SprkHit"].clone(),n(&run,"SprkPityMisses")),(60,json!(false),60),"{run}");
+    assert_eq!(call(&s,&u,"renew_confirm_equip_option",&keep).await["Result"],"Success");
+    let preview=call(&s,&u,"renew_equip_option",&format!("{args}&SprkTargetOptionType=40&SprkPreview=1")).await;
+    assert_eq!((n(&preview,"SprkPityMisses"),n(&preview,"SprkPityLimit")),(60,100),"{preview}");
+    // Another target starts from zero without touching the saved misses' meaning.
+    let other=call(&s,&u,"renew_equip_option",&format!("{args}&SprkTargetOptionType=45&SprkPreview=1")).await;
+    assert_eq!(n(&other,"SprkPityMisses"),0,"{other}");
+    // The 40th try of the next run is the 100th overall and rolls the target.
+    let run=call(&s,&u,"renew_equip_option",&format!("{args}&SprkTargetOptionType=40&SprkMaxTries=100")).await;
+    assert_eq!((n(&run,"SprkTries"),run["SprkHit"].clone(),run["SprkGuaranteed"].clone()),(40,json!(true),json!(true)),"{run}");
+    assert_eq!(run["NewOptionIndex"],9003);
+    assert_eq!(n(&run,"SprkPityMisses"),0);
+    assert_eq!(call(&s,&u,"renew_confirm_equip_option",&keep).await["Result"],"Success");
+    let preview=call(&s,&u,"renew_equip_option",&format!("{args}&SprkTargetOptionType=40&SprkPreview=1")).await;
+    assert_eq!(n(&preview,"SprkPityMisses"),0,"a hit starts the count over");
+}
+
+#[tokio::test]
+async fn enchant_until_guarantees_after_300_tries_per_target_across_runs() {
+    let (mut s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let mut eq = give(&s, a, 911301, 1).await.equipment.remove(0);
+    eq.identified = 0;
+    save_equip(&mut s.db.acquire().await.unwrap(), a, &eq).await.unwrap();
+    assert_eq!(call(&s, &u, "valance_identified", &format!("EquipItemSlotIndices={}", eq.slot_index)).await["Result"], "Success");
+    let data = meta(&s, eq.item_index).unwrap().clone();
+    let blue = s.tables.extensions.rows("ValanceEnchant").iter()
+        .find(|v| n(v, "ItemIndex") == 990108 && n(v, "PartType") == n(&data, "PartType") && n(v, "SubType") == n(&data, "SubType"))
+        .unwrap().clone();
+    let group = n(&blue, "OptionGroupIndex") as i32;
+    let pool = s.tables.inventory.option_groups[&group].clone();
+    let tb = n(&s.tables.inventory.options[&pool[1]], "Type");
+    {
+        let inventory = std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).inventory);
+        inventory.option_groups.insert(group, vec![pool[0], pool[1]]);
+        inventory.options.get_mut(&pool[0]).unwrap()["Ratio"] = json!(1_000_000_000i64);
+        inventory.options.get_mut(&pool[1]).unwrap()["Ratio"] = json!(1);
+    }
+    give(&s, a, 990108, 400).await;
+    crate::db::query("UPDATE user_info SET gold=$1 WHERE account_id=$2").bind(400 * n(&blue, "ReqGold")).bind(a).execute(&s.db).await.unwrap();
+    let base = format!("EquipItemSlotIndex={}&ConsumeItemIndex=990108&SprkTargetOptionTypes={tb}", eq.slot_index);
+    let preview = call(&s, &u, "valance_enchant", &format!("{base}&SprkPreview=1")).await;
+    assert_eq!((n(&preview, "SprkPityMisses"), n(&preview, "SprkPityLimit")), (0, 300), "{preview}");
+    // First enchant: applied directly, no pending choice; 299 misses are kept.
+    let run = call(&s, &u, "valance_enchant", &format!("{base}&SprkMaxTries=299")).await;
+    assert_eq!((n(&run, "SprkTries"), run["SprkHit"].clone(), n(&run, "SprkPityMisses")), (299, json!(false), 299), "{run}");
+    // The next try is the 300th overall and rolls the target.
+    let run = call(&s, &u, "valance_enchant", &format!("{base}&SprkMaxTries=50")).await;
+    assert_eq!((n(&run, "SprkTries"), run["SprkHit"].clone(), run["SprkGuaranteed"].clone()), (1, json!(true), json!(true)), "{run}");
+    assert_eq!(run["NewValanceEnchantOptionInfo"]["EnchantOptionIndex1"], pool[1]);
+    assert_eq!(n(&run, "SprkPityMisses"), 0);
+}
+
+#[tokio::test]
 async fn enchant_until_targets_reports_exact_odds_and_charges_only_tries_made() {
     let (mut s, u) = setup().await;
     let a = u.user_info.account_id;
@@ -1367,6 +1438,72 @@ async fn reforge_same_stat_requires_a_strictly_larger_value() {
 }
 
 #[tokio::test]
+async fn reforge_preserves_large_ruby_balances_in_client_currency_updates() {
+    let (mut s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let original_pool = s.tables.inventory.option_groups[&11].clone();
+    for (free, paid) in [(3_633_136i64, 0i64), (0, 3_633_136), (100, 3_633_036)] {
+        for mode in ["normal", "until", "coupon"] {
+            crate::db::query("UPDATE user_info SET gem=$1,pay_gem=$2 WHERE account_id=$3")
+                .bind(free).bind(paid).bind(a).execute(&s.db).await.unwrap();
+            std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).inventory)
+                .option_groups.insert(11, original_pool.clone());
+            let mut eq = give(&s, a, 101001, 1).await.equipment.remove(0);
+            eq.star = 5;
+            eq.option_index_1 = 9002;
+            eq.option_step_1 = 2;
+            eq.option_index_2 = 0;
+            eq.option_renew_count_1 = 2; // The next roll costs 400 rubies.
+            save_equip(&mut s.db.acquire().await.unwrap(), a, &eq).await.unwrap();
+            // A single reachable outcome makes Reforge Until deterministic.
+            std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).inventory)
+                .option_groups.insert(11, vec![9003]);
+            let extra = match mode {
+                "until" => "&SprkTargetOptionType=40&SprkMaxTries=5",
+                "coupon" => {
+                    give(&s, a, 2200, 1).await;
+                    "&CouponItemIndex=2200"
+                }
+                _ => "",
+            };
+            let args = format!("EquipItemSlotIndex={}&OptionSlotIndex=1", eq.slot_index);
+            let out = call(&s, &u, "renew_equip_option", &format!("{args}{extra}")).await;
+            assert_eq!(out["Result"], "Success", "{mode}: {out}");
+            let cost = if mode == "coupon" { 0 } else { 400 };
+            let expected_free = free - free.min(cost);
+            let expected_paid = paid - (cost - free.min(cost));
+            if cost == 0 {
+                assert!(out["CurrencyResult"].is_null(), "coupon rolls must not reset the client balance: {out}");
+            } else {
+                let currency = &out["CurrencyResult"];
+                // UserManager.Apply(CurrencyResultInfo3) reads these named fields,
+                // not NewValue. Missing fields silently display zero in the client.
+                assert_eq!(currency["CurrencyType"], "Gem");
+                assert_eq!(currency["AddValue"], -cost);
+                assert_eq!(currency["NewValue"], expected_free + expected_paid);
+                assert_eq!(currency["Field1"], "NewSysGem");
+                assert_eq!(currency["Value1"], expected_free);
+                assert_eq!(currency["Field2"], "NewPayGem");
+                assert_eq!(currency["Value2"], expected_paid);
+            }
+            let confirmed = call(&s, &u, "renew_confirm_equip_option",
+                &format!("{args}&IsNew=false&ConfirmOptionIndex=9002")).await;
+            assert_eq!(confirmed["Result"], "Success", "{confirmed}");
+            assert!(confirmed["CurrencyResult"].is_null());
+            let row = crate::db::query("SELECT gem,pay_gem FROM user_info WHERE account_id=$1")
+                .bind(a).fetch_one(&s.db).await.unwrap();
+            assert_eq!(row.get::<i64, _>("gem"), expected_free);
+            assert_eq!(row.get::<i64, _>("pay_gem"), expected_paid);
+            // Gaining one ruby should only add one, never restore a hidden balance.
+            let gained = item::money(&mut s.db.acquire().await.unwrap(), a, "Gem", 1).await.unwrap();
+            assert_eq!(gained["Value1"], expected_free + 1);
+            assert_eq!(gained["Value2"], expected_paid);
+            assert_eq!(gained["NewValue"], free + paid - cost + 1);
+        }
+    }
+}
+
+#[tokio::test]
 async fn reforge_until_target_spends_coupons_then_rubies_and_leaves_one_pending_roll() {
     let (mut s,u)=setup().await;
     let a=u.user_info.account_id;
@@ -2204,6 +2341,28 @@ async fn soul_weapon_advancement_ticket_unlocks_plain_weapon_and_persists() {
     assert_eq!(login.soul_weapon_infos, vec![soul.clone()]);
     assert_eq!(crate::db::query_scalar::<i32>("SELECT count FROM items WHERE account_id=$1 AND item_index=5350")
         .bind(a).fetch_one(&s.db).await.unwrap(), 1);
+}
+
+#[tokio::test]
+async fn maya_soul_weapon_liberates_and_advances_with_her_soulstone() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let slot = give(&s, a, 1014, 1).await.equipment[0].slot_index;
+    give(&s, a, 111014, 1000).await;
+    let r = call(&s, &u, "soul_weapon_liberation", &format!("EquipItemSlotIndex={slot}")).await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!(r["ResultSoulWeaponInfo"]["ItemIndex"], 1014);
+    for grade in 1..=2 {
+        let mut info = get(&mut s.db.acquire().await.unwrap(), a, "soul", slot as i64).await.unwrap();
+        info["ReinforceLevel"] = json!(grade * 5);
+        put(&mut s.db.acquire().await.unwrap(), a, "soul", slot as i64, &info).await.unwrap();
+        let r = call(&s, &u, "soul_weapon_upgrade", &format!("EquipItemSlotIndex={slot}")).await;
+        assert_eq!(r["Result"], "Success", "grade {grade}: {r}");
+        assert_eq!(r["ResultSoulWeaponInfo"]["Grade"], grade);
+    }
+    let left: i32 = crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=111014")
+        .bind(a).fetch_one(&s.db).await.unwrap();
+    assert!(left < 1000);
 }
 
 #[tokio::test]
@@ -3198,4 +3357,86 @@ async fn batch_break_clears_every_reference_once_and_grants_summed_materials() {
         let new = after.iter().find(|(i, _)| *i == index).map(|v| v.1).unwrap();
         assert!(new > old, "{index}: {old} -> {new}");
     }
+}
+
+#[tokio::test]
+async fn soul_weapon_auto_enhance_spends_lowest_tier_first_and_stops_cleanly() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let slot = give(&s, a, 1001, 1).await.equipment[0].slot_index;
+    give(&s, a, 111001, 1).await;
+    assert_eq!(call(&s, &u, "soul_weapon_liberation", &format!("EquipItemSlotIndex={slot}")).await["Result"], "Success");
+    crate::db::query("UPDATE user_info SET gold=10000000000 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
+    let auto = format!("EquipItemSlotIndex={slot}&InjectionItemInfos=[]&SprkAutoEnhance=1");
+    let saved = || async { get(&mut s.db.acquire().await.unwrap(), a, "soul", slot as i64).await.unwrap() };
+    let ethers = || async {
+        crate::db::query_as::<(i32, i32)>("SELECT item_index,count FROM items WHERE account_id=$1 AND item_index BETWEEN 5100 AND 5103 ORDER BY item_index")
+            .bind(a).fetch_all(&s.db).await.unwrap()
+    };
+
+    // Nothing to inject: the request fails without touching anything.
+    let before = saved().await;
+    let r = call(&s, &u, "soul_weapon_ether_injection", &auto).await;
+    assert_eq!(r["Result"], "NotEnoughEther", "{r}");
+    assert_eq!(saved().await, before);
+
+    // Each level is filled to full Ether and 100% from the lowest tier up and
+    // then attempted; the Ether left over is injected but never gambled.
+    give(&s, a, 5100, 200).await;
+    give(&s, a, 5101, 50).await;
+    give(&s, a, 5103, 30).await;
+    let r = call(&s, &u, "soul_weapon_ether_injection", &auto).await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!(r["SprkAutoStartLevel"], 0);
+    assert_eq!(r["SprkAutoAttempts"], 6);
+    assert_eq!(r["SprkAutoSuccesses"], 6);
+    assert_eq!(r["SprkAutoGold"], 46400000);
+    assert_eq!(r["SprkAutoStop"], "Ether");
+    assert_eq!(r["CurrencyResult"]["AddValue"], -46400000);
+    assert_eq!(gold(&s).await, 10000000000 - 46400000);
+    assert_eq!(r["RemovedItemResultInfos"].as_array().unwrap().len(), 3);
+    assert_eq!(ethers().await, vec![(5100, 0), (5101, 0), (5103, 0)]);
+    let info = &r["ResultSoulWeaponInfo"];
+    assert_eq!((info["ReinforceLevel"].clone(), info["Exp"].clone(), info["ReinforceRatio"].clone()), (json!(6), json!(300), json!(12390)));
+    assert_eq!(&saved().await, info);
+
+    // Gold is checked before anything is spent.
+    give(&s, a, 5101, 5).await;
+    crate::db::query("UPDATE user_info SET gold=0 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
+    let before = saved().await;
+    let r = call(&s, &u, "soul_weapon_ether_injection", &auto).await;
+    assert_eq!(r["Result"], "NotEnoughGold", "{r}");
+    assert_eq!(saved().await, before);
+    assert_eq!(ethers().await, vec![(5100, 0), (5101, 5), (5103, 0)]);
+
+    // +20 is the cap.
+    let mut maxed = saved().await;
+    maxed["ReinforceLevel"] = json!(20);
+    put(&mut s.db.acquire().await.unwrap(), a, "soul", slot as i64, &maxed).await.unwrap();
+    crate::db::query("UPDATE user_info SET gold=10000000000 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
+    let r = call(&s, &u, "soul_weapon_ether_injection", &auto).await;
+    assert_eq!(r["Result"], "AlreadyMaxLevel", "{r}");
+    assert_eq!(ethers().await, vec![(5100, 0), (5101, 5), (5103, 0)]);
+}
+
+#[tokio::test]
+async fn soul_weapon_auto_enhance_reaches_plus_twenty() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let slot = give(&s, a, 1001, 1).await.equipment[0].slot_index;
+    give(&s, a, 111001, 1).await;
+    assert_eq!(call(&s, &u, "soul_weapon_liberation", &format!("EquipItemSlotIndex={slot}")).await["Result"], "Success");
+    crate::db::query("UPDATE user_info SET gold=1000000000000 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
+    for id in 5100..=5103 {
+        give(&s, a, id, 100000).await;
+    }
+    let r = call(&s, &u, "soul_weapon_ether_injection", &format!("EquipItemSlotIndex={slot}&InjectionItemInfos=[]&SprkAutoEnhance=1")).await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!(r["ResultSoulWeaponInfo"]["ReinforceLevel"], 20);
+    assert_eq!(r["SprkAutoAttempts"], 20);
+    assert_eq!(r["SprkAutoGold"], 1402920000i64);
+    assert_eq!(r["SprkAutoStop"], "MaxLevel");
+    let used: Vec<(i64, i64)> = r["RemovedItemResultInfos"].as_array().unwrap().iter()
+        .map(|v| (v["ItemIndex"].as_i64().unwrap(), -v["AddCount"].as_i64().unwrap())).collect();
+    assert_eq!(used, vec![(5100, 2136), (5101, 1875), (5102, 958), (5103, 1262)]);
 }

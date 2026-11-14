@@ -163,3 +163,11 @@ and Guild Conquest on both ranking tabs, including row reuse. It also checks
 player and guild level/name spacing, centering and shadow labels across
 several text lengths. This fixture does not load account portraits or replace
 the server ranking regression tests.
+
+`eclipse-gauge-probe` requires Login and an `eclipse-gauge-*` profile. Start
+with `target=1`, then poll without a target until the returned status is
+`PASS` or `FAIL` (allow 90 seconds). It checks the native gauge prefab at
+zero, partial and full progress, then verifies animation completion for small
+gains, ticket conversion, multiple tickets and the ticket cap. It uses fixture
+values without spending account resources; server Eclipse tests separately
+check campaign spending, persisted points, conversion and replay protection.

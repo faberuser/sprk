@@ -674,7 +674,7 @@ public class BackgroundDownloader : MonoBehaviour, IGlobalWindow, IUpdater, Down
 			if (__Extension_Method_ICollection__.COUNT(_priorityDownloadProgress) <= 0)
 			{
 				UIHelper.SetSpriteFillAmount(Sprite_PriorityLoadingBar, 1f);
-				UIHelper.SetLabelText(PriorityProgressLabel, "Download Complete");
+				UIHelper.SetLabelText(PriorityProgressLabel, SprkText.Get("Download Complete"));
 				UIHelper.EnableGameObject(PriorityProgressRoot, enable: false);
 				SetPriorityDownloading(downloading: false);
 			}
@@ -721,7 +721,7 @@ public class BackgroundDownloader : MonoBehaviour, IGlobalWindow, IUpdater, Down
 				}
 				else
 				{
-					UIHelper.SetLabelText(PriorityProgressLabel, $"Downloading... ({num4}/{num5}MB)");
+					UIHelper.SetLabelText(PriorityProgressLabel, SprkText.Format("Downloading... ({0}/{1}MB)", num4, num5));
 				}
 			}
 		}

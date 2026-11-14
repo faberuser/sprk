@@ -1,0 +1,296 @@
+{
+  "table": "SkillTable",
+  "upsert": [
+    {
+      "Index": 93001410,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnTimer",
+      "TriggerRatio": 1000,
+      "AttrType": "Magical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TriggerValue": [
+        "1000",
+        "1000"
+      ],
+      "IgnoreStateType": [
+        "CC"
+      ],
+      "OperationType1": "ModToughness",
+      "OperationDurationMs1": 999999,
+      "OperationState1": "SoulWeapon14"
+    },
+    {
+      "Index": 93001400,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "None",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "CoolTimeMs": 20000,
+      "ActingTimeMs": 1200,
+      "DurationTimeMs": [
+        2400
+      ],
+      "TickTimeValue": [
+        "1200"
+      ],
+      "OperationType1": "ModPowerR",
+      "OperationValue1": [
+        "400"
+      ],
+      "OperationDurationMs1": 12000,
+      "OperationState1": "MayaSoulWeapon1",
+      "OperationType2": "UseSommoneeSkill",
+      "OperationValue2": [
+        "2500470",
+        "false"
+      ],
+      "OperationConditionType2": "SummoneeCount",
+      "OperationConditionValue2": [
+        "1"
+      ],
+      "OperationDelayMs2": [
+        0,
+        0,
+        500
+      ],
+      "OperationFlags2": [
+        "DelayIgnoreAttackSpeed",
+        "CheckConditionOnReady"
+      ],
+      "OperationState2": "",
+      "OperationType3": "UsePassiveSkill",
+      "OperationValue3": [
+        "93001411"
+      ],
+      "OperationDurationMs3": 12000,
+      "OperationState3": "",
+      "OperationType4": "SetTriggerTimer",
+      "OperationValue4": [
+        "93001411",
+        "3000"
+      ],
+      "OperationState4": "",
+      "OperationType5": "UsePassiveSkill",
+      "OperationValue5": [
+        "93001412"
+      ],
+      "OperationDurationMs5": 12000,
+      "OperationState5": "",
+      "OperationType6": "SpawnCreature",
+      "OperationValue6": [
+        "25004",
+        "1",
+        "500"
+      ],
+      "OperationConditionType6": "SummoneeCount",
+      "OperationFlags6": [
+        "Disabled"
+      ],
+      "OperationState6": "",
+      "OperationType7": "UseSommoneeSkill",
+      "OperationValue7": [
+        "2500471",
+        "false"
+      ],
+      "OperationConditionType7": "SummoneeCount",
+      "OperationConditionValue7": [
+        "1"
+      ],
+      "OperationDelayMs7": [
+        0,
+        0,
+        500
+      ],
+      "OperationFlags7": [
+        "Disabled",
+        "DelayIgnoreAttackSpeed",
+        "CheckConditionOnReady"
+      ],
+      "OperationState7": ""
+    },
+    {
+      "Index": 93001411,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnTimer",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TriggerValue": [
+        "3000",
+        "3000"
+      ],
+      "TargetType": "MinHpEnemy",
+      "IgnoreStateType": [
+        "CC"
+      ],
+      "OperationType1": "GetPhysicalDamageR",
+      "OperationTargetType1": "Target",
+      "OperationValue1": [
+        "2500",
+        "0",
+        "IgnoreDefence|IgnoreAttackersTrigger"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModPhysicalWeakness",
+      "OperationTargetSelectType2": "Opponent",
+      "OperationRadiusMm2": 50000,
+      "OperationValue2": [
+        "200"
+      ],
+      "OperationDurationMs2": 3000,
+      "OperationState2": "MayaSoulWeaponWeak",
+      "OperationConditionType2": "State",
+      "OperationConditionValue2": [
+        "Bleeding"
+      ],
+      "OperationFlags2": [
+        "CheckConditionOnBegin"
+      ],
+      "OperationType3": "GetMana",
+      "OperationValue3": [
+        "500"
+      ],
+      "OperationFlags3": [
+        "Disabled"
+      ],
+      "OperationState3": ""
+    },
+    {
+      "Index": 93001412,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnAttack",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TriggerValue": [
+        "None",
+        "None",
+        "Dot"
+      ],
+      "TargetType": "TriggerTarget",
+      "CoolTimeMs": 500,
+      "OperationType1": "GetPhysicalDotR",
+      "OperationTargetType1": "Target",
+      "OperationValue1": [
+        "200",
+        "0",
+        "Unavoidable|IgnoreBlock"
+      ],
+      "OperationDurationMs1": 10000,
+      "OperationTickTimeMs1": 1000,
+      "OperationState1": "Bleeding"
+    },
+    {
+      "Index": 93001401,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkill",
+      "OperationValue1": [
+        "93001400",
+        "1",
+        "DurationMs",
+        "4000"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkill",
+      "OperationValue2": [
+        "93001400",
+        "3",
+        "DurationMs",
+        "4000"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ModSkill",
+      "OperationValue3": [
+        "93001400",
+        "5",
+        "DurationMs",
+        "4000"
+      ],
+      "OperationState3": "",
+      "OperationType4": "ModSkillEnabled",
+      "OperationValue4": [
+        "93001411",
+        "3"
+      ],
+      "OperationState4": ""
+    },
+    {
+      "Index": 93001402,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillEnabled",
+      "OperationValue1": [
+        "93001400",
+        "6"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillEnabled",
+      "OperationValue2": [
+        "93001400",
+        "7"
+      ],
+      "OperationState2": ""
+    },
+    {
+      "Index": 2500470,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "None",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TargetType": "Myself",
+      "TriggerDisabled": true,
+      "OperationType1": "ModPowerR",
+      "OperationValue1": [
+        "400"
+      ],
+      "OperationDurationMs1": 12000,
+      "OperationState1": "MayaSoulWeapon1"
+    },
+    {
+      "Index": 2500471,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "None",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TargetType": "Myself",
+      "TriggerDisabled": true,
+      "OperationType1": "ImmuneCc",
+      "OperationDurationMs1": 16000,
+      "OperationState1": ""
+    }
+  ]
+}

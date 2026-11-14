@@ -105,7 +105,7 @@ public sealed class SprkLoginSettings : MonoBehaviour, GameOptionWindow.Listener
 		UILabel[] componentsInChildren3 = view.LanguageButtonRoot.GetComponentsInChildren<UILabel>(includeInactive: true);
 		for (int i = 0; i < componentsInChildren3.Length; i++)
 		{
-			componentsInChildren3[i].text = "Settings";
+			componentsInChildren3[i].text = SprkText.Get("Settings");
 		}
 		UIButton componentInChildren = view.LanguageButtonRoot.GetComponentInChildren<UIButton>(includeInactive: true);
 		if (componentInChildren != null)
@@ -142,7 +142,7 @@ public sealed class SprkLoginSettings : MonoBehaviour, GameOptionWindow.Listener
 			componentsInChildren3 = gameIntroduceButtonRoot.GetComponentsInChildren<UILabel>(includeInactive: true);
 			for (int i = 0; i < componentsInChildren3.Length; i++)
 			{
-				componentsInChildren3[i].text = "Introduction";
+				componentsInChildren3[i].text = SprkText.Get("Introduction");
 			}
 			if (gameIntroduceButtonRoot.transform.parent == view.ButtonGrid.transform)
 			{

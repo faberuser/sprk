@@ -444,6 +444,14 @@ public sealed class SprkAutomation : MonoBehaviour
 				Write(reply);
 				return;
 			}
+			if (command.action == "localization-probe")
+			{
+				string report = SprkLocalizationProbe.Run(command.text);
+				reply = Snapshot(command.id);
+				reply.materials.Add(report);
+				Write(reply);
+				return;
+			}
 			if (command.action == "skill-formula-probe")
 			{
 				string environmentVariable4 = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
@@ -1039,6 +1047,18 @@ public sealed class SprkAutomation : MonoBehaviour
 				var honorReport = SprkHonorRankingProbe.Run(command.target == 1);
 				reply = Snapshot(command.id);
 				reply.materials.AddRange(honorReport);
+				Write(reply);
+				return;
+			}
+			if (command.action == "eclipse-gauge-probe")
+			{
+				if (command.target == 1)
+				{
+					PrepareInstalledProbeAssets();
+					SprkEclipseGaugeProbe.Begin();
+				}
+				reply = Snapshot(command.id);
+				reply.materials.Add(SprkEclipseGaugeProbe.Status);
 				Write(reply);
 				return;
 			}
@@ -2143,12 +2163,20 @@ public sealed class SprkAutomation : MonoBehaviour
 				int num14 = command.target;
 				int num15 = 0;
 				string text13 = command.text ?? "";
+				bool sprkUseSoulWeapons = false;
 				if (text13.Contains(";"))
 				{
 					string[] array22 = text13.Split(';');
+					// An optional fifth field "soul" reserves each charged soul weapon skill, as a
+					// player tapping the soul weapon button would; samples then report charge and states.
+					if (array22.Length == 5 && array22[4] == "soul")
+					{
+						sprkUseSoulWeapons = true;
+						array22 = array22.Take(4).ToArray();
+					}
 					if (array22.Length != 4)
 					{
-						throw new InvalidOperationException("Expected chapter;dungeon;difficulty;heroes");
+						throw new InvalidOperationException("Expected chapter;dungeon;difficulty;heroes[;soul]");
 					}
 					num13 = int.Parse(array22[0]);
 					num14 = int.Parse(array22[1]);
@@ -2224,6 +2252,19 @@ public sealed class SprkAutomation : MonoBehaviour
 						if (currentTimeMs >= num17)
 						{
 							num17 = currentTimeMs + 1000;
+							HashSet<int> sprkHeroUids = new HashSet<int>();
+							if (sprkUseSoulWeapons)
+							{
+								foreach (BattleCreature sprkHero in battleInstance.CreatureContainer.GetAllCreatures().Where((BattleCreature c) => c.TeamController.TeamId == 0))
+								{
+									sprkHeroUids.Add(sprkHero.Uid);
+									SoulWeaponSkillController sprkSoul = sprkHero.SoulWeaponSkillController;
+									if (sprkSoul != null && sprkSoul.EquippedSoulWeapon && sprkSoul.CanUseSoulWeaponSkill())
+									{
+										sprkHero.SkillController.ReserveSoulWeaponSkill(sprkSoul.BasicSkillData, 10, 0, autoReserved: true);
+									}
+								}
+							}
 							List<object> list9 = new List<object>();
 							foreach (BattleCreature allCreature in battleInstance.CreatureContainer.GetAllCreatures())
 							{
@@ -2255,6 +2296,22 @@ public sealed class SprkAutomation : MonoBehaviour
 										battleInstance.Snapshot.StatisticsManager.TotalDamageMeter(allCreature.Uid)
 									}
 								});
+								if (sprkHeroUids.Contains(allCreature.Uid))
+								{
+									Dictionary<string, object> sprkSample = (Dictionary<string, object>)list9[list9.Count - 1];
+									SoulWeaponSkillController sprkSoul2 = allCreature.SoulWeaponSkillController;
+									if (sprkSoul2 != null && sprkSoul2.EquippedSoulWeapon)
+									{
+										sprkSample["soul"] = new Dictionary<string, object>
+										{
+											{ "stack", sprkSoul2.StackCount },
+											{ "maxStack", sprkSoul2.MaxStackCount },
+											{ "usesLeft", sprkSoul2.UseableSkillCount }
+										};
+									}
+									sprkSample["stateSkills"] = (from m in allCreature.StateController.GetAllStateModifier((IStateModifier m) => true) ?? new List<IStateModifier>()
+										select m.GetSkillIndex() + ":" + m.GetOperationNo()).Distinct().OrderBy((string x) => x).ToList();
+								}
 							}
 							list8.Add(new Dictionary<string, object>
 							{

@@ -105,20 +105,20 @@ public static class SprkBatchGrind
 			return original;
 		}
 		StringBuilder stringBuilder = new StringBuilder();
-		stringBuilder.Append("Grind ").Append(total).Append(" selected items?\n");
+		stringBuilder.Append(SprkText.Format("Grind {0} selected items?\n", total));
 		if (weapons > 0)
 		{
-			stringBuilder.Append("Unique Weapons: ").Append(weapons).Append('\n');
+			stringBuilder.Append(SprkText.Get("Unique Weapons: ")).Append(weapons).Append('\n');
 		}
 		if (treasures > 0)
 		{
-			stringBuilder.Append("Unique Treasures: ").Append(treasures).Append('\n');
+			stringBuilder.Append(SprkText.Get("Unique Treasures: ")).Append(treasures).Append('\n');
 		}
 		if (total > weapons + treasures)
 		{
-			stringBuilder.Append("Other gear: ").Append(total - weapons - treasures).Append('\n');
+			stringBuilder.Append(SprkText.Get("Other gear: ")).Append(total - weapons - treasures).Append('\n');
 		}
-		stringBuilder.Append("\nUnique item rewards:\n");
+		stringBuilder.Append(SprkText.Get("\nUnique item rewards:\n"));
 		foreach (KeyValuePair<string, long[]> reward in rewards)
 		{
 			stringBuilder.Append(reward.Key).Append(": ").Append(reward.Value[0].ToString("N0"));
@@ -130,9 +130,9 @@ public static class SprkBatchGrind
 		}
 		if (missing)
 		{
-			stringBuilder.Append("Some rewards cannot be previewed.\n");
+			stringBuilder.Append(SprkText.Get("Some rewards cannot be previewed.\n"));
 		}
-		stringBuilder.Append("\nAll selected items will be permanently destroyed.\nThis cannot be undone.");
+		stringBuilder.Append(SprkText.Get("\nAll selected items will be permanently destroyed.\nThis cannot be undone."));
 		return stringBuilder.ToString();
 	}
 }

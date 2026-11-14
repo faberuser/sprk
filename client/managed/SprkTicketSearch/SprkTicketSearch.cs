@@ -569,10 +569,10 @@ public static class SprkTicketSearch
 		switch (kind)
 		{
 		case Kind.Costume:
-			return "Search hero";
+			return SprkText.Get("Search hero");
 		case Kind.SoulWeapon:
 		case Kind.Hero:
-			return "Search hero";
+			return SprkText.Get("Search hero");
 		default:
 		{
 			object obj = null;
@@ -585,9 +585,9 @@ public static class SprkTicketSearch
 			}
 			if (obj != null && (SelectFilter.SelectType)obj == SelectFilter.SelectType.SELECT_EQUIP_ARTIFACT)
 			{
-				return "Search artifact";
+				return SprkText.Get("Search artifact");
 			}
-			return "Search hero or item";
+			return SprkText.Get("Search hero or item");
 		}
 		}
 	}
@@ -764,7 +764,7 @@ public static class SprkTicketSearch
 				return;
 			}
 			Transform parent = physical.transform.parent;
-			SprkTicketSearchBox sprkTicketSearchBox = Ensure(window, parent, "Search hero");
+			SprkTicketSearchBox sprkTicketSearchBox = Ensure(window, parent, SprkText.Get("Search hero"));
 			sprkTicketSearchBox.visible = () => listRoot == null || listRoot.gameObject.activeInHierarchy;
 			sprkTicketSearchBox.pool = () => (Call(window, "get_HeroIndexList") is List<int> source) ? ((IEnumerable<string>)source.Select(HeroText).ToList()) : ((IEnumerable<string>)new string[0]);
 			sprkTicketSearchBox.rebuild = delegate
@@ -1215,6 +1215,52 @@ public static class SprkTicketSearch
 		}
 	}
 
+	public static void EnsureInspectAllHeroes(InspectUserList window)
+	{
+		UIScrollGrid grid = window.HeroListGrid;
+		UIPanel panel = grid.ClippingPanel;
+		Transform parent = panel.transform.parent;
+		if (parent.Find("SprkInspectAllHeroes") != null)
+		{
+			return;
+		}
+		UIButton source = VespaResource.Load<GameObject>(HeroList.PrefabPath)
+			.GetComponentsInChildren<UIButton>(includeInactive: true)
+			.First(b => b.onClick.Any(e => e.methodName == "OnClickAllHero"));
+		Vector3 bottom = parent.InverseTransformPoint((panel.worldCorners[0] + panel.worldCorners[3]) * 0.5f);
+		GameObject root = UnityEngine.Object.Instantiate(source.transform.parent.gameObject, parent, worldPositionStays: false);
+		root.name = "SprkInspectAllHeroes";
+		UIButton button = root.GetComponentInChildren<UIButton>(includeInactive: true);
+		foreach (UIWidget widget in root.GetComponentsInChildren<UIWidget>(includeInactive: true))
+		{
+			widget.SetAnchor((Transform)null);
+		}
+		foreach (AtlasAssignerBase assigner in root.GetComponentsInChildren<AtlasAssignerBase>(includeInactive: true))
+		{
+			assigner.Assign();
+		}
+		root.transform.localPosition = new Vector3(bottom.x, bottom.y + 46f, 0f);
+		button.onClick.Clear();
+		EventDelegate.Add(button.onClick, window.OnClickAllHero);
+		root.SetActive(true);
+		Vector4 clip = panel.baseClipRegion;
+		panel.baseClipRegion = new Vector4(clip.x, clip.y + 50f, clip.z, clip.w - 100f);
+		if (grid.DragScrollView != null)
+		{
+			grid.DragScrollView.transform.localPosition += new Vector3(0f, 50f, 0f);
+			UIWidget drag = grid.DragScrollView.GetComponent<UIWidget>();
+			if (drag != null)
+			{
+				drag.height -= 100;
+			}
+			BoxCollider collider = grid.DragScrollView.GetComponent<BoxCollider>();
+			if (collider != null)
+			{
+				collider.size -= new Vector3(0f, 100f, 0f);
+			}
+		}
+	}
+
 	public static void AfterHeroGrid(HeroPortraitList window)
 	{
 		try
@@ -1228,7 +1274,7 @@ public static class SprkTicketSearch
 			UIScrollGrid heroListGrid = window.HeroListGrid;
 			Transform parent = heroListGrid.transform.parent;
 			Transform transform = FilterRow(window, parent);
-			SprkTicketSearchBox box = Ensure(window, transform, "Search hero");
+			SprkTicketSearchBox box = Ensure(window, transform, SprkText.Get("Search hero"));
 			if (state.classes == null)
 			{
 				UIComboBox uIComboBox = UnityEngine.Object.Instantiate(Field<UIComboBox>(VespaResource.Load<GameObject>("Prefab2/Window/Inventory/WeaponUniqueSelect").GetComponentInChildren<SelectFilter>(includeInactive: true), "ComboBoxSub"), transform, worldPositionStays: false);
@@ -1295,7 +1341,7 @@ public static class SprkTicketSearch
 				{
 					boxCollider.size = new Vector3(Math.Min(num6, boxCollider.size.x), boxCollider.size.y, boxCollider.size.z);
 				}
-				uIComboBox.AddItem(0, "All Classes");
+				uIComboBox.AddItem(0, SprkText.Get("All Classes"));
 				foreach (CreatureTagType item in FilterHelper.GetListOrderCreatureTagType())
 				{
 					uIComboBox.AddItem((int)item, LocalizationManager.GetString(item));

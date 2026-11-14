@@ -21,6 +21,8 @@ namespace NGame2.NUI.NComponent2;
 
 public class GameOptionBaseComponent : LinkFactoryComponent
 {
+	internal static bool InitializingOptions;
+
 	[Serializable]
 	public class GameOptionRootInfo
 	{
@@ -338,6 +340,15 @@ public class GameOptionBaseComponent : LinkFactoryComponent
 
 	public void RunPostProcessFunction(object value)
 	{
+		// Parent/child synchronization on opening Settings is not a consent change.
+		if (InitializingOptions && (gameOptionData.PostProcessFunction == nameof(OnToggleAllNoti)
+			|| gameOptionData.PostProcessFunction == nameof(RequestEventNotificationValue)
+			|| gameOptionData.PostProcessFunction == nameof(RequestNightNotificationValue)
+			|| gameOptionData.PostProcessFunction == nameof(RequestGuildRaidNotificationValue)
+			|| gameOptionData.PostProcessFunction == nameof(RequestGuildSuppressNotificationValue)))
+		{
+			return;
+		}
 		if (!String_Extension_Method.IsNullOrEmpty(gameOptionData.PostProcessFunction) && !isPostProcessRunning)
 		{
 			isPostProcessRunning = true;

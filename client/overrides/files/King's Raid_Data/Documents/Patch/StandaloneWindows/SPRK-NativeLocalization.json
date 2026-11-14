@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "source": "Corrected published legacy locales",
+  "locales": [
+    "de",
+    "fr",
+    "ja",
+    "ko",
+    "ru",
+    "zh-Hans",
+    "zh-Hant"
+  ],
+  "files": {
+    "LocalizationJit/LocalizationAll_ChineseSimplified.jit": {
+      "sha256": "203abf385eb96f41244e1e06ca30d28a4d0a47724fee3d73d6c8cc545917424a",
+      "originalSha256": "d259ef6d142fb3a61741f954f30815a8860e7df102001b243192734ac451c662"
+    },
+    "LocalizationJit/LocalizationAll_ChineseTraditional.jit": {
+      "sha256": "710b59b735e8795d1858326118e2bdc7f7553a80ae6094598ca98f07aa5ce1c4",
+      "originalSha256": "4c60d885fb88713bebf24b8342db4b8fa86d61db05a49ebd0c6b74b3ad0e1c80"
+    },
+    "LocalizationJit/LocalizationAll_English.jit": {
+      "sha256": "3cb0e644c5077ab0e02b60d97a1e40403483cada6f2ffc96034f63eadc805fbc",
+      "originalSha256": "1c5123def223090b3032d270e60afaa6eed321419478a39e1ab354dd3f892ece"
+    },
+    "LocalizationJit/LocalizationAll_French.jit": {
+      "sha256": "efd8fe2a302f787b8b1664a853065e76d378d59c171ab90e4432af8ac3ac62f7",
+      "originalSha256": "6ff52dd56c49e164289821390cfbc2eff3cda4d652c5b28e09ac73275a2c6fc6"
+    },
+    "LocalizationJit/LocalizationAll_German.jit": {
+      "sha256": "5cf0e34a0807945c2e8f790462d5bcc0b5ef2b8afa3915cb238466eb43c7211b",
+      "originalSha256": "b747402e843864147e7bdcce5b27230ddf59610e6d5740e6a927b56b650d8cec"
+    },
+    "LocalizationJit/LocalizationAll_Japanese.jit": {
+      "sha256": "4e21122386f26a73e9d8b446eb36418ca019a09b12da5c6bfb060d161c4d3666",
+      "originalSha256": "10892275d2af2a89b3bb09801e2eb884b82c9a0461a8b6aea46977ccb332c887"
+    },
+    "LocalizationJit/LocalizationAll_Korean.jit": {
+      "sha256": "6b4364d96a535dbeeb1ad6bade2e756487e9d5a38c2f163dbda0d51110302988",
+      "originalSha256": "d69d559f961f056c1d2000027bc6f43892d43d8ca2c678417ce123e6a74bd515"
+    },
+    "LocalizationJit/LocalizationAll_Russian.jit": {
+      "sha256": "8b1b353797ae587035e86ce12af5ab825c8105ad2783fa13e86a47be4876ac9a",
+      "originalSha256": "ed31e3c00d64be92bf4d8d0c9521767a67e0cb5b4062f424b5c9bf05517269de"
+    }
+  },
+  "changesByLocale": {
+    "de": 901,
+    "fr": 998,
+    "ja": 652,
+    "ko": 790,
+    "ru": 728,
+    "zh-Hans": 988,
+    "zh-Hant": 688
+  },
+  "sourceFieldsValidated": 70042,
+  "enhancementDescriptionsValidated": 25452,
+  "runtimeDataOverrides": false,
+  "EnglishPreserved": false,
+  "literalEnhancementFollowUp": {
+    "gearRowsPerLocale": 9,
+    "correctedNativeEntriesPerLocale": 45,
+    "report": "_final_locale_verification/verification.json"
+  },
+  "isaiahDarkDescription": {
+    "key": "SKILL_DESC_60010251",
+    "locales": [
+      "de",
+      "en",
+      "fr",
+      "ja",
+      "ko",
+      "ru",
+      "zh-Hans",
+      "zh-Hant"
+    ],
+    "dynamicValuesPreserved": true
+  }
+}

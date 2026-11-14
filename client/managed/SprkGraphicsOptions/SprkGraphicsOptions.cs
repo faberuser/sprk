@@ -1468,9 +1468,13 @@ public sealed class SprkGraphicsOptions : MonoBehaviour
 		if (row.gameOptionData.FieldName == "Graphic_ResolutionControl")
 		{
 			ConfigureChoices(row, "Resolution", new string[5] { "HD", "FHD", "QHD", "UHD", "Custom" });
+			UIHelper.SetLabelText(row.ParentRoot.Label_OptionName, SprkText.Get("Resolution"));
+			UIHelper.SetLabelText(row.ChildRoot.Label_OptionName, SprkText.Get("Resolution"));
 			return true;
 		}
 		ConfigureChoices(row, "Frame", new string[5] { "30", "60", "144", "Auto", "Auto+" });
+		UIHelper.SetLabelText(row.ParentRoot.Label_OptionName, SprkText.Get("Max Frame"));
+		UIHelper.SetLabelText(row.ChildRoot.Label_OptionName, SprkText.Get("Max Frame"));
 		return true;
 	}
 
@@ -1737,7 +1741,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour
 		row.enabled = false;
 		row.ParentRoot.Root.SetActive(value: true);
 		row.ChildRoot.Root.SetActive(value: false);
-		row.ParentRoot.Label_OptionName.text = title;
+		row.ParentRoot.Label_OptionName.text = SprkText.Get(title);
 		ConfigureGraphicsHelp(row);
 		ConfigureChoices(row, key, choices);
 	}
@@ -1821,7 +1825,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour
 			toggle.group = 0;
 			toggle.onChange.Clear();
 			UILabel componentInChildren = toggle.GetComponentInChildren<UILabel>(includeInactive: true);
-			componentInChildren.text = choices[num2];
+			componentInChildren.text = SprkText.Get(choices[num2]);
 			componentInChildren.width = ((choices.Length == 6) ? 90 : ((choices.Length == 5) ? 130 : 180));
 			componentInChildren.overflowMethod = UILabel.Overflow.ShrinkContent;
 			toggle.transform.localPosition = new Vector3((float)((choices.Length == 2) ? (num2 + 1) : num2) * num, 0f, 0f);
@@ -1930,7 +1934,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour
 		{
 			return;
 		}
-		UIHelper.SetLabelText(row.Label_ToggleMiddle, "Medium");
+		UIHelper.SetLabelText(row.Label_ToggleMiddle, SprkText.Get("Medium"));
 		GameOptionWindow componentInParent = row.GetComponentInParent<GameOptionWindow>(includeInactive: true);
 		if (!(componentInParent == null))
 		{
@@ -4199,11 +4203,11 @@ public sealed class SprkGraphicsOptions : MonoBehaviour
 		{
 			Name = new StringProxy
 			{
-				Value = graphicsHelpInfo.title
+				Value = SprkText.Get(graphicsHelpInfo.title)
 			},
 			Desc = new StringProxy
 			{
-				Value = graphicsHelpInfo.description
+				Value = SprkText.Get(graphicsHelpInfo.description)
 			}
 		});
 		return true;
@@ -4415,7 +4419,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour
 				}
 				gameOptionToggle4Component.ParentRoot.Root.SetActive(value: false);
 				gameOptionToggle4Component.ChildRoot.Root.SetActive(value: true);
-				gameOptionToggle4Component.ChildRoot.Label_OptionName.text = title;
+				gameOptionToggle4Component.ChildRoot.Label_OptionName.text = SprkText.Get(title);
 				gameOptionToggle4Component.SetUIState(CustomScaleMode);
 				gameOptionToggle4Component.SetGrayScale(CustomScaleMode);
 				ConfigureGraphicsHelp(gameOptionToggle4Component);
@@ -5026,7 +5030,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour
 			}
 			if (row.ParentRoot.Label_OptionName != null)
 			{
-				row.ParentRoot.Label_OptionName.text = "Global Filter";
+				row.ParentRoot.Label_OptionName.text = SprkText.Get("Global Filter");
 			}
 		}
 		if (row.ChildRoot != null && row.ChildRoot.Root != null && row.ChildRoot.Root != ((row.ParentRoot == null) ? null : row.ParentRoot.Root))
@@ -5050,7 +5054,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour
 	{
 		if (row != null && row.Label_Button != null)
 		{
-			row.Label_Button.text = FilterPresetNames[FilterPreset];
+			row.Label_Button.text = SprkText.Get(FilterPresetNames[FilterPreset]);
 		}
 	}
 

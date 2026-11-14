@@ -644,7 +644,7 @@ public sealed class SprkGlobalFilterPanel : MonoBehaviour
 	{
 		SprkGraphicsOptions.FilterValues filterValues = working[selected];
 		SprkGraphicsOptions.PreviewFilter(selected, filterValues);
-		presetName.text = SprkGraphicsOptions.FilterPresetNames[selected];
+		presetName.text = SprkText.Get(SprkGraphicsOptions.FilterPresetNames[selected]);
 		checkMark.alpha = ((selected == savedPreset) ? 1f : 0f);
 		bool active = selected != 0;
 		paletteTab.spriteName = (advanced ? "Common_Button_Tab_Disable" : "Common_Button_Tab_Enable");
@@ -963,7 +963,7 @@ public sealed class SprkGlobalFilterPanel : MonoBehaviour
 			_ => NGUIText.Alignment.Center, 
 		};
 		Style(uILabel, style);
-		uILabel.text = text;
+		uILabel.text = SprkText.Get(text);
 		obj.transform.localPosition = position;
 		return uILabel;
 	}

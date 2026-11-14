@@ -316,6 +316,7 @@ public class NodeTreeUIPlayer : MonoBehaviour, IInspectorGuiDrawer
 
 	public void Close()
 	{
+		SprkReleaseWeaponEffect();
 		VespaCoroutine.StopAll(this);
 		ReleaseCinema();
 		_dicAddKeywords.Clear();
@@ -329,8 +330,90 @@ public class NodeTreeUIPlayer : MonoBehaviour, IInspectorGuiDrawer
 		_cinema = null;
 	}
 
+	// SPRK: Maya's soul weapon has no display model. It shows Selene's (creature 901014) with the
+	// mesh swapped for Maya's own weapon, which ships only inside her treasure-reveal effect.
+	private const string SprkMayaWeaponCode = "Object.UniqueWeapon.Maya";
+
+	private IAsyncLoad<IEffect> _sprkWeaponEffect;
+
+	private void SprkReleaseWeaponEffect()
+	{
+		if (_sprkWeaponEffect != null)
+		{
+			EffectContainer.ReleaseEffect(_sprkWeaponEffect, detachParent: true, immediatelyRelease: true);
+			_sprkWeaponEffect = null;
+		}
+		if (_sprkWeaponHolder != null)
+		{
+			UnityEngine.Object.Destroy(_sprkWeaponHolder);
+			_sprkWeaponHolder = null;
+		}
+	}
+
+	private GameObject _sprkWeaponHolder;
+
+	private IEnumerator SprkSwapMayaWeapon(RenderFacade facade)
+	{
+		SprkReleaseWeaponEffect();
+		IAsyncLoad<IEffect> effect = SingletonAuto<EffectContainer>.instance.CreateAsync("Scene.Gacha.GetUniqueItem.Maya", facade.gameObject.layer);
+		_sprkWeaponEffect = effect;
+		// The effect is parented to a holder far below the scene, so its own glow and reveal
+		// animation never show; only its weapon mesh and materials are borrowed.
+		_sprkWeaponHolder = new GameObject("SprkMayaWeaponSource");
+		_sprkWeaponHolder.transform.position = new Vector3(0f, -10000f, 0f);
+		bool parented = false;
+		float giveUp = Time.realtimeSinceStartup + 15f;
+		MeshFilter target = null;
+		while (Time.realtimeSinceStartup < giveUp && _sprkWeaponEffect == effect && facade != null)
+		{
+			if (target == null)
+			{
+				foreach (MeshFilter filter in facade.GetComponentsInChildren<MeshFilter>(includeInactive: true))
+				{
+					if (filter.name == "Hero_Selene_Unique01_Weapon")
+					{
+						target = filter;
+						break;
+					}
+				}
+			}
+			if (effect.ISDONE() && effect.ISVALID())
+			{
+				if (!parented)
+				{
+					effect.Value.SetParent(_sprkWeaponHolder.transform);
+					parented = true;
+				}
+				effect.Value.Update();
+				MeshFilter source = null;
+				foreach (MeshFilter filter in _sprkWeaponHolder.GetComponentsInChildren<MeshFilter>(includeInactive: true))
+				{
+					if (filter.sharedMesh != null && filter.sharedMesh.name.Contains("Maya_Unique01"))
+					{
+						source = filter;
+						break;
+					}
+				}
+				MeshRenderer sourceRenderer = ((source != null) ? source.GetComponent<MeshRenderer>() : null);
+				MeshRenderer targetRenderer = ((target != null) ? target.GetComponent<MeshRenderer>() : null);
+				if (sourceRenderer != null && targetRenderer != null)
+				{
+					target.sharedMesh = source.sharedMesh;
+					targetRenderer.sharedMaterials = sourceRenderer.sharedMaterials;
+					yield break;
+				}
+			}
+			yield return null;
+		}
+		if (_sprkWeaponEffect == effect)
+		{
+			VespaDebug.LogError("SPRK: Maya's weapon mesh was not found in Scene.Gacha.GetUniqueItem.Maya");
+		}
+	}
+
 	public void CreautureRelease()
 	{
+		SprkReleaseWeaponEffect();
 		if (!(_cinema == null) && _cinema.GETRENDERFACADE(1) != null)
 		{
 			_cinema.DestroyCreature(1);
@@ -367,6 +450,10 @@ public class NodeTreeUIPlayer : MonoBehaviour, IInspectorGuiDrawer
 				rENDERFACADE2.AnimationData.ChainUpdate();
 			}
 			Debug.Log("Create");
+			if (codeName == SprkMayaWeaponCode)
+			{
+				StartCoroutine(SprkSwapMayaWeapon(rENDERFACADE2));
+			}
 			rENDERFACADE2.transform.localScale = Vector3.one * size;
 			rENDERFACADE2.transform.position = position;
 			rENDERFACADE2.transform.eulerAngles = rotation;

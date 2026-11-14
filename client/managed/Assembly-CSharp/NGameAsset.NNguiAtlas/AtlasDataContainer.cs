@@ -44,6 +44,11 @@ public class AtlasDataContainer : SingletonAuto<AtlasDataContainer>
 			{
 				return o_value;
 			}
+			if (SprkAtlasAliases.TryGet(spritePath, out o_value))
+			{
+				_spriteCache.Add(spritePath, o_value);
+				return o_value;
+			}
 			JsonRead json = _assetRootRead[spritePath];
 			if (!json.IsObject())
 			{

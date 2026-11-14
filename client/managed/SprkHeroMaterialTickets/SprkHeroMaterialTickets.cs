@@ -227,7 +227,7 @@ public static class SprkHeroMaterialTickets
 			{
 				if (IsMaterial(material, HeroAwakeType.Awaken))
 				{
-					MessagePopup.Open("Fragment Tickets", "You have no matching fragment tickets. Fragments cannot be crafted.");
+					MessagePopup.Open(SprkText.Get("Fragment Tickets"), SprkText.Get("You have no matching fragment tickets. Fragments cannot be crafted."));
 				}
 				else if (fallback != null)
 				{
@@ -240,7 +240,7 @@ public static class SprkHeroMaterialTickets
 			}
 			else
 			{
-				SelectItemMessagePopup.Open2("Material Tickets", "Choose a ticket for " + material.Name + ".", list, delegate(SelectItemMessagePopup popup, int index, int count)
+				SelectItemMessagePopup.Open2(SprkText.Get("Material Tickets"), SprkText.Format("Choose a ticket for {0}.", material.Name), list, delegate(SelectItemMessagePopup popup, int index, int count)
 				{
 					ItemData data = GameRoot.Instance.ItemDataContainer.GetData(index);
 					if (data != null)

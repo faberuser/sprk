@@ -1,0 +1,233 @@
+{
+  "table": "SkillTable",
+  "upsert": [
+    {
+      "Index": 90000140,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnAttack",
+      "TriggerValue": [
+        "1400",
+        "None",
+        "Dot"
+      ],
+      "TriggerRatio": 1000,
+      "CoolTimeMs": 500,
+      "AttrType": "Physical",
+      "TargetType": "Enemy",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "GetPhysicalDotR",
+      "OperationTargetType1": "Target",
+      "OperationValue1": [
+        "200",
+        "0",
+        "Unavoidable|IgnoreBlock"
+      ],
+      "OperationDurationMs1": 10000,
+      "OperationTickTimeMs1": 1000,
+      "OperationState1": "Bleeding",
+      "OperationType2": "ModDamageByState",
+      "OperationTargetType2": "Target",
+      "OperationValue2": [
+        "Bleeding",
+        "100",
+        "1",
+        "true"
+      ],
+      "OperationDurationMs2": 10000,
+      "OperationState2": "MayaSatis"
+    },
+    {
+      "Index": 90000141,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnAttack",
+      "TriggerValue": [
+        "1400",
+        "None",
+        "Dot"
+      ],
+      "TriggerRatio": 1000,
+      "CoolTimeMs": 500,
+      "AttrType": "Physical",
+      "TargetType": "Enemy",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "GetPhysicalDotR",
+      "OperationTargetType1": "Target",
+      "OperationValue1": [
+        "240",
+        "0",
+        "Unavoidable|IgnoreBlock"
+      ],
+      "OperationDurationMs1": 10000,
+      "OperationTickTimeMs1": 1000,
+      "OperationState1": "Bleeding",
+      "OperationType2": "ModDamageByState",
+      "OperationTargetType2": "Target",
+      "OperationValue2": [
+        "Bleeding",
+        "120",
+        "1",
+        "true"
+      ],
+      "OperationDurationMs2": 10000,
+      "OperationState2": "MayaSatis"
+    },
+    {
+      "Index": 90000142,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnAttack",
+      "TriggerValue": [
+        "1400",
+        "None",
+        "Dot"
+      ],
+      "TriggerRatio": 1000,
+      "CoolTimeMs": 500,
+      "AttrType": "Physical",
+      "TargetType": "Enemy",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "GetPhysicalDotR",
+      "OperationTargetType1": "Target",
+      "OperationValue1": [
+        "290",
+        "0",
+        "Unavoidable|IgnoreBlock"
+      ],
+      "OperationDurationMs1": 10000,
+      "OperationTickTimeMs1": 1000,
+      "OperationState1": "Bleeding",
+      "OperationType2": "ModDamageByState",
+      "OperationTargetType2": "Target",
+      "OperationValue2": [
+        "Bleeding",
+        "140",
+        "1",
+        "true"
+      ],
+      "OperationDurationMs2": 10000,
+      "OperationState2": "MayaSatis"
+    },
+    {
+      "Index": 90000143,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnAttack",
+      "TriggerValue": [
+        "1400",
+        "None",
+        "Dot"
+      ],
+      "TriggerRatio": 1000,
+      "CoolTimeMs": 500,
+      "AttrType": "Physical",
+      "TargetType": "Enemy",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "GetPhysicalDotR",
+      "OperationTargetType1": "Target",
+      "OperationValue1": [
+        "350",
+        "0",
+        "Unavoidable|IgnoreBlock"
+      ],
+      "OperationDurationMs1": 10000,
+      "OperationTickTimeMs1": 1000,
+      "OperationState1": "Bleeding",
+      "OperationType2": "ModDamageByState",
+      "OperationTargetType2": "Target",
+      "OperationValue2": [
+        "Bleeding",
+        "170",
+        "1",
+        "true"
+      ],
+      "OperationDurationMs2": 10000,
+      "OperationState2": "MayaSatis"
+    },
+    {
+      "Index": 90000144,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnAttack",
+      "TriggerValue": [
+        "1400",
+        "None",
+        "Dot"
+      ],
+      "TriggerRatio": 1000,
+      "CoolTimeMs": 500,
+      "AttrType": "Physical",
+      "TargetType": "Enemy",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "GetPhysicalDotR",
+      "OperationTargetType1": "Target",
+      "OperationValue1": [
+        "420",
+        "0",
+        "Unavoidable|IgnoreBlock"
+      ],
+      "OperationDurationMs1": 10000,
+      "OperationTickTimeMs1": 1000,
+      "OperationState1": "Bleeding",
+      "OperationType2": "ModDamageByState",
+      "OperationTargetType2": "Target",
+      "OperationValue2": [
+        "Bleeding",
+        "210",
+        "1",
+        "true"
+      ],
+      "OperationDurationMs2": 10000,
+      "OperationState2": "MayaSatis"
+    },
+    {
+      "Index": 90000145,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnAttack",
+      "TriggerValue": [
+        "1400",
+        "None",
+        "Dot"
+      ],
+      "TriggerRatio": 1000,
+      "CoolTimeMs": 500,
+      "AttrType": "Physical",
+      "TargetType": "Enemy",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "GetPhysicalDotR",
+      "OperationTargetType1": "Target",
+      "OperationValue1": [
+        "500",
+        "0",
+        "Unavoidable|IgnoreBlock"
+      ],
+      "OperationDurationMs1": 10000,
+      "OperationTickTimeMs1": 1000,
+      "OperationState1": "Bleeding",
+      "OperationType2": "ModDamageByState",
+      "OperationTargetType2": "Target",
+      "OperationValue2": [
+        "Bleeding",
+        "250",
+        "1",
+        "true"
+      ],
+      "OperationDurationMs2": 10000,
+      "OperationState2": "MayaSatis"
+    }
+  ]
+}

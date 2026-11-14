@@ -129,7 +129,7 @@ public static class SprkPartyRetry
 		BattleSocketConnector battleSocketConnector = Connector();
 		if (battleSocketConnector == null || battleSocketConnector.State != ConnectState.Connected)
 		{
-			Notice("Retry is not available right now.");
+			Notice(SprkText.Get("Retry is not available right now."));
 			return;
 		}
 		battleSocketConnector.Request<BattleMessageReq, BattleMessageRes>(new BattleMessageReq
@@ -151,13 +151,13 @@ public static class SprkPartyRetry
 		{
 			return false;
 		}
-		Popup(Text("COMMON_NOTIFICATION", "Notice"), "Retry this battle with your party, or exit to the party room?\nRetry starts when every player agrees.", delegate
+		Popup(Text("COMMON_NOTIFICATION", SprkText.Get("Notice")), SprkText.Get("Retry this battle with your party, or exit to the party room?\nRetry starts when every player agrees."), delegate
 		{
 			Send(SprkPartyRetryPolicy.Propose());
 		}, delegate
 		{
-			MessagePopup3Button.Open_BattlePopup(Text("COMMON_NOTIFICATION", "Notice"), "Leave this battle and return to the party room?\nYour heroes keep fighting under AI control.", ExitToRoom, null, NShared.NLocalization.Common.COMMON_CONFIRM, NShared.NLocalization.Common.COMMON_CANCEL);
-		}, "Retry", Text("COMMON_EXIT", "Exit"), 0);
+			MessagePopup3Button.Open_BattlePopup(Text("COMMON_NOTIFICATION", SprkText.Get("Notice")), SprkText.Get("Leave this battle and return to the party room?\nYour heroes keep fighting under AI control."), ExitToRoom, null, NShared.NLocalization.Common.COMMON_CONFIRM, NShared.NLocalization.Common.COMMON_CANCEL);
+		}, SprkText.Get("Retry"), Text("COMMON_EXIT", SprkText.Get("Exit")), 0);
 		return true;
 	}
 
@@ -277,12 +277,12 @@ public static class SprkPartyRetry
 			CloseVote();
 			if (notice.Proposer == GlobalAutoBehaviour<AccountManager>.instance.UserInfo.AccountId)
 			{
-				Notice("Retry requested. Waiting for the other players to agree.");
+				Notice(SprkText.Get("Retry requested. Waiting for the other players to agree."));
 				break;
 			}
 			int vote = notice.Vote;
 			openVote = vote;
-			votePopup = Popup(Text("COMMON_NOTIFICATION", "Notice"), notice.Who + " wants to retry this battle.\nDo you want to retry?", delegate
+			votePopup = Popup(Text("COMMON_NOTIFICATION", SprkText.Get("Notice")), SprkText.Format("{0} wants to retry this battle.\nDo you want to retry?", notice.Who), delegate
 			{
 				openVote = 0;
 				votePopup = null;
@@ -320,7 +320,7 @@ public static class SprkPartyRetry
 	private static void Restart(string json)
 	{
 		PartyBattleStart partyBattleStart = JsonMarshaler.Parse<PartyBattleStart>(json);
-		Notice("All players agreed. Restarting the battle.");
+		Notice(SprkText.Get("All players agreed. Restarting the battle."));
 		Context()?.SetOnlineBattleCallbackIsBattleEnd(IsBattleEnd: true);
 		BattleSocketConnector battleSocketConnector = Connector();
 		if (battleSocketConnector != null && battleSocketConnector.State == ConnectState.Connected)

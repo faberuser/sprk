@@ -14,7 +14,7 @@ using UnityEngine;
 
 namespace NGame2.NUI.NWindow;
 
-public class InspectUserList : BaseWindow, HeroPortraitComponent.Listener, ClassTagIconComponent.Listener, HeroStatPanel.Listener, HeroTranscendSkillListPanel.Listener, HeroRunehengeIcon.IDataProvider
+public class InspectUserList : BaseWindow, HeroPortraitComponent.Listener, ClassTagIconComponent.Listener, HeroStatPanel.Listener, HeroTranscendSkillListPanel.Listener, HeroRunehengeIcon.IDataProvider, HeroPortraitList.Listener
 {
 	public enum EToggle
 	{
@@ -101,6 +101,9 @@ public class InspectUserList : BaseWindow, HeroPortraitComponent.Listener, Class
 
 	private int[] _deckArray;
 
+	[NonSerialized]
+	private WindowPrefab<HeroPortraitList> _allHeroes;
+
 	public void Open(Listener listener, CachedHeroInfo[] heroInfos, int heroIndex, int[] deckArray)
 	{
 		base.Open();
@@ -116,6 +119,8 @@ public class InspectUserList : BaseWindow, HeroPortraitComponent.Listener, Class
 		_listener = listener;
 		_HeroInfos = heroInfos;
 		_deckArray = deckArray;
+		CloseAllHeroes();
+		SprkTicketSearch.EnsureInspectAllHeroes(this);
 		if (heroIndex == 0 && __Extension_Method_ICollection__.COUNT(heroInfos) > 0)
 		{
 			heroIndex = heroInfos[0].HeroIndex;
@@ -167,6 +172,7 @@ public class InspectUserList : BaseWindow, HeroPortraitComponent.Listener, Class
 
 	public override void Reset()
 	{
+		CloseAllHeroes();
 		base.Reset();
 		ClearHeroes();
 		if (!base.gameObject.activeSelf)
@@ -190,6 +196,7 @@ public class InspectUserList : BaseWindow, HeroPortraitComponent.Listener, Class
 
 	public override void OnClosing()
 	{
+		CloseAllHeroes();
 		base.OnClosing();
 		if (_listener != null)
 		{
@@ -378,6 +385,39 @@ public class InspectUserList : BaseWindow, HeroPortraitComponent.Listener, Class
 	public void OnClickDetailView()
 	{
 		_listener.OnClickDetailView();
+	}
+
+	public void OnClickAllHero()
+	{
+		if (_HeroInfos == null || _HeroInfos.Length == 0)
+		{
+			return;
+		}
+		_allHeroes = _allHeroes ?? new WindowPrefab<HeroPortraitList>(HeroPortraitList.PrefabPath, GameUIRoot.ELayerType.UI);
+		_allHeroes.instance.Open(this, _SelectedHeroIndex, _HeroInfos);
+	}
+
+	private void CloseAllHeroes()
+	{
+		if (_allHeroes != null && _allHeroes.IsOpen())
+		{
+			_allHeroes.instance.Close();
+		}
+	}
+
+	bool HeroPortraitList.Listener.OnCloseRequest(HeroPortraitList caller)
+	{
+		return true;
+	}
+
+	void HeroPortraitList.Listener.OnClick(HeroPortraitComponent comp)
+	{
+		// Use the sidebar portrait so every inspection listener follows its existing selection path.
+		if (comp != null && comp.HeroInfo != null && _dictHeroes.TryGetValue(comp.HeroInfo.HeroIndex, out HeroPortraitComponent portrait))
+		{
+			((HeroPortraitComponent.Listener)this).OnClick(portrait);
+			CloseAllHeroes();
+		}
 	}
 
 	public void OnClickChatting()

@@ -583,7 +583,7 @@ public static class SprkSkillBookTickets
 		{
 			list2.Add(new Tuple<ItemData, int>(item.Ticket, item.Count));
 		}
-		SelectItemMessagePopup.Open2("Skill Book Tickets", "Choose a ticket for " + skillBookInfo.BookItemData.Name + ".", list2, delegate(SelectItemMessagePopup popup, int index, int count)
+		SelectItemMessagePopup.Open2(SprkText.Get("Skill Book Tickets"), SprkText.Format("Choose a ticket for {0}.", skillBookInfo.BookItemData.Name), list2, delegate(SelectItemMessagePopup popup, int index, int count)
 		{
 			foreach (Route item2 in Routes(use.material))
 			{

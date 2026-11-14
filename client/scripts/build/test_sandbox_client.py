@@ -64,5 +64,71 @@ class RunningProgramTests(unittest.TestCase):
             self.assertFalse(test_copy.exists())
 
 
+@unittest.skipUnless(os.name == "nt", "Windows junctions")
+class DataFolderTests(unittest.TestCase):
+    def make_game(self, root: Path) -> Path:
+        game = root / "sprk-client"
+        native = game / sandbox.NATIVE
+        for folder in ("TableJit", "Assetbundle", "Video", "LoginPresentation"):
+            (native / folder).mkdir(parents=True)
+        (native / "TableJit/SkillTable.jit").write_bytes(b"original")
+        (native / "Assetbundle/Bundle.unity3d").write_bytes(b"bundle")
+        (game / sandbox.DATA / "Managed").mkdir(parents=True)
+        for name in sandbox.PLAYER_FILES:
+            if "." in name:
+                (game / name).write_bytes(b"x")
+            else:
+                (game / name).mkdir()
+        return game
+
+    def test_copy_owns_tables_and_overrides_never_reach_the_real_game(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            game = self.make_game(root)
+            test_copy = root / "sprk-client-test"
+            sandbox.create(game, test_copy)
+            self.addCleanup(lambda: test_copy.exists() and sandbox.remove(test_copy))
+            native = test_copy / sandbox.NATIVE
+            self.assertFalse(sandbox.is_link(native / "TableJit"))
+            self.assertTrue(sandbox.is_link(native / "Assetbundle"))
+
+            overrides = root / "overrides"
+            (overrides / sandbox.NATIVE / "TableJit").mkdir(parents=True)
+            (overrides / sandbox.NATIVE / "TableJit/SkillTable.jit").write_bytes(b"patched")
+            changed = sandbox.apply_overrides(overrides, test_copy)
+            self.assertEqual(changed, [sandbox.NATIVE + "/TableJit/SkillTable.jit"])
+            self.assertEqual((native / "TableJit/SkillTable.jit").read_bytes(), b"patched")
+            self.assertEqual((game / sandbox.NATIVE / "TableJit/SkillTable.jit").read_bytes(), b"original")
+
+            (overrides / sandbox.NATIVE / "Assetbundle").mkdir()
+            (overrides / sandbox.NATIVE / "Assetbundle/Bundle.unity3d").write_bytes(b"patched")
+            with self.assertRaisesRegex(SystemExit, "linked folder"):
+                sandbox.apply_overrides(overrides, test_copy)
+            self.assertEqual((game / sandbox.NATIVE / "Assetbundle/Bundle.unity3d").read_bytes(), b"bundle")
+
+            # Removing an override restores the real game's file on the next refresh.
+            (overrides / sandbox.NATIVE / "TableJit/SkillTable.jit").unlink()
+            sandbox.refresh_data(game, test_copy)
+            self.assertEqual((native / "TableJit/SkillTable.jit").read_bytes(), b"original")
+
+            sandbox.remove(test_copy)
+            self.assertFalse(test_copy.exists())
+            self.assertEqual((game / sandbox.NATIVE / "Assetbundle/Bundle.unity3d").read_bytes(), b"bundle")
+
+    def test_upgrade_replaces_an_old_documents_junction(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            game = self.make_game(root)
+            test_copy = root / "sprk-client-test"
+            (test_copy / sandbox.DATA).mkdir(parents=True)
+            (test_copy / sandbox.MARKER).write_text("test")
+            sandbox.junction(game / sandbox.ASSETS, test_copy / sandbox.ASSETS)
+            self.addCleanup(lambda: test_copy.exists() and sandbox.remove(test_copy))
+            sandbox.upgrade(game, test_copy)
+            self.assertFalse(sandbox.is_link(test_copy / sandbox.ASSETS))
+            self.assertTrue((test_copy / sandbox.NATIVE / "TableJit/SkillTable.jit").is_file())
+            self.assertTrue((game / sandbox.NATIVE / "TableJit/SkillTable.jit").is_file())
+
+
 if __name__ == "__main__":
     unittest.main()

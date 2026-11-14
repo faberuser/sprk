@@ -330,39 +330,35 @@ async fn inn_daily_refresh_acknowledges_reset_and_preserves_recruit_progress() {
 }
 
 #[tokio::test]
-async fn inn_excludes_maya_repairs_saved_visitors_and_rejects_recruitment() {
-    let (s,u)=setup().await;
+async fn maya_default_costumes_exist_and_serve_as_avatar() {
+    let (s,u)=setup().await;let account=u.user_info.account_id;
+    let start=item::n(&s.tables.hero_shop.heroes[&14],"StartHeroStar");
+    for star in start..=5 {
+        let c=&s.tables.hero_shop.costumes[&(1400+star as i32)];
+        assert_eq!((item::n(c,"HeroIndex"),item::n(c,"HeroStar"),c["IsDefault"].clone()),(14,star,serde_json::json!(true)));
+    }
+    crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES($1,90014,14,1,5)")
+        .bind(account).execute(&s.db).await.unwrap();
+    let selected=hero::change_avatar_hero(State(s.clone()),form(&u,"HeroIndex=14&AvatarHeroIndex=11405")).await.unwrap().0;
+    assert_eq!(selected["Result"],"Success","{selected}");
+    assert_eq!(selected["PlayerAvatarHeroInfo"]["CostumeIndex"],1405);
+}
+
+#[tokio::test]
+async fn inn_offers_and_recruits_maya() {
+    let (s,u)=setup().await;let account=u.user_info.account_id;
     assert_eq!(s.tables.hero_shop.heroes[&14]["CodeName"],"Hero.Maya");
-    assert!(!crate::models::hero_inn::get_available_inn_hero_indices().contains(&14));
-    let first=inn_refresh(&s,&u).await.friendly_info.unwrap();
-    assert!(!first.selected_hero_indice.unwrap().split(',').any(|id|id=="14"));
-    // A previously saved Maya visit must be removed even before its daily reset.
-    crate::db::query("UPDATE hero_friendly_info SET hero_index=14,selected_hero_index=14,friendly_point=1000,selected_hero_indices='14',last_greeting_time='2000-01-01 00:00:01' WHERE account_id=$1")
-        .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
-    let refreshed=inn_refresh(&s,&u).await.friendly_info.unwrap();
-    assert_eq!((refreshed.hero_index,refreshed.selected_hero_index,refreshed.friendly_point),(0,0,0));
-    assert!(refreshed.last_greeting_time.is_none());
-    let visitors=refreshed.selected_hero_indice.unwrap();
-    assert_eq!(visitors.split(',').count(),6);
-    assert!(!visitors.split(',').any(|id|id=="14"));
-    let selected=hero::inn::change_recruit_hero(State(s.clone()),axum::extract::Form(hero::inn::ChangeRecruitHeroRequest {
-        session_id:None,session_key:Some(u.user_info.session_key.clone()),hero_index:Some(14),
-    })).await.unwrap().0;
-    assert_eq!(selected.result,"CannotRecruit");
-    // A stale client cannot complete a previously eligible Maya recruitment.
-    crate::db::query("UPDATE hero_friendly_info SET hero_index=14,friendly_point=1000 WHERE account_id=$1")
-        .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
+    assert!(crate::models::hero_inn::get_available_inn_hero_indices().contains(&14));
+    let required=s.tables.hero_shop.inn_recruitment_points[&14];
+    inn_refresh(&s,&u).await;
+    crate::db::query("UPDATE hero_friendly_info SET hero_index=14,selected_hero_index=14,friendly_point=$1 WHERE account_id=$2")
+        .bind(required).bind(account).execute(&s.db).await.unwrap();
     let recruited=hero::inn::recruit_hero(State(s.clone()),axum::extract::Form(hero::inn::RecruitHeroRequest {
         session_id:None,session_key:Some(u.user_info.session_key.clone()),hero_index:Some(14),
     })).await.unwrap().0;
-    assert_eq!(recruited["Result"],"HeroIndexMismatch");
+    assert_eq!(recruited["Result"],"Success");
     assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM heroes WHERE account_id=$1 AND hero_index=14")
-        .bind(u.user_info.account_id).fetch_one(&s.db).await.unwrap(),0);
-    crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES($1,90014,14,80,5)")
-        .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
-    inn_refresh(&s,&u).await;
-    assert_eq!(crate::db::query_scalar::<i64>("SELECT level FROM heroes WHERE account_id=$1 AND hero_index=14")
-        .bind(u.user_info.account_id).fetch_one(&s.db).await.unwrap(),80);
+        .bind(account).fetch_one(&s.db).await.unwrap(),1);
 }
 
 #[tokio::test]

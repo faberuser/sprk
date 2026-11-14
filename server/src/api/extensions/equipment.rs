@@ -646,6 +646,38 @@ fn reforge_pool(state: &AppState, candidates: &[i64], current: i64, current_step
 /// Most reforges one "reforge until" request may perform.
 pub(super) const RENEW_UNTIL_MAX_TRIES: i64 = 1000;
 
+/// "Reforge until" guarantee: the 100th accumulated try on a line rolls the target.
+pub(super) const REFORGE_PITY: i64 = 100;
+
+/// Misses so far toward a guarantee for `target` on this item; 0 when the saved
+/// misses were for another target.
+pub(super) async fn pity_misses(db: &mut PgConnection, account: i64, slot: i32, kind: &str, target: &str) -> Result<i64> {
+    let row: Option<(String, i64)> = crate::db::query_as(
+        "SELECT target,misses FROM sprk_target_pity WHERE account_id=$1 AND slot_index=$2 AND kind=$3",
+    )
+    .bind(account)
+    .bind(i64::from(slot))
+    .bind(kind)
+    .fetch_optional(&mut *db)
+    .await?;
+    Ok(row.filter(|(saved, _)| saved == target).map(|(_, misses)| misses.max(0)).unwrap_or(0))
+}
+
+pub(super) async fn save_pity(db: &mut PgConnection, account: i64, slot: i32, kind: &str, target: &str, misses: i64) -> Result<()> {
+    crate::db::query(
+        "INSERT INTO sprk_target_pity(account_id,slot_index,kind,target,misses) VALUES($1,$2,$3,$4,$5) \
+         ON CONFLICT (account_id,slot_index,kind) DO UPDATE SET target=EXCLUDED.target, misses=EXCLUDED.misses",
+    )
+    .bind(account)
+    .bind(i64::from(slot))
+    .bind(kind)
+    .bind(target)
+    .bind(misses)
+    .execute(db)
+    .await?;
+    Ok(())
+}
+
 /// Unlocked, unreserved count of one item.
 pub(super) async fn spendable_item(db: &mut PgConnection, account: i64, index: i64) -> Result<i64> {
     let count: Option<i32> = crate::db::query_scalar(
@@ -687,6 +719,9 @@ async fn spendable_gem(db: &mut PgConnection, account: i64) -> Result<i64> {
 /// the table currency, plus any per-try items). The run stops at the first hit
 /// or when the next try is unaffordable; the costs are charged once and only
 /// the last roll is left pending, so the client confirms it as usual.
+///
+/// Guarantee: misses add up across runs for this line and target
+/// (`sprk_target_pity`); the `REFORGE_PITY`th accumulated try rolls the target.
 #[allow(clippy::too_many_arguments)]
 async fn renew_until(
     db: &mut PgConnection,
@@ -715,8 +750,14 @@ async fn renew_until(
     if total <= 0 || hit <= 0 {
         return Err(rule("NoAvailableOption"));
     }
+    // Only the target's own options, for the guaranteed roll.
+    let target_pool: Vec<_> = pool.iter().copied().filter(|r| stat(r.0) == target).collect();
+    let pity_kind = format!("reforge{slot}");
+    let pity_target = target.to_string();
+    let mut misses = pity_misses(db, account, eq.slot_index, &pity_kind, &pity_target).await?;
     if matches!(req.text("SprkPreview"), "1" | "true" | "True") {
-        return Ok(json!({"BaseResult":"Success","Result":"Success","SprkHitWeight":hit,"SprkTotalWeight":total}));
+        return Ok(json!({"BaseResult":"Success","Result":"Success","SprkHitWeight":hit,"SprkTotalWeight":total,
+            "SprkPityMisses":misses,"SprkPityLimit":REFORGE_PITY}));
     }
     let used = (1..=4)
         .filter(|i| n(&value, &format!("IsRenewedOption{i}")) != 0)
@@ -753,6 +794,7 @@ async fn renew_until(
     let mut renew_count = n(&value, &count_key);
     let (mut tries, mut coupons_used, mut spent) = (0i64, 0i64, 0i64);
     let mut last = None;
+    let mut guaranteed = false;
     while tries < max_tries {
         if per_try.iter().any(|(_, count, have)| have / count <= tries) {
             break;
@@ -771,11 +813,14 @@ async fn renew_until(
         }
         tries += 1;
         renew_count += 1;
-        let roll = choose_option(&pool)?;
+        guaranteed = misses + 1 >= REFORGE_PITY;
+        let roll = choose_option(if guaranteed { &target_pool } else { &pool })?;
         last = Some(roll);
         if stat(roll.0) == target {
+            misses = 0;
             break;
         }
+        misses += 1;
     }
     let Some((new, step)) = last else {
         return Err(rule(if !per_try.is_empty() { "NotEnoughItem" } else if currency != 0 { "NotEnoughGem" } else { "NotEnoughCouponItem" }));
@@ -804,6 +849,10 @@ async fn renew_until(
     out["SprkHit"] = json!(stat(new) == target);
     out["SprkCouponsUsed"] = json!(coupons_used);
     out["SprkGemsSpent"] = json!(spent);
+    out["SprkGuaranteed"] = json!(guaranteed);
+    out["SprkPityMisses"] = json!(misses);
+    out["SprkPityLimit"] = json!(REFORGE_PITY);
+    save_pity(db, account, eq.slot_index, &pity_kind, &pity_target, misses).await?;
     super::super::progression::record(db, account, "RenewEquipOption", eq.item_index as i64, 0, tries).await?;
     Ok(out)
 }

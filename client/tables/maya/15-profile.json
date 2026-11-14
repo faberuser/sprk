@@ -1,0 +1,24 @@
+{
+  "table": "HeroProfileTable",
+  "upsert": [
+    {
+      "Index": 14,
+      "Gender": "HERO_GENDER_FEMALE",
+      "Race": "HERO_RACE_HUMAN",
+      "Age": "24",
+      "Length": 168,
+      "Birth": [
+        5,
+        12
+      ],
+      "MonthText": "BIRTH_MONTH_5",
+      "Constellation": "ARCHIVE_CONSTELL_5",
+      "Like": "CREATURE_LIKE_14",
+      "Unlike": "CREATURE_UNLIKE_14",
+      "Story": "CREATURE_STORY_14",
+      "CVKor": "ARCHIVE_CV_KOR_MAYA",
+      "CVJap": "ARCHIVE_CV_JAP_MAYA",
+      "HeroName": ""
+    }
+  ]
+}
