@@ -345,14 +345,6 @@
       ],
       "OperationDurationMs1": 15000,
       "OperationState1": "60001420",
-      "OperationType2": "CreateShieldR",
-      "OperationValue2": [
-        "3000",
-        "0",
-        "NoCritical"
-      ],
-      "OperationDurationMs2": 15000,
-      "OperationState2": "60001420_2",
       "TriggerDisabled": true
     },
     {
