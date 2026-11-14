@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Text;
 using NGame2.NAccount;
+using NGame2.NUI;
 using NGame2.NUI.NWindow;
 using NShared;
 using NVespa;
@@ -51,6 +52,12 @@ public static class SprkEnchantUntil
 		public long GoldSpent;
 
 		public int CoresUsed;
+
+		public long PityMisses;
+
+		public long PityLimit;
+
+		public bool Guaranteed;
 	}
 
 	private struct PoolEntry
@@ -128,7 +135,10 @@ public static class SprkEnchantUntil
 			Tries = (int)Double(json, "SprkTries"),
 			Hit = json.Contains("SprkHit") && json["SprkHit"] is bool && (bool)json["SprkHit"],
 			GoldSpent = (long)Double(json, "SprkGoldSpent"),
-			CoresUsed = (int)Double(json, "SprkCoresUsed")
+			CoresUsed = (int)Double(json, "SprkCoresUsed"),
+			PityMisses = (long)Double(json, "SprkPityMisses"),
+			PityLimit = (long)Double(json, "SprkPityLimit"),
+			Guaranteed = json.Contains("SprkGuaranteed") && json["SprkGuaranteed"] is bool && (bool)json["SprkGuaranteed"]
 		};
 		if (json.Contains("SprkCores") && json["SprkCores"] is IList list)
 		{
@@ -321,61 +331,126 @@ public static class SprkEnchantUntil
 		}
 	}
 
-	/// A copy of the panels' "Select" button on the "Enchantment Core" title row.
+	/// A copy of the Enchant button placed where the gold box was, directly above
+	/// Enchant; the gold box moves up by the same distance.
 	private static void EnsureButton()
 	{
-		if (window == null || window.currentOptionComponent == null || window.currentOptionComponent.optionConfirmButton == null)
+		if (window == null || window.enchantButton == null)
 		{
 			return;
 		}
 		if (button == null)
 		{
-			UIButton optionConfirmButton = window.currentOptionComponent.optionConfirmButton;
-			GameObject gameObject = UnityEngine.Object.Instantiate(optionConfirmButton.gameObject, window.currentOptionComponent.transform.parent, worldPositionStays: true);
+			UIButton enchantButton = window.enchantButton;
+			Transform transform = GoldBox();
+			GameObject gameObject = UnityEngine.Object.Instantiate(enchantButton.gameObject, enchantButton.transform.parent, worldPositionStays: true);
 			gameObject.name = "SprkEnchantUntil";
 			StripBehaviours(gameObject);
+			DropLocalizers(gameObject);
 			button = gameObject.GetComponent<UIButton>() ?? gameObject.AddComponent<UIButton>();
 			button.onClick.Clear();
 			EventDelegate.Add(button.onClick, TogglePool);
 			button.isEnabled = true;
 			buttonLabel = gameObject.GetComponentInChildren<UILabel>(includeInactive: true);
 			gameObject.SetActive(value: true);
-			Vector3 position = optionConfirmButton.transform.position;
-			UILabel uILabel = CoreTitle();
-			button.transform.position = new Vector3(position.x, (uILabel == null) ? position.y : uILabel.transform.position.y, position.z);
+			if (transform != null)
+			{
+				float num = transform.position.y - enchantButton.transform.position.y;
+				button.transform.position = enchantButton.transform.position + new Vector3(0f, num, 0f);
+				transform.position += new Vector3(0f, num, 0f);
+				NGUITools.MarkParentAsChanged(transform.gameObject);
+			}
 			NGUITools.MarkParentAsChanged(gameObject);
 		}
-		button.gameObject.SetActive(!poolView && window.SprkTargetItem != null && Pool.Count > 0);
+		button.gameObject.SetActive(window.SprkTargetItem != null && Pool.Count > 0);
+		// The copy inherits Enchant's greyed look while Enchant is disabled.
+		UIHelper.EnableButton(button, enable: true, grayscaleIfDisable: true);
+		UIWidget[] widgets = button.GetComponentsInChildren<UIWidget>(includeInactive: true);
+		foreach (UIWidget widget in widgets)
+		{
+			widget.isGrayscale = false;
+		}
+		// NGUI swaps in a disabled sprite; a copy made while Enchant was disabled
+		// records that one as normal, so take Enchant's real normal sprite.
+		string normalSprite = window.enchantButton.normalSprite;
+		if (!string.IsNullOrEmpty(normalSprite))
+		{
+			button.normalSprite = normalSprite;
+			UISprite sprite = ((button.tweenTarget != null) ? button.tweenTarget.GetComponent<UISprite>() : null) ?? button.GetComponent<UISprite>();
+			if (sprite != null)
+			{
+				sprite.spriteName = normalSprite;
+			}
+		}
+		button.SetState(UIButtonColor.State.Normal, true);
 	}
 
-	/// The "Enchantment Core" label: the closest label above the first core icon.
-	private static UILabel CoreTitle()
+	/// The "required gold" box: the label's nearest parent that is not shared
+	/// with the Enchant button.
+	private static Transform GoldBox()
 	{
-		if (window.coreItemRoots == null || window.coreItemRoots.Length == 0 || window.coreItemRoots[0] == null)
+		if (window.labelRequiredGold == null)
 		{
 			return null;
 		}
-		Vector3 position = window.coreItemRoots[0].position;
-		UILabel result = null;
-		float num = float.MaxValue;
-		UILabel[] componentsInChildren = window.GetComponentsInChildren<UILabel>(includeInactive: true);
-		foreach (UILabel uILabel in componentsInChildren)
+		Transform transform = window.labelRequiredGold.transform;
+		Transform transform2 = transform.parent;
+		while (transform2 != null && transform2 != window.transform && !window.enchantButton.transform.IsChildOf(transform2))
 		{
-			float num2 = uILabel.transform.position.y - position.y;
-			if (num2 > 0f && num2 < num && Array.IndexOf(window.labelCoreItems, uILabel) < 0 && uILabel.transform.position.x < position.x + 0.2f && !string.IsNullOrEmpty(uILabel.text) && uILabel.GetComponentInParent<ValanceEnchantOptionComponent>() == null)
+			transform = transform2;
+			transform2 = transform2.parent;
+		}
+		return transform;
+	}
+
+	/// One pool row, drawn without the slot animator (whose Fix state hides the
+	/// value text and whose in-place changes skip the outline): selected rows
+	/// show the outlined "Fix" bar and a gold "Target", others the plain bar.
+	private static void PaintRow(ValanceEnchantOptionSlot slot, string name, string value, bool selected)
+	{
+		if (slot.anim != null)
+		{
+			slot.anim.enabled = false;
+		}
+		Transform transform = slot.transform;
+		SetChildActive(transform, "Sprite_None", active: false);
+		SetChildActive(transform, "Sprite_Preview", active: false);
+		SetChildActive(transform, "Sprite_Active", !selected);
+		SetChildActive(transform, "Sprite_Fix", selected);
+		Transform transform2 = transform.Find(selected ? "Sprite_Fix" : "Sprite_Active");
+		if (transform2 != null)
+		{
+			UIWidget[] componentsInChildren = transform2.GetComponentsInChildren<UIWidget>(includeInactive: true);
+			foreach (UIWidget uIWidget in componentsInChildren)
 			{
-				num = num2;
-				result = uILabel;
+				uIWidget.alpha = 1f;
 			}
 		}
-		return result;
+		UILabel[] array = new UILabel[2] { slot.labelOptionDesc, slot.labelOptionStat };
+		foreach (UILabel uILabel in array)
+		{
+			if (!(uILabel == null))
+			{
+				uILabel.gameObject.SetActive(value: true);
+				uILabel.alpha = 1f;
+				uILabel.color = (selected ? TargetColor : Color.white);
+			}
+		}
+		if (slot.labelOptionDesc != null)
+		{
+			slot.labelOptionDesc.text = name;
+		}
+		if (slot.labelOptionStat != null)
+		{
+			slot.labelOptionStat.text = value;
+		}
 	}
 
 	private static void Paint()
 	{
 		if (buttonLabel != null)
 		{
-			buttonLabel.text = SprkText.Get((poolView ? "Done" : ((Targets.Count == 0) ? "Target Stats" : (SprkText.Format("Targets: {0}", Targets.Count)))));
+			buttonLabel.text = (poolView ? SprkText.Get("Done") : ((Targets.Count == 0) ? SprkText.Get("Target Stats") : SprkText.Format("Targets: {0}", Targets.Count)));
 		}
 		foreach (KeyValuePair<OperationType, ValanceEnchantOptionSlot> row in Rows)
 		{
@@ -383,15 +458,7 @@ public static class SprkEnchantUntil
 			{
 				bool flag = Targets.Contains(row.Key);
 				PoolEntry poolEntry = Pool.Find((PoolEntry p) => p.Type == row.Key);
-				row.Value.Init(SprkReforgeUntil.StatName(row.Key), flag ? SprkText.Get("Target") : poolEntry.Range, flag ? ValanceEnchantOptionSlot.ValanceEnchantSlotState.Fix : ValanceEnchantOptionSlot.ValanceEnchantSlotState.Active);
-				if (row.Value.labelOptionDesc != null)
-				{
-					row.Value.labelOptionDesc.color = (flag ? TargetColor : Color.white);
-				}
-				if (row.Value.labelOptionStat != null)
-				{
-					row.Value.labelOptionStat.color = (flag ? TargetColor : Color.white);
-				}
+				PaintRow(row.Value, SprkReforgeUntil.StatName(row.Key), flag ? SprkText.Get("Target") : poolEntry.Range, flag);
 			}
 		}
 	}
@@ -711,6 +778,7 @@ public static class SprkEnchantUntil
 		int itemCount = GlobalAutoBehaviour<AccountManager>.instance.ItemManager.GetItemCount(core.Code);
 		long gold = GlobalAutoBehaviour<AccountManager>.instance.UserManager.Gold;
 		double chance = odds.Chance;
+		long remaining = SprkReforgeUntil.Remaining(odds.PityMisses, odds.PityLimit);
 		// Cheapest core on average (gold per hit) among those that can hit.
 		CoreOdds best = default(CoreOdds);
 		foreach (CoreOdds core2 in odds.Cores)
@@ -752,8 +820,8 @@ public static class SprkEnchantUntil
 		Func<int, string> messageText = delegate(int n)
 		{
 			n = Mathf.Clamp(n, 1, max);
-			string text2 = SprkText.Format("{0}: {1} per try; chance for {2} attempt(s): {3}", TargetNames(), SprkReforgeUntil.Percent(chance), n, SprkReforgeUntil.Percent(1.0 - Math.Pow(1.0 - chance, n)));
-			return text2 + "\n" + (text ?? (SprkText.Format("Uses at most {0} × {1} + gold below", n, CoreName(core.Index))));
+			string text2 = SprkText.Format("{0}: {1} per try; chance for {2} attempt(s): {3}", TargetNames(), SprkReforgeUntil.Percent(chance), n, SprkReforgeUntil.Percent(SprkReforgeUntil.Within(chance, n, remaining)));
+			return text2 + "\n" + (text ?? (SprkText.Format("Uses at most {0} × {1} + gold below", n, CoreName(core.Index)))) + SprkReforgeUntil.GuaranteeLine(remaining);
 		};
 		edit.Set(SprkReforgeUntil.PopupLabel(popup, "Panel/Root/Title/Label_Title"), Title);
 		edit.Set(SprkReforgeUntil.PopupLabel(popup, "Panel/Root/Button_Ok/Label_Action"), SprkText.Get("Enchant"));
@@ -829,6 +897,7 @@ public static class SprkEnchantUntil
 			stringBuilder.Append(SprkText.Get("\nThe last roll is shown."));
 		}
 		stringBuilder.Append(SprkText.Format("\nUsed {0} cores and {1} gold.", value.CoresUsed, value.GoldSpent.ToString("N0")));
+		stringBuilder.Append(SprkReforgeUntil.PityResult(value.Hit, value.Guaranteed, value.PityMisses, value.PityLimit));
 		if (value.Hit)
 		{
 			// The goal is reached; the next Enchant is a normal one again.

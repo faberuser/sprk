@@ -439,8 +439,51 @@ fn roll_enchant(state: &AppState, pool: &[i64], counts: &[(i64, i64)]) -> Result
     Ok(lines)
 }
 
+/// A guaranteed roll: a line count that fits every target (weighted as usual),
+/// the targets, then the remaining lines drawn normally, in random order.
+fn roll_enchant_with(state: &AppState, pool: &[i64], counts: &[(i64, i64)], targets: &[i64]) -> Result<[(i64, i64); 3]> {
+    let fitting: Vec<(i64, i64)> = counts.iter().copied().filter(|(count, _)| *count >= targets.len() as i64).collect();
+    let total: i64 = fitting.iter().map(|c| c.1).sum();
+    if total <= 0 {
+        return Err(rule("FailGenerateValanceEnchantOption"));
+    }
+    let mut roll = rand::rng().random_range(0..total);
+    let count = fitting
+        .iter()
+        .find(|c| {
+            roll -= c.1;
+            roll < 0
+        })
+        .map(|c| c.0)
+        .ok_or_else(|| rule("InvalidOption"))?;
+    let mut candidates = pool.to_vec();
+    let mut chosen = vec![];
+    for target in targets {
+        let of_type: Vec<i64> = candidates.iter().copied().filter(|id| stat_type(state, *id) == *target).collect();
+        let line = equipment::option(state, &of_type)?;
+        candidates.retain(|v| *v != line.0);
+        chosen.push(line);
+    }
+    while (chosen.len() as i64) < count {
+        let line = equipment::option(state, &candidates)?;
+        candidates.retain(|v| *v != line.0);
+        chosen.push(line);
+    }
+    use rand::seq::SliceRandom;
+    chosen.shuffle(&mut rand::rng());
+    let mut lines = [(0, 0); 3];
+    for (line, value) in lines.iter_mut().zip(chosen) {
+        *line = value;
+    }
+    Ok(lines)
+}
+
 /// Most enchants one "enchant until" request may perform.
 pub(super) const ENCHANT_UNTIL_MAX_TRIES: i64 = 5000;
+
+/// "Enchant until" guarantee per target stat: 300 accumulated tries for one
+/// target, 600 for two, 900 for three; the last of them rolls every target.
+pub(super) const ENCHANT_PITY_PER_STAT: i64 = 300;
 
 /// SPRK "enchant until" targets: up to 3 distinct stat types, separated by `_`
 /// (the client form-escapes commas twice, so `,` arrives as a literal `%2c`).
@@ -508,6 +551,10 @@ pub(super) fn enchant_chance(state: &AppState, pool: &[i64], counts: &[(i64, i64
 /// or when the next try is unaffordable. Costs are charged once, and only the last
 /// roll is kept: applied directly on a first enchant (as the native flow does),
 /// otherwise left pending for the usual choice.
+///
+/// Guarantee: misses add up across runs for this item and target set
+/// (`sprk_target_pity`); the `ENCHANT_PITY_PER_STAT` × targets-th accumulated
+/// try rolls every target.
 #[allow(clippy::too_many_arguments)]
 async fn enchant_until(
     db: &mut PgConnection,
@@ -524,6 +571,15 @@ async fn enchant_until(
 ) -> Result<Value> {
     let chance = enchant_chance(state, pool, counts, targets);
     let mut out = item::success();
+    // One guarantee counter per item, whichever core is used; the key is the
+    // target set in a fixed order so reordering the same targets keeps it.
+    let mut sorted = targets.to_vec();
+    sorted.sort_unstable();
+    let pity_target = sorted.iter().map(i64::to_string).collect::<Vec<_>>().join("_");
+    let pity_limit = ENCHANT_PITY_PER_STAT * targets.len() as i64;
+    let mut misses = equipment::pity_misses(db, account, eq.slot_index, "enchant", &pity_target).await?;
+    out["SprkPityMisses"] = json!(misses);
+    out["SprkPityLimit"] = json!(pity_limit);
     if matches!(req.text("SprkPreview"), "1" | "true" | "True") {
         let mut cores = vec![];
         for row in state.tables.extensions.rows("ValanceEnchant") {
@@ -551,15 +607,18 @@ async fn enchant_until(
     let price = n(r, "ReqGold").max(0);
     let cores = equipment::spendable_item(db, account, core).await?;
     let gold = equipment::spendable_gold(db, account).await?;
-    let (mut tries, mut last, mut hit) = (0i64, None, false);
+    let (mut tries, mut last, mut hit, mut guaranteed) = (0i64, None, false, false);
     while tries < max_tries && tries < cores && price * (tries + 1) <= gold {
         tries += 1;
-        let lines = roll_enchant(state, pool, counts)?;
+        guaranteed = misses + 1 >= pity_limit;
+        let lines = if guaranteed { roll_enchant_with(state, pool, counts, targets)? } else { roll_enchant(state, pool, counts)? };
         hit = targets.iter().all(|t| lines.iter().any(|(id, _)| *id != 0 && stat_type(state, *id) == *t));
         last = Some(lines);
         if hit {
+            misses = 0;
             break;
         }
+        misses += 1;
     }
     let Some(lines) = last else {
         return Err(rule(if cores == 0 { "ItemNotOwned" } else { "NotEnoughGold" }));
@@ -588,6 +647,9 @@ async fn enchant_until(
     out["SprkHit"] = json!(hit);
     out["SprkGoldSpent"] = json!(price * tries);
     out["SprkCoresUsed"] = json!(tries);
+    out["SprkGuaranteed"] = json!(guaranteed);
+    out["SprkPityMisses"] = json!(misses);
+    equipment::save_pity(db, account, eq.slot_index, "enchant", &pity_target, misses).await?;
     super::super::progression::record(db, account, "Enchant", eq.item_index as i64, core, tries).await?;
     save_equip(db, account, &eq).await?;
     out["ResultEquipItem"] = json!(eq);

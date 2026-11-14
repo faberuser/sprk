@@ -46,6 +46,12 @@ public static class SprkReforgeUntil
 		public long GemsSpent;
 
 		public bool Hit;
+
+		public long PityMisses;
+
+		public long PityLimit;
+
+		public bool Guaranteed;
 	}
 
 	private sealed class Entry
@@ -283,6 +289,9 @@ public static class SprkReforgeUntil
 			Tries = (int)Number(json, "SprkTries"),
 			CouponsUsed = (int)Number(json, "SprkCouponsUsed"),
 			GemsSpent = Number(json, "SprkGemsSpent"),
+			PityMisses = Number(json, "SprkPityMisses"),
+			PityLimit = Number(json, "SprkPityLimit"),
+			Guaranteed = json.Contains("SprkGuaranteed") && json["SprkGuaranteed"] is bool && (bool)json["SprkGuaranteed"],
 			Hit = json.Contains("SprkHit") && json["SprkHit"] is bool && (bool)json["SprkHit"]
 		};
 		Captured.Remove(response);
@@ -671,7 +680,7 @@ public static class SprkReforgeUntil
 			}
 			else if (Captured.TryGetValue(response, out var value) && value.TotalWeight > 0 && value.HitWeight > 0)
 			{
-				Confirm(manager, equipSlot, optionSlot, wanted, (double)value.HitWeight / (double)value.TotalWeight);
+				Confirm(manager, equipSlot, optionSlot, wanted, (double)value.HitWeight / (double)value.TotalWeight, Remaining(value.PityMisses, value.PityLimit));
 			}
 		});
 		return true;
@@ -769,11 +778,38 @@ public static class SprkReforgeUntil
 		return (itemInfo != null) ? ((int)itemInfo.Count) : 0;
 	}
 
-	private static string Describe(OperationType wanted, double chance, Budget budget, int tries)
+	/// Tries left until the guarantee, counting the next try as 1 (0 = unknown).
+	internal static long Remaining(long misses, long limit)
+	{
+		return (limit <= 0) ? 0 : Math.Max(1L, limit - Math.Max(0L, misses));
+	}
+
+	/// Chance to hit within `tries`, certain once the guarantee falls inside them.
+	internal static double Within(double chance, int tries, long remaining)
+	{
+		return (remaining > 0 && tries >= remaining) ? 1.0 : (1.0 - Math.Pow(1.0 - chance, tries));
+	}
+
+	internal static string GuaranteeLine(long remaining)
+	{
+		return (remaining > 0) ? SprkText.Format("\nGuaranteed by attempt {0}.", remaining) : string.Empty;
+	}
+
+	/// Summary line: a guaranteed hit, or the progress kept for the next run.
+	internal static string PityResult(bool hit, bool guaranteed, long misses, long limit)
+	{
+		if (hit)
+		{
+			return guaranteed ? SprkText.Get("\nGuaranteed by the attempt limit.") : string.Empty;
+		}
+		return (limit > 0) ? SprkText.Format("\nGuarantee progress: {0}/{1}.", misses, limit) : string.Empty;
+	}
+
+	private static string Describe(OperationType wanted, double chance, Budget budget, int tries, long remaining)
 	{
 		StringBuilder stringBuilder = new StringBuilder();
 		stringBuilder.Append(SprkText.Format("{0}: {1} per try; chance for {2} attempt(s): {3}",
-			StatName(wanted), Percent(chance), tries, Percent(1.0 - Math.Pow(1.0 - chance, tries))));
+			StatName(wanted), Percent(chance), tries, Percent(Within(chance, tries, remaining))));
 		List<string> list = new List<string>();
 		int num = Math.Min(tries, budget.Coupons);
 		if (num > 0)
@@ -797,6 +833,7 @@ public static class SprkReforgeUntil
 		{
 			stringBuilder.Append(SprkText.Get("\nUses at most the rubies shown below"));
 		}
+		stringBuilder.Append(GuaranteeLine(remaining));
 		return stringBuilder.ToString();
 	}
 
@@ -816,7 +853,7 @@ public static class SprkReforgeUntil
 		return (transform == null) ? null : transform.GetComponent<UILabel>();
 	}
 
-	private static void Confirm(BlacksmithManagement manager, int equipSlot, int optionSlot, OperationType wanted, double chance)
+	private static void Confirm(BlacksmithManagement manager, int equipSlot, int optionSlot, OperationType wanted, double chance, long remaining)
 	{
 		EquipItemInfo equipItemInfo = GlobalAutoBehaviour<AccountManager>.instance.EquipItemManager.Get(equipSlot);
 		if (equipItemInfo == null)
@@ -849,7 +886,7 @@ public static class SprkReforgeUntil
 		UILabel price = PopupLabel(popup, "Panel/Root/Value (1)/Label_Price");
 		edit.Set(PopupLabel(popup, "Panel/Root/Title/Label_Title"), Title);
 		edit.Set(PopupLabel(popup, "Panel/Root/Button_Ok/Label_Action"), SprkText.Get("Reforge"));
-		edit.Set(message, Describe(wanted, chance, budget, num));
+		edit.Set(message, Describe(wanted, chance, budget, num, remaining));
 		edit.Set(price, Rubies(budget, num).ToString("N0"));
 		// Even spacing between title, message, count row, Max and the buttons
 		// (the prefab is laid out for a one-line message).
@@ -862,7 +899,7 @@ public static class SprkReforgeUntil
 		edit.Mirror.Owner = edit;
 		edit.Mirror.Message = message;
 		edit.Mirror.Price = price;
-		edit.Mirror.MessageText = (int n) => Describe(wanted, chance, budget, Mathf.Clamp(n, 1, budget.MaxTries));
+		edit.Mirror.MessageText = (int n) => Describe(wanted, chance, budget, Mathf.Clamp(n, 1, budget.MaxTries), remaining);
 		edit.Mirror.PriceText = (int n) => Rubies(budget, Mathf.Clamp(n, 1, budget.MaxTries)).ToString("N0");
 	}
 
@@ -905,6 +942,7 @@ public static class SprkReforgeUntil
 				{
 					stringBuilder.Append(SprkText.Format("\nUsed {0}.", string.Join(", ", list.ToArray())));
 				}
+				stringBuilder.Append(PityResult(value.Hit, value.Guaranteed, value.PityMisses, value.PityLimit));
 				MessagePopup.Open(Title, stringBuilder.ToString());
 			}
 		});
