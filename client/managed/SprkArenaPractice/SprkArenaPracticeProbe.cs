@@ -38,7 +38,7 @@ public static class SprkArenaPracticeProbe
 		Check(visibleCard != null, "Run the native card fixture first");
 		Check(visibleCard.GetComponentsInChildren<UILabel>(includeInactive: true).Single((UILabel l) => l.name == "Label_SlotTitle").text == "Arena Practice", "Localized Ordeals title replaced the practice title after Start/OnEnable");
 		Check(visibleCard.GetComponentsInChildren<UILabel>(includeInactive: true).Any((UILabel l) => l.text == "Practice"), "Practice button label was replaced");
-		Check(visibleCard.GetComponentsInChildren<UILabel>(includeInactive: true).Single((UILabel l) => l.name == "Label_Info").text.Contains("4 heroes"), "Practice description was replaced");
+		Check(visibleCard.GetComponentsInChildren<UILabel>(includeInactive: true).Single((UILabel l) => l.name == "Label_Info").text.Contains("up to 4 heroes"), "Practice description was replaced");
 		Check(Artwork(visibleCard).SequenceEqual(victoryArtwork), "Practice artwork differs from League of Victory after OnEnable");
 		return "PASS: practice title, description, button and League of Victory artwork survive native Start/OnEnable.";
 	}
@@ -180,6 +180,12 @@ public static class SprkArenaPracticeProbe
 				leaderHeroIndex = heroes[0].HeroIndex
 			});
 			Check(playerEnterBattleLog.CreatureCreateInfos.Length == 4 && playerEnterBattleLog.CreatureCreateInfos[0].HeroInfo.EquipItemInfo1.ItemIndex == itemData.Index, "Native Arena party factory lost gear");
+			PlayerEnterBattleLog smallParty = SprkArenaPractice.CreateParty(new BattlePartySetting.BattlePartyInfo
+			{
+				heroIndices = new int[4] { heroes[1].HeroIndex, 0, heroes[2].HeroIndex, 0 },
+				leaderHeroIndex = heroes[0].HeroIndex
+			});
+			Check(smallParty.CreatureCreateInfos.Length == 2, "Two-hero practice party was rejected or padded");
 			array = playerEnterBattleLog.CreatureCreateInfos;
 			BattleCreatureCreateInfo[] array2 = array;
 			foreach (BattleCreatureCreateInfo obj in array2)
