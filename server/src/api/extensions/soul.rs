@@ -79,6 +79,9 @@ pub(super) async fn execute(
                 .await?;
                 info["Grade"] = json!(grade);
             }
+            "soul_weapon_ether_injection" if req.text("SprkAutoEnhance") == "1" => {
+                auto_enhance(db, state, account, &mut info, &mut out).await?;
+            }
             "soul_weapon_ether_injection" => {
                 let level = n(&info, "ReinforceLevel");
                 row(
@@ -273,6 +276,157 @@ pub(super) async fn execute(
     out["ResultSoulWeaponInfo"] = info;
     Ok(out)
 }
+/// SPRK "Auto Enhance": repeats what a player does by hand with Max, Add Ether
+/// and Attempt Enhancement until +20 or until the Ether or Gold runs out. Each
+/// level is filled to full Ether and the maximum success rate (100%) before it
+/// is attempted, with the same rates, costs and roll as the manual steps.
+/// Ether is spent from the lowest tier up. Ether that cannot complete a level
+/// stays injected, as it would after a manual Add Ether, and is not gambled.
+async fn auto_enhance(
+    db: &mut PgConnection,
+    state: &AppState,
+    account: i64,
+    info: &mut Value,
+    out: &mut Value,
+) -> Result<()> {
+    let max = state
+        .tables
+        .hero_shop
+        .constant("SoulWeaponReinforceMaxRate", 100000);
+    let start = n(info, "ReinforceLevel");
+    if state
+        .tables
+        .extensions
+        .find("SoulWeaponReinforce", &[("ReinforceLevel", start + 1)])
+        .is_none()
+    {
+        return Err(rule("AlreadyMaxLevel"));
+    }
+    // Spendable balances, excluding amounts reserved by battle entries.
+    let held = crate::api::battle::entry_costs::held(db, account, "Currency", 3).await?;
+    let balance: i64 = crate::db::query_scalar("SELECT gold FROM user_info WHERE account_id=$1")
+        .bind(account)
+        .fetch_one(&mut *db)
+        .await?;
+    let mut gold = (balance - held).max(0);
+    let mut ethers: Vec<&Value> = state
+        .tables
+        .extensions
+        .rows("SoulWeaponEther")
+        .iter()
+        .collect();
+    ethers.sort_by_key(|e| (n(e, "ExpPoints"), n(e, "ItemIndex")));
+    let mut owned = std::collections::BTreeMap::new();
+    for ether in &ethers {
+        let id = n(ether, "ItemIndex");
+        let count: Option<i64> = crate::db::query_scalar(
+            "SELECT count::bigint FROM items WHERE account_id=$1 AND item_index=$2 AND locked=0",
+        )
+        .bind(account)
+        .bind(id as i32)
+        .fetch_optional(&mut *db)
+        .await?;
+        let reserved = crate::api::battle::entry_costs::held(db, account, "Item", id).await?;
+        owned.insert(id, (count.unwrap_or(0) - reserved).max(0));
+    }
+    let mut used = std::collections::BTreeMap::<i64, i64>::new();
+    let (mut cost, mut attempts, mut successes) = (0i64, 0i64, 0i64);
+    let mut short_of_gold = false;
+    let mut stop = "MaxLevel";
+    loop {
+        let level = n(info, "ReinforceLevel");
+        let Some(rule_row) = state
+            .tables
+            .extensions
+            .find("SoulWeaponReinforce", &[("ReinforceLevel", level)])
+        else {
+            break;
+        };
+        if state
+            .tables
+            .extensions
+            .find("SoulWeaponReinforce", &[("ReinforceLevel", level + 1)])
+            .is_none()
+        {
+            break;
+        }
+        let required = n(rule_row, "RequiredExp");
+        let blocked = rule_row["UnAvailableItemCode"].as_array();
+        for ether in &ethers {
+            let exp_left = required - n(info, "Exp");
+            let rate_left = max - n(info, "ReinforceRatio");
+            if exp_left <= 0 && rate_left <= 0 {
+                break;
+            }
+            if blocked.is_some_and(|codes| codes.contains(&ether["ItemCode"])) {
+                continue;
+            }
+            let id = n(ether, "ItemIndex");
+            let Some(bonus) = state.tables.extensions.find(
+                "SoulWeaponEtherRate",
+                &[("ReinforceLevel", level), ("ItemIndex", id)],
+            ) else {
+                continue;
+            };
+            let (exp, rate, price) = (
+                n(ether, "ExpPoints"),
+                n(bonus, "AddedBonusRate"),
+                n(ether, "ReqGold"),
+            );
+            let need = |left: i64, per: i64| if left > 0 && per > 0 { (left + per - 1) / per } else { 0 };
+            let mut count = need(exp_left, exp).max(need(rate_left, rate)).min(owned[&id]);
+            if price > 0 && count > gold / price {
+                count = gold / price;
+                short_of_gold = true;
+            }
+            if count <= 0 {
+                continue;
+            }
+            gold -= price * count;
+            cost += price * count;
+            *owned.get_mut(&id).unwrap() -= count;
+            *used.entry(id).or_default() += count;
+            info["Exp"] = json!((n(info, "Exp") + exp * count).min(required));
+            info["ReinforceRatio"] = json!((n(info, "ReinforceRatio") + rate * count).min(max));
+        }
+        let price = n(rule_row, "ReqGold");
+        if n(info, "Exp") < required || n(info, "ReinforceRatio") < max {
+            stop = if short_of_gold { "Gold" } else { "Ether" };
+            break;
+        }
+        if gold < price {
+            short_of_gold = true;
+            stop = "Gold";
+            break;
+        }
+        gold -= price;
+        cost += price;
+        attempts += 1;
+        // The same roll as soul_weapon_reinforce; certain at the maximum rate.
+        if roll(n(info, "ReinforceRatio"), max) {
+            info["ReinforceLevel"] = json!(level + 1);
+            successes += 1;
+        }
+        info["Exp"] = json!(0);
+        info["ReinforceRatio"] = json!(0);
+    }
+    if used.is_empty() && attempts == 0 {
+        return Err(rule(if short_of_gold { "NotEnoughGold" } else { "NotEnoughEther" }));
+    }
+    let mut removed = vec![];
+    for (id, count) in used {
+        removed.push(item::consume(db, account, id as i32, count as i32).await?);
+    }
+    out["CurrencyResult"] = hero::currency(db, account, "Gold", -cost).await?;
+    out["RemovedItemResultInfos"] = json!(removed);
+    out["SprkAutoStartLevel"] = json!(start);
+    out["SprkAutoAttempts"] = json!(attempts);
+    out["SprkAutoSuccesses"] = json!(successes);
+    out["SprkAutoGold"] = json!(cost);
+    out["SprkAutoStop"] = json!(stop);
+    Ok(())
+}
+
 pub(super) fn initial_info(state: &AppState, slot: i64, item: i32) -> Value {
     json!({"EquipItemSlotIndex":slot,"ItemIndex":item,"Grade":0,"ReinforceLevel":0,"ReinforceRatio":0,"Exp":0,"OptionRatio1":500,"OptionRatio2":500,"OptionBonusRatio1":0,"OptionBonusRatio2":0,"RenewOptionCount":0,"CreatedTime":state.server_time_str()})
 }

@@ -47,6 +47,7 @@ public static class JM_NShared_SoulWeaponEtherInjection_Request
 		{
 			dictionary.Add("SessionId", o.SessionId);
 		}
+		SprkSoulWeaponAutoEnhance.Encode(dictionary, o);
 		return dictionary;
 	}
 }

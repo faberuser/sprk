@@ -387,3 +387,15 @@ Controls texture detail. Higher settings retain more detail and use more video m
 \nGuaranteed by attempt {0}.	\nGarantiert spätestens bei Versuch {0}.	\nGaranti au plus tard à la tentative {0}.	\n{0}回目で確定します。	\n{0}번째 시도에 확정됩니다.	\nГарантировано на попытке {0}.	\n第{0}次尝试必定获得。	\n第{0}次嘗試必定獲得。
 \nGuaranteed by the attempt limit.	\nDurch das Versuchslimit garantiert.	\nObtenu grâce à la limite de tentatives.	\n試行回数の上限により確定しました。	\n시도 횟수 한도로 확정되었습니다.	\nПолучено по гарантии лимита попыток.	\n已达到尝试上限，必定获得。	\n已達到嘗試上限，必定獲得。
 \nGuarantee progress: {0}/{1}.	\nGarantie-Fortschritt: {0}/{1}.	\nProgression de la garantie : {0}/{1}.	\n確定までの進行度：{0}/{1}	\n확정 진행도: {0}/{1}	\nПрогресс гарантии: {0}/{1}.	\n保底进度：{0}/{1}。	\n保底進度：{0}/{1}。
+Auto Enhance	Auto-Verstärkung	Amélioration auto	自動強化	자동 강화	Автоусиление	自动强化	自動強化
+Enhance +{0} → +{1}.	Verstärkung +{0} → +{1}.	Amélioration +{0} → +{1}.	+{0} → +{1}に強化します。	+{0} → +{1} 강화합니다.	Усиление +{0} → +{1}.	强化 +{0} → +{1}。	強化 +{0} → +{1}。
+Not enough Ether or Gold to reach +{0}.	Nicht genug Äther oder Gold, um +{0} zu erreichen.	Pas assez d'Éther ou d'or pour atteindre +{0}.	+{0}に到達するためのエーテルまたはゴールドが不足しています。	+{0} 달성에 필요한 에테르 또는 골드가 부족합니다.	Недостаточно эфира или золота для +{0}.	以太或金币不足，无法达到+{0}。	以太或金幣不足，無法達到+{0}。
+Leftover Ether is added toward +{0} without an attempt.	Übriger Äther wird für +{0} eingesetzt, ohne Versuch.	L'Éther restant est ajouté pour +{0}, sans tentative.	残りのエーテルは+{0}に向けて注入し、強化は試みません。	남은 에테르는 +{0} 달성을 위해 주입되며 강화는 시도하지 않습니다.	Оставшийся эфир добавляется к +{0} без попытки усиления.	剩余以太将注入用于+{0}，不进行强化尝试。	剩餘以太將注入用於+{0}，不進行強化嘗試。
+Each level is filled to 100% before it is attempted. Ether is used from the lowest tier first.	Jede Stufe wird vor dem Versuch auf 100% gefüllt. Äther der niedrigsten Stufe wird zuerst verwendet.	Chaque niveau est rempli à 100% avant la tentative. L'Éther de rang le plus bas est utilisé en premier.	各段階は成功率100%まで注入してから強化します。エーテルは低い等級から使用します。	각 단계는 성공률 100%까지 채운 후 강화합니다. 에테르는 낮은 등급부터 사용합니다.	Каждый уровень заполняется до 100% перед попыткой. Сначала используется эфир низшего ранга.	每级先注入至100%再尝试强化。优先使用最低等级的以太。	每級先注入至100%再嘗試強化。優先使用最低等級的以太。
+Ether: {0}	Äther: {0}	Éther : {0}	エーテル：{0}	에테르: {0}	Эфир: {0}	以太：{0}	以太：{0}
+Gold: {0}	Gold: {0}	Or : {0}	ゴールド：{0}	골드: {0}	Золото: {0}	金币：{0}	金幣：{0}
+Enhanced from +{0} to +{1}.	Von +{0} auf +{1} verstärkt.	Amélioré de +{0} à +{1}.	+{0}から+{1}に強化しました。	+{0} → +{1} 강화 완료.	Усилено с +{0} до +{1}.	已从+{0}强化至+{1}。	已從+{0}強化至+{1}。
+Ether added toward +{0}.	Äther für +{0} hinzugefügt.	Éther ajouté pour +{0}.	+{0}に向けてエーテルを注入しました。	+{0} 달성을 위해 에테르를 주입했습니다.	Эфир добавлен для +{0}.	已为+{0}注入以太。	已為+{0}注入以太。
+Maximum level reached.	Höchststufe erreicht.	Niveau maximum atteint.	最大段階に到達しました。	최대 단계에 도달했습니다.	Достигнут максимальный уровень.	已达到最高等级。	已達到最高等級。
+Stopped: not enough Ether.	Beendet: nicht genug Äther.	Arrêté : pas assez d'Éther.	停止：エーテルが不足しています。	중단: 에테르가 부족합니다.	Остановлено: недостаточно эфира.	已停止：以太不足。	已停止：以太不足。
+Stopped: not enough Gold.	Beendet: nicht genug Gold.	Arrêté : pas assez d'or.	停止：ゴールドが不足しています。	중단: 골드가 부족합니다.	Остановлено: недостаточно золота.	已停止：金币不足。	已停止：金幣不足。

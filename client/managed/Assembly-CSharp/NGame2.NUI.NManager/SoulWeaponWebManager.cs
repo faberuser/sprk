@@ -107,6 +107,7 @@ public class SoulWeaponWebManager : SingletonAuto<SoulWeaponWebManager>
 			EquipItemSlotIndex = equipItemSlotIndex,
 			InjectionItemInfos = itemInfos
 		};
+		SprkSoulWeaponAutoEnhance.Arm(request);
 		SingletonUpdater<WebServiceManager>.instance.Requester.Request(request, delegate(NShared.SoulWeaponEtherInjection.Response response)
 		{
 			if (response.BaseResult != BaseResultType.Success)
@@ -127,6 +128,7 @@ public class SoulWeaponWebManager : SingletonAuto<SoulWeaponWebManager>
 					e.OnSoulWeaponInjection(response.ResultSoulWeaponInfo);
 				});
 			}
+			SprkSoulWeaponAutoEnhance.Done(response);
 		});
 	}
 

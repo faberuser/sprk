@@ -409,6 +409,16 @@ public class SoulWeaponReinforceWindow : CommonSoulWeaponWindow, SoulWeaponList.
 		{
 			PlayAnimSoulWeaponReinforce.PlayAnimEtherInjecion(IsMaxReinforceLevel ? 1f : SoulWeaponReinforceExpProgressInfo.Progress);
 		}
+		SprkSoulWeaponAutoEnhance.Attach(this);
+	}
+
+	/// Re-opens the window on a soul weapon, as the reinforce result screen does.
+	public void SprkReopen(EquipItemInfo equipItemInfo)
+	{
+		if (_iListener != null && equipItemInfo != null)
+		{
+			Open(_iListener, equipItemInfo, isSelectFirst: false);
+		}
 	}
 
 	private void SetCountInputField(long maxCount, int initPrice)

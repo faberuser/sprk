@@ -3358,3 +3358,85 @@ async fn batch_break_clears_every_reference_once_and_grants_summed_materials() {
         assert!(new > old, "{index}: {old} -> {new}");
     }
 }
+
+#[tokio::test]
+async fn soul_weapon_auto_enhance_spends_lowest_tier_first_and_stops_cleanly() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let slot = give(&s, a, 1001, 1).await.equipment[0].slot_index;
+    give(&s, a, 111001, 1).await;
+    assert_eq!(call(&s, &u, "soul_weapon_liberation", &format!("EquipItemSlotIndex={slot}")).await["Result"], "Success");
+    crate::db::query("UPDATE user_info SET gold=10000000000 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
+    let auto = format!("EquipItemSlotIndex={slot}&InjectionItemInfos=[]&SprkAutoEnhance=1");
+    let saved = || async { get(&mut s.db.acquire().await.unwrap(), a, "soul", slot as i64).await.unwrap() };
+    let ethers = || async {
+        crate::db::query_as::<(i32, i32)>("SELECT item_index,count FROM items WHERE account_id=$1 AND item_index BETWEEN 5100 AND 5103 ORDER BY item_index")
+            .bind(a).fetch_all(&s.db).await.unwrap()
+    };
+
+    // Nothing to inject: the request fails without touching anything.
+    let before = saved().await;
+    let r = call(&s, &u, "soul_weapon_ether_injection", &auto).await;
+    assert_eq!(r["Result"], "NotEnoughEther", "{r}");
+    assert_eq!(saved().await, before);
+
+    // Each level is filled to full Ether and 100% from the lowest tier up and
+    // then attempted; the Ether left over is injected but never gambled.
+    give(&s, a, 5100, 200).await;
+    give(&s, a, 5101, 50).await;
+    give(&s, a, 5103, 30).await;
+    let r = call(&s, &u, "soul_weapon_ether_injection", &auto).await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!(r["SprkAutoStartLevel"], 0);
+    assert_eq!(r["SprkAutoAttempts"], 6);
+    assert_eq!(r["SprkAutoSuccesses"], 6);
+    assert_eq!(r["SprkAutoGold"], 46400000);
+    assert_eq!(r["SprkAutoStop"], "Ether");
+    assert_eq!(r["CurrencyResult"]["AddValue"], -46400000);
+    assert_eq!(gold(&s).await, 10000000000 - 46400000);
+    assert_eq!(r["RemovedItemResultInfos"].as_array().unwrap().len(), 3);
+    assert_eq!(ethers().await, vec![(5100, 0), (5101, 0), (5103, 0)]);
+    let info = &r["ResultSoulWeaponInfo"];
+    assert_eq!((info["ReinforceLevel"].clone(), info["Exp"].clone(), info["ReinforceRatio"].clone()), (json!(6), json!(300), json!(12390)));
+    assert_eq!(&saved().await, info);
+
+    // Gold is checked before anything is spent.
+    give(&s, a, 5101, 5).await;
+    crate::db::query("UPDATE user_info SET gold=0 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
+    let before = saved().await;
+    let r = call(&s, &u, "soul_weapon_ether_injection", &auto).await;
+    assert_eq!(r["Result"], "NotEnoughGold", "{r}");
+    assert_eq!(saved().await, before);
+    assert_eq!(ethers().await, vec![(5100, 0), (5101, 5), (5103, 0)]);
+
+    // +20 is the cap.
+    let mut maxed = saved().await;
+    maxed["ReinforceLevel"] = json!(20);
+    put(&mut s.db.acquire().await.unwrap(), a, "soul", slot as i64, &maxed).await.unwrap();
+    crate::db::query("UPDATE user_info SET gold=10000000000 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
+    let r = call(&s, &u, "soul_weapon_ether_injection", &auto).await;
+    assert_eq!(r["Result"], "AlreadyMaxLevel", "{r}");
+    assert_eq!(ethers().await, vec![(5100, 0), (5101, 5), (5103, 0)]);
+}
+
+#[tokio::test]
+async fn soul_weapon_auto_enhance_reaches_plus_twenty() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let slot = give(&s, a, 1001, 1).await.equipment[0].slot_index;
+    give(&s, a, 111001, 1).await;
+    assert_eq!(call(&s, &u, "soul_weapon_liberation", &format!("EquipItemSlotIndex={slot}")).await["Result"], "Success");
+    crate::db::query("UPDATE user_info SET gold=1000000000000 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
+    for id in 5100..=5103 {
+        give(&s, a, id, 100000).await;
+    }
+    let r = call(&s, &u, "soul_weapon_ether_injection", &format!("EquipItemSlotIndex={slot}&InjectionItemInfos=[]&SprkAutoEnhance=1")).await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!(r["ResultSoulWeaponInfo"]["ReinforceLevel"], 20);
+    assert_eq!(r["SprkAutoAttempts"], 20);
+    assert_eq!(r["SprkAutoGold"], 1402920000i64);
+    assert_eq!(r["SprkAutoStop"], "MaxLevel");
+    let used: Vec<(i64, i64)> = r["RemovedItemResultInfos"].as_array().unwrap().iter()
+        .map(|v| (v["ItemIndex"].as_i64().unwrap(), -v["AddCount"].as_i64().unwrap())).collect();
+    assert_eq!(used, vec![(5100, 2136), (5101, 1875), (5102, 958), (5103, 1262)]);
+}

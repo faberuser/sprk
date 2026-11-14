@@ -22,6 +22,7 @@ public static class JM_NShared_SoulWeaponEtherInjection_Response
 
 	public static NShared.SoulWeaponEtherInjection.Response Parse(IDictionary d, NShared.SoulWeaponEtherInjection.Response o)
 	{
+		SprkSoulWeaponAutoEnhance.Capture(d, o);
 		o.CurrencyResult = BaseJsonMarshaler.ParseObject(d, "CurrencyResult", JM_NShared_CurrencyResultInfo3.Parse);
 		o.ResultSoulWeaponInfo = BaseJsonMarshaler.ParseObject(d, "ResultSoulWeaponInfo", JM_NShared_SoulWeaponInfo.Parse);
 		o.RemovedItemResultInfos = BaseJsonMarshaler.ParseArray(d, "RemovedItemResultInfos", JM_NShared_ItemResultInfo.Parse);
