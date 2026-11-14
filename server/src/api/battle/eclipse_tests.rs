@@ -350,3 +350,59 @@ async fn spent_stamina_fills_the_eclipse_gauge_into_capped_keys() {
     assert_eq!(info["EclipseInfo"]["EclipsePointResult"]["NewValue"], 100);
     assert_eq!(info["EclipseInfo"]["EclipseStaminaResult"]["NewValue"], 5);
 }
+
+#[tokio::test]
+async fn eclipse_empty_ticket_gauge_tracks_campaign_spending_and_conversion() {
+    const CAMPAIGN_ENTRY: &str = "ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=1&HeroIndices=[1]";
+    const CAMPAIGN_END: &str = "ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=1&Completed=true&Star=3&AliveHeroIndices=[1]";
+    for deferred in [false, true] {
+        let (s, u) = setup().await;
+        let a = account(&u);
+        crate::db::query("UPDATE user_info SET stamina=100000 WHERE account_id=$1")
+            .bind(a).execute(&s.db).await.unwrap();
+        {
+            let mut tx = s.db.begin().await.unwrap();
+            put(&mut tx, a, "entry_policy", 0, &json!({"RefundPveDefeats":deferred})).await.unwrap();
+            let keys = n(&dungeons::charge(&mut tx, &s, a, 22, 0).await.unwrap(), "NewValue");
+            dungeons::charge(&mut tx, &s, a, 22, keys).await.unwrap();
+            tx.commit().await.unwrap();
+        }
+        let info = call(&s, &u, "eclipse/get_eclipse_info", "").await;
+        assert_eq!(info["EclipseInfo"]["EclipseStaminaResult"]["NewValue"], 0);
+        assert_eq!(info["EclipseInfo"]["EclipsePointResult"]["NewValue"], 0);
+        let before: i64 = crate::db::query_scalar("SELECT stamina FROM user_info WHERE account_id=$1")
+            .bind(a).fetch_one(&s.db).await.unwrap();
+        let begin = call(&s, &u, "campaign/begin_campaign", CAMPAIGN_ENTRY).await;
+        assert_eq!(begin["Result"], "Success", "{begin}");
+        let end = call(&s, &u, "campaign/end_campaign", CAMPAIGN_END).await;
+        assert_eq!(end["Result"], "Success", "{end}");
+        let after: i64 = crate::db::query_scalar("SELECT stamina FROM user_info WHERE account_id=$1")
+            .bind(a).fetch_one(&s.db).await.unwrap();
+        let spent = before - after;
+        assert!(spent > 0 && spent < 1400);
+        let info = call(&s, &u, "eclipse/get_eclipse_info", "").await;
+        assert_eq!(info["EclipseInfo"]["EclipsePointResult"]["NewValue"], spent * 100);
+        let results = end["CurrencyResults"].as_array().unwrap();
+        let eclipse: Vec<_> = results.iter().filter(|v| v["CurrencyType"] == "EclipsePoint").collect();
+        assert_eq!(eclipse.first().unwrap()["AddValue"], spent * 100);
+        assert_eq!(eclipse.last().unwrap()["NewValue"], spent * 100);
+        // Retrying a result cannot grant the same corruption twice.
+        call(&s, &u, "campaign/end_campaign", CAMPAIGN_END).await;
+        let info = call(&s, &u, "eclipse/get_eclipse_info", "").await;
+        assert_eq!(info["EclipseInfo"]["EclipsePointResult"]["NewValue"], spent * 100);
+        {
+            let mut tx = s.db.begin().await.unwrap();
+            dungeons::charge(&mut tx, &s, a, 1, 1400 - spent).await.unwrap();
+            tx.commit().await.unwrap();
+        }
+        let info = call(&s, &u, "eclipse/get_eclipse_info", "").await;
+        assert_eq!(info["EclipseInfo"]["EclipseStaminaResult"]["NewValue"], 1);
+        assert_eq!(info["EclipseInfo"]["EclipsePointResult"]["NewValue"], 0);
+        let mut tx = s.db.begin().await.unwrap();
+        dungeons::charge(&mut tx, &s, a, 22, 1).await.unwrap();
+        tx.commit().await.unwrap();
+        let info = call(&s, &u, "eclipse/get_eclipse_info", "").await;
+        assert_eq!(info["EclipseInfo"]["EclipseStaminaResult"]["NewValue"], 0);
+        assert_eq!(info["EclipseInfo"]["EclipsePointResult"]["NewValue"], 0);
+    }
+}

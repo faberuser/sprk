@@ -1050,6 +1050,18 @@ public sealed class SprkAutomation : MonoBehaviour
 				Write(reply);
 				return;
 			}
+			if (command.action == "eclipse-gauge-probe")
+			{
+				if (command.target == 1)
+				{
+					PrepareInstalledProbeAssets();
+					SprkEclipseGaugeProbe.Begin();
+				}
+				reply = Snapshot(command.id);
+				reply.materials.Add(SprkEclipseGaugeProbe.Status);
+				Write(reply);
+				return;
+			}
 			if (command.action == "reward-boosters-probe")
 			{
 				ProbeRewardBoosters(command);

@@ -180,7 +180,7 @@ public class EclipseKeyGaugeComponent : LinkFactoryComponent, NVespa.NPrefab2.In
 		yield return new WaitForSeconds(1f);
 		float minDelay = 2f;
 		int num = 0;
-		if (addValue <= num)
+		if (addValue <= num || !eclipseDummyKeys.Exists(key => key.IsEmptyKey()))
 		{
 			yield return new WaitForSeconds(minDelay);
 			Vespa_System_Action_Extension_Method.fire(complte);
@@ -200,15 +200,17 @@ public class EclipseKeyGaugeComponent : LinkFactoryComponent, NVespa.NPrefab2.In
 			double num3 = _maxEclipsePoint;
 			double ratio = ((num3 > 0.0) ? (num2 / num3) : 0.0);
 			double temp = System.Math.Truncate(ratio * 100.0) / 100.0;
-			_ = Sprite_Gauge.fillAmount;
+			float startFill = Sprite_Gauge.fillAmount;
 			_deltaTime = Time.time;
 			while (true)
 			{
-				float num4 = Time.time - _deltaTime;
-				num5 = Mathf.Lerp(Sprite_Gauge.fillAmount, (float)temp, num4 * 0.5f);
+				float progress = Mathf.Clamp01((Time.time - _deltaTime) * 0.5f);
+				num5 = Mathf.Lerp(startFill, (float)temp, progress);
 				UIHelper.SetSpriteFillAmount(Sprite_Gauge, num5);
 				UIHelper.SetLabelText(Label_Gauge, $"{num5:P0}");
-				if ((double)num5 > ratio)
+				// Lerp reaches its target but cannot overshoot it. Waiting for an
+				// overshoot stalls at 0% for small gains and at 100% on conversion.
+				if (progress >= 1f)
 				{
 					break;
 				}
@@ -222,7 +224,8 @@ public class EclipseKeyGaugeComponent : LinkFactoryComponent, NVespa.NPrefab2.In
 			int num6 = 0;
 			eclipseKeyGaugeComponent.InitGauge(num6);
 			PlayRedMoonEffect();
-			StartCoroutine(coFillGauge((long)addValue2));
+			// Finish all conversions before notifying the reward popup once.
+			yield return coFillGauge((long)addValue2);
 		}
 		yield return new WaitForSeconds(minDelay);
 		Vespa_System_Action_Extension_Method.fire(complte);
