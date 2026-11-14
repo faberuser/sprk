@@ -227,8 +227,39 @@ public class HeroInRewardComponent : LinkFactoryComponent, IInspectorGuiDrawer
 		}
 	}
 
+	// SPRK: sideways shift (model units, + = right) for heroes whose model stands off-centre in its
+	// slot. Maya's model sits left of its origin: the game shifts her +0.25 on the world-map entry
+	// menu (EntryMenuOffset), and the result screen had no such offset.
+	private static readonly System.Collections.Generic.Dictionary<string, float> SprkModelOffsets = new System.Collections.Generic.Dictionary<string, float> { { "Hero.Maya", 0.25f } };
+
+	private bool _sprkPivotShifted;
+
+	private Vector3 _sprkPivotLocalPosition;
+
+	private void SprkApplyModelOffset()
+	{
+		SprkRestorePivot();
+		if (RenderPivot == null || _creatureData == null || _creatureData.CodeName == null || !SprkModelOffsets.TryGetValue(_creatureData.CodeName, out var offset))
+		{
+			return;
+		}
+		_sprkPivotLocalPosition = RenderPivot.localPosition;
+		_sprkPivotShifted = true;
+		RenderPivot.position += RenderPivot.right * (offset * _renderFacade.transform.lossyScale.x);
+	}
+
+	private void SprkRestorePivot()
+	{
+		if (_sprkPivotShifted && RenderPivot != null)
+		{
+			RenderPivot.localPosition = _sprkPivotLocalPosition;
+		}
+		_sprkPivotShifted = false;
+	}
+
 	public void Close()
 	{
+		SprkRestorePivot();
 		if (_renderFacade != null)
 		{
 			RenderFacadeBuilder.ReleaseRenderFacade(_renderFacade);
@@ -251,6 +282,7 @@ public class HeroInRewardComponent : LinkFactoryComponent, IInspectorGuiDrawer
 			_renderFacade.Action.SetBattleMode(isBattleAction: false, blendMotion: false);
 			_renderFacade.AssetCreature.SetShaderTransform(new ShaderTransformData(-5f, depthShift: false), null);
 			_renderFacade.RenderGroupModifier.SetExtraAlpha(0f);
+			SprkApplyModelOffset();
 			SetMotion(GetVictoryAnimationKeyData(), DefineCreature.EMotionEnd.End);
 			_renderFacade.ChainUpdate();
 			_skipFrame = 1;

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using NGame2.NBattleField;
 using NGame2.NBattleView;
 using NGame2.NMessage;
@@ -147,11 +148,12 @@ public class DamageMeterComponent : LinkFactoryComponent, InitOnCreate
 		get
 		{
 			BattleFacade.CreatureCacheData creatureCache = SingletonAuto<BattleFacade>.instance.GetCreatureCache(CreatureUid);
+			long sprkMerged = SprkMergedSum((BattleFacade.CreatureCacheData c) => c.TotalDamage);
 			if (creatureCache.Uid != 0)
 			{
-				return creatureCache.TotalDamage;
+				return creatureCache.TotalDamage + sprkMerged;
 			}
-			return 0L;
+			return sprkMerged;
 		}
 	}
 
@@ -160,11 +162,12 @@ public class DamageMeterComponent : LinkFactoryComponent, InitOnCreate
 		get
 		{
 			BattleFacade.CreatureCacheData creatureCache = SingletonAuto<BattleFacade>.instance.GetCreatureCache(CreatureUid);
+			long sprkMerged = SprkMergedSum((BattleFacade.CreatureCacheData c) => c.TotalHeal);
 			if (creatureCache.Uid != 0)
 			{
-				return creatureCache.TotalHeal;
+				return creatureCache.TotalHeal + sprkMerged;
 			}
-			return 0L;
+			return sprkMerged;
 		}
 	}
 
@@ -186,11 +189,12 @@ public class DamageMeterComponent : LinkFactoryComponent, InitOnCreate
 		get
 		{
 			BattleFacade.CreatureCacheData creatureCache = SingletonAuto<BattleFacade>.instance.GetCreatureCache(CreatureUid);
+			long sprkMerged = SprkMergedSum((BattleFacade.CreatureCacheData c) => c.TotalManaRestored);
 			if (creatureCache.Uid != 0)
 			{
-				return creatureCache.TotalManaRestored;
+				return creatureCache.TotalManaRestored + sprkMerged;
 			}
-			return 0L;
+			return sprkMerged;
 		}
 	}
 
@@ -254,6 +258,46 @@ public class DamageMeterComponent : LinkFactoryComponent, InitOnCreate
 
 	public long CurrentTimeMs { get; private set; }
 
+	// SPRK: summoner and creature of a summon row, so re-summons (Maya's Seves after he died) reuse
+	// this row instead of adding one per summon (see DamageMeter.SprkTryMergeSummon).
+	public int SprkSummonerUid { get; private set; }
+
+	public int SprkHeroIndex { get; private set; }
+
+	private readonly List<int> _sprkMergedUids = new List<int>();
+
+	private long _sprkCreatedTime;
+
+	// SPRK: binds the row to the newest summon; earlier instances keep counting towards its totals.
+	public void SprkRebindToSummon(BattleFacade.CreatureCacheData newest)
+	{
+		_sprkMergedUids.Add(CreatureUid);
+		CreatureUid = newest.Uid;
+		_receiverHolder.Clear();
+		_receiverHolder.AddByCreatureUid<CallbackMessage<ChangeState>>(new CreatureVerifier(CreatureUid), OnMessageFast, CreatureUid);
+		IsDead = newest.IsDead;
+		_isRefreshWidget = true;
+	}
+
+	public void SprkAddEarlierSummon(int uid)
+	{
+		_sprkMergedUids.Add(uid);
+	}
+
+	private long SprkMergedSum(Func<BattleFacade.CreatureCacheData, long> value)
+	{
+		long sum = 0L;
+		foreach (int uid in _sprkMergedUids)
+		{
+			BattleFacade.CreatureCacheData creatureCache = SingletonAuto<BattleFacade>.instance.GetCreatureCache(uid);
+			if (creatureCache.Uid != 0)
+			{
+				sum += value(creatureCache);
+			}
+		}
+		return sum;
+	}
+
 	void InitOnCreate.OnCreate()
 	{
 	}
@@ -294,6 +338,10 @@ public class DamageMeterComponent : LinkFactoryComponent, InitOnCreate
 		_isRefreshWidget = false;
 		SetGrayScaleWidget(grayScale: false, ParentWidget);
 		CreatureUid = creatureCache.Uid;
+		_sprkMergedUids.Clear();
+		SprkSummonerUid = creatureCache.SprkSummonerUid;
+		SprkHeroIndex = creatureCache.HeroInfo.HeroIndex;
+		_sprkCreatedTime = creatureCache.CreatedTime;
 		_waveIndex = creatureCache.EnterWaveIndex;
 		_prevBattleTimeMs = creatureCache.EnterTimeMs;
 		CreatureVerifier verifier = new CreatureVerifier(CreatureUid);
@@ -336,7 +384,7 @@ public class DamageMeterComponent : LinkFactoryComponent, InitOnCreate
 		}
 		if (!IsDead)
 		{
-			CurrentTimeMs = battleCache.MainCurrentTimeMs - creatureCache.CreatedTime;
+			CurrentTimeMs = battleCache.MainCurrentTimeMs - _sprkCreatedTime;
 			if (CurrentTimeMs < 0)
 			{
 				CurrentTimeMs = 0L;

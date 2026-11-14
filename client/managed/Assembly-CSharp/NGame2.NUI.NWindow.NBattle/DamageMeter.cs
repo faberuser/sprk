@@ -139,6 +139,7 @@ public class DamageMeter : BaseWindowUpdater, IInspectorGuiDrawer
 			HeroGrid.ClearGridItem<DamageMeterComponent>();
 		}
 		_dic.Clear();
+		_sprkMergedUids.Clear();
 	}
 
 	public override void UpdatePeriodically()
@@ -154,20 +155,23 @@ public class DamageMeter : BaseWindowUpdater, IInspectorGuiDrawer
 		for (int i = 0; i < SingletonAuto<BattleFacade>.instance.GetCreatureCount(); i++)
 		{
 			BattleFacade.CreatureCacheData creatureCacheByIndex = SingletonAuto<BattleFacade>.instance.GetCreatureCacheByIndex(i);
-			if (creatureCacheByIndex == null || creatureCacheByIndex.Uid == 0)
+			if (creatureCacheByIndex == null || creatureCacheByIndex.Uid == 0 || _sprkMergedUids.Contains(creatureCacheByIndex.Uid))
 			{
 				continue;
 			}
 			if (_battleDefine != null)
 			{
+				// SPRK: a summon (Maya's Seves) is AI-controlled, which hid him outside raids; he is
+				// shown whenever his summoner is.
+				BattleFacade.CreatureCacheData sprkOwner = SprkFilterOwner(creatureCacheByIndex);
 				if ((_battleDefine.DamageMeterFlag & DamageMeterFlag.ShowAll) != DamageMeterFlag.None)
 				{
-					if (!creatureCacheByIndex.Player.IsMe && !creatureCacheByIndex.Player.IsAlly)
+					if (!sprkOwner.Player.IsMe && !sprkOwner.Player.IsAlly)
 					{
 						continue;
 					}
 				}
-				else if (((_battleDefine.DamageMeterFlag & DamageMeterFlag.ShowAllPlayer) == 0 && creatureCacheByIndex.Player.Id != _playerId) || ((_battleDefine.DamageMeterFlag & DamageMeterFlag.ShowAi) == 0 && creatureCacheByIndex.CreateInfo.IsAi))
+				else if (((_battleDefine.DamageMeterFlag & DamageMeterFlag.ShowAllPlayer) == 0 && sprkOwner.Player.Id != _playerId) || ((_battleDefine.DamageMeterFlag & DamageMeterFlag.ShowAi) == 0 && sprkOwner.CreateInfo.IsAi))
 				{
 					continue;
 				}
@@ -176,6 +180,10 @@ public class DamageMeter : BaseWindowUpdater, IInspectorGuiDrawer
 			if (vALUE != null)
 			{
 				_tempRemoveUIList.Remove(creatureCacheByIndex.Uid);
+				continue;
+			}
+			if (SprkTryMergeSummon(creatureCacheByIndex))
+			{
 				continue;
 			}
 			vALUE = UIHelper.AddGridItem(HeroGrid, DamageMeterComponent.PrefabAuto);
@@ -232,6 +240,58 @@ public class DamageMeter : BaseWindowUpdater, IInspectorGuiDrawer
 		{
 			SortGrid();
 		}
+	}
+
+	// SPRK: uids of summons whose row now shows a later summon of the same creature.
+	private HashSet<int> _sprkMergedUids = new HashSet<int>();
+
+	private static BattleFacade.CreatureCacheData SprkFilterOwner(BattleFacade.CreatureCacheData creature)
+	{
+		if (creature.SprkSummonerUid == 0)
+		{
+			return creature;
+		}
+		BattleFacade.CreatureCacheData summoner = SingletonAuto<BattleFacade>.instance.GetCreatureCache(creature.SprkSummonerUid);
+		return (summoner != null && summoner.Uid != 0 && summoner.Player != null && summoner.CreateInfo != null) ? summoner : creature;
+	}
+
+	// SPRK: one row per summoner and summoned creature. When Maya summons Seves again after he died,
+	// the existing row moves to the new Seves (and keeps the earlier totals) instead of a new row
+	// being added for every summon of a long fight.
+	private bool SprkTryMergeSummon(BattleFacade.CreatureCacheData creature)
+	{
+		if (creature.SprkSummonerUid == 0 || creature.HeroInfo == null)
+		{
+			return false;
+		}
+		int oldUid = 0;
+		DamageMeterComponent row = null;
+		foreach (KeyValuePair<int, DamageMeterComponent> pair in _dic)
+		{
+			if (pair.Value.SprkSummonerUid == creature.SprkSummonerUid && pair.Value.SprkHeroIndex == creature.HeroInfo.HeroIndex)
+			{
+				oldUid = pair.Key;
+				row = pair.Value;
+				break;
+			}
+		}
+		if (row == null)
+		{
+			return false;
+		}
+		if (oldUid > creature.Uid)
+		{
+			// An older instance than the row's: just count it towards the row.
+			_sprkMergedUids.Add(creature.Uid);
+			row.SprkAddEarlierSummon(creature.Uid);
+			return true;
+		}
+		_dic.Remove(oldUid);
+		_tempRemoveUIList.Remove(oldUid);
+		_sprkMergedUids.Add(oldUid);
+		row.SprkRebindToSummon(creature);
+		_dic.Add(creature.Uid, row);
+		return true;
 	}
 
 	private void SortGrid()

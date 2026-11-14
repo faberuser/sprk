@@ -25,7 +25,13 @@ public class CameraContainer : SingletonAuto<CameraContainer>
 			JsonRead json = _rootRead[code];
 			if (!json.IsObject())
 			{
-				return null;
+				// SPRK: cameras the game never had, derived from another camera (see SprkDerivedCameras).
+				value = SprkDerivedCameras.Build(code, _rootRead);
+				if (value != null)
+				{
+					_cache.Add(code, value);
+				}
+				return value;
 			}
 			value = new CameraData();
 			value.LOADFROMJSON(json);

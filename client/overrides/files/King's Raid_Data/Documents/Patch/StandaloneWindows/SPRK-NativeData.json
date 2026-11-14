@@ -27,7 +27,7 @@
       "originalSha256": "6e75d37fab725eab0a901739b518090c095fa93e9178d87f5b66a66a4a62f90b"
     },
     "TableJit/ClientCreatureTable.jit": {
-      "sha256": "9d2e915999fb58c299db3338156565a880fa94509c985dee87364b508df25cd3",
+      "sha256": "d93741a36a3435cff2e5742ea2a79039265a893bc20b9f395c27fb2f4b95ddf7",
       "originalSha256": "4e31bf0544fa684194f38b3a3dbec588eee632e4caf2beb60e0469706f551916"
     },
     "TableJit/ConstantTable.jit": {
