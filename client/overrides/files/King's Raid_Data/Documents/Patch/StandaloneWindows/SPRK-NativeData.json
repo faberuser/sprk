@@ -27,7 +27,7 @@
       "originalSha256": "6e75d37fab725eab0a901739b518090c095fa93e9178d87f5b66a66a4a62f90b"
     },
     "TableJit/ClientCreatureTable.jit": {
-      "sha256": "9d2e915999fb58c299db3338156565a880fa94509c985dee87364b508df25cd3",
+      "sha256": "d93741a36a3435cff2e5742ea2a79039265a893bc20b9f395c27fb2f4b95ddf7",
       "originalSha256": "4e31bf0544fa684194f38b3a3dbec588eee632e4caf2beb60e0469706f551916"
     },
     "TableJit/ConstantTable.jit": {
@@ -147,7 +147,7 @@
       "originalSha256": "f9befbe469e7c167c8f30e75aeb7d8d6fcc0b49b21e4a72239cf164718f0e1b6"
     },
     "TableJit/SkillTable.jit": {
-      "sha256": "13392dab380d225ea0a959087074da4b5cd03c5440539645362169232fca7030",
+      "sha256": "c8e166e29b527d0890606b8cf70633044351feb66abf6121fa1c340de3d112ed",
       "originalSha256": "2743fc236f2aadf1f7df49a00868a7cf1209577fbc4dd44ded73e4c027e74c8e"
     },
     "TableJit/SoulWeaponNodeTreeTable.jit": {
@@ -167,7 +167,7 @@
       "sha256": "e85ab891745e5078cd9651754e1d8d39ca8decfbfc56a37dd26cebc81f301679"
     },
     "TableJit/StateTable.jit": {
-      "sha256": "14e3fd417a3734cf0ac987b020999829112e796265eed4e2abacc4fb9e019c56",
+      "sha256": "5716a52b640b962316ac9fb5fa4ee754c7c0b412a531c1a045ad9b336053475c",
       "originalSha256": "84b9439d6f4983b9104bb19574953fe67d472f58553eacb21a2e6f9ed3fa91ed"
     },
     "TableJit/WeaponCostumeTable.jit": {

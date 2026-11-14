@@ -465,6 +465,28 @@ async fn guild_restored_shop_stock_matches_current_building_level_and_prices() {
     }
 }
 #[tokio::test]
+async fn guild_building_invest_allowed_below_required_guild_level() {
+    let s = setup().await;
+    let u = login(&s, "early-investor").await;
+    let g = create(&s, &u, "Investors", 1).await;
+    {
+        let mut db = s.db.acquire().await.unwrap();
+        let mut v = guild::state(&mut db, &s, g).await.unwrap();
+        v["Wood"] = json!(10000);
+        v["Stone"] = json!(10000);
+        v["Metal"] = json!(10000);
+        guild::save(&mut db, g, &v).await.unwrap();
+    }
+    // Training Center level 1 needs guild level 2; a level 1 guild may still invest.
+    let invest = call(&s, &u, "guild/invest_guild_building", "BuildingIndex=2&Wood=3300&Stone=4400&Metal=2600").await;
+    assert_eq!(invest["Result"], "Success", "{invest}");
+    assert_eq!(invest["GuildBuildingInfo"]["Stone"], 4400);
+    assert_eq!(invest["Stone"], 5600);
+    let level = call(&s, &u, "guild/level_up_guild_building", "BuildingIndex=2&BuildingLevel=2").await;
+    assert_eq!(level["Result"], "InvalidGuildLevel", "{level}");
+}
+
+#[tokio::test]
 async fn guild_levels_buildings_and_skills_charge_target_level_once() {
     let s = setup().await;
     let u = login(&s, "builder").await;

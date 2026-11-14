@@ -42,8 +42,35 @@ public static class SprkAtlasAliases
 		{ "Icon/Skill/60001451", ("NguiAtlas.Icon.Item.Awaken2", "DARKNESS_MAYA_5") }
 	};
 
+	// Path prefixes (with every star/costume suffix) that SPRK draws from one sprite. Seves, Maya's
+	// summon (creature 25004, Hero.Maya.Pet), has no icon or portrait art at all; the game asks for
+	// Icon/Creature/Hero/Maya/Pet_N (battle DPS list, battle stats) and Battle/Portrait/... variants.
+	// He uses the icon of Maya's S2 (the skill that summons him).
+	private static readonly (string Prefix, string AtlasCode, string SpriteName)[] PrefixAliases = new (string, string, string)[]
+	{
+		("Icon/Creature/Hero/Maya/Pet", "NguiAtlas.Icon.Skill2", "1420"),
+		("Battle/Portrait/Hero/Maya/Pet", "NguiAtlas.Icon.Skill2", "1420"),
+		("Portrait/Hero/Maya/Pet", "NguiAtlas.Icon.Skill2", "1420"),
+		("Portrait/Circle/Hero/Maya/Pet", "NguiAtlas.Icon.Skill2", "1420")
+	};
+
 	public static bool TryGet(string spritePath, out AtlasDataContainer.AtlasLink link)
 	{
+		if (spritePath != null && !Aliases.ContainsKey(spritePath))
+		{
+			foreach (var prefix in PrefixAliases)
+			{
+				if (spritePath.StartsWith(prefix.Prefix, System.StringComparison.Ordinal))
+				{
+					link = new AtlasDataContainer.AtlasLink
+					{
+						AtlasCode = prefix.AtlasCode,
+						SpriteName = prefix.SpriteName
+					};
+					return true;
+				}
+			}
+		}
 		if (spritePath != null && Aliases.TryGetValue(spritePath, out var alias))
 		{
 			link = new AtlasDataContainer.AtlasLink

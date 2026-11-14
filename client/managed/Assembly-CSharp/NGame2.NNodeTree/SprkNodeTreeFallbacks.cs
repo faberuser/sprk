@@ -46,7 +46,9 @@ public static class SprkNodeTreeFallbacks
 			DonorPack = "Hero/Selene",
 			DonorTree = "GetNewHero",
 			// Maya has her own Get motion, name text and Get sound, but no Get camera (not even in the
-			// Pre-Doomsday archive): Selene's camera stays, pulled back because Maya is taller.
+			// Pre-Doomsday archive): Selene's camera, pulled back because Maya is taller and shifted
+			// sideways (SprkDerivedCameras "Get.Maya") so she ends centred.
+			CameraCode = "Get.Maya",
 			CameraPositionScale = 1.3,
 			Replace = new string[3][]
 			{

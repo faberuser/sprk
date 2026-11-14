@@ -1385,6 +1385,30 @@ async fn npc_limited_final_reward_still_stops_at_its_configured_cap() {
     assert_eq!(get(&mut s.db.acquire().await.unwrap(),a,"npc",111).await.unwrap(),saved);
 }
 #[tokio::test]
+async fn technomagic_skill_reroll_never_repeats_the_current_skill() {
+    let (mut s,u)=setup().await;
+    let a=u.user_info.account_id;
+    // Technomagic allows renewing into the same option, but skills are fixed values.
+    let mut eq=give(&s,a,911301,1).await.equipment.remove(0);
+    eq.extra_option_index_1=8201;
+    save_equip(&mut s.db.acquire().await.unwrap(),a,&eq).await.unwrap();
+    give(&s,a,2203,20).await;
+    std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).inventory).option_groups.insert(10003,vec![8201,8202]);
+    let args=format!("EquipItemSlotIndex={}&SkillSlotIndex=1",eq.slot_index);
+    // With two skills in the pool, every roll must be the one not equipped.
+    let mut current=8201;
+    for _ in 0..10 {
+        let other=if current==8201 {8202} else {8201};
+        let rolled=call(&s,&u,"renew_equip_skill",&args).await;
+        assert_eq!(rolled["Result"],"Success","{rolled}");
+        let accepted=call(&s,&u,"renew_confirm_equip_skill",&format!("{args}&IsNew=true&ConfirmSkillIndex={other}")).await;
+        assert_eq!(accepted["Result"],"Success","{rolled} {accepted}");
+        assert_eq!(accepted["ResultEquipItem"]["ExtraOptionIndex1"],other);
+        current=other;
+    }
+}
+
+#[tokio::test]
 async fn reforge_same_stat_requires_a_strictly_larger_value() {
     let (mut s,u)=setup().await;
     // UT Max HP at 12%: exactly 13% and 14% remain valid for the same option.

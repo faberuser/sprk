@@ -315,7 +315,10 @@ pub(super) async fn execute(
             if next["CanUpgrade"] != true || s.tables.arena_guild.find("GuildBuilding", &[("Index", id), ("Level", level + 1)]).is_none() {
                 return Err(rule("MaxGuildBuildingLevel"));
             }
-            if n(next, "ReqGuildLevel") > n(&info, "Level") {
+            // The client lets guilds stockpile materials into a building before
+            // reaching ReqGuildLevel and only gates the level-up itself (the
+            // invest contract has no InvalidGuildLevel result).
+            if action == "level_up_guild_building" && n(next, "ReqGuildLevel") > n(&info, "Level") {
                 return Err(rule("InvalidGuildLevel"));
             }
             if action == "invest_guild_building" {

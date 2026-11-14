@@ -921,7 +921,9 @@ async fn renew(
             candidates.extend(ids.iter().map(|i| *i as i64));
         }
     }
-    if detail["EnableRenewSameOption"] != true {
+    // A skill has a fixed value, so rerolling into the current one would only
+    // show the same line again; "renew same option" applies to stat options.
+    if skill || detail["EnableRenewSameOption"] != true {
         candidates.remove(&n(&value, &key));
     }
     if !skill && data["EnableDuplicationOption"] != true {

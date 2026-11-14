@@ -172,6 +172,7 @@ public class ThreadContext
 		creatureCacheData.CreateInfo = battleCreature.CreateInfo;
 		creatureCacheData.HeroInfo = battleCreature.CreateInfo.HeroInfo;
 		creatureCacheData.CreatedTime = battleCreature.CreatedTime;
+		creatureCacheData.SprkSummonerUid = battleCreature.SummonerUid;
 		long playerId = battleCreature.PlayerId;
 		creatureCacheData.Player = PlayerDic.GETVALUE(playerId, BattleFacade.PlayerCacheData.NullCache);
 		creatureCacheData.TeamType = battleCreature.TeamController.TeamType;

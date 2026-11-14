@@ -254,6 +254,9 @@ public class BattleFacade : SingletonAuto<BattleFacade>
 
 		public long CreatedTime;
 
+		// SPRK: uid of the creature that summoned this one (0 for heroes and wave monsters).
+		public int SprkSummonerUid;
+
 		public int Uid { get; private set; }
 
 		public CreatureCacheData(int uid)
