@@ -569,10 +569,10 @@ public static class SprkTicketSearch
 		switch (kind)
 		{
 		case Kind.Costume:
-			return "Search hero";
+			return SprkText.Get("Search hero");
 		case Kind.SoulWeapon:
 		case Kind.Hero:
-			return "Search hero";
+			return SprkText.Get("Search hero");
 		default:
 		{
 			object obj = null;
@@ -585,9 +585,9 @@ public static class SprkTicketSearch
 			}
 			if (obj != null && (SelectFilter.SelectType)obj == SelectFilter.SelectType.SELECT_EQUIP_ARTIFACT)
 			{
-				return "Search artifact";
+				return SprkText.Get("Search artifact");
 			}
-			return "Search hero or item";
+			return SprkText.Get("Search hero or item");
 		}
 		}
 	}
@@ -764,7 +764,7 @@ public static class SprkTicketSearch
 				return;
 			}
 			Transform parent = physical.transform.parent;
-			SprkTicketSearchBox sprkTicketSearchBox = Ensure(window, parent, "Search hero");
+			SprkTicketSearchBox sprkTicketSearchBox = Ensure(window, parent, SprkText.Get("Search hero"));
 			sprkTicketSearchBox.visible = () => listRoot == null || listRoot.gameObject.activeInHierarchy;
 			sprkTicketSearchBox.pool = () => (Call(window, "get_HeroIndexList") is List<int> source) ? ((IEnumerable<string>)source.Select(HeroText).ToList()) : ((IEnumerable<string>)new string[0]);
 			sprkTicketSearchBox.rebuild = delegate
@@ -1228,7 +1228,7 @@ public static class SprkTicketSearch
 			UIScrollGrid heroListGrid = window.HeroListGrid;
 			Transform parent = heroListGrid.transform.parent;
 			Transform transform = FilterRow(window, parent);
-			SprkTicketSearchBox box = Ensure(window, transform, "Search hero");
+			SprkTicketSearchBox box = Ensure(window, transform, SprkText.Get("Search hero"));
 			if (state.classes == null)
 			{
 				UIComboBox uIComboBox = UnityEngine.Object.Instantiate(Field<UIComboBox>(VespaResource.Load<GameObject>("Prefab2/Window/Inventory/WeaponUniqueSelect").GetComponentInChildren<SelectFilter>(includeInactive: true), "ComboBoxSub"), transform, worldPositionStays: false);
@@ -1295,7 +1295,7 @@ public static class SprkTicketSearch
 				{
 					boxCollider.size = new Vector3(Math.Min(num6, boxCollider.size.x), boxCollider.size.y, boxCollider.size.z);
 				}
-				uIComboBox.AddItem(0, "All Classes");
+				uIComboBox.AddItem(0, SprkText.Get("All Classes"));
 				foreach (CreatureTagType item in FilterHelper.GetListOrderCreatureTagType())
 				{
 					uIComboBox.AddItem((int)item, LocalizationManager.GetString(item));

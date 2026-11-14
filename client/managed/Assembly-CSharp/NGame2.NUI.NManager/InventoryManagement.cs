@@ -2697,7 +2697,7 @@ public class InventoryManagement : BaseManagement<InventoryManagement>, InvenLis
 	{
 		if (caller == null || caller.MultipleHeroSelectItemData == null)
 		{
-			MessagePopup.OpenError("Find Smith. He is the Key.");
+			MessagePopup.OpenError(SprkText.Get("Find Smith. He is the Key."));
 		}
 		else
 		{
@@ -2709,7 +2709,7 @@ public class InventoryManagement : BaseManagement<InventoryManagement>, InvenLis
 	{
 		if (caller == null || caller.ItemData == null)
 		{
-			MessagePopup.OpenError("Can't find Item Data");
+			MessagePopup.OpenError(SprkText.Get("Can't find Item Data"));
 			return;
 		}
 		int index = caller.ItemData.Index;

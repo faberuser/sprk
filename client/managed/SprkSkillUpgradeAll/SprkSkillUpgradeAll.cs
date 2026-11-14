@@ -62,7 +62,7 @@ public sealed class SprkSkillUpgradeAll : MonoBehaviour
 
 	public const int ExtendAllMarker = -1;
 
-	private const string ButtonText = "Upgrade";
+	private static string ButtonText => SprkText.Get("Upgrade");
 
 	private const float ItemGap = 2f;
 
@@ -270,7 +270,7 @@ public sealed class SprkSkillUpgradeAll : MonoBehaviour
 		UILabel componentInChildren = buttonRoot.GetComponentInChildren<UILabel>(includeInactive: true);
 		if (componentInChildren != null)
 		{
-			componentInChildren.text = "Upgrade";
+			componentInChildren.text = SprkText.Get("Upgrade");
 		}
 		button = buttonRoot.GetComponentInChildren<UIButton>(includeInactive: true);
 		button.onClick.Clear();
@@ -478,7 +478,7 @@ public sealed class SprkSkillUpgradeAll : MonoBehaviour
 			componentInChildren.overflowMethod = UILabel.Overflow.ResizeFreely;
 			componentInChildren.pivot = UIWidget.Pivot.Center;
 			componentInChildren.fontSize = Mathf.RoundToInt(num * 0.42f);
-			componentInChildren.text = "Upgrade";
+			componentInChildren.text = SprkText.Get("Upgrade");
 			componentInChildren.transform.localScale = Vector3.one;
 			componentInChildren.transform.localPosition = new Vector3(0f, num * 0.04f, 0f);
 			num2 = Mathf.Max(num2, componentInChildren.printedSize.x + num * 0.9f);
@@ -544,7 +544,7 @@ public sealed class SprkSkillUpgradeAll : MonoBehaviour
 				.Append(item.Cost);
 			if (item.Tickets > 0)
 			{
-				stringBuilder.Append(", ").Append(item.Tickets).Append(" from tickets");
+				stringBuilder.Append(", ").Append(SprkText.Format("{0} from tickets", item.Tickets));
 			}
 			stringBuilder.Append(")\n");
 		}
@@ -556,7 +556,7 @@ public sealed class SprkSkillUpgradeAll : MonoBehaviour
 		}
 		if (dictionary.Count > 0)
 		{
-			stringBuilder.Append("Uses:");
+			stringBuilder.Append(SprkText.Get("Uses:"));
 			foreach (KeyValuePair<int, int> item2 in dictionary)
 			{
 				ItemData data = GameRoot.Instance.ItemDataContainer.GetData(item2.Key);
@@ -566,7 +566,7 @@ public sealed class SprkSkillUpgradeAll : MonoBehaviour
 		}
 		int hero = panel.CachedHeroInfo.HeroIndex;
 		List<SprkSkillBookTickets.Conversion> conversions = tickets.Conversions;
-		MessagePopup.Open(LocalizationManager.GetString(HeroSkill.LEARN_EXTEND_SKILL), "Upgrade all skills with Skill Books?\n" + stringBuilder.ToString().TrimEnd(), delegate
+		MessagePopup.Open(LocalizationManager.GetString(HeroSkill.LEARN_EXTEND_SKILL), SprkText.Get("Upgrade all skills with Skill Books?\n") + stringBuilder.ToString().TrimEnd(), delegate
 		{
 			RedeemThenSend(hero, conversions);
 		}, null);

@@ -34,7 +34,7 @@ public static class SprkDispatchSelection
 		{
 			return true;
 		}
-		MessagePopup.Open("Hero dispatched", "A selected Hero is dispatched and cannot enter this battle. Select another Hero or cancel the dispatch first.");
+		MessagePopup.Open(SprkText.Get("Hero dispatched"), SprkText.Get("A selected Hero is dispatched and cannot enter this battle. Select another Hero or cancel the dispatch first."));
 		return false;
 	}
 

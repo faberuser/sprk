@@ -444,6 +444,14 @@ public sealed class SprkAutomation : MonoBehaviour
 				Write(reply);
 				return;
 			}
+			if (command.action == "localization-probe")
+			{
+				string report = SprkLocalizationProbe.Run(command.text);
+				reply = Snapshot(command.id);
+				reply.materials.Add(report);
+				Write(reply);
+				return;
+			}
 			if (command.action == "skill-formula-probe")
 			{
 				string environmentVariable4 = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");

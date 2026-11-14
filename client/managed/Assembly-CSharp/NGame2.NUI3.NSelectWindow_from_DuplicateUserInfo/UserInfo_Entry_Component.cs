@@ -17,7 +17,7 @@ public class UserInfo_Entry_Component : MonoBehaviour
 	{
 		UserInfo = userInfo;
 		Label_Nickname.text = userInfo.Nick;
-		Label_TeamLevel.text = $"Team Lv. {userInfo.TeamLevel}";
+		Label_TeamLevel.text = SprkText.Format("Team Lv. {0}", userInfo.TeamLevel);
 		Label_RubyCount.text = Vespa_Int_Extension_Method.ToCommaString(userInfo.Gem);
 	}
 }

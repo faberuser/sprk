@@ -400,8 +400,8 @@ public sealed class SprkShopSearchBar : MonoBehaviour
 			if (flag)
 			{
 				bool flag2 = current == "SprkSearch";
-				title.text = (flag2 ? "SEARCH" : "SAVED");
-				input.defaultText = (flag2 ? "Search packages, items and descriptions" : "Filter bookmarked packages");
+				title.text = SprkText.Get((flag2 ? "SEARCH" : "SAVED"));
+				input.defaultText = (flag2 ? SprkText.Get("Search packages, items and descriptions") : SprkText.Get("Filter bookmarked packages"));
 				string text = SprkShopSearch.Query(current);
 				SetSilently(text);
 				clear.SetActive(text.Length > 0);
@@ -430,19 +430,19 @@ public sealed class SprkShopSearchBar : MonoBehaviour
 		bool flag3 = current == "SprkSearch";
 		bool flag4 = SprkShopSearch.Query(current).Trim().Length > 0;
 		int num = ((SprkShopSearch.LastCategory == current) ? SprkShopSearch.LastCount : (-1));
-		count.text = ((!flag4 || num < 0) ? (flag3 ? "" : (SprkShopSearch.BookmarkCount + " saved")) : ((num == 1) ? "1 result" : (num + " results")));
+		count.text = ((!flag4 || num < 0) ? (flag3 ? "" : (SprkText.Format("Saved: {0}", SprkShopSearch.BookmarkCount))) : SprkText.Format("Results: {0}", num));
 		string text2 = null;
 		if (flag3 && !flag4)
 		{
-			text2 = "Type a package, item or description to search every shop category.";
+			text2 = SprkText.Get("Type a package, item or description to search every shop category.");
 		}
 		else if (num <= 0 && flag4)
 		{
-			text2 = "No packages match \"" + SprkShopSearch.Query(current).Trim() + "\".";
+			text2 = SprkText.Format("No packages match \"{0}\".", SprkShopSearch.Query(current).Trim());
 		}
 		else if (!flag3 && num <= 0)
 		{
-			text2 = "No bookmarks yet. Tap the star on any package to save it here.";
+			text2 = SprkText.Get("No bookmarks yet. Tap the star on any package to save it here.");
 		}
 		hint.text = text2 ?? "";
 		if (hint.gameObject.activeSelf != (text2 != null))

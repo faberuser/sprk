@@ -114,7 +114,7 @@ public class LocalizationManager : SingletonAuto<LocalizationManager>, ILocalize
 	{
 		if (key != null && key.ToString() == "DungeonLocked")
 		{
-			return "You haven't unlock this raid or stage yet.";
+			return SprkText.Get("You haven't unlock this raid or stage yet.");
 		}
 		if (key == null)
 		{

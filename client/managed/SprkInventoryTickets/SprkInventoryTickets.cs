@@ -48,7 +48,7 @@ public static class SprkInventoryTickets
 
 	public static string ConfirmationText(int addedSlots, int unusedSlots, int gems)
 	{
-		return ((addedSlots > 0) ? ("This ticket will expand your inventory by " + addedSlots.ToString("N0", CultureInfo.InvariantCulture) + " slots. ") : "Your inventory is fully expanded. ") + unusedSlots.ToString("N0", CultureInfo.InvariantCulture) + " unused ticket slots will be converted into " + gems.ToString("N0", CultureInfo.InvariantCulture) + " Rubies.\nUse 1 Large Inventory Expansion Ticket?";
+		return ((addedSlots > 0) ? (SprkText.Format("This ticket will expand your inventory by {0} slots. ", addedSlots.ToString("N0", CultureInfo.InvariantCulture))) : SprkText.Get("Your inventory is fully expanded. ")) + SprkText.Format("{0} unused ticket slots will be converted into {1} Rubies.\nUse 1 Large Inventory Expansion Ticket?", unusedSlots.ToString("N0", CultureInfo.InvariantCulture), gems.ToString("N0", CultureInfo.InvariantCulture));
 	}
 
 	public static bool TryUse(ItemData<PotionItemData> item)
@@ -92,7 +92,7 @@ public static class SprkInventoryTickets
 			Session = requester.SessionKey,
 			Token = Guid.NewGuid().ToString("N")
 		};
-		prompt = IconConfirmPopup.Open(ConfirmationText(quote.Added * quote.SlotSize, quote.Unused * quote.SlotSize, quote.Gems), "Use", "Cancel", delegate
+		prompt = IconConfirmPopup.Open(ConfirmationText(quote.Added * quote.SlotSize, quote.Unused * quote.SlotSize, quote.Gems), SprkText.Get("Use"), SprkText.Get("Cancel"), delegate
 		{
 			prompt = null;
 			Use(quote);
@@ -130,7 +130,7 @@ public static class SprkInventoryTickets
 		AccountManager account = GlobalAutoBehaviour<AccountManager>.instance;
 		if (requester == null || requester.SessionKey != quote.Session || account.UserManager.MiscInfo.InventoryExtend != quote.Old)
 		{
-			MessagePopup.Open("Inventory Expansion", "Your inventory changed. Reopen the ticket and confirm the updated amounts.");
+			MessagePopup.Open(SprkText.Get("Inventory Expansion"), SprkText.Get("Your inventory changed. Reopen the ticket and confirm the updated amounts."));
 			return;
 		}
 		waiting = true;
@@ -154,7 +154,7 @@ public static class SprkInventoryTickets
 					{
 						if (response == null || response.BaseResult != BaseResultType.Success || response.Result != ResultType.Success)
 						{
-							MessagePopup.Open("Inventory Expansion", "The conversion was not confirmed. Reopen your inventory to check the ticket and Ruby balances before trying again.");
+							MessagePopup.Open(SprkText.Get("Inventory Expansion"), SprkText.Get("The conversion was not confirmed. Reopen your inventory to check the ticket and Ruby balances before trying again."));
 						}
 						else
 						{
@@ -162,7 +162,7 @@ public static class SprkInventoryTickets
 							account.UserManager.SetInventoryExtend(response.NewInventoryExtend);
 							account.UserManager.Apply(response.CurrencyResult);
 							account.PlayerCurrencyManager.Apply(response.CurrencyResult);
-							MessagePopup.Open("Inventory Expansion", string.IsNullOrEmpty(response.InternalErrorMessage) ? "Inventory expanded and unused ticket capacity converted to Rubies." : response.InternalErrorMessage);
+							MessagePopup.Open(SprkText.Get("Inventory Expansion"), string.IsNullOrEmpty(response.InternalErrorMessage) ? SprkText.Get("Inventory expanded and unused ticket capacity converted to Rubies.") : SprkText.ServerMessage(response.InternalErrorMessage));
 						}
 					}
 				}
@@ -172,7 +172,7 @@ public static class SprkInventoryTickets
 		{
 			waiting = false;
 			pending = null;
-			MessagePopup.Open("Inventory Expansion", "Unable to confirm the conversion. Reopen your inventory before retrying.");
+			MessagePopup.Open(SprkText.Get("Inventory Expansion"), SprkText.Get("Unable to confirm the conversion. Reopen your inventory before retrying."));
 		}
 	}
 }

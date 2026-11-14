@@ -43,7 +43,7 @@ public static class SprkArenaPractice
 			catch (Exception ex)
 			{
 				Clear();
-				MessagePopup.Open("Arena Practice", ex.Message);
+				MessagePopup.Open(SprkText.Get("Arena Practice"), ex.Message);
 			}
 		}
 
@@ -234,15 +234,15 @@ public static class SprkArenaPractice
 			string text = RelativePath(gameObject.transform, uILabel.transform).ToLowerInvariant();
 			if (uILabel.transform.IsChildOf(component.transform))
 			{
-				uILabel.text = "Practice";
+				uILabel.text = SprkText.Get("Practice");
 			}
 			else if (text.Contains("desc") || uILabel.name == "Label_Info")
 			{
-				uILabel.text = "Test Arena damage with 4 heroes and equipped gear.";
+				uILabel.text = SprkText.Get("Test Arena damage with 4 heroes and equipped gear.");
 			}
 			else if (!text.Contains("lock"))
 			{
-				uILabel.text = "Arena Practice";
+				uILabel.text = SprkText.Get("Arena Practice");
 			}
 		}
 		gameObject.SetActive(value: true);
@@ -291,12 +291,12 @@ public static class SprkArenaPractice
 	{
 		if (party == null || party.heroIndices == null || party.heroIndices.Length != 4 || party.heroIndices.Distinct().Count() != 4)
 		{
-			throw new InvalidOperationException("Select four different heroes for Arena Practice.");
+			throw new InvalidOperationException(SprkText.Get("Select four different heroes for Arena Practice."));
 		}
 		PlayerEnterBattleLog playerEnterBattleLog = CampaignContext.CreateMyEnterPlayerBattleLog(party.heroIndices, null, party.leaderHeroIndex, null, null, null);
 		if (playerEnterBattleLog == null || playerEnterBattleLog.CreatureCreateInfos == null || playerEnterBattleLog.CreatureCreateInfos.Length != 4)
 		{
-			throw new InvalidOperationException("The selected heroes are no longer available.");
+			throw new InvalidOperationException(SprkText.Get("The selected heroes are no longer available."));
 		}
 		return playerEnterBattleLog;
 	}

@@ -60,7 +60,7 @@ public static class SprkEnchantUntil
 		public string Range;
 	}
 
-	private const string Title = "Enchant Until";
+	private static string Title => SprkText.Get("Enchant Until");
 
 	public const int MaxTries = 5000;
 
@@ -375,7 +375,7 @@ public static class SprkEnchantUntil
 	{
 		if (buttonLabel != null)
 		{
-			buttonLabel.text = (poolView ? "Done" : ((Targets.Count == 0) ? "Target Stats" : ("Targets: " + Targets.Count)));
+			buttonLabel.text = SprkText.Get((poolView ? "Done" : ((Targets.Count == 0) ? "Target Stats" : (SprkText.Format("Targets: {0}", Targets.Count)))));
 		}
 		foreach (KeyValuePair<OperationType, ValanceEnchantOptionSlot> row in Rows)
 		{
@@ -383,7 +383,7 @@ public static class SprkEnchantUntil
 			{
 				bool flag = Targets.Contains(row.Key);
 				PoolEntry poolEntry = Pool.Find((PoolEntry p) => p.Type == row.Key);
-				row.Value.Init(SprkReforgeUntil.StatName(row.Key), flag ? "Target" : poolEntry.Range, flag ? ValanceEnchantOptionSlot.ValanceEnchantSlotState.Fix : ValanceEnchantOptionSlot.ValanceEnchantSlotState.Active);
+				row.Value.Init(SprkReforgeUntil.StatName(row.Key), flag ? SprkText.Get("Target") : poolEntry.Range, flag ? ValanceEnchantOptionSlot.ValanceEnchantSlotState.Fix : ValanceEnchantOptionSlot.ValanceEnchantSlotState.Active);
 				if (row.Value.labelOptionDesc != null)
 				{
 					row.Value.labelOptionDesc.color = (flag ? TargetColor : Color.white);
@@ -426,7 +426,7 @@ public static class SprkEnchantUntil
 		}
 		else if (Targets.Count >= 3)
 		{
-			MessagePopup.Open(Title, "You can target up to 3 stats.\nTap a target again to remove it.");
+			MessagePopup.Open(Title, SprkText.Get("You can target up to 3 stats.\nTap a target again to remove it."));
 			return;
 		}
 		else
@@ -487,7 +487,7 @@ public static class SprkEnchantUntil
 		}
 		if (component.titleLabel != null)
 		{
-			component.titleLabel.text = "Stat Pool (up to 3)";
+			component.titleLabel.text = SprkText.Get("Stat Pool (up to 3)");
 		}
 		if (component.optionConfirmButton != null)
 		{
@@ -499,7 +499,7 @@ public static class SprkEnchantUntil
 			UILabel componentInChildren = gameObject2.GetComponentInChildren<UILabel>(includeInactive: true);
 			if (componentInChildren != null)
 			{
-				componentInChildren.text = "Done";
+				componentInChildren.text = SprkText.Get("Done");
 			}
 		}
 		// Stretch the frame (and its sprite) down to the second panel's bottom.
@@ -720,22 +720,22 @@ public static class SprkEnchantUntil
 				best = core2;
 			}
 		}
-		string text = ((best.Chance > 0.0 && best.ItemIndex != core.Index && (chance <= 0.0 || (double)best.ReqGold / best.Chance < (double)price / chance * 0.95)) ? (CoreName(best.ItemIndex) + " is cheaper: " + SprkReforgeUntil.Percent(best.Chance) + " per try, about " + ((long)((double)best.ReqGold / best.Chance)).ToString("N0") + " gold per hit.") : null);
+		string text = ((best.Chance > 0.0 && best.ItemIndex != core.Index && (chance <= 0.0 || (double)best.ReqGold / best.Chance < (double)price / chance * 0.95)) ? (SprkText.Format("{0} is cheaper: {1} per try, about {2} gold per hit.", CoreName(best.ItemIndex), SprkReforgeUntil.Percent(best.Chance), ((long)((double)best.ReqGold / best.Chance)).ToString("N0"))) : null);
 		if (chance <= 0.0)
 		{
-			MessagePopup.Open(Title, TargetNames() + " cannot all appear with " + CoreName(core.Index) + "." + ((text == null) ? "" : ("\n" + text)));
+			MessagePopup.Open(Title, SprkText.Format("{0} cannot all appear with {1}.", TargetNames(), CoreName(core.Index)) + ((text == null) ? "" : ("\n" + text)));
 			return;
 		}
 		long num = Math.Min(Math.Min((long)MaxTries, itemCount), (price > 0) ? (gold / price) : MaxTries);
 		if (num <= 0)
 		{
-			MessagePopup.Open(Title, "Not enough " + CoreName(core.Index) + " or gold.");
+			MessagePopup.Open(Title, SprkText.Format("Not enough {0} or gold.", CoreName(core.Index)));
 			return;
 		}
 		int max = (int)num;
 		int initial = Mathf.Clamp((int)Math.Ceiling(1.0 / chance), 1, max);
 		SprkReforgeUntil.PopupEdit edit = new SprkReforgeUntil.PopupEdit();
-		CountMessagePopup popup = CountMessagePopup.Open(Title, string.Empty, "Enchant", 1, max, initial, delegate(int tries)
+		CountMessagePopup popup = CountMessagePopup.Open(Title, string.Empty, SprkText.Get("Enchant"), 1, max, initial, delegate(int tries)
 		{
 			edit.Restore();
 			Run(enchantWindow, Mathf.Clamp(tries, 1, max));
@@ -752,11 +752,11 @@ public static class SprkEnchantUntil
 		Func<int, string> messageText = delegate(int n)
 		{
 			n = Mathf.Clamp(n, 1, max);
-			string text2 = TargetNames() + ": " + SprkReforgeUntil.Percent(chance) + " per try, " + SprkReforgeUntil.Percent(1.0 - Math.Pow(1.0 - chance, n)) + " within " + n + ((n == 1) ? " try" : " tries");
-			return text2 + "\n" + (text ?? ("Uses at most " + n + " " + CoreName(core.Index) + " + gold below"));
+			string text2 = SprkText.Format("{0}: {1} per try; chance for {2} attempt(s): {3}", TargetNames(), SprkReforgeUntil.Percent(chance), n, SprkReforgeUntil.Percent(1.0 - Math.Pow(1.0 - chance, n)));
+			return text2 + "\n" + (text ?? (SprkText.Format("Uses at most {0} × {1} + gold below", n, CoreName(core.Index))));
 		};
 		edit.Set(SprkReforgeUntil.PopupLabel(popup, "Panel/Root/Title/Label_Title"), Title);
-		edit.Set(SprkReforgeUntil.PopupLabel(popup, "Panel/Root/Button_Ok/Label_Action"), "Enchant");
+		edit.Set(SprkReforgeUntil.PopupLabel(popup, "Panel/Root/Button_Ok/Label_Action"), SprkText.Get("Enchant"));
 		edit.Set(message, messageText(initial));
 		edit.Set(price2, (price * initial).ToString("N0"));
 		// The price row shows rubies by default; show the gold icon instead.
@@ -823,15 +823,12 @@ public static class SprkEnchantUntil
 		}
 		string text = TargetNames();
 		StringBuilder stringBuilder = new StringBuilder();
-		stringBuilder.Append(text).Append(value.Hit ? " found after " : " not found after ").Append(value.Tries)
-			.Append((value.Tries == 1) ? " try." : " tries.");
+		stringBuilder.Append(SprkText.Format(value.Hit ? "{0} found. Attempts: {1}." : "{0} not found. Attempts: {1}.", text, value.Tries));
 		if (!value.Hit)
 		{
-			stringBuilder.Append("\nThe last roll is shown.");
+			stringBuilder.Append(SprkText.Get("\nThe last roll is shown."));
 		}
-		stringBuilder.Append("\nUsed ").Append(value.CoresUsed).Append((value.CoresUsed == 1) ? " core and " : " cores and ")
-			.Append(value.GoldSpent.ToString("N0"))
-			.Append(" gold.");
+		stringBuilder.Append(SprkText.Format("\nUsed {0} cores and {1} gold.", value.CoresUsed, value.GoldSpent.ToString("N0")));
 		if (value.Hit)
 		{
 			// The goal is reached; the next Enchant is a normal one again.

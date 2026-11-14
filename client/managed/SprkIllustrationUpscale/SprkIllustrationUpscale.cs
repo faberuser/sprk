@@ -294,7 +294,7 @@ public sealed class SprkIllustrationUpscale : MonoBehaviour
 	{
 		if (label != null)
 		{
-			label.text = ((requested == 0) ? "Off" : "On");
+			label.text = SprkText.Get((requested == 0) ? "Off" : "On");
 		}
 		UpdateLoading();
 		if (helpAnchor != null && GameOptionTooltip.IsVisible(helpAnchor))
@@ -311,14 +311,25 @@ public sealed class SprkIllustrationUpscale : MonoBehaviour
 			{
 				Name = new StringProxy
 				{
-					Value = "AI Upscale"
+					Value = SprkText.Get("AI Upscale")
 				},
 				Desc = new StringProxy
 				{
-					Value = "Turn On to enhance this illustration at the model's full x4 resolution. Processing may take time and use additional GPU memory. AI may alter small details. Off displays the original.\nRequires a Vulkan GPU. The first selection downloads the default model.\n" + status
+					Value = SprkText.Get("Turn On to enhance this illustration at the model's full x4 resolution. Processing may take time and use additional GPU memory. AI may alter small details. Off displays the original.\nRequires a Vulkan GPU. The first selection downloads the default model.\n") + LocalizedStatus()
 				}
 			});
 		}
+	}
+
+	private string LocalizedStatus()
+	{
+		if (status.StartsWith("Preparing x", StringComparison.Ordinal))
+			return SprkText.Format("Preparing x{0}", status.Substring(11));
+		if (status.StartsWith("Processing x", StringComparison.Ordinal))
+			return SprkText.Format("Processing x{0}", status.Substring(12));
+		if (status.StartsWith("Unavailable:", StringComparison.Ordinal))
+			return SprkText.Get("Enhancement unavailable. Original displayed.");
+		return SprkText.Get(status);
 	}
 
 	private void HideHelp()
@@ -589,7 +600,7 @@ public sealed class SprkIllustrationUpscale : MonoBehaviour
 			{
 				progress.Read(out text, out value);
 			}
-			loadingLabel.text = text + ((value < 0f) ? "..." : (" " + Mathf.FloorToInt(Mathf.Clamp01(value) * 100f) + "%"));
+			loadingLabel.text = SprkText.Get(text) + ((value < 0f) ? "..." : (" " + Mathf.FloorToInt(Mathf.Clamp01(value) * 100f) + "%"));
 			loadingFill.width = Mathf.Max(2, Mathf.RoundToInt(240f * ((value < 0f) ? 0.35f : Mathf.Clamp01(value))));
 			loadingFill.alpha = ((value < 0f) ? (0.55f + 0.45f * Mathf.Sin(Time.realtimeSinceStartup * 4f) * Mathf.Sin(Time.realtimeSinceStartup * 4f)) : 1f);
 		}

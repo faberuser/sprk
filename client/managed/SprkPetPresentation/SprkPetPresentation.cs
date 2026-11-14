@@ -18,10 +18,10 @@ public static class SprkPetPresentation
 			return original;
 		}
 		List<PortalRenewalData> obj = ((original == null) ? new List<PortalRenewalData>() : new List<PortalRenewalData>(original));
-		PetDestination(obj, PortalRenewalSubCategory.MENUBUTTON, "Pets", ClientActivityType.OpenPetHouse);
-		PetDestination(obj, PortalRenewalSubCategory.Pet, "Pet House", ClientActivityType.OpenPetHouse);
-		PetDestination(obj, PortalRenewalSubCategory.PetIncubator, "See Hatching", ClientActivityType.OpenPetIncubator);
-		PetDestination(obj, PortalRenewalSubCategory.PetHouse, "Visit Lil' Raider House", ClientActivityType.OpenPetHouse);
+		PetDestination(obj, PortalRenewalSubCategory.MENUBUTTON, SprkText.Get("Pets"), ClientActivityType.OpenPetHouse);
+		PetDestination(obj, PortalRenewalSubCategory.Pet, SprkText.Get("Pet House"), ClientActivityType.OpenPetHouse);
+		PetDestination(obj, PortalRenewalSubCategory.PetIncubator, SprkText.Get("See Hatching"), ClientActivityType.OpenPetIncubator);
+		PetDestination(obj, PortalRenewalSubCategory.PetHouse, SprkText.Get("Visit Lil' Raider House"), ClientActivityType.OpenPetHouse);
 		return obj;
 	}
 
@@ -200,10 +200,10 @@ public static class SprkPetPresentation
 	{
 		if (!(window == null))
 		{
-			MessagePopup3Button.Open("Buffs", "Choose which buffs to view.", PetTotalBuffPopup.OpenPopup, delegate
+			MessagePopup3Button.Open(SprkText.Get("Buffs"), SprkText.Get("Choose which buffs to view."), PetTotalBuffPopup.OpenPopup, delegate
 			{
 				OpenTeamLevelBuffs(window);
-			}, "Pet Buffs", "Team Level Buffs");
+			}, SprkText.Get("Pet Buffs"), SprkText.Get("Team Level Buffs"));
 		}
 	}
 

@@ -341,7 +341,7 @@ public sealed class SprkAccounts : MonoBehaviour
 					obj2.enabled = false;
 					UnityEngine.Object.Destroy(obj2);
 				}
-				uILabel.text = "Nickname";
+				uILabel.text = SprkText.Get("Nickname");
 				uILabel.overflowMethod = UILabel.Overflow.ShrinkContent;
 			}
 		}
@@ -641,7 +641,7 @@ public sealed class SprkAccounts : MonoBehaviour
 			UILabel[] componentsInChildren3 = gameObject.GetComponentsInChildren<UILabel>(includeInactive: true);
 			for (int i = 0; i < componentsInChildren3.Length; i++)
 			{
-				componentsInChildren3[i].text = "Switch Account";
+				componentsInChildren3[i].text = SprkText.Get("Switch Account");
 			}
 			UIButton component2 = gameObject.GetComponent<UIButton>();
 			component2.onClick.Clear();
@@ -844,7 +844,7 @@ public sealed class SprkAccounts : MonoBehaviour
 			UILabel[] componentsInChildren3 = gameObject.GetComponentsInChildren<UILabel>(includeInactive: true);
 			for (int i = 0; i < componentsInChildren3.Length; i++)
 			{
-				componentsInChildren3[i].text = "Change Password";
+				componentsInChildren3[i].text = SprkText.Get("Change Password");
 			}
 			UIButton component = gameObject.GetComponent<UIButton>();
 			component.onClick.Clear();
@@ -913,7 +913,7 @@ public sealed class SprkAccounts : MonoBehaviour
 		UILabel[] componentsInChildren3 = gameObject.GetComponentsInChildren<UILabel>(includeInactive: true);
 		for (int i = 0; i < componentsInChildren3.Length; i++)
 		{
-			componentsInChildren3[i].text = "Delete Account";
+			componentsInChildren3[i].text = SprkText.Get("Delete Account");
 		}
 		UIButton component = gameObject.GetComponent<UIButton>();
 		component.onClick.Clear();
@@ -925,7 +925,7 @@ public sealed class SprkAccounts : MonoBehaviour
 			{
 				component2.deletingAccount = true;
 				component2.Refresh();
-				component2.SetMessage("Permanently deletes this account and its progress. This cannot be undone.");
+				component2.SetMessage(SprkText.Get("Permanently deletes this account and its progress. This cannot be undone."));
 			}
 		});
 		gameObject.SetActive(value: true);
@@ -996,7 +996,7 @@ public sealed class SprkAccounts : MonoBehaviour
 		uILabel.supportEncoding = false;
 		uILabel.overflowMethod = UILabel.Overflow.ShrinkContent;
 		uILabel.alignment = NGUIText.Alignment.Center;
-		uILabel.text = text;
+		uILabel.text = SprkText.Get(text);
 		uILabel.color = Color.white;
 		return uILabel;
 	}
@@ -1083,29 +1083,29 @@ public sealed class SprkAccounts : MonoBehaviour
 		}
 		border = Surface(Child("Border", root.transform, 0f, 0f), 846, 0, new Color(0.24f, 0.34f, 0.43f, 0.96f), -1);
 		background = Surface(Child("Background", root.transform, 0f, 0f), 840, 0, new Color(0.035f, 0.055f, 0.09f, 0.96f), 0);
-		title = Label("Title", root.transform, "Welcome Back", 0f, 363f, 730, 60, 42);
-		Label("Subtitle", root.transform, "SPRK ACCOUNT", 0f, 313f, 730, 30, 19).color = new Color(0.61f, 0.72f, 0.82f);
+		title = Label("Title", root.transform, SprkText.Get("Welcome Back"), 0f, 363f, 730, 60, 42);
+		Label("Subtitle", root.transform, SprkText.Get("SPRK ACCOUNT"), 0f, 313f, 730, 30, 19).color = new Color(0.61f, 0.72f, 0.82f);
 		Surface(Child("Accent", root.transform, 0f, 287f), 72, 4, Accent, 1);
-		username = Input(changingPassword ? "CurrentPassword" : "Username", changingPassword ? "Current Password" : "Username", 218f, changingPassword, out var row);
+		username = Input(changingPassword ? "CurrentPassword" : "Username", changingPassword ? SprkText.Get("Current Password") : "Username", 218f, changingPassword, out var row);
 		username.characterLimit = (changingPassword ? 128 : 32);
 		if (changingPassword)
 		{
-			currentVisibility = Button("ShowPassword", "Show", 290f, 0f, 96, ShowCurrentPassword, out currentVisibilityLabel, username.transform, primary: false, 48);
+			currentVisibility = Button("ShowPassword", SprkText.Get("Show"), 290f, 0f, 96, ShowCurrentPassword, out currentVisibilityLabel, username.transform, primary: false, 48);
 		}
-		password = Input(changingPassword ? "NewPassword" : "Password", changingPassword ? "New Password" : "Password", 110f, secret: true, out row);
-		passwordVisibility = Button("ShowPassword", "Show", 290f, 0f, 96, ShowPassword, out passwordVisibilityLabel, password.transform, primary: false, 48);
-		confirm = Input("ConfirmPassword", "Confirm Password", 2f, secret: true, out confirmRow);
-		confirmVisibility = Button("ShowPassword", "Show", 290f, 0f, 96, ShowConfirmation, out confirmVisibilityLabel, confirm.transform, primary: false, 48);
+		password = Input(changingPassword ? "NewPassword" : "Password", changingPassword ? SprkText.Get("New Password") : "Password", 110f, secret: true, out row);
+		passwordVisibility = Button("ShowPassword", SprkText.Get("Show"), 290f, 0f, 96, ShowPassword, out passwordVisibilityLabel, password.transform, primary: false, 48);
+		confirm = Input("ConfirmPassword", SprkText.Get("Confirm Password"), 2f, secret: true, out confirmRow);
+		confirmVisibility = Button("ShowPassword", SprkText.Get("Show"), 290f, 0f, 96, ShowConfirmation, out confirmVisibilityLabel, confirm.transform, primary: false, 48);
 		serverStatus = Child("ServerStatus", root.transform, 0f, 0f);
 		serverLabel = Label("Label", serverStatus.transform, "", 0f, 0f, 696, 36, 23);
 		serverLabel.color = new Color(0.66f, 0.77f, 0.86f);
 		changeServerButton = Button("ChangeServer", "Change", 296f, 0f, 96, ChangeServer, out var _, serverStatus.transform, primary: false, 40);
-		submit = Button("Submit", "Log In", 0f, 0f, 696, Submit, out submitLabel, null, primary: true, 52);
-		toggle = Button("SwitchMode", "Create an Account", 0f, 0f, 696, SwitchMode, out switchLabel, null, primary: false, 52);
+		submit = Button("Submit", SprkText.Get("Log In"), 0f, 0f, 696, Submit, out submitLabel, null, primary: true, 52);
+		toggle = Button("SwitchMode", SprkText.Get("Create an Account"), 0f, 0f, 696, SwitchMode, out switchLabel, null, primary: false, 52);
 		message = Label("Message", root.transform, "", 0f, 0f, 730, 22, 22);
 		message.color = new Color(1f, 0.79f, 0.48f);
 		message.overflowMethod = UILabel.Overflow.ResizeHeight;
-		back = Button(changingPassword ? "Cancel" : "BackToAccounts", changingPassword ? "Cancel" : "Back to Accounts", 0f, 0f, 696, BackToAccounts, out var _, null, primary: false, 52);
+		back = Button(changingPassword ? "Cancel" : "BackToAccounts", changingPassword ? "Cancel" : SprkText.Get("Back to Accounts"), 0f, 0f, 696, BackToAccounts, out var _, null, primary: false, 52);
 		accountList = Child("SavedAccounts", root.transform, 0f, 0f);
 		if (!changingPassword)
 		{
@@ -1159,13 +1159,13 @@ public sealed class SprkAccounts : MonoBehaviour
 			close.isEnabled = !busy;
 		}
 		accountList.SetActive(choosing);
-		title.text = (choosing ? "Choose an Account" : (registering ? "Create Your Account" : "Welcome Back"));
+		title.text = SprkText.Get((choosing ? "Choose an Account" : (registering ? "Create Your Account" : "Welcome Back")));
 		if (choosing)
 		{
 			BuildAccountList();
 		}
-		submitLabel.text = (busy ? "Connecting..." : (registering ? "Register" : "Log In"));
-		switchLabel.text = (registering ? "Already registered? Log in" : "Create an Account");
+		submitLabel.text = SprkText.Get((busy ? "Connecting..." : (registering ? "Register" : "Log In")));
+		switchLabel.text = SprkText.Get((registering ? "Already registered? Log in" : "Create an Account"));
 		RefreshLayout();
 		serverStatus.transform.localPosition = new Vector3(0f, registering ? (-90) : 18, 0f);
 		submit.transform.localPosition = new Vector3(0f, registering ? (-178) : (-70), 0f);
@@ -1178,7 +1178,7 @@ public sealed class SprkAccounts : MonoBehaviour
 		changeServerButton.isEnabled = !busy;
 		serverLabel.width = (flag ? 530 : 696);
 		serverLabel.transform.localPosition = new Vector3(flag ? (-56) : 0, 0f, 0f);
-		serverLabel.text = ((servers != null && servers.Length != 0) ? ("Server: " + servers[serverIndex].Name) : "No server available");
+		serverLabel.text = SprkText.Get(((servers != null && servers.Length != 0) ? (SprkText.Format("Server: {0}", servers[serverIndex].Name)) : "No server available"));
 		username.enabled = !busy;
 		password.enabled = !busy;
 		confirm.enabled = !busy;
@@ -1191,19 +1191,19 @@ public sealed class SprkAccounts : MonoBehaviour
 
 	private void RefreshPasswordChange()
 	{
-		title.text = "Change Password";
+		title.text = SprkText.Get("Change Password");
 		serverStatus.SetActive(value: false);
 		toggle.gameObject.SetActive(value: false);
 		accountList.SetActive(value: false);
 		confirmRow.SetActive(value: true);
 		back.gameObject.SetActive(value: true);
 		back.isEnabled = !busy;
-		submitLabel.text = (busy ? "Saving..." : "Change Password");
+		submitLabel.text = SprkText.Get((busy ? "Saving..." : "Change Password"));
 		submit.gameObject.SetActive(!passwordChanged);
 		submit.isEnabled = !busy;
 		submit.transform.localPosition = new Vector3(0f, -100f, 0f);
 		back.transform.localPosition = new Vector3(0f, -168f, 0f);
-		back.GetComponentInChildren<UILabel>().text = (passwordChanged ? "Close" : "Cancel");
+		back.GetComponentInChildren<UILabel>().text = SprkText.Get((passwordChanged ? "Close" : "Cancel"));
 		UIInput[] array = new UIInput[3] { username, password, confirm };
 		foreach (UIInput obj in array)
 		{
@@ -1216,15 +1216,15 @@ public sealed class SprkAccounts : MonoBehaviour
 		bool isEnabled = (uIButton2.isEnabled = flag);
 		uIButton.isEnabled = isEnabled;
 		RefreshLayout();
-		username.transform.parent.Find("Caption").GetComponent<UILabel>().text = "Current Password";
-		password.transform.parent.Find("Caption").GetComponent<UILabel>().text = (deletingAccount ? "Type DELETE to confirm" : "New Password");
+		username.transform.parent.Find("Caption").GetComponent<UILabel>().text = SprkText.Get("Current Password");
+		password.transform.parent.Find("Caption").GetComponent<UILabel>().text = SprkText.Get((deletingAccount ? "Type DELETE to confirm" : "New Password"));
 		password.inputType = ((!deletingAccount) ? UIInput.InputType.Password : UIInput.InputType.Standard);
 		passwordVisibility.gameObject.SetActive(!deletingAccount);
 		confirmRow.SetActive(!deletingAccount);
 		if (deletingAccount)
 		{
-			title.text = "Delete Account";
-			submitLabel.text = (busy ? "Deleting..." : "Permanently Delete");
+			title.text = SprkText.Get("Delete Account");
+			submitLabel.text = SprkText.Get((busy ? "Deleting..." : "Permanently Delete"));
 		}
 	}
 
@@ -1247,7 +1247,7 @@ public sealed class SprkAccounts : MonoBehaviour
 
 	private void SetMessage(string text)
 	{
-		message.text = text;
+		message.text = SprkText.Get(text);
 		RefreshLayout();
 	}
 
@@ -1327,16 +1327,16 @@ public sealed class SprkAccounts : MonoBehaviour
 			SprkSavedAccount account = Store.Accounts[i];
 			float y = 218 - i % 4 * 86;
 			bool flag = Store.InUse(account);
-			Button("Account" + i % 4, account.Username + "  /  " + account.ServerName + (flag ? " (In use)" : ""), -76f, y, 544, delegate
+			Button("Account" + i % 4, account.Username + "  /  " + account.ServerName + (flag ? SprkText.Get(" (In use)") : ""), -76f, y, 544, delegate
 			{
 				UseAccount(account);
 			}, out var label, accountList.transform).isEnabled = !busy && !flag;
-			Button("Logout" + i % 4, "Log Out", 282f, y, 132, delegate
+			Button("Logout" + i % 4, SprkText.Get("Log Out"), 282f, y, 132, delegate
 			{
 				RemoveAccount(account);
 			}, out label, accountList.transform).isEnabled = !busy && !flag;
 		}
-		Button("AddAccount", "Add Account", 0f, PickerAddY, 696, AddAccount, out var label2, accountList.transform, primary: true).isEnabled = !busy && Store.Accounts.Count < 4;
+		Button("AddAccount", SprkText.Get("Add Account"), 0f, PickerAddY, 696, AddAccount, out var label2, accountList.transform, primary: true).isEnabled = !busy && Store.Accounts.Count < 4;
 		if (Store.Accounts.Count <= 4)
 		{
 			return;
@@ -1367,7 +1367,7 @@ public sealed class SprkAccounts : MonoBehaviour
 			Store.Reload();
 			if (Store.Accounts.Count >= 4)
 			{
-				SetMessage("Four accounts are saved. Log out of one to add another.");
+				SetMessage(SprkText.Get("Four accounts are saved. Log out of one to add another."));
 				Refresh();
 				return;
 			}
@@ -1412,14 +1412,14 @@ public sealed class SprkAccounts : MonoBehaviour
 			using IDisposable disposable = Store.TryAcquire(account);
 			if (disposable == null)
 			{
-				Fail("This account is open in another window.");
+				Fail(SprkText.Get("This account is open in another window."));
 				return;
 			}
 			Store.Remove(account);
 		}
 		catch (Exception)
 		{
-			Fail("Unable to save logout. Please check local storage and try again.");
+			Fail(SprkText.Get("Unable to save logout. Please check local storage and try again."));
 			return;
 		}
 		choosing = Store.Accounts.Count > 0;
@@ -1452,7 +1452,7 @@ public sealed class SprkAccounts : MonoBehaviour
 		}
 		if (num < 0)
 		{
-			Fail("This account's server is unavailable. Please try again later.");
+			Fail(SprkText.Get("This account's server is unavailable. Please try again later."));
 			return;
 		}
 		Store.Reload();
@@ -1465,7 +1465,7 @@ public sealed class SprkAccounts : MonoBehaviour
 		accountLease = Store.TryAcquire(sprkSavedAccount);
 		if (accountLease == null)
 		{
-			Fail("This account is open in another window.");
+			Fail(SprkText.Get("This account is open in another window."));
 			return;
 		}
 		Store.Reload();
@@ -1478,7 +1478,7 @@ public sealed class SprkAccounts : MonoBehaviour
 		}
 		serverIndex = num;
 		busy = true;
-		SetMessage("Connecting...");
+		SetMessage(SprkText.Get("Connecting..."));
 		Refresh();
 		StartCoroutine(Authenticate(sprkSavedAccount));
 	}
@@ -1487,7 +1487,7 @@ public sealed class SprkAccounts : MonoBehaviour
 	{
 		input.inputType = ((!visible) ? UIInput.InputType.Password : UIInput.InputType.Standard);
 		input.UpdateLabel();
-		label.text = (visible ? "Hide" : "Show");
+		label.text = SprkText.Get((visible ? "Hide" : "Show"));
 	}
 
 	private void HidePasswords()
@@ -1590,17 +1590,17 @@ public sealed class SprkAccounts : MonoBehaviour
 			}
 			if (servers == null || servers.Length == 0)
 			{
-				Fail("No server available.");
+				Fail(SprkText.Get("No server available."));
 				return;
 			}
 			if (username.value.Trim().Length < 3 || password.value.Length < 8)
 			{
-				Fail("Enter a username (3-32 characters) and password (at least 8 characters).", (username.value.Trim().Length < 3) ? username : password);
+				Fail(SprkText.Get("Enter a username (3-32 characters) and password (at least 8 characters)."), (username.value.Trim().Length < 3) ? username : password);
 				return;
 			}
 			if (registering && password.value != confirm.value)
 			{
-				Fail("Passwords do not match.", confirm);
+				Fail(SprkText.Get("Passwords do not match."), confirm);
 				return;
 			}
 			Store.Reload();
@@ -1612,13 +1612,13 @@ public sealed class SprkAccounts : MonoBehaviour
 			};
 			if (!Store.CanSave(account))
 			{
-				Fail("Four accounts are saved. Log out of one to add another.");
+				Fail(SprkText.Get("Four accounts are saved. Log out of one to add another."));
 				return;
 			}
 			accountLease = Store.TryAcquire(account);
 			if (accountLease == null)
 			{
-				Fail("This account is open in another window.");
+				Fail(SprkText.Get("This account is open in another window."));
 				return;
 			}
 			busy = true;
@@ -1638,7 +1638,7 @@ public sealed class SprkAccounts : MonoBehaviour
 			{
 				if (string.IsNullOrEmpty(username.value) || password.value != "DELETE")
 				{
-					PasswordChangeFailed("Enter your current password and type DELETE.", username);
+					PasswordChangeFailed(SprkText.Get("Enter your current password and type DELETE."), username);
 					return;
 				}
 				busy = true;
@@ -1652,22 +1652,22 @@ public sealed class SprkAccounts : MonoBehaviour
 		{
 			if (string.IsNullOrEmpty(username.value))
 			{
-				PasswordChangeFailed("Enter your current password.", username);
+				PasswordChangeFailed(SprkText.Get("Enter your current password."), username);
 				return;
 			}
 			if (Encoding.UTF8.GetByteCount(password.value) < 8 || Encoding.UTF8.GetByteCount(password.value) > 128)
 			{
-				PasswordChangeFailed("New password must be 8-128 bytes.", password);
+				PasswordChangeFailed(SprkText.Get("New password must be 8-128 bytes."), password);
 				return;
 			}
 			if (password.value != confirm.value)
 			{
-				PasswordChangeFailed("Passwords do not match.", confirm);
+				PasswordChangeFailed(SprkText.Get("Passwords do not match."), confirm);
 				return;
 			}
 			if (username.value == password.value)
 			{
-				PasswordChangeFailed("Choose a different new password.", password);
+				PasswordChangeFailed(SprkText.Get("Choose a different new password."), password);
 				return;
 			}
 			busy = true;
@@ -1684,7 +1684,7 @@ public sealed class SprkAccounts : MonoBehaviour
 		string text = ((activeAccount != null) ? activeAccount.Endpoint : null);
 		if (string.IsNullOrEmpty(text))
 		{
-			PasswordChangeFailed("Please log in again before changing your password.", username);
+			PasswordChangeFailed(SprkText.Get("Please log in again before changing your password."), username);
 			yield break;
 		}
 		UserInfo userInfo = GlobalAutoBehaviour<AccountManager>.instance.UserManager.UserInfo;
@@ -1710,7 +1710,7 @@ public sealed class SprkAccounts : MonoBehaviour
 		}
 		if (request.result != UnityWebRequest.Result.Success || tokenReply == null || tokenReply.status != "success" || tokenReply.data == null || string.IsNullOrEmpty(tokenReply.data.refresh_token))
 		{
-			PasswordChangeFailed((tokenReply != null && !string.IsNullOrEmpty(tokenReply.InternalErrorMessage)) ? tokenReply.InternalErrorMessage : "Unable to change password. Check the connection and try again.", username);
+			PasswordChangeFailed((tokenReply != null && !string.IsNullOrEmpty(tokenReply.InternalErrorMessage)) ? tokenReply.InternalErrorMessage : SprkText.Get("Unable to change password. Check the connection and try again."), username);
 			yield break;
 		}
 		LoginData.LastAccessToken = tokenReply.data.access_token;
@@ -1721,7 +1721,7 @@ public sealed class SprkAccounts : MonoBehaviour
 		username.value = "";
 		password.value = "";
 		confirm.value = "";
-		SetMessage("Password changed successfully.");
+		SetMessage(SprkText.Get("Password changed successfully."));
 		Refresh();
 	}
 
@@ -1730,7 +1730,7 @@ public sealed class SprkAccounts : MonoBehaviour
 		string text = ((activeAccount != null) ? activeAccount.Endpoint : null);
 		if (string.IsNullOrEmpty(text))
 		{
-			PasswordChangeFailed("Please log in again first.", username);
+			PasswordChangeFailed(SprkText.Get("Please log in again first."), username);
 			yield break;
 		}
 		UserInfo userInfo = GlobalAutoBehaviour<AccountManager>.instance.UserManager.UserInfo;
@@ -1756,7 +1756,7 @@ public sealed class SprkAccounts : MonoBehaviour
 		}
 		if (request.result != UnityWebRequest.Result.Success || tokenReply == null || tokenReply.status != "success")
 		{
-			PasswordChangeFailed((tokenReply != null && !string.IsNullOrEmpty(tokenReply.InternalErrorMessage)) ? tokenReply.InternalErrorMessage : "Deletion could not be confirmed. Check the connection before retrying.", username);
+			PasswordChangeFailed((tokenReply != null && !string.IsNullOrEmpty(tokenReply.InternalErrorMessage)) ? tokenReply.InternalErrorMessage : SprkText.Get("Deletion could not be confirmed. Check the connection before retrying."), username);
 			yield break;
 		}
 		busy = false;
@@ -1815,7 +1815,7 @@ public sealed class SprkAccounts : MonoBehaviour
 					}
 					catch (Exception)
 					{
-						Fail("Unable to update saved accounts. Please check local storage.");
+						Fail(SprkText.Get("Unable to update saved accounts. Please check local storage."));
 						yield break;
 					}
 					choosing = false;
@@ -1823,12 +1823,12 @@ public sealed class SprkAccounts : MonoBehaviour
 					username.value = saved.Username;
 					password.value = "";
 					confirm.value = "";
-					Fail("Your saved login has expired. Please enter your password.");
+					Fail(SprkText.Get("Your saved login has expired. Please enter your password."));
 				}
 				else
 				{
 					Debug.LogWarning("SPRK account request failed: HTTP " + request.responseCode + ", " + request.error + ", " + endpoint);
-					Fail((response != null && !string.IsNullOrEmpty(response.InternalErrorMessage)) ? response.InternalErrorMessage : "Unable to sign in. Check the server connection and try again.");
+					Fail((response != null && !string.IsNullOrEmpty(response.InternalErrorMessage)) ? response.InternalErrorMessage : SprkText.Get("Unable to sign in. Check the server connection and try again."));
 				}
 				yield break;
 			}
@@ -1850,7 +1850,7 @@ public sealed class SprkAccounts : MonoBehaviour
 			}
 			catch (Exception)
 			{
-				Fail("Unable to remember this login. Please check local storage and try again.");
+				Fail(SprkText.Get("Unable to remember this login. Please check local storage and try again."));
 				yield break;
 			}
 			using UnityWebRequest verify = new UnityWebRequest(endpoint + "token/verify", "POST");
@@ -1870,7 +1870,7 @@ public sealed class SprkAccounts : MonoBehaviour
 			}
 			if (verify.result != UnityWebRequest.Result.Success || sessionReply == null || sessionReply.status != "success" || sessionReply.data == null || string.IsNullOrEmpty(sessionReply.data.session))
 			{
-				Fail("Account authenticated, but the game connection failed. Please log in again.");
+				Fail(SprkText.Get("Account authenticated, but the game connection failed. Please log in again."));
 				yield break;
 			}
 			pending = new LoginSuccData

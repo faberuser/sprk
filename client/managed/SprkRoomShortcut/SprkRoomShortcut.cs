@@ -45,12 +45,12 @@ public sealed class SprkRoomShortcut : MonoBehaviour
 		}
 		if (raidPartySetting == null)
 		{
-			MessagePopup.Open("Item shortcut", "Leave the party room before using this shortcut.");
+			MessagePopup.Open(SprkText.Get("Item shortcut"), SprkText.Get("Leave the party room before using this shortcut."));
 			return true;
 		}
 		PartyInfo original = partyInfo;
 		RaidPartySetting target = raidPartySetting;
-		MessagePopup3Button.Open("Leave raid room?", "This shortcut opens another location. Leave the raid room and continue?", delegate
+		MessagePopup3Button.Open(SprkText.Get("Leave raid room?"), SprkText.Get("This shortcut opens another location. Leave the raid room and continue?"), delegate
 		{
 			if (!runner.pending && !(popup == null) && target.IsOpen() && GlobalAutoBehaviour<PartyManager>.instance.PartyInfo == original)
 			{
@@ -59,7 +59,7 @@ public sealed class SprkRoomShortcut : MonoBehaviour
 			}
 		}, delegate
 		{
-		}, "Leave Room", "Stay");
+		}, SprkText.Get("Leave Room"), SprkText.Get("Stay"));
 		return true;
 	}
 
@@ -105,6 +105,6 @@ public sealed class SprkRoomShortcut : MonoBehaviour
 			yield return null;
 		}
 		pending = false;
-		MessagePopup.Open("Item shortcut", "The room could not be left. Please leave the room before using this shortcut.");
+		MessagePopup.Open(SprkText.Get("Item shortcut"), SprkText.Get("The room could not be left. Please leave the room before using this shortcut."));
 	}
 }

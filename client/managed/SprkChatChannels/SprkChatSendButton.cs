@@ -63,7 +63,7 @@ public sealed class SprkChatSendButton : MonoBehaviour
 			{
 				components2[j].enabled = false;
 			}
-			uILabel.text = "Send";
+			uILabel.text = SprkText.Get("Send");
 		}
 		EventDelegate.Add(send.onClick, Send);
 		gameObject.SetActive(value: true);

@@ -362,7 +362,7 @@ public class LoginMgr2 : SceneBehaviour<LoginMgr2>
 		}
 		if (loginProgress.Status == LoginProgress.EStatus.Error_GetCertificateFail)
 		{
-			GlobalMessagePopup.OpenGlobalError("Invalid Certificate");
+			GlobalMessagePopup.OpenGlobalError(SprkText.Get("Invalid Certificate"));
 			yield break;
 		}
 		if (loginProgress.Status == LoginProgress.EStatus.Error_Login)
@@ -405,7 +405,7 @@ public class LoginMgr2 : SceneBehaviour<LoginMgr2>
 		}
 		else
 		{
-			GlobalMessagePopup.OpenGlobalError("SignOut Fail!");
+			GlobalMessagePopup.OpenGlobalError(SprkText.Get("SignOut Fail!"));
 		}
 	}
 
@@ -431,7 +431,7 @@ public class LoginMgr2 : SceneBehaviour<LoginMgr2>
 	{
 		if (Vespa_Generic_IList_Extension_Method.IsValidIndex(_configList, _currentServerIndex.Value))
 		{
-			UIHelper.SetLabelText(LoginButtonLabel, "Progressing..");
+			UIHelper.SetLabelText(LoginButtonLabel, SprkText.Get("Progressing.."));
 			OpenLoginUi(loginId, _configList[_currentServerIndex.Value]);
 		}
 	}

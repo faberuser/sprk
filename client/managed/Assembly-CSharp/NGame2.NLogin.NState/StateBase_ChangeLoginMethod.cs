@@ -344,11 +344,11 @@ public class StateBase_ChangeLoginMethod : StateBase
 		{
 			if (_connectRetryCount >= 5)
 			{
-				MessagePopup.OpenError($"Timed Out! {_loginMethod.ToString()}, Retry to this.");
+				MessagePopup.OpenError(SprkText.Get("Connection timed out. Please try again."));
 			}
 			else
 			{
-				MessagePopup.OpenError($"Failed to Connect with {_loginMethod.ToString()}, Retry to this.");
+				MessagePopup.OpenError(SprkText.Get("Failed to connect. Please try again."));
 			}
 		}
 	}

@@ -61,7 +61,7 @@ public static class SprkMailClaimAll
 				UILabel component = uILocalizeEx.GetComponent<UILabel>();
 				if (component != null)
 				{
-					component.text = (active ? ("Claiming mail... " + receipts.Count + " claimed") : "Claims continue until inventory is full.");
+					component.text = SprkText.Get((active ? (SprkText.Format("Claiming mail... {0} claimed", receipts.Count)) : "Claims continue until inventory is full."));
 				}
 			}
 		}
@@ -117,7 +117,7 @@ public static class SprkMailClaimAll
 		{
 			if (Time.realtimeSinceStartup - requested >= 60f)
 			{
-				Finish("The mail request timed out. Reopen the mailbox; relog if reward counts have not refreshed.");
+				Finish(SprkText.Get("The mail request timed out. Reopen the mailbox; relog if reward counts have not refreshed."));
 			}
 			return;
 		}
@@ -175,11 +175,11 @@ public static class SprkMailClaimAll
 								catch (Exception ex2)
 								{
 									Debug.LogWarning("SPRK mail claim application: " + ex2.GetType().Name);
-									Finish("Mail rewards were received. Please relog to refresh inventory counts before continuing.");
+									Finish(SprkText.Get("Mail rewards were received. Please relog to refresh inventory counts before continuing."));
 									return;
 								}
 							}
-							Finish("Claiming stopped because the request failed. Remaining mail has been kept.");
+							Finish(SprkText.Get("Claiming stopped because the request failed. Remaining mail has been kept."));
 						}
 					}
 				}
@@ -189,7 +189,7 @@ public static class SprkMailClaimAll
 		{
 			Debug.LogWarning("SPRK mail claim request: " + ex.GetType().Name);
 			waiting = false;
-			Finish("Claiming stopped because the request could not be sent. Remaining mail has been kept.");
+			Finish(SprkText.Get("Claiming stopped because the request could not be sent. Remaining mail has been kept."));
 		}
 	}
 
@@ -221,7 +221,7 @@ public static class SprkMailClaimAll
 		bool flag = !string.IsNullOrEmpty(reason) && reason.IndexOf("Equipment bag is full", StringComparison.Ordinal) >= 0;
 		if (receipts.Count > 0)
 		{
-			string title = "Claimed " + receipts.Count + " mails" + (flag ? " (inventory full)" : "");
+			string title = SprkText.Format("Claimed {0} mails", receipts.Count) + (flag ? SprkText.Get(" (inventory full)") : "");
 			BaseRewardPopup.PopupOpenData popupOpenData = new BaseRewardPopup.PopupOpenData().SetTitle(title);
 			foreach (MailReceiveResult receipt in receipts)
 			{
@@ -235,7 +235,7 @@ public static class SprkMailClaimAll
 		}
 		if (!string.IsNullOrEmpty(reason) && (!flag || receipts.Count == 0))
 		{
-			MessagePopup.Open("Mailbox", reason);
+			MessagePopup.Open(SprkText.Get("Mailbox"), SprkText.Get(reason));
 		}
 		receipts.Clear();
 	}

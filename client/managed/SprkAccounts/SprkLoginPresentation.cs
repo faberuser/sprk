@@ -256,15 +256,24 @@ public sealed class SprkLoginPresentation : MonoBehaviour
 		}
 	}
 
-	public static string BackgroundCaption => Options.backgrounds.First((Background x) => x.id == SelectedBackground).label;
+	public static string BackgroundCaption => Caption(Options.backgrounds.First((Background x) => x.id == SelectedBackground).label);
 
 	public static string MusicCaption
 	{
 		get
 		{
 			string id = SelectedMusic;
-			return Options.music.First((Music x) => x.id == id).label;
+			return Caption(Options.music.First((Music x) => x.id == id).label);
 		}
+	}
+
+	// Song names are proper titles; translate their version/language suffix only.
+	public static string Caption(string label)
+	{
+		string translated = SprkText.Get(label);
+		if (translated != label) return translated;
+		int separator = label.LastIndexOf(" — ", StringComparison.Ordinal);
+		return separator < 0 ? label : label.Substring(0, separator + 3) + SprkText.Get(label.Substring(separator + 3));
 	}
 
 	public static bool LogoSubtitleRestored => restoredLogoTexture != null;

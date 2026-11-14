@@ -145,7 +145,7 @@ public sealed class SprkLoginPresentationMenu : MonoBehaviour
 		componentsInChildren = transform3.GetComponentsInChildren<UILabel>(includeInactive: true);
 		for (int i = 0; i < componentsInChildren.Length; i++)
 		{
-			componentsInChildren[i].text = "Change";
+			componentsInChildren[i].text = SprkText.Get("Change");
 		}
 		UIButton component3 = transform3.GetComponent<UIButton>();
 		OnClick(component3, click);
@@ -158,11 +158,11 @@ public sealed class SprkLoginPresentationMenu : MonoBehaviour
 		window = view;
 		if (!(Part("Panel/Root/EtcOption/EtcInfoGrid/WidgetAccountId") == null))
 		{
-			Row("WidgetLoginBackground", "Button_LoginBackground", "Login Background", SprkLoginPresentation.BackgroundCaption, 40f, delegate
+			Row("WidgetLoginBackground", "Button_LoginBackground", SprkText.Get("Login Background"), SprkLoginPresentation.BackgroundCaption, 40f, delegate
 			{
 				OpenPicker(isMusic: false);
 			});
-			Row("WidgetLoginMusic", "Button_LoginMusic", "Login Music", SprkLoginPresentation.MusicCaption, -68f, delegate
+			Row("WidgetLoginMusic", "Button_LoginMusic", SprkText.Get("Login Music"), SprkLoginPresentation.MusicCaption, -68f, delegate
 			{
 				OpenPicker(isMusic: true);
 			});
@@ -205,7 +205,7 @@ public sealed class SprkLoginPresentationMenu : MonoBehaviour
 		obj.GetComponent<UISprite>().width = 920;
 		obj.GetComponent<UISprite>().depth = 41;
 		UILabel component2 = obj.transform.Find("Label_Title").GetComponent<UILabel>();
-		component2.text = (isMusic ? "Login Music" : "Login Background");
+		component2.text = SprkText.Get((isMusic ? "Login Music" : "Login Background"));
 		component2.depth = 42;
 		Transform obj2 = obj.transform.Find("Button_Exit");
 		obj2.name = "Close";
@@ -253,7 +253,7 @@ public sealed class SprkLoginPresentationMenu : MonoBehaviour
 			Size(transform3.gameObject, 1000, 88);
 			UILabel component3 = transform3.Find("Label_Version").GetComponent<UILabel>();
 			component3.name = "Label_Name";
-			component3.text = option.Value;
+			component3.text = SprkLoginPresentation.Caption(option.Value);
 			component3.transform.localPosition = new Vector3(-464f, 0f, 0f);
 			component3.overflowMethod = UILabel.Overflow.ShrinkContent;
 			component3.width = 620;
@@ -272,14 +272,14 @@ public sealed class SprkLoginPresentationMenu : MonoBehaviour
 			UILabel[] componentsInChildren = gameObject2.GetComponentsInChildren<UILabel>(includeInactive: true);
 			for (int num3 = 0; num3 < componentsInChildren.Length; num3++)
 			{
-				componentsInChildren[num3].text = "Select";
+				componentsInChildren[num3].text = SprkText.Get("Select");
 			}
 			OnClick(gameObject2.GetComponent<UIButton>(), click);
 			gameObject2.AddComponent<UIDragScrollView>().scrollView = uIScrollView;
 			GameObject gameObject3 = UnityEngine.Object.Instantiate(component3.gameObject, transform3, worldPositionStays: false);
 			gameObject3.name = "Label_InUse";
 			UILabel component4 = gameObject3.GetComponent<UILabel>();
-			component4.text = "In Use";
+			component4.text = SprkText.Get("In Use");
 			component4.pivot = UIWidget.Pivot.Center;
 			component4.width = 240;
 			gameObject3.transform.localPosition = new Vector3(350f, 0f, 0f);

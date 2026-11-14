@@ -189,7 +189,7 @@ public class AchievementComponent : UIScrollItemBehaviour
 			UIHelper.EnableGameObject(Label_GetReward, _questDungeon.ProgressCount >= _questDungeon.RequireCount);
 			UIHelper.EnableGameObject(Label_InProgress2, _questDungeon.ProgressCount < _questDungeon.RequireCount);
 			UIHelper.EnableGameObject(Label_RewardCompleted, enable: false);
-			UIHelper.SetLabelText(Label_Place, "Chapter " + _questDungeon.ChapterIndex + "-" + _questDungeon.DungeonIndex);
+			UIHelper.SetLabelText(Label_Place, SprkText.Format("Chapter {0}-{1}", _questDungeon.ChapterIndex, _questDungeon.DungeonIndex));
 			if (_questDungeon.Completed)
 			{
 				UIHelper.SetLabelText(Label_RemainTime, LocalizationManager.GetString(Achievement.MISSION_STATUS_REWARD_COMPLETED));

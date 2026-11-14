@@ -185,7 +185,7 @@ public static class SprkEssenceCraftTickets
 		}
 		if (Available(instance.ItemManager, fragment.Code, popup) < num)
 		{
-			MessagePopup.Open("Craft Essence", "Not enough fragments or fragment tickets for this quantity.");
+			MessagePopup.Open(SprkText.Get("Craft Essence"), SprkText.Get("Not enough fragments or fragment tickets for this quantity."));
 			return true;
 		}
 		WebServiceRequester requester = SingletonUpdater<WebServiceManager>.instance.Requester;
@@ -223,7 +223,7 @@ public static class SprkEssenceCraftTickets
 			}
 			if (message != null)
 			{
-				MessagePopup.Open("Craft Essence", message);
+				MessagePopup.Open(SprkText.Get("Craft Essence"), message);
 			}
 		}
 	}
@@ -242,7 +242,7 @@ public static class SprkEssenceCraftTickets
 		}
 		if (work.Popup == null || !work.Popup.IsOpen() || work.Popup.CraftUi.SelectedData != work.Recipe || work.Popup.GetNumber() != work.Count)
 		{
-			Stop(work, "Crafting was cancelled or changed. Any fragments already redeemed remain in your inventory.");
+			Stop(work, SprkText.Get("Crafting was cancelled or changed. Any fragments already redeemed remain in your inventory."));
 			return;
 		}
 		int num = System.Math.Max(0, work.Required - work.Account.ItemManager.GetItemCount(work.Fragment.Code));
@@ -257,7 +257,7 @@ public static class SprkEssenceCraftTickets
 		List<Tuple<ItemData, int>> list = SprkHeroMaterialTickets.Tickets(work.Fragment.Index);
 		if (list.Count == 0)
 		{
-			Stop(work, "Not enough fragment tickets remain. Any fragments already redeemed remain in your inventory.");
+			Stop(work, SprkText.Get("Not enough fragment tickets remain. Any fragments already redeemed remain in your inventory."));
 			return;
 		}
 		int itemCount = System.Math.Min(num, System.Math.Min(1000, list[0].Item2));
@@ -280,7 +280,7 @@ public static class SprkEssenceCraftTickets
 					}
 					else if (response == null || response.BaseResult != BaseResultType.Success || response.Result != ResultType.Success)
 					{
-						Stop(work, "Ticket redemption was not confirmed. Check your inventory before retrying; any fragments already redeemed remain there.");
+						Stop(work, SprkText.Get("Ticket redemption was not confirmed. Check your inventory before retrying; any fragments already redeemed remain there."));
 					}
 					else
 					{
@@ -293,7 +293,7 @@ public static class SprkEssenceCraftTickets
 		}
 		catch (Exception)
 		{
-			Stop(work, "Ticket redemption could not be confirmed. Check your inventory before retrying.");
+			Stop(work, SprkText.Get("Ticket redemption could not be confirmed. Check your inventory before retrying."));
 		}
 	}
 }

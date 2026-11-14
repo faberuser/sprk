@@ -142,26 +142,26 @@ public static class SprkPartyRetryPolicy
 		switch (notice.Reason)
 		{
 		case "Declined":
-			return notice.Who + " declined the retry.";
+			return SprkText.Format("{0} declined the retry.", notice.Who);
 		case "Timeout":
 			if (!string.IsNullOrEmpty(notice.Who))
 			{
-				return "Retry cancelled. No answer from " + notice.Who + ".";
+				return SprkText.Format("Retry cancelled. No answer from {0}.", notice.Who);
 			}
-			return "The retry vote timed out.";
+			return SprkText.Get("The retry vote timed out.");
 		case "Left":
-			return text("RAID_USER_OUT_CENTER_MSG", notice.Who + " has left.") + "\nRetry cancelled.";
+			return text("RAID_USER_OUT_CENTER_MSG", SprkText.Format("{0} has left.", notice.Who)) + SprkText.Get("\nRetry cancelled.");
 		case "Ended":
-			return "The battle has ended. Retry cancelled.";
+			return SprkText.Get("The battle has ended. Retry cancelled.");
 		case "Failed":
 		{
 			string text2 = failure(notice.Who);
-			return "Retry could not start. The battle continues." + (string.IsNullOrEmpty(text2) ? "" : ("\n" + text2));
+			return SprkText.Get("Retry could not start. The battle continues.") + (string.IsNullOrEmpty(text2) ? "" : ("\n" + text2));
 		}
 		case "Busy":
-			return "A retry vote is already in progress.";
+			return SprkText.Get("A retry vote is already in progress.");
 		default:
-			return "Retry is not available right now.";
+			return SprkText.Get("Retry is not available right now.");
 		}
 	}
 }

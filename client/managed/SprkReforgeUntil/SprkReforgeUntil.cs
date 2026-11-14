@@ -225,7 +225,7 @@ public static class SprkReforgeUntil
 		}
 	}
 
-	private const string Title = "Reforge Until";
+	private static string Title => SprkText.Get("Reforge Until");
 
 	public const int MaxTries = 1000;
 
@@ -458,7 +458,7 @@ public static class SprkReforgeUntil
 		if (!explained)
 		{
 			explained = true;
-			MessagePopup.Open(Title, "Target: " + StatName(target) + "\n\nTap Change Option on a stat line to reforge it until this stat appears.\nTo reforge normally again, open the target button and tap " + StatName(target) + " again.");
+			MessagePopup.Open(Title, SprkText.Format("Target: {0}\n\nTap Change Option on a stat line to reforge it until this stat appears.\nTo reforge normally again, open the target button and tap {0} again.", StatName(target)));
 		}
 	}
 
@@ -528,7 +528,7 @@ public static class SprkReforgeUntil
 		UILabel titleLabel = ((titleTransform == null) ? null : titleTransform.GetComponent<UILabel>());
 		if (titleLabel != null)
 		{
-			titleLabel.text = "Stat Pool";
+			titleLabel.text = SprkText.Get("Stat Pool");
 		}
 		UIPanel uIPanel = NGUITools.FindInParents<UIPanel>(window.StatGaugeRoot.gameObject);
 		GameObject gameObject2 = new GameObject("Scroll");
@@ -577,7 +577,7 @@ public static class SprkReforgeUntil
 			if (!(statGaugeInfo2 == null))
 			{
 				bool flag = Entries[j].Type == target;
-				SetStateLabels(statGaugeInfo2, "Select", "Target");
+				SetStateLabels(statGaugeInfo2, SprkText.Get("Select"), SprkText.Get("Target"));
 				statGaugeInfo2.SelectRoot(flag ? StatGaugeInfo.StateType.Selected : StatGaugeInfo.StateType.None);
 				Collider[] componentsInChildren2 = statGaugeInfo2.GetComponentsInChildren<Collider>(includeInactive: true);
 				foreach (Collider collider in componentsInChildren2)
@@ -623,7 +623,7 @@ public static class SprkReforgeUntil
 		}
 		if (buttonLabel != null)
 		{
-			buttonLabel.text = (poolView ? "Back" : ((target != OperationType.None) ? ("Target:\n" + StatName(target)) : "Target\nStat"));
+			buttonLabel.text = SprkText.Get((poolView ? "Back" : ((target != OperationType.None) ? (SprkText.Format("Target:\n{0}", StatName(target))) : "Target\nStat")));
 		}
 	}
 
@@ -663,7 +663,7 @@ public static class SprkReforgeUntil
 			}
 			else if (response.Result == ResultType.NoAvailableOption)
 			{
-				MessagePopup.Open(Title, StatName(wanted) + " cannot appear on this line.");
+				MessagePopup.Open(Title, SprkText.Format("{0} cannot appear on this line.", StatName(wanted)));
 			}
 			else if (response.Result != ResultType.Success)
 			{
@@ -772,17 +772,13 @@ public static class SprkReforgeUntil
 	private static string Describe(OperationType wanted, double chance, Budget budget, int tries)
 	{
 		StringBuilder stringBuilder = new StringBuilder();
-		stringBuilder.Append(StatName(wanted)).Append(": ").Append(Percent(chance))
-			.Append(" per try, ")
-			.Append(Percent(1.0 - Math.Pow(1.0 - chance, tries)))
-			.Append(" within ")
-			.Append(tries)
-			.Append((tries == 1) ? " try" : " tries");
+		stringBuilder.Append(SprkText.Format("{0}: {1} per try; chance for {2} attempt(s): {3}",
+			StatName(wanted), Percent(chance), tries, Percent(1.0 - Math.Pow(1.0 - chance, tries))));
 		List<string> list = new List<string>();
 		int num = Math.Min(tries, budget.Coupons);
 		if (num > 0)
 		{
-			list.Add(num + ((num == 1) ? " coupon" : " coupons"));
+			list.Add(SprkText.Format("Coupons: {0}", num));
 		}
 		foreach (KeyValuePair<int, int> perTryItem in budget.PerTryItems)
 		{
@@ -791,15 +787,15 @@ public static class SprkReforgeUntil
 		}
 		if (list.Count > 0)
 		{
-			stringBuilder.Append("\nUses at most ").Append(string.Join(", ", list.ToArray()));
+			stringBuilder.Append(SprkText.Format("\nUses at most {0}", string.Join(", ", list.ToArray())));
 			if (budget.Prices.Length != 0)
 			{
-				stringBuilder.Append(" + rubies shown below");
+				stringBuilder.Append(SprkText.Get(" + rubies shown below"));
 			}
 		}
 		else if (budget.Prices.Length != 0)
 		{
-			stringBuilder.Append("\nUses at most the rubies shown below");
+			stringBuilder.Append(SprkText.Get("\nUses at most the rubies shown below"));
 		}
 		return stringBuilder.ToString();
 	}
@@ -830,12 +826,12 @@ public static class SprkReforgeUntil
 		Budget budget = ReadBudget(equipItemInfo, optionSlot);
 		if (budget.MaxTries <= 0)
 		{
-			MessagePopup.Open(Title, "Not enough reforge coupons or rubies.");
+			MessagePopup.Open(Title, SprkText.Get("Not enough reforge coupons or rubies."));
 			return;
 		}
 		int num = ((budget.Coupons > 0) ? Math.Min(budget.Coupons, budget.MaxTries) : Math.Min(budget.MaxTries, Math.Max(1, (int)Math.Ceiling(1.0 / chance))));
 		PopupEdit edit = new PopupEdit();
-		CountMessagePopup popup = CountMessagePopup.Open(Title, string.Empty, "Reforge", 1, budget.MaxTries, num, delegate(int tries)
+		CountMessagePopup popup = CountMessagePopup.Open(Title, string.Empty, SprkText.Get("Reforge"), 1, budget.MaxTries, num, delegate(int tries)
 		{
 			edit.Restore();
 			Run(manager, equipSlot, optionSlot, wanted, Mathf.Clamp(tries, 1, budget.MaxTries));
@@ -852,7 +848,7 @@ public static class SprkReforgeUntil
 		UILabel message = PopupLabel(popup, "Panel/Root/Label_Message");
 		UILabel price = PopupLabel(popup, "Panel/Root/Value (1)/Label_Price");
 		edit.Set(PopupLabel(popup, "Panel/Root/Title/Label_Title"), Title);
-		edit.Set(PopupLabel(popup, "Panel/Root/Button_Ok/Label_Action"), "Reforge");
+		edit.Set(PopupLabel(popup, "Panel/Root/Button_Ok/Label_Action"), SprkText.Get("Reforge"));
 		edit.Set(message, Describe(wanted, chance, budget, num));
 		edit.Set(price, Rubies(budget, num).ToString("N0"));
 		// Even spacing between title, message, count row, Max and the buttons
@@ -891,24 +887,23 @@ public static class SprkReforgeUntil
 			if (Captured.TryGetValue(response, out var value))
 			{
 				StringBuilder stringBuilder = new StringBuilder();
-				stringBuilder.Append(StatName(wanted)).Append(value.Hit ? " found after " : " not found after ").Append(value.Tries)
-					.Append((value.Tries == 1) ? " try." : " tries.");
+				stringBuilder.Append(SprkText.Format(value.Hit ? "{0} found. Attempts: {1}." : "{0} not found. Attempts: {1}.", StatName(wanted), value.Tries));
 				if (!value.Hit)
 				{
-					stringBuilder.Append("\nThe last roll is shown.");
+					stringBuilder.Append(SprkText.Get("\nThe last roll is shown."));
 				}
 				List<string> list = new List<string>();
 				if (value.CouponsUsed > 0)
 				{
-					list.Add(value.CouponsUsed + ((value.CouponsUsed == 1) ? " coupon" : " coupons"));
+					list.Add(SprkText.Format("Coupons: {0}", value.CouponsUsed));
 				}
 				if (value.GemsSpent > 0)
 				{
-					list.Add(value.GemsSpent.ToString("N0") + " rubies");
+					list.Add(SprkText.Format("Rubies: {0}", value.GemsSpent.ToString("N0")));
 				}
 				if (list.Count > 0)
 				{
-					stringBuilder.Append("\nUsed ").Append(string.Join(" and ", list.ToArray())).Append('.');
+					stringBuilder.Append(SprkText.Format("\nUsed {0}.", string.Join(", ", list.ToArray())));
 				}
 				MessagePopup.Open(Title, stringBuilder.ToString());
 			}

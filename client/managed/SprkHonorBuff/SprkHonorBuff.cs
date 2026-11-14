@@ -24,11 +24,11 @@ public static class SprkHonorBuff
 		}
 		if (count < 1 || count > 1000)
 		{
-			MessagePopup.Open("Server Buff", "Select between 1 and 1,000 items.");
+			MessagePopup.Open(SprkText.Get("Server Buff"), SprkText.Get("Select between 1 and 1,000 items."));
 			return true;
 		}
 		int num = ((item.Index == 110033) ? 5 : ((item.Index == 110034) ? 3 : 2));
-		IconConfirmPopup.Open("Use " + count + " " + item.Name + "? This adds " + num * count + "% gold gains for all players until the next Honor rewards calculation.", "Yes", "No", delegate
+		IconConfirmPopup.Open(SprkText.Format("Use {0} {1}? This adds {2}% gold gains for all players until the next Honor rewards calculation.", count, item.Name, num * count), SprkText.Get("Yes"), SprkText.Get("No"), delegate
 		{
 			Use(item.Index, count, onComplete);
 		}).AddItem(item.Index, count);
@@ -65,7 +65,7 @@ public static class SprkHonorBuff
 					{
 						if (response == null || response.BaseResult != BaseResultType.Success || response.Result != ResultType.Success)
 						{
-							MessagePopup.Open("Server Buff", "Activation was not confirmed. Reopen the inventory to check your item count before retrying.");
+							MessagePopup.Open(SprkText.Get("Server Buff"), SprkText.Get("Activation was not confirmed. Reopen the inventory to check your item count before retrying."));
 						}
 						else
 						{
@@ -74,7 +74,7 @@ public static class SprkHonorBuff
 							{
 								onComplete();
 							}
-							MessagePopup.Open("League of Honor Server Buff", string.IsNullOrEmpty(response.InternalErrorMessage) ? "The server buff was activated." : response.InternalErrorMessage);
+							MessagePopup.Open(SprkText.Get("League of Honor Server Buff"), string.IsNullOrEmpty(response.InternalErrorMessage) ? SprkText.Get("The server buff was activated.") : SprkText.ServerMessage(response.InternalErrorMessage));
 						}
 					}
 				}
@@ -83,7 +83,7 @@ public static class SprkHonorBuff
 		catch (Exception)
 		{
 			waiting = false;
-			MessagePopup.Open("Server Buff", "Unable to send the request. Reopen the inventory and try again.");
+			MessagePopup.Open(SprkText.Get("Server Buff"), SprkText.Get("Unable to send the request. Reopen the inventory and try again."));
 		}
 	}
 }

@@ -13,7 +13,7 @@ REPO = Path(__file__).resolve().parents[3]
 # Everything that can change the published client: source, asset overrides,
 # the build and release tooling, the SDK pin and the deployment workflow.
 # Git excludes generated/ignored binaries, workspaces and signing secrets.
-INPUTS = ["client/managed", "client/overrides", "client/scripts/build", "client/scripts/release",
+INPUTS = ["client/managed", "client/localization", "client/overrides", "client/scripts/build", "client/scripts/release",
           "client/global.json", "config/client-update-public.pem",
           ".github/workflows/build-and-deploy.yml", ".gitattributes"]
 REQUIRED_ASSETS = {"client-update-manifest.json", "client-update.tar.gz"}

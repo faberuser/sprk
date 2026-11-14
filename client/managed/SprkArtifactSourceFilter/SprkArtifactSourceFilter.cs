@@ -118,7 +118,7 @@ public static class SprkArtifactSourceFilter
 		{
 			if (hashSet.Contains(101 + j))
 			{
-				sub.AddItem(101 + j, Labels[j]);
+				sub.AddItem(101 + j, SprkText.Get(Labels[j]));
 			}
 		}
 		sub.Reposition();
