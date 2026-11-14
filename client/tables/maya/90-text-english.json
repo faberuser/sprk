@@ -44,7 +44,7 @@
       "SKILL_DESC_91001445": "[Bouncing Boomerang] Increases DMG by 50%. Seves takes 20% reduced DMG.",
       "SKILL_DESC_60001410": "DMG is increased by 40%. Bleed inflicted by this skill lasts 5 sec longer.",
       "SKILL_DESC_60001411": "Reduces Mana Cost by 1.",
-      "SKILL_DESC_60001420": "When Seves is summoned or healed by this skill, Seves's ATK is increased by 30% and he gains a Shield equal to 300% of his ATK for 15 sec.",
+      "SKILL_DESC_60001420": "When Seves is summoned or healed by this skill, Maya and Seves's DMG to Non-Hero enemies is increased by 15% and Seves gains a Shield equal to 300% of his ATK for 15 sec.",
       "SKILL_DESC_60001421": "If Seves is already summoned, also dispels all negative effects from Seves and makes him immune to CC for 5 sec.",
       "SKILL_DESC_60001430": "DMG is increased by 40%. Against enemies inflicted with Bleed, DMG is increased by 80% instead.",
       "SKILL_DESC_60001431": "Seves targets the enemy with the lowest HP %. When the target is killed by this skill, Maya recovers 1000 Mana.",

@@ -336,9 +336,12 @@
       "TargetCountState": "",
       "IgnoreBlock": true,
       "TargetType": "Myself",
-      "OperationType1": "ModPowerR",
+      "OperationType1": "ModAttackByRace",
       "OperationValue1": [
-        "300"
+        "Hero",
+        "150",
+        "0",
+        "True"
       ],
       "OperationDurationMs1": 15000,
       "OperationState1": "60001420",

@@ -896,6 +896,30 @@
       "OperationState1": ""
     },
     {
+      "Index": 1472,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnFireSkill",
+      "TriggerValue": [
+        "1420"
+      ],
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TriggerDisabled": true,
+      "OperationType1": "ModAttackByRace",
+      "OperationValue1": [
+        "Hero",
+        "150",
+        "0",
+        "True"
+      ],
+      "OperationDurationMs1": 15000,
+      "OperationState1": "60001420_3"
+    },
+    {
       "Index": 60001420,
       "ReplaceNameKey": "",
       "ReplaceDescKey": "",
@@ -910,7 +934,13 @@
         "1420",
         "5"
       ],
-      "OperationState1": ""
+      "OperationState1": "",
+      "OperationType2": "EnablePassiveSkill",
+      "OperationValue2": [
+        "1472",
+        "True"
+      ],
+      "OperationState2": ""
     },
     {
       "Index": 60001421,
