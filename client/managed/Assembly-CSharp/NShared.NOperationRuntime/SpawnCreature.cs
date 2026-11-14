@@ -51,7 +51,8 @@ public class SpawnCreature : BaseOperationRuntime
 		{
 			int randomSeed = base.OperationInfo.Creature.NextRandom(100, "SpawnCreature " + base.OperationInfo.FiredSkillData);
 			BattleCreatureCreateInfo battleCreatureCreateInfo = BattleCreatureCreateInfo.Create(valueInt, star, level, randomSeed, num, grade, 0, valueInt3);
-			if (SprkInheritSummonerStats(battleCreatureCreateInfo, firedCreature, valueInt3) && SprkRefreshLivingSummon(base.OperationInfo.BattleInstance, base.OperationInfo.Creature.Uid, valueInt, battleCreatureCreateInfo.StatData))
+			bool inherited = SprkInheritSummonerStats(battleCreatureCreateInfo, firedCreature, valueInt3);
+			if (inherited && SprkRefreshLivingSummon(base.OperationInfo.BattleInstance, base.OperationInfo.Creature.Uid, valueInt, battleCreatureCreateInfo.StatData))
 			{
 				continue;
 			}
@@ -76,6 +77,12 @@ public class SpawnCreature : BaseOperationRuntime
 			BattleCreature battleCreature = base.OperationInfo.BattleInstance.CreatureContainer.Create(playerId, battleCreatureCreateInfo);
 			battleCreature.TransformController.SetPosition(battleCreatureCreateInfo.Position, raiseEvent: true, SetPosition.SetPositionMethodType.Spawn, 0L);
 			battleCreature.SetSummoner(base.OperationInfo.Creature.Uid);
+			if (inherited && SprkHasArtifactSkill(battleCreatureCreateInfo.AddExtraSkill))
+			{
+				// Summoned mid-wave: run his wave-start skills (a shared artifact's) once now, as the
+				// summoner's ran at the start of the wave.
+				battleCreature.OnWaveStart(base.OperationInfo.BattleInstance.Snapshot.WaveIndex);
+			}
 		}
 	}
 
@@ -116,6 +123,14 @@ public class SpawnCreature : BaseOperationRuntime
 		}
 		StatController statController = summoner.StatController;
 		BattleDefineData battleDefine = summoner.BattleInstance?.BattleDefine;
+		ExtraSkillInfo[] summonSkills = SprkSummonGearSkills(summoner.CreateInfo?.AddExtraSkill);
+		// A shared artifact runs on the summon himself, so its stat changes on the summoner are not
+		// copied (they would count twice).
+		System.Func<IStatModifier, bool> skipArtifact = null;
+		if (SprkHasArtifactSkill(summonSkills))
+		{
+			skipArtifact = (IStatModifier modifier) => modifier is BaseOperationRuntime runtime && runtime.OperationInfo != null && SprkIsArtifactSkill(runtime.OperationInfo.SkillIndex) && runtime.OperationInfo.FiredCreature == summoner;
+		}
 		StatData statData = new StatData();
 		foreach (StatType statType in StatData.StatTypes)
 		{
@@ -127,7 +142,7 @@ public class SpawnCreature : BaseOperationRuntime
 			// override (a gear skill fixing ATK Spd) is copied at its fixed value.
 			if (!statController.GetOverrideStat(statType, out var value))
 			{
-				value = statController.GetFinalStatNoCache(statType, StatTypeAttribute.IsAllowNegativeStat(statType), applyAttenuation: false);
+				value = ((skipArtifact != null) ? statController.SprkGetFinalStatExcluding(statType, StatTypeAttribute.IsAllowNegativeStat(statType), skipArtifact) : statController.GetFinalStatNoCache(statType, StatTypeAttribute.IsAllowNegativeStat(statType), applyAttenuation: false));
 			}
 			if (battleDefine != null)
 			{
@@ -148,7 +163,7 @@ public class SpawnCreature : BaseOperationRuntime
 			}
 		}
 		createInfo.StatData = statData;
-		createInfo.AddExtraSkill = SprkSummonGearSkills(summoner.CreateInfo?.AddExtraSkill);
+		createInfo.AddExtraSkill = summonSkills;
 		return true;
 	}
 
@@ -175,6 +190,28 @@ public class SpawnCreature : BaseOperationRuntime
 
 	private const int SprkDodgeHealPassive = 8101138;
 
+	// SPRK: the summoner's artifact is shared with the summon (artifact skills are 8000AAAL: artifact
+	// AAA, level L; 8000999L and 8001AAAL likewise). Artifacts that also act on allies are not
+	// shared, as a second copy would buff the team twice; their key is (index - 80000000) / 10.
+	private const int SprkArtifactSkillMin = 80000000;
+
+	private const int SprkArtifactSkillMax = 80100000;
+
+	private static readonly int[] SprkTeamArtifacts = new int[16]
+	{
+		37, 48, 67, 502, 506, 507, 508, 514, 520, 523, 524, 910, 920, 921, 1001, 1003
+	};
+
+	private static bool SprkIsArtifactSkill(int skillIndex)
+	{
+		return skillIndex >= SprkArtifactSkillMin && skillIndex < SprkArtifactSkillMax;
+	}
+
+	private static bool SprkHasArtifactSkill(ExtraSkillInfo[] skills)
+	{
+		return skills != null && System.Array.Exists(skills, (ExtraSkillInfo e) => e != null && SprkIsArtifactSkill(e.SkillIndex));
+	}
+
 	private static ExtraSkillInfo[] SprkSummonGearSkills(ExtraSkillInfo[] summonerSkills)
 	{
 		if (summonerSkills == null)
@@ -184,7 +221,19 @@ public class SpawnCreature : BaseOperationRuntime
 		System.Collections.Generic.List<ExtraSkillInfo> result = new System.Collections.Generic.List<ExtraSkillInfo>();
 		foreach (ExtraSkillInfo skill in summonerSkills)
 		{
-			if (skill == null || skill.SkillIndex < 8101000 || skill.SkillIndex >= 8105000)
+			if (skill == null)
+			{
+				continue;
+			}
+			if (SprkIsArtifactSkill(skill.SkillIndex))
+			{
+				if (System.Array.IndexOf(SprkTeamArtifacts, (skill.SkillIndex - SprkArtifactSkillMin) / 10) < 0)
+				{
+					result.Add(new ExtraSkillInfo(skill.SkillIndex, skill.SkillLevel));
+				}
+				continue;
+			}
+			if (skill.SkillIndex < 8101000 || skill.SkillIndex >= 8105000)
 			{
 				continue;
 			}

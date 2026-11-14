@@ -44,7 +44,7 @@
       "SKILL_DESC_91001445": "[Hops-Boomerang] Erhöht den Schaden um 50 %. Seves erleidet 20 % weniger Schaden.",
       "SKILL_DESC_60001410": "Erhöht Schaden um 40 %. Durch diesen Skill zugefügte Blutung hält 5 Sek. länger an.",
       "SKILL_DESC_60001411": "Verringert die Manakosten um 1.",
-      "SKILL_DESC_60001420": "Wird Seves durch diesen Skill beschworen oder geheilt, erhöht sich der SCH von Maya und Seves gegen Nicht-Helden-Gegner 15 Sek. lang um 15 %, und Seves erhält einen Schild in Höhe von 300 % seines ANG.",
+      "SKILL_DESC_60001420": "Wird Seves durch diesen Skill beschworen oder geheilt, erhöht sich der SCH von Maya und Seves gegen Nicht-Helden-Gegner 15 Sek. lang um 15 %.",
       "SKILL_DESC_60001421": "Ist Seves bereits beschworen, werden außerdem alle negativen Effekte von Seves entfernt und er ist 5 Sek. lang immun gegen CC.",
       "SKILL_DESC_60001430": "Erhöht Schaden um 40 %. Gegen Gegner mit Blutung wird der Schaden stattdessen um 80 % erhöht.",
       "SKILL_DESC_60001431": "Seves greift den Gegner mit den prozentual niedrigsten TP an. Wird das Ziel durch diesen Skill getötet, regeneriert Maya 1000 MP.",

@@ -352,6 +352,31 @@ public class StatController : SnapshotObject
 		return num3;
 	}
 
+	// SPRK: final stat without attenuation, leaving out the stat modifiers `exclude` matches. Used
+	// when a summon copies its summoner's stats but runs some of her skills (her artifact) itself.
+	public long SprkGetFinalStatExcluding(StatType statType, bool allowNegative, System.Func<IStatModifier, bool> exclude)
+	{
+		long baseStat = GetBaseStat(statType);
+		int multed = 0;
+		int added = 0;
+		for (LinkedListNode<IStatModifier> linkedListNode = _statModifierListHolder.Get().First; linkedListNode != null; linkedListNode = linkedListNode.Next)
+		{
+			IStatModifier value = linkedListNode.Value;
+			StatType[] statTypes = value?.GetStatTypes();
+			if (statTypes == null || !statTypes.Contains(statType) || (exclude != null && exclude(value)))
+			{
+				continue;
+			}
+			multed += value.GetMultedStat();
+			added += value.GetAddedStat();
+		}
+		if (GameRoot.Instance.StatAttenuationDataContainer.GetData(statType) != null || statType == StatType.PhysicalAttack || statType == StatType.MagicalAttack || statType == StatType.PhysicalDefense || statType == StatType.MagicalDefense)
+		{
+			multed = (int)AttenuateStatUnderMinX(multed);
+		}
+		return MultAndAddStat(baseStat, multed, added, allowNegative);
+	}
+
 	public bool GetOverrideStat(StatType statType, out long statValue)
 	{
 		statValue = 0L;

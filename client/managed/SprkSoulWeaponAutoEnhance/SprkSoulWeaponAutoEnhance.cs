@@ -224,6 +224,7 @@ public static class SprkSoulWeaponAutoEnhance
 			GameObject copy = UnityEngine.Object.Instantiate(window.EtherInjectionButton.gameObject, parent, worldPositionStays: true);
 			copy.name = "SprkAutoEnhance";
 			StripBehaviours(copy);
+			CopyNormalColors(window.EtherInjectionButton.gameObject, copy);
 			button = copy.GetComponent<UIButton>();
 			if (button == null)
 			{
@@ -286,6 +287,19 @@ public static class SprkSoulWeaponAutoEnhance
 		return box;
 	}
 
+	/// A button colour component takes the widget's colour at first use as its
+	/// "normal" colour. A copy made while Add Ether is disabled would take the
+	/// grey tint and stay grey when enabled, so use Add Ether's own colours.
+	private static void CopyNormalColors(GameObject source, GameObject copy)
+	{
+		UIButtonColor[] from = source.GetComponentsInChildren<UIButtonColor>(includeInactive: true);
+		UIButtonColor[] to = copy.GetComponentsInChildren<UIButtonColor>(includeInactive: true);
+		for (int i = 0; i < from.Length && i < to.Length; i++)
+		{
+			to[i].defaultColor = from[i].defaultColor;
+		}
+	}
+
 	private static void StripBehaviours(GameObject gameObject)
 	{
 		MonoBehaviour[] behaviours = gameObject.GetComponentsInChildren<MonoBehaviour>(includeInactive: true);
@@ -313,7 +327,23 @@ public static class SprkSoulWeaponAutoEnhance
 		button.gameObject.SetActive(show);
 		if (show)
 		{
-			UIHelper.EnableButton(button, !busy);
+			// Lit only when the owned Ether and Gold can do something: reach a
+			// higher level or at least add Ether toward the next one.
+			UIHelper.EnableButton(button, !busy && CanRun(info));
+		}
+	}
+
+	private static bool CanRun(SoulWeaponInfo info)
+	{
+		try
+		{
+			Plan plan = Simulate(info);
+			return plan.To > plan.From || plan.Used.Count > 0;
+		}
+		catch (Exception)
+		{
+			// Never hide the feature over a table or inventory read problem.
+			return true;
 		}
 	}
 

@@ -227,10 +227,10 @@ public class HeroInRewardComponent : LinkFactoryComponent, IInspectorGuiDrawer
 		}
 	}
 
-	// SPRK: sideways shift (model units, + = right) for heroes whose model stands off-centre in its
-	// slot. Maya's model sits left of its origin: the game shifts her +0.25 on the world-map entry
-	// menu (EntryMenuOffset), and the result screen had no such offset.
-	private static readonly System.Collections.Generic.Dictionary<string, float> SprkModelOffsets = new System.Collections.Generic.Dictionary<string, float> { { "Hero.Maya", 0.25f } };
+	// SPRK: sideways shift (fraction of screen width, + = right) for heroes whose model stands
+	// off-centre in its slot. Maya's model sits left of its origin (the game also shifts her on the
+	// world-map entry menu via EntryMenuOffset); in-game she stood ~4.5% of the screen left of her slot.
+	private static readonly System.Collections.Generic.Dictionary<string, float> SprkModelOffsets = new System.Collections.Generic.Dictionary<string, float> { { "Hero.Maya", 0.045f } };
 
 	private bool _sprkPivotShifted;
 
@@ -243,9 +243,17 @@ public class HeroInRewardComponent : LinkFactoryComponent, IInspectorGuiDrawer
 		{
 			return;
 		}
+		Camera camera = GameUIRoot.instance.GetLayerInfo(GameUIRoot.ELayerType.Bottom3D)?.Camera;
+		if (camera == null)
+		{
+			return;
+		}
+		// Offset is a fraction of the screen width, so it is independent of model scale and mirroring.
 		_sprkPivotLocalPosition = RenderPivot.localPosition;
 		_sprkPivotShifted = true;
-		RenderPivot.position += RenderPivot.right * (offset * _renderFacade.transform.lossyScale.x);
+		Vector3 screenPoint = camera.WorldToScreenPoint(RenderPivot.position);
+		screenPoint.x += offset * camera.pixelWidth;
+		RenderPivot.position = camera.ScreenToWorldPoint(screenPoint);
 	}
 
 	private void SprkRestorePivot()
