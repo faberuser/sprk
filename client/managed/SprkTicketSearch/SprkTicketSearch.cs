@@ -1215,6 +1215,52 @@ public static class SprkTicketSearch
 		}
 	}
 
+	public static void EnsureInspectAllHeroes(InspectUserList window)
+	{
+		UIScrollGrid grid = window.HeroListGrid;
+		UIPanel panel = grid.ClippingPanel;
+		Transform parent = panel.transform.parent;
+		if (parent.Find("SprkInspectAllHeroes") != null)
+		{
+			return;
+		}
+		UIButton source = VespaResource.Load<GameObject>(HeroList.PrefabPath)
+			.GetComponentsInChildren<UIButton>(includeInactive: true)
+			.First(b => b.onClick.Any(e => e.methodName == "OnClickAllHero"));
+		Vector3 bottom = parent.InverseTransformPoint((panel.worldCorners[0] + panel.worldCorners[3]) * 0.5f);
+		GameObject root = UnityEngine.Object.Instantiate(source.transform.parent.gameObject, parent, worldPositionStays: false);
+		root.name = "SprkInspectAllHeroes";
+		UIButton button = root.GetComponentInChildren<UIButton>(includeInactive: true);
+		foreach (UIWidget widget in root.GetComponentsInChildren<UIWidget>(includeInactive: true))
+		{
+			widget.SetAnchor((Transform)null);
+		}
+		foreach (AtlasAssignerBase assigner in root.GetComponentsInChildren<AtlasAssignerBase>(includeInactive: true))
+		{
+			assigner.Assign();
+		}
+		root.transform.localPosition = new Vector3(bottom.x, bottom.y + 46f, 0f);
+		button.onClick.Clear();
+		EventDelegate.Add(button.onClick, window.OnClickAllHero);
+		root.SetActive(true);
+		Vector4 clip = panel.baseClipRegion;
+		panel.baseClipRegion = new Vector4(clip.x, clip.y + 50f, clip.z, clip.w - 100f);
+		if (grid.DragScrollView != null)
+		{
+			grid.DragScrollView.transform.localPosition += new Vector3(0f, 50f, 0f);
+			UIWidget drag = grid.DragScrollView.GetComponent<UIWidget>();
+			if (drag != null)
+			{
+				drag.height -= 100;
+			}
+			BoxCollider collider = grid.DragScrollView.GetComponent<BoxCollider>();
+			if (collider != null)
+			{
+				collider.size -= new Vector3(0f, 100f, 0f);
+			}
+		}
+	}
+
 	public static void AfterHeroGrid(HeroPortraitList window)
 	{
 		try

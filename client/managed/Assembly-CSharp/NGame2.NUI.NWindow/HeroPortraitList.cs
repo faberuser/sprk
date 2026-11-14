@@ -33,20 +33,30 @@ public class HeroPortraitList : BaseWindow, HeroPortraitComponent.Listener
 
 	public void Open(Listener listener, int heroIndex)
 	{
+		Open(listener, heroIndex, GlobalAutoBehaviour<AccountManager>.instance.GetHeroInfoList(sort: true), true);
+	}
+
+	public void Open(Listener listener, int heroIndex, IEnumerable<CachedHeroInfo> heroes, bool isMine = false)
+	{
 		SprkTicketSearch.BeforeHeroGrid(this);
 		base.Open();
 		_listener = listener;
 		_SelectedHeroIndex = heroIndex;
 		FactoryBase.ReleaseAndClearList(_heroPortraitList);
-		GlobalAutoBehaviour<AccountManager>.instance.GetHeroInfoList(sort: true).ForEach(delegate(CachedHeroInfo heroInfo)
+		foreach (CachedHeroInfo heroInfo in heroes)
 		{
-			CreateHeroItem(heroInfo);
-		});
+			CreateHeroItem(heroInfo, isMine);
+		}
 		UIHelper.RepositionGrid(HeroListGrid);
 		SprkTicketSearch.AfterHeroGrid(this);
 	}
 
 	private void CreateHeroItem(CachedHeroInfo heroInfo)
+	{
+		CreateHeroItem(heroInfo, true);
+	}
+
+	private void CreateHeroItem(CachedHeroInfo heroInfo, bool isMine)
 	{
 		if (heroInfo != null)
 		{
@@ -56,11 +66,11 @@ public class HeroPortraitList : BaseWindow, HeroPortraitComponent.Listener
 			{
 				heroPortraitComponent.SetSelectSmall(select: true);
 			}
-			if (heroInfo.BookmarkPriority > 0)
+			if (isMine && heroInfo.BookmarkPriority > 0)
 			{
 				heroPortraitComponent.SetBookmarkedSmall(select: true);
 			}
-			heroPortraitComponent.SetDispatched(DispatchHelper.IsDispatchedHero(heroInfo), isSmall: true);
+			heroPortraitComponent.SetDispatched(isMine && DispatchHelper.IsDispatchedHero(heroInfo), isSmall: true);
 			_heroPortraitList.Add(heroPortraitComponent);
 		}
 	}
