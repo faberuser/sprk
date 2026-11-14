@@ -3,7 +3,7 @@
     "English": {
       "CREATURE_NAME_25004": "Seves",
       "SKILL_DESC_1410": "Throw a boomerang that travels back and forth in a straight line to deal a max of [ffc800]{1}[-] P.DMG and inflict Bleed for [64ffff]10[-] sec.",
-      "SKILL_DESC_1420": "Summons Seves, who fights beside Maya with [64ff64]50[-]% of her ATK, DEF and HP and all of her other stats. If Seves is already summoned, heals Seves's HP by [ffc800]200[-]% of his ATK.",
+      "SKILL_DESC_1420": "Summons Seves, who fights beside Maya with [64ff64]100[-]% of her current stats, including her active buffs. If Seves is already summoned, he copies her current stats again and recovers HP equal to [ffc800]200[-]% of his ATK.",
       "SKILL_DESC_1423": "Seves's ATK is increased by [64ff64]30[-]% for [64ffff]10[-] sec.",
       "SKILL_DESC_1433": "Upon target's death, Maya's ATK is increased by [64ff64]20[-]% for [64ffff]10[-] sec.",
       "SKILL_DESC_1443": "Seves recovers HP equal to [64ff64]50[-]% of the DMG he deals.",
@@ -51,7 +51,7 @@
       "SKILL_DESC_60001440": "Extra DMG from this skill is increased by 20% per Bleed stack on the target.",
       "SKILL_DESC_60001441": "Enemies inflicted with Bleed take 15% increased P.DMG and have their Heal Rate reduced by 30%.",
       "SKILL_DESC_60001450": "ATK, DEF, HP +15% / Crit DMG +20%",
-      "SKILL_DESC_60001451": "[Pack Tactics] Seves's ATK is increased by 100%, matching Maya's. When Maya's auto attack hits an enemy inflicted with Bleed, deals additional P.DMG equal to 200% of ATK that ignores DEF (1 sec cooldown).",
+      "SKILL_DESC_60001451": "[Pack Tactics] Seves's ATK is increased by 100%. When Maya's auto attack hits an enemy inflicted with Bleed, deals additional P.DMG equal to 200% of ATK that ignores DEF (1 sec cooldown).",
       "ITEM_STORY_1014": "A pair of hooked boomerangs carved from the claws of Seves's mother. They always return to Maya's hand, and the wounds they leave never close cleanly.",
       "ITEM_NAME_103014": "Hunter's Whetstone",
       "ITEM_STORY_103014": "A flat river stone worn smooth by years of sharpening. Maya never throws a boomerang she has not honed on it herself.",

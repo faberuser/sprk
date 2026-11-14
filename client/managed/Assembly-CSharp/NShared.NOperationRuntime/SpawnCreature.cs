@@ -51,7 +51,10 @@ public class SpawnCreature : BaseOperationRuntime
 		{
 			int randomSeed = base.OperationInfo.Creature.NextRandom(100, "SpawnCreature " + base.OperationInfo.FiredSkillData);
 			BattleCreatureCreateInfo battleCreatureCreateInfo = BattleCreatureCreateInfo.Create(valueInt, star, level, randomSeed, num, grade, 0, valueInt3);
-			SprkInheritSummonerStats(battleCreatureCreateInfo, firedCreature, valueInt3);
+			if (SprkInheritSummonerStats(battleCreatureCreateInfo, firedCreature, valueInt3) && SprkRefreshLivingSummon(base.OperationInfo.BattleInstance, base.OperationInfo.Creature.Uid, valueInt, battleCreatureCreateInfo.StatData))
+			{
+				continue;
+			}
 			switch (valueEnum)
 			{
 			case SpawnPositionType.Ground:
@@ -85,25 +88,149 @@ public class SpawnCreature : BaseOperationRuntime
 		StatType.MaxHp
 	};
 
-	// SPRK: a summon without stat rows of its own (Maya's beast Seves, creature
-	// 25004) takes the summoner's battle stats. ATK, DEF and Max HP are scaled by
-	// the operation's ratio (per mille); every other stat is inherited as is.
-	// Summons with their own stat rows (all monster summons) are unchanged.
-	private static void SprkInheritSummonerStats(BattleCreatureCreateInfo createInfo, BattleCreature summoner, int statRatio)
+	// Live values (current HP/MP, unit counts, boss gauge) that are not stats of their own.
+	private static readonly StatType[] SprkNotCopiedStats = new StatType[9]
 	{
-		if (createInfo?.StatData == null || summoner?.CreateInfo?.StatData == null || createInfo.StatData.GetStat(StatType.MaxHp) > 0)
+		StatType.Hp,
+		StatType.HpRatioM,
+		StatType.Mp,
+		StatType.MpRatioM,
+		StatType.AllyCount,
+		StatType.EnemyCount,
+		StatType.TargetableEnemyCount,
+		StatType.BossCcCurGauge,
+		StatType.BossCcCurGaugeR
+	};
+
+	// SPRK: a summon without stat rows of its own (Maya's beast Seves, creature 25004) takes the
+	// summoner's live battle stats at the moment of the summon: her stat sheet plus every stat
+	// change active on her (buffs, debuffs, passive gear and perk stats). ATK, DEF and Max HP are
+	// scaled by the operation's ratio (per mille); every other stat is copied as is. The copy
+	// becomes the summon's base stats, so his own buffs apply on top of it. Summons with their own
+	// stat rows (all monster summons) are unchanged. Returns whether the stats were inherited.
+	private static bool SprkInheritSummonerStats(BattleCreatureCreateInfo createInfo, BattleCreature summoner, int statRatio)
+	{
+		if (createInfo?.StatData == null || summoner?.StatController == null || createInfo.StatData.GetStat(StatType.MaxHp) > 0)
 		{
-			return;
+			return false;
 		}
+		StatController statController = summoner.StatController;
+		BattleDefineData battleDefine = summoner.BattleInstance?.BattleDefine;
 		StatData statData = new StatData();
-		statData.AddStat(summoner.CreateInfo.StatData);
+		foreach (StatType statType in StatData.StatTypes)
+		{
+			if (statType == StatType.None || System.Array.IndexOf(SprkNotCopiedStats, statType) >= 0)
+			{
+				continue;
+			}
+			// Unattenuated, so the summon's own stat caps apply once to his total. A stat fixed by an
+			// override (a gear skill fixing ATK Spd) is copied at its fixed value.
+			if (!statController.GetOverrideStat(statType, out var value))
+			{
+				value = statController.GetFinalStatNoCache(statType, StatTypeAttribute.IsAllowNegativeStat(statType), applyAttenuation: false);
+			}
+			if (battleDefine != null)
+			{
+				// The battle's per-mode stat scaling is applied to base stats again when read.
+				int modStatRatioM = battleDefine.GetModStatRatioM(statType);
+				value = ((modStatRatioM != 0) ? (value * 1000 / modStatRatioM) : 0);
+			}
+			if (value != 0)
+			{
+				statData.SetStat(statType, value);
+			}
+		}
 		if (statRatio > 0)
 		{
-			foreach (StatType statType in SprkScaledSummonStats)
+			foreach (StatType statType2 in SprkScaledSummonStats)
 			{
-				statData.ModifyStat(statType, (long stat) => stat * statRatio / 1000);
+				statData.ModifyStat(statType2, (long stat) => stat * statRatio / 1000);
 			}
 		}
 		createInfo.StatData = statData;
+		createInfo.AddExtraSkill = SprkSummonGearSkills(summoner.CreateInfo?.AddExtraSkill);
+		return true;
+	}
+
+	// SPRK: Tier 9 (Technomagic) gear skills the summon gets as skills of his own: those triggered by
+	// his own HP, skill use, blocks and kills, plus the effects that are not stats (normal attack
+	// DMG, regeneration). Gear skill indices are 81SS0FF (slot SS 01-04, family FF). The other
+	// families only change stats, which the live stat copy already includes, or touch mana,
+	// cooldowns or the whole team.
+	private static readonly int[] SprkSummonGearSkillFamilies = new int[8]
+	{
+		5,  // ATK +% while HP is below a threshold
+		12, // ATK +% per skill use (stacks)
+		13, // DMG taken -% per skill use (stacks)
+		14, // Block +% per block (stacks)
+		19, // Heal Rate +% on skill use
+		22, // ATK +% per kill (stacks)
+		30, // Normal attack DMG +%
+		33  // Heal % of Max HP every second
+	};
+
+	// Family 38 ("Dodge +X, heal on dodge"): only its heal-on-dodge passive, since the dodge stat
+	// is already copied. Every slot's family 38 uses this passive.
+	private const int SprkDodgeGearFamily = 38;
+
+	private const int SprkDodgeHealPassive = 8101138;
+
+	private static ExtraSkillInfo[] SprkSummonGearSkills(ExtraSkillInfo[] summonerSkills)
+	{
+		if (summonerSkills == null)
+		{
+			return null;
+		}
+		System.Collections.Generic.List<ExtraSkillInfo> result = new System.Collections.Generic.List<ExtraSkillInfo>();
+		foreach (ExtraSkillInfo skill in summonerSkills)
+		{
+			if (skill == null || skill.SkillIndex < 8101000 || skill.SkillIndex >= 8105000)
+			{
+				continue;
+			}
+			int family = skill.SkillIndex % 1000;
+			if (System.Array.IndexOf(SprkSummonGearSkillFamilies, family) >= 0)
+			{
+				result.Add(new ExtraSkillInfo(skill.SkillIndex, skill.SkillLevel));
+			}
+			else if (family == SprkDodgeGearFamily && !result.Exists((ExtraSkillInfo e) => e.SkillIndex == SprkDodgeHealPassive))
+			{
+				result.Add(new ExtraSkillInfo(SprkDodgeHealPassive, skill.SkillLevel));
+			}
+		}
+		return (result.Count > 0) ? result.ToArray() : null;
+	}
+
+	// SPRK: when the summoner summons again while her summon of this creature is alive (Maya's S2
+	// with Seves on the field), he is not duplicated: his base stats are replaced by a fresh copy
+	// of her live stats instead. Returns whether a living summon was refreshed.
+	private static bool SprkRefreshLivingSummon(BattleInstance battleInstance, int summonerUid, int creatureIndex, StatData statData)
+	{
+		if (battleInstance?.CreatureContainer == null || statData == null)
+		{
+			return false;
+		}
+		bool refreshed = false;
+		BattleCreatureList children = battleInstance.CreatureContainer.GetChildCreatureList(summonerUid, aliveOnly: true);
+		for (int i = 0; i < children.Count; i++)
+		{
+			BattleCreature summon = children[i];
+			if (summon == null || summon.CreatureIndex != creatureIndex)
+			{
+				continue;
+			}
+			summon.CreateInfo.StatData = statData;
+			foreach (StatType statType in StatData.StatTypes)
+			{
+				summon.StatController.MakeStatDirty(statType);
+			}
+			long maxHp = summon.StatController.GetMaxHp();
+			if (summon.StatController.Hp > maxHp)
+			{
+				summon.StatController.SetHp(maxHp);
+			}
+			refreshed = true;
+		}
+		return refreshed;
 	}
 }

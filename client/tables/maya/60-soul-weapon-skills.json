@@ -87,9 +87,8 @@
       "OperationValue6": [
         "25004",
         "1",
-        "500"
+        "1000"
       ],
-      "OperationConditionType6": "SummoneeCount",
       "OperationFlags6": [
         "Disabled"
       ],

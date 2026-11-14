@@ -163,9 +163,8 @@
       "OperationValue1": [
         "25004",
         "1",
-        "500"
+        "1000"
       ],
-      "OperationConditionType1": "SummoneeCount",
       "OperationState1": "",
       "OperationType2": "UseSommoneeSkill",
       "OperationValue2": [
