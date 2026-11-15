@@ -757,56 +757,207 @@ public sealed class SprkAccounts : MonoBehaviour
 			return;
 		}
 		transform3.localPosition = localPosition + new Vector3(0f, 100f, 0f);
-		UIAtlas uIAtlas = null;
-		UIAtlas[] array = Resources.FindObjectsOfTypeAll<UIAtlas>();
-		foreach (UIAtlas uIAtlas2 in array)
+		StyleLikeCoupon(transform3, etcInfo.Button_Coupon, DeleteButtonSprite);
+		StyleLikeCoupon(etcInfo.Button_Logout, etcInfo.Button_Coupon, LogoutButtonSprite);
+	}
+
+	public const string DeleteButtonSprite = "Sprk_Coupon_Red";
+
+	public const string LogoutButtonSprite = "Sprk_Coupon_Orange";
+
+	private static UIAtlas couponAtlas;
+
+	private static string couponAtlasSource;
+
+	private static UISprite ButtonSprite(Transform button)
+	{
+		UIButton component = button.GetComponent<UIButton>();
+		if (component != null && component.tweenTarget != null && component.tweenTarget.GetComponent<UISprite>() != null)
 		{
-			if (uIAtlas2.GetSprite("Common_Button7_Cancel") != null)
+			return component.tweenTarget.GetComponent<UISprite>();
+		}
+		return button.GetComponent<UISprite>();
+	}
+
+	// Builds a small atlas holding red and orange copies of the blue Coupon sprite,
+	// read back through a RenderTexture because game atlases are not CPU-readable.
+	private static UIAtlas CouponAtlas(UISprite coupon)
+	{
+		if (coupon == null || coupon.atlas == null || coupon.atlas.texture == null)
+		{
+			return null;
+		}
+		UISpriteData sprite = coupon.atlas.GetSprite(coupon.spriteName);
+		if (sprite == null)
+		{
+			return null;
+		}
+		string key = coupon.atlas.name + "/" + coupon.spriteName;
+		if (couponAtlas != null && couponAtlasSource == key)
+		{
+			return couponAtlas;
+		}
+		Texture texture = coupon.atlas.texture;
+		RenderTexture temporary = RenderTexture.GetTemporary(texture.width, texture.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
+		RenderTexture active = RenderTexture.active;
+		Graphics.Blit(texture, temporary);
+		RenderTexture.active = temporary;
+		int sx = sprite.X;
+		int sy = sprite.Y;
+		int sw = sprite.Width;
+		int sh = sprite.Height;
+		Texture2D source = new Texture2D(sw, sh, TextureFormat.RGBA32, mipChain: false);
+		source.ReadPixels(new Rect(sx, texture.height - sy - sh, sw, sh), 0, 0);
+		source.Apply();
+		RenderTexture.active = active;
+		RenderTexture.ReleaseTemporary(temporary);
+		Color[] pixels = source.GetPixels();
+		UnityEngine.Object.Destroy(source);
+		float sin = 0f;
+		float cos = 0f;
+		foreach (Color color in pixels)
+		{
+			Color.RGBToHSV(color, out var h, out var s, out var _);
+			if (color.a > 0.5f && s > 0.4f)
 			{
-				uIAtlas = uIAtlas2;
-				break;
+				sin += Mathf.Sin(h * 2f * Mathf.PI);
+				cos += Mathf.Cos(h * 2f * Mathf.PI);
 			}
 		}
-		if (uIAtlas == null)
+		float baseHue = Mathf.Atan2(sin, cos) / (2f * Mathf.PI);
+		int pad = 2;
+		int width = sw + pad * 2;
+		int height = sh + pad * 2;
+		Texture2D output = new Texture2D(width * 2, height, TextureFormat.RGBA32, mipChain: false);
+		output.SetPixels(new Color[width * 2 * height]);
+		string[] names = new string[2] { DeleteButtonSprite, LogoutButtonSprite };
+		float[] hues = new float[2] { 350f / 360f, 28f / 360f };
+		float[] values = new float[2] { 0.95f, 1f };
+		GameObject gameObject = new GameObject("SprkCouponRecolourAtlas");
+		UnityEngine.Object.DontDestroyOnLoad(gameObject);
+		UIAtlas uIAtlas = gameObject.AddComponent<UIAtlas>();
+		for (int i = 0; i < 2; i++)
 		{
-			BundleLoadFromFile bundleLoadFromFile = new BundleLoadFromFile();
-			bundleLoadFromFile.Open("NguiAtlas_UI_Prefab_Common.unity3d");
-			((IBundleLoad)bundleLoadFromFile).Interface().StartLoad();
-			if (bundleLoadFromFile.AssetBundle != null)
+			Color[] recoloured = new Color[pixels.Length];
+			for (int j = 0; j < pixels.Length; j++)
 			{
-				uIAtlas = bundleLoadFromFile.AssetBundle.mainAsset as UIAtlas;
+				Color.RGBToHSV(pixels[j], out var h2, out var s2, out var v);
+				Color color2 = Color.HSVToRGB(Mathf.Repeat(h2 - baseHue + hues[i], 1f), s2, Mathf.Clamp01(v * values[i]));
+				color2.a = pixels[j].a;
+				recoloured[j] = color2;
 			}
+			output.SetPixels(i * width + pad, pad, sw, sh, recoloured);
+			// NGUI rects count from the top; this texture is only one row tall, so y = pad either way.
+			UISpriteData uISpriteData = new UISpriteData();
+			uISpriteData.name = names[i];
+			uISpriteData.atlasScale = 1f;
+			uISpriteData.SetRect(i * width + pad, pad, sw, sh);
+			uISpriteData.SetBorder(sprite.BorderLeft, sprite.BorderBottom, sprite.BorderRight, sprite.BorderTop);
+			uISpriteData.SetPadding(sprite.PaddingLeft, sprite.PaddingBottom, sprite.PaddingRight, sprite.PaddingTop);
+			uIAtlas.AddSprite(uISpriteData);
 		}
-		UIButton component2 = transform3.GetComponent<UIButton>();
-		if (component2 == null || uIAtlas == null || uIAtlas.GetSprite("Common_Button7_Cancel") == null)
+		output.wrapMode = TextureWrapMode.Clamp;
+		output.filterMode = (texture.filterMode == FilterMode.Point) ? FilterMode.Point : FilterMode.Bilinear;
+		output.name = "SprkCouponRecolour";
+		output.Apply();
+		Material spriteMaterial = coupon.atlas.spriteMaterial;
+		Material material = new Material((spriteMaterial != null) ? spriteMaterial.shader : Shader.Find("Unlit/Transparent Colored"));
+		material.mainTexture = output;
+		uIAtlas.spriteMaterial = material;
+		uIAtlas.pixelSize = coupon.atlas.pixelSize;
+		if (couponAtlas != null)
+		{
+			UnityEngine.Object.Destroy(couponAtlas.gameObject);
+		}
+		couponAtlas = uIAtlas;
+		couponAtlasSource = key;
+		return couponAtlas;
+	}
+
+	private static float Ratio(Transform from, Transform to)
+	{
+		float x = to.lossyScale.x;
+		return (Mathf.Abs(x) < 1E-06f) ? 1f : (from.lossyScale.x / x);
+	}
+
+	private static void StyleLikeCoupon(Transform button, Transform coupon, string spriteName)
+	{
+		UIButton component = button.GetComponent<UIButton>();
+		UIButton component2 = coupon.GetComponent<UIButton>();
+		UISprite uISprite = ButtonSprite(button);
+		UISprite uISprite2 = ButtonSprite(coupon);
+		UIAtlas uIAtlas = CouponAtlas(uISprite2);
+		if (component == null || uISprite == null || uIAtlas == null)
 		{
 			return;
 		}
-		UISprite uISprite = ((component2.tweenTarget == null) ? transform3.GetComponent<UISprite>() : component2.tweenTarget.GetComponent<UISprite>());
-		if (uISprite == null)
-		{
-			return;
-		}
-		UISpriteAtlasAssigner[] componentsInChildren = transform3.GetComponentsInChildren<UISpriteAtlasAssigner>(includeInactive: true);
+		UISpriteAtlasAssigner[] componentsInChildren = button.GetComponentsInChildren<UISpriteAtlasAssigner>(includeInactive: true);
 		foreach (UISpriteAtlasAssigner uISpriteAtlasAssigner in componentsInChildren)
 		{
 			if (uISpriteAtlasAssigner.Target == uISprite)
 			{
-				uISpriteAtlasAssigner.AtlasName = "Common";
-				uISpriteAtlasAssigner.SpriteName = "Common_Button7_Cancel";
+				uISpriteAtlasAssigner.enabled = false;
+				UnityEngine.Object.Destroy(uISpriteAtlasAssigner);
 			}
 		}
 		uISprite.atlas = uIAtlas;
-		uISprite.spriteName = "Common_Button7_Cancel";
-		uISprite.color = Color.white;
-		component2.defaultColor = Color.white;
-		component2.hover = Color.white;
-		component2.pressed = new Color(0.9f, 0.9f, 0.9f, 1f);
-		component2.normalSprite = "Common_Button7_Cancel";
-		component2.hoverSprite = "Common_Button7_Cancel";
-		component2.pressedSprite = "Common_Button7_Cancel";
-		component2.disabledSprite = "Common_Button7_Disable";
-		component2.SetState(UIButtonColor.State.Normal, immediate: true);
+		uISprite.spriteName = spriteName;
+		uISprite.type = uISprite2.type;
+		uISprite.flip = uISprite2.flip;
+		uISprite.color = uISprite2.color;
+		// Match the Coupon's on-screen size. The Logout prefab is scaled differently and
+		// UIButtonScale caches that scale, so resize the widgets instead of rescaling.
+		float num = Ratio(uISprite2.transform, uISprite.transform);
+		uISprite.width = Mathf.RoundToInt((float)uISprite2.width * num);
+		uISprite.height = Mathf.RoundToInt((float)uISprite2.height * num);
+		BoxCollider component3 = button.GetComponent<BoxCollider>();
+		BoxCollider component4 = coupon.GetComponent<BoxCollider>();
+		if (component3 != null && component4 != null)
+		{
+			float num2 = Ratio(coupon, button);
+			component3.center = component4.center * num2;
+			component3.size = component4.size * num2;
+		}
+		if (component2 != null)
+		{
+			component.defaultColor = component2.defaultColor;
+			component.hover = component2.hover;
+			component.pressed = component2.pressed;
+			component.disabledColor = component2.disabledColor;
+		}
+		component.normalSprite = spriteName;
+		component.hoverSprite = spriteName;
+		component.pressedSprite = spriteName;
+		component.disabledSprite = spriteName;
+		UILabel componentInChildren = coupon.GetComponentInChildren<UILabel>(includeInactive: true);
+		if (componentInChildren != null)
+		{
+			UILabel[] componentsInChildren2 = button.GetComponentsInChildren<UILabel>(includeInactive: true);
+			foreach (UILabel uILabel in componentsInChildren2)
+			{
+				uILabel.ambigiousFont = componentInChildren.ambigiousFont;
+				uILabel.fontSize = componentInChildren.fontSize;
+				uILabel.fontStyle = componentInChildren.fontStyle;
+				uILabel.color = componentInChildren.color;
+				uILabel.applyGradient = componentInChildren.applyGradient;
+				uILabel.gradientTop = componentInChildren.gradientTop;
+				uILabel.gradientBottom = componentInChildren.gradientBottom;
+				uILabel.effectStyle = componentInChildren.effectStyle;
+				uILabel.effectColor = componentInChildren.effectColor;
+				uILabel.effectDistance = componentInChildren.effectDistance;
+				uILabel.overflowMethod = componentInChildren.overflowMethod;
+				float num3 = Ratio(componentInChildren.transform, uILabel.transform);
+				uILabel.width = Mathf.RoundToInt((float)componentInChildren.width * num3);
+				uILabel.height = Mathf.RoundToInt((float)componentInChildren.height * num3);
+				if (uILabel.transform.parent != null && componentInChildren.transform.parent != null)
+				{
+					float num4 = Ratio(componentInChildren.transform.parent, uILabel.transform.parent);
+					uILabel.transform.localPosition = componentInChildren.transform.localPosition * num4;
+					uILabel.transform.localScale = componentInChildren.transform.localScale * num4;
+				}
+			}
+		}
+		component.SetState(UIButtonColor.State.Normal, immediate: true);
 	}
 
 	private static void AddChangePassword(GameOptionWindow view)
