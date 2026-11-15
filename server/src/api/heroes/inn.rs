@@ -957,7 +957,13 @@ async fn spin_roulette(state:AppState,req:GiveRewardHeroInnRouletteRequest,winni
                 new_daily_acc_value:crate::api::inventory::item::n(&result,"NewDailyAccValue").clamp(0,i32::MAX as i64) as i32,
             });
         } else {
-            currency_results.push(CurrencyResultInfo3 {currency_type:reward.type1,add_value:amount,new_value:value,..Default::default()});
+            // Keep the Field/Value pairs: for Gem the native client reads
+            // NewSysGem/NewPayGem from them and shows 0 rubies without them.
+            let field=|k:&str|result[k].as_str().map(str::to_owned);
+            let value=|k:&str|result[k].as_i64();
+            currency_results.push(CurrencyResultInfo3 {currency_type:reward.type1,add_value:amount,new_value:value("NewValue").unwrap_or(0),
+                field1:field("Field1"),value1:value("Value1"),field2:field("Field2"),value2:value("Value2"),
+                field3:field("Field3"),value3:value("Value3"),field4:field("Field4"),value4:value("Value4")});
         }
     }
     tx.commit().await?;
