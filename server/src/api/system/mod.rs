@@ -1,4 +1,5 @@
 //! Shared request parsing, HTTP transport, server discovery, and development tools.
+pub(crate) mod prefetch;
 pub mod cdn;
 pub mod cheat;
 pub mod fallback;

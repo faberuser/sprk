@@ -364,7 +364,7 @@ async fn mission_history_summons_collections_and_transcendence_are_specific() {
     assert_eq!(v.quest(&s, quest(&s, 10391)), 2);
     assert_eq!(v.quest(&s, quest(&s, 10392)), 10);
     let h = v
-        .heroes
+        .heroes_mut()
         .iter_mut()
         .find(|h| n(h, "HeroIndex") == 1)
         .unwrap();
@@ -376,7 +376,7 @@ async fn mission_history_summons_collections_and_transcendence_are_specific() {
         0,
         "inactive page is not applied"
     );
-    v.heroes
+    v.heroes_mut()
         .iter_mut()
         .find(|h| n(h, "HeroIndex") == 1)
         .unwrap()["TranscendSkillPage2"] = json!("[10,20,30]");
@@ -394,7 +394,9 @@ async fn mission_history_summons_collections_and_transcendence_are_specific() {
             .find(|r| n(r, "PartType") == part && (detail == 0 || n(r, "DetailIndex") == detail))
             .map(|r| n(r, "ItemIndex"))
             .unwrap();
-        v.history.facts.push(("equip_count".into(), id, 20));
+        v.history_mut().facts.push(("equip_count".into(), id, 20));
+        // Totals are memoised per loaded view; this test edits the view in place.
+        v.inventory_totals = Default::default();
         let row = json!({"Kind":kind,"ReqValue":"1"});
         assert_eq!(
             v.history_achievement(&s, &row, "all"),

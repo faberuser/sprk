@@ -90,6 +90,33 @@ pub(crate) async fn info(db: &mut PgConnection, account: i64, index: i32) -> Res
     hero_from_row(&row, details(&mut *db, account, index).await?)
 }
 
+/// `info` for several heroes in one statement, in `indices` order (a missing
+/// hero fails with NoHero, as `info` does).
+pub(crate) async fn infos(db: &mut PgConnection, account: i64, indices: &[i64]) -> Result<Vec<Value>> {
+    Ok(infos_with_details(db, account, indices).await?.into_iter().map(|(info, _)| info).collect())
+}
+
+/// `infos` paired with each hero's stored details (`details`), in one
+/// statement.
+pub(crate) async fn infos_with_details(db: &mut PgConnection, account: i64, indices: &[i64]) -> Result<Vec<(Value, Value)>> {
+    let mut owned = owned_details(db, account, indices).await?;
+    indices.iter().map(|index| owned.remove(index).ok_or_else(|| rule("NoHero"))).collect()
+}
+
+/// Owned heroes among `indices` with (`info`, stored `details`); heroes the
+/// account does not own are absent.
+pub(crate) async fn owned_details(db: &mut PgConnection, account: i64, indices: &[i64]) -> Result<std::collections::HashMap<i64, (Value, Value)>> {
+    let list = serde_json::to_string(indices).map_err(|e| ServerError::Internal(e.to_string()))?;
+    let rows = crate::db::query("SELECT h.*, d.data AS detail_data FROM heroes h LEFT JOIN hero_details d ON d.account_id=h.account_id AND d.hero_index=h.hero_index WHERE h.account_id=$1 AND h.hero_index IN (SELECT sprk_json_ints($2))")
+        .bind(account).bind(list).fetch_all(&mut *db).await?;
+    rows.iter().map(|row| {
+        let details: Option<String> = row.get("detail_data");
+        let details = details.map(|s| serde_json::from_str(&s)).transpose()
+            .map_err(|e| ServerError::Internal(e.to_string()))?.unwrap_or(json!({}));
+        Ok((row.get::<i64, _>("hero_index"), (hero_from_row(row, details.clone())?, details)))
+    }).collect()
+}
+
 fn hero_from_row(row: &sqlx::postgres::PgRow, details: Value) -> Result<Value> {
     let mut out = json!(HeroInfo::new(row.get("hero_id"), row.get("hero_index"), row.get("star")));
     for (wire, col) in [
@@ -168,13 +195,17 @@ pub(crate) async fn currency(
         return item::money(db, account, kind, amount).await;
     }
     if matches!(kind, "WorldBossPoint" | "ShakmehMiddleBossPoint" | "GuildPoint" | "GuildArenaPoint" | "EventDungeonPoint2" | "GloryPoint" | "EventGiftPoint" | "LuaPoint" | "GuildActivityPoint" | "GuildSuppressPoint" | "GuildWood" | "GuildStone" | "GuildMetal" | "RankingPoint" | "EventDungeonPoint3" | "EclipsePoint" | "ShopEventPoint" | "LimitedShopEventPoint" | "OrdealArenaPoint" | "TreasureHousePoint" | "EventOrvelPoint" | "ChallengeRaidPoint" | "CraftEventPoint" | "GrowWorldTreePoint") {
-        crate::db::query("INSERT INTO battle_currencies(account,kind,value) VALUES($1,$2,0) ON CONFLICT DO NOTHING")
-            .bind(account).bind(kind).execute(&mut *db).await?;
         let held=if kind=="ShakmehMiddleBossPoint" && amount<0 {crate::api::battle::entry_costs::held(db,account,"ShakmehGauge",0).await?} else {0};
         let minimum = if amount < 0 { amount.checked_neg().and_then(|v|v.checked_add(held)).ok_or_else(||rule("NotEnoughCurrency"))? } else {0};
         let maximum = i64::MAX - amount.max(0);
-        let value: Option<i64> = crate::db::query_scalar("UPDATE battle_currencies SET value=value+$1 WHERE account=$2 AND kind=$3 AND value BETWEEN $4 AND $5 RETURNING value")
-            .bind(amount).bind(account).bind(kind).bind(minimum).bind(maximum).fetch_optional(db).await?;
+        // Change the stored balance when it is in range; a missing row holds 0,
+        // so create it with the change when 0 is in range.
+        let mut value: Option<i64> = crate::db::query_scalar("UPDATE battle_currencies SET value=value+$1 WHERE account=$2 AND kind=$3 AND value BETWEEN $4 AND $5 RETURNING value")
+            .bind(amount).bind(account).bind(kind).bind(minimum).bind(maximum).fetch_optional(&mut *db).await?;
+        if value.is_none() && (minimum..=maximum).contains(&0) {
+            value = crate::db::query_scalar("INSERT INTO battle_currencies(account,kind,value) VALUES($1,$2,$3) ON CONFLICT DO NOTHING RETURNING value")
+                .bind(account).bind(kind).bind(amount).fetch_optional(db).await?;
+        }
         let value = value.ok_or_else(|| rule(&format!("NotEnough{kind}")))?;
         return Ok(json!({"CurrencyType":kind,"AddValue":amount,"NewValue":value,"AddDailyAccValue":0,"NewDailyAccValue":0}));
     }

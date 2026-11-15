@@ -12,8 +12,9 @@ slow, failing or locking game from the database and `sprk-game.log`.
 - **Schema.** `sqlx::migrate!()` files in `server/migrations/`, applied at startup with
   the owner role. `0001` holds the `sprk_*` helper functions, `0002`–`0007` the
   tables per area (core, progression, battle, community, services,
-  compensation audit), `0008` the gameplay triggers and `0009` the
-  response-cache revision triggers.
+  compensation audit), `0008` the gameplay triggers, `0009` the
+  response-cache revision triggers, `0010` the reforge/enchant guarantees and
+  `0011` the revision parts (which part of a player's progression changed).
 - **Roles.** `sprk_owner` owns the schema, runs migrations, backups and
   diagnostics. `sprk_app` is the game's role: data access only, not a
   superuser.
@@ -124,7 +125,8 @@ replace their sqlx counterparts everywhere outside the database plumbing:
 
 - Gameplay triggers are PL/pgSQL functions: progression metrics, play
   records, mail notifications, arena upkeep and retention (`0008`), and
-  response-cache revisions (`0009`). Counters saturate at the `bigint` maximum
+  response-cache revisions (`0009`, with the changed part recorded by `0011`).
+  Counters saturate at the `bigint` maximum
   instead of failing the gameplay write. Currency limits are `CHECK`
   constraints.
 - `triggers_derive_the_recorded_rows` replays a fixed set of writes and
@@ -317,6 +319,16 @@ Either flag can be used alone. The report prints:
   `SPRK_PROFILE_DATABASE_URL` drives the existing `profile_snapshot` harness.
   Install a `tracing_subscriber` with the filter `sqlx::query=debug` for
   statement times.
+- Whole requests: `profile_requests` (`server/src/request_profile_tests.rs`)
+  logs in a real account from the copy and sends the requests listed in a file
+  (`<path> <form fields>` per line) through the full game router and
+  middleware, acknowledging tokens as the client does. It prints the median
+  time and, with a superuser URL, the statements per request;
+  `SPRK_PROFILE_LOG=sqlx::query=debug` adds a statement timeline (gaps between
+  statements are application work), `sprk_progression=debug` the incremental
+  snapshot's reload and build times. It writes to the copy. Test builds check
+  every incremental progression snapshot against a full rebuild; set
+  `SPRK_PROGRESSION_VERIFY=0` when timing.
 - Startup on the release binary in a scratch folder:
   `DATABASE_URL=<scratch db> RUST_LOG=info PORT=18080 GAME_TABLES_PATH=<repo>/tables target/release/sprk-server.exe`.
   `GameTables::load` dominates (about 25–40 s of JSON parsing, not the
@@ -388,6 +400,77 @@ Either flag can be used alone. The report prints:
 - **Read pool.** `inspect_user` and the `sync_seen_categories` category check
   (`View::load`) run on the read pool; the main pool only records the seen
   categories.
+- **Progression snapshot.** After a successful gameplay mutation the
+  progression `notify` middleware, every lobby entry and every mission claim
+  call `progression::cache::get`, and almost every write changes the player's
+  progression revision. The snapshot is therefore rebuilt incrementally: the
+  revision triggers record each changed part (`table`, `table:kind`, or
+  `progression_metrics:kind@day`) in `response_revision_parts` (`0011`),
+  `state::part::of` maps a part to the `View` inputs it invalidates,
+  `View::refresh` reloads only those (only the changed days of the changed
+  metric kinds), and `progression::build` re-evaluates only the achievements,
+  sub-quests and play records whose recorded inputs changed. The first change
+  of a metric kind on a new day folds its other days' parts into the
+  whole-kind part, which reloads every day of the kind, so the parts stay
+  bounded without losing a change.
+  Evaluators read the view only through its tracking accessors (`heroes()`,
+  `metrics_of(kind)`, `last(...)`, `stage(...)`, `hist(part)`...), which record
+  what each section read, down to the metric kind, claimed mission, Hero and
+  campaign stage. Rules:
+  - A new `View` input needs a `part` bit, its query in `View::refresh` and a
+    mapping in `part::of` for every revision part that changes it. An unknown
+    part rebuilds everything (safe but slow), and
+    `every_recorded_revision_part_maps_to_view_parts` fails.
+  - Read data through an accessor, never through `self.d`; memoised values
+    (`inventory_totals`) mark their inputs on every call.
+  - Tests compare every incremental snapshot with a full rebuild
+    (`verify_incremental`), and
+    `incremental_snapshots_match_full_rebuilds_and_reuse_unaffected_sections`
+    checks how many sections a write re-evaluates.
+  - An entry keeps its 60 s expiry across incremental rebuilds, so a reused
+    section is never older than a full rebuild would allow.
+  - Reused sections move out of the previous snapshot (`Sections` keeps only
+    what each read); mission rows are grouped once per loaded tables
+    (`state::mission_groups`), and table lookups (`View`'s, `play_record`'s)
+    survive a refresh. Build table indexes once, never per evaluation.
+  - Hero fields that battles change and no mission reads
+    (`UNREAD_HERO_FIELDS`, flask progress) stay out of the view, so they never
+    count as a hero change.
+- **Per-type state reads.** The lobby's key, ticket, tower and dungeon-list
+  snapshots read a `battle_state`/`extension_state`/`community_state` row per
+  type. `system::prefetch` loads those kinds in one statement per table for one
+  transaction holding the account lock, serves the helpers' `get`/`list` and
+  follows their `put`. Prefetch only kinds that are never written by raw SQL.
+  Balance reads (`guild_ticket`, Sword tickets) write only when the recharge
+  changed them.
+- **Battle settlement.** `end_campaign` reads the party's heroes and details
+  in one statement (`heroes::owned_details`) and passes the details to the
+  flask helpers; an EXP update is skipped for a capped hero. A rolled drop is
+  inserted with its options in one statement, and a reward batch counts the
+  bag once, then subtracts its own pieces (`Rewards::bag_free`, recounted when
+  other equipment joined the batch). Booster timers, the guild reward bonus,
+  Chicken stamina and battle currencies each take one statement in the common
+  case; a ranked deck record is written only when it would rank.
+  `crate::db` binds `bool` as `bigint`: compare it (`$3 <> 0`) in SQL.
+- **Mission sections in replies.** With `X-SPRK-Sections: 1` the client
+  acknowledges each section by token (`X-SPRK-Achievements`, ...); an
+  unchanged section is omitted. A client sending
+  `X-SPRK-Achievement-Delta: 1` (`SprkNetworkPerformance.Prepare`) gets only
+  the achievements that changed since the list it holds (acknowledged, or its
+  login list), using the session's last few delivered lists
+  (`notifications::DeliveredAchievements`); the token always names the full
+  list. Every client consumer merges `AchievementInfos` by index, never
+  replaces it. An unknown list or a removed entry sends the full list. A battle
+  reply drops from ~113 KB to a few hundred bytes; a team level change still
+  sends every entry (each carries `ClearTeamLevel`).
+- **Arena ranking decks.** A completed run's formation and registration never
+  change, so `community::arena::ranking_deck` finds the newest run by id and
+  caches its formation per run (`AppState::registered_decks`) instead of
+  parsing the registration (up to 1.8 MB) on every lobby entry.
+- **Lobby shop catalog** (~1 MB of JSON). The compact lobby's
+  `SprkShopCatalogToken` hashes the session, a digest of the cached wired
+  catalog and the discounted prices, so an acknowledged catalog is not copied
+  or serialized again (`live::lobby_shop_snapshot`).
 - **Unimplemented endpoints** log their method, path and field names only,
   never values (they carry live `SessionKey`s).
 

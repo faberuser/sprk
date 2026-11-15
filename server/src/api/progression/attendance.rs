@@ -9,7 +9,7 @@ pub(super) fn calendars(state: &AppState, view: &View) -> Vec<Value> {
         .iter()
         .filter(|c| {
             c["Enabled"] != false
-                && n(c, "OpenLevel") <= view.level
+                && n(c, "OpenLevel") <= view.level()
                 && c["StartDate"].as_str().is_none_or(|s| s <= now.as_str())
                 && c["EndDate"].as_str().is_none_or(|s| s > now.as_str())
                 && view.condition(&c["Conditions"])
@@ -17,6 +17,7 @@ pub(super) fn calendars(state: &AppState, view: &View) -> Vec<Value> {
         .cloned()
         .collect()
 }
+/// Attendance after this transaction's own writes (the view may predate them).
 pub(super) async fn snapshot(
     db: &mut PgConnection,
     state: &AppState,
@@ -24,6 +25,13 @@ pub(super) async fn snapshot(
     view: &View,
 ) -> Result<(Vec<Value>, Vec<Value>)> {
     let rows:Vec<(i64,i64,String,Option<String>)>=crate::db::query_as("SELECT idx,claims,last_day,completed_time FROM attendance_calendar_state WHERE account_id=$1").bind(account).fetch_all(db).await?;
+    Ok(from_rows(state, view, &rows))
+}
+/// Attendance from the view's own calendar rows.
+pub(super) fn from_view(state: &AppState, view: &View) -> (Vec<Value>, Vec<Value>) {
+    from_rows(state, view, view.attendance())
+}
+fn from_rows(state: &AppState, view: &View, rows: &[(i64,i64,String,Option<String>)]) -> (Vec<Value>, Vec<Value>) {
     let mut infos = vec![];
     let mut datas = calendars(state, view);
     for c in &mut datas {
@@ -45,7 +53,7 @@ pub(super) async fn snapshot(
         c["AttendanceRewardableDays"] = json!(if today || finished { 0 } else { last + 1 });
         infos.push(json!({"AttendanceIndex":id,"CompletedDay":last,"LastRewardedDay":last,"CompletedTime":row.and_then(|r|r.3.clone()),"EndTime":c["EndDate"],"SuspendEndTime":null}));
     }
-    Ok((datas, infos))
+    (datas, infos)
 }
 pub(super) async fn execute(
     db: &mut PgConnection,
@@ -75,7 +83,7 @@ pub(super) async fn execute(
         if view.last("login", id, "all") > 0 {
             return Err(rule("AlreadyReceived"));
         }
-        if view.login_days < n(r, "Day") {
+        if view.login_days() < n(r, "Day") {
             return Err(rule("IsNotCondition"));
         }
         claim(db, account, "login", id, 1, "all").await?;

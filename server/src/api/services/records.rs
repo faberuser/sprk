@@ -149,21 +149,30 @@ async fn save(
     Ok(json!({"ReplayUid":id}))
 }
 /// Snapshot at entry so later level-ups, selling, and equipment changes do not rewrite a recommendation.
+/// Three statements for the whole party: heroes, rune options and equipment.
 pub(crate) async fn snapshot(db: &mut PgConnection, a: i64, party: &[i64]) -> Result<Value> {
-    let mut hs = vec![];
-    let mut equips = vec![];
+    let mut hs = heroes::infos(db, a, party).await?;
+    let options = crate::api::extensions::punishment::options_for(db, a, &hs).await?;
+    let mut slots = vec![];
     let mut seen = BTreeSet::new();
-    for id in party {
-        let mut h = heroes::info(db, a, *id as i32).await?;
-        h["PunishmentRuneOptionInfos"] = crate::api::extensions::punishment::options(db, a, &h).await?;
+    for (h, options) in hs.iter_mut().zip(options) {
+        h["PunishmentRuneOptionInfos"] = options;
         for part in 1..=10 {
-            let slot = n(&h, &format!("EquipItemSlotIndex{part}"));
-            if slot > 0 && seen.insert(slot) {
-                equips.push(json!(crate::api::extensions::equip(db, a, slot).await?));
-            }
+            let slot = n(h, &format!("EquipItemSlotIndex{part}"));
+            if slot > 0 && seen.insert(slot) { slots.push(slot); }
         }
-        hs.push(h);
     }
+    let mut stored = std::collections::HashMap::new();
+    if !slots.is_empty() {
+        let list = serde_json::to_string(&slots).map_err(|e| ServerError::Internal(e.to_string()))?;
+        for r in crate::db::query("SELECT * FROM equip_items WHERE account_id=$1 AND inventory_type=0 AND slot_index IN (SELECT sprk_json_ints($2))")
+            .bind(a).bind(list).fetch_all(&mut *db).await? {
+            let eq = crate::models::equip::EquipItemInfo::from_row(&r);
+            stored.insert(eq.slot_index as i64, eq);
+        }
+    }
+    let equips = slots.iter().map(|slot| stored.get(slot).map(|eq| json!(eq)).ok_or_else(|| rule("EquipItemNotFound")))
+        .collect::<Result<Vec<_>>>()?;
     Ok(json!({"AccountId":a.to_string(),"Heroes":hs,"EquipItems":equips}))
 }
 /// Recommended decks served per dungeon, difficulty and ranking kind.
@@ -184,14 +193,22 @@ pub(crate) async fn record_clear(
         .as_array()
         .map(|v| v.iter().map(|h| n(h, "Level")).sum::<i64>())
         .unwrap_or(0);
-    for (kind, metric) in [(0, levels), (1, seconds)] {
-        crate::db::query("INSERT INTO service_decks(account,chapter,dungeon,difficulty,kind,metric,data) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(account,chapter,dungeon,difficulty,kind) DO UPDATE SET metric=excluded.metric,data=excluded.data WHERE excluded.metric<service_decks.metric")
-            .bind(a).bind(n(entry,"ChapterIndex")).bind(n(entry,"DungeonIndex")).bind(n(entry,"DungeonDifficulty")).bind(kind).bind(metric).bind(v.to_string()).execute(&mut *db).await?;
-        // Only the ranked prefix is ever served. Rows only improve and pruned
-        // rows can never re-enter, so keeping it bounds storage per dungeon
-        // without changing recommendations.
+    let (chapter, dungeon, difficulty) = (n(entry,"ChapterIndex"), n(entry,"DungeonIndex"), n(entry,"DungeonDifficulty"));
+    // Only the ranked prefix (RECOMMENDED_DECKS by metric, account) is ever
+    // served, so a record is stored only when it would rank there: fewer than
+    // that many rows are ahead of it. Both kinds in one statement; most clears
+    // neither rank nor improve and write nothing.
+    let stored: Vec<i64> = crate::db::query_scalar("INSERT INTO service_decks(account,chapter,dungeon,difficulty,kind,metric,data) \
+        SELECT $1,$2,$3,$4,r.kind,r.metric,$7 FROM (VALUES (0::bigint,$5::bigint),(1::bigint,$6::bigint)) r(kind,metric) \
+        WHERE (SELECT COUNT(*) FROM service_decks d WHERE d.chapter=$2 AND d.dungeon=$3 AND d.difficulty=$4 AND d.kind=r.kind AND (d.metric,d.account)<(r.metric,$1))<$8 \
+        ON CONFLICT(account,chapter,dungeon,difficulty,kind) DO UPDATE SET metric=excluded.metric,data=excluded.data WHERE excluded.metric<service_decks.metric RETURNING kind")
+        .bind(a).bind(chapter).bind(dungeon).bind(difficulty).bind(levels).bind(seconds).bind(v.to_string()).bind(RECOMMENDED_DECKS)
+        .fetch_all(&mut *db).await?;
+    // A stored record may push the last ranked row out: keep the prefix only,
+    // which bounds storage per dungeon without changing recommendations.
+    for kind in stored {
         crate::db::query("DELETE FROM service_decks WHERE chapter=$1 AND dungeon=$2 AND difficulty=$3 AND kind=$4 AND account NOT IN (SELECT account FROM service_decks WHERE chapter=$1 AND dungeon=$2 AND difficulty=$3 AND kind=$4 ORDER BY metric,account LIMIT $5)")
-            .bind(n(entry,"ChapterIndex")).bind(n(entry,"DungeonIndex")).bind(n(entry,"DungeonDifficulty")).bind(kind).bind(RECOMMENDED_DECKS).execute(&mut *db).await?;
+            .bind(chapter).bind(dungeon).bind(difficulty).bind(kind).bind(RECOMMENDED_DECKS).execute(&mut *db).await?;
     }
     Ok(())
 }

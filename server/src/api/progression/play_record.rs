@@ -22,17 +22,48 @@ pub(crate) async fn liberated(db: &mut PgConnection, account: i64) -> Result<()>
     Ok(())
 }
 
-pub(super) async fn snapshot(
-    db: &mut PgConnection,
-    state: &AppState,
-    account: i64,
-    view: &View,
-) -> Result<Vec<Value>> {
-    let facts: Vec<(String, i64, i64)> =
-        crate::db::query_as("SELECT kind,idx,value FROM play_record_values WHERE account_id=$1")
-            .bind(account)
-            .fetch_all(&mut *db)
-            .await?;
+/// The table lookups the records need, built once per loaded tables (a
+/// snapshot is rebuilt after most gameplay writes).
+struct Lookups {
+    /// EquipItem (PartType, DetailIndex) by ItemIndex (the last row wins).
+    equipment: std::collections::HashMap<i64, (i64, i64)>,
+    /// CampaignDungeon BattleType by (ChapterIndex, DungeonIndex) (the last row wins).
+    battle_types: std::collections::HashMap<(i64, i64), i64>,
+    /// Raid rows: (Index, (ChapterIndex, DungeonIndex)).
+    raids: Vec<(i64, (i64, i64))>,
+    /// TowerFloor rows by TowerIndex: (Floor, ChapterIndex, DungeonIndex, DungeonIndices).
+    floors: std::collections::HashMap<i64, Vec<(i64, i64, i64, Vec<i64>)>>,
+}
+fn lookups(state: &AppState) -> std::sync::Arc<Lookups> {
+    use std::sync::Arc;
+    type Cached = (Arc<crate::tables::BattleTable>, Arc<crate::tables::ExtensionTable>, Arc<Lookups>);
+    static CACHE: std::sync::Mutex<Option<Cached>> = std::sync::Mutex::new(None);
+    let mut cache = CACHE.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((battle, extensions, lookups)) = cache.as_ref() {
+        if Arc::ptr_eq(battle, &state.tables.battle) && Arc::ptr_eq(extensions, &state.tables.extensions) {
+            return lookups.clone();
+        }
+    }
+    let battle = &state.tables.battle;
+    let mut floors = std::collections::HashMap::<i64, Vec<_>>::new();
+    for f in battle.rows("TowerFloor") {
+        let indices = f["DungeonIndices"].as_array().into_iter().flatten().filter_map(Value::as_i64).collect();
+        floors.entry(n(f, "TowerIndex")).or_default().push((n(f, "Floor"), n(f, "ChapterIndex"), n(f, "DungeonIndex"), indices));
+    }
+    let lookups = Arc::new(Lookups {
+        equipment: state.tables.extensions.rows("EquipItem").iter().map(|m| (n(m, "ItemIndex"), (n(m, "PartType"), n(m, "DetailIndex")))).collect(),
+        battle_types: battle.rows("CampaignDungeon").iter().map(|d| ((n(d, "ChapterIndex"), n(d, "DungeonIndex")), n(d, "BattleType"))).collect(),
+        raids: battle.rows("Raid").iter().map(|r| (n(r, "Index"), (n(r, "ChapterIndex"), n(r, "DungeonIndex")))).collect(),
+        floors,
+    });
+    *cache = Some((state.tables.battle.clone(), state.tables.extensions.clone(), lookups.clone()));
+    lookups
+}
+
+/// Every native play record, from the loaded view only.
+pub(super) fn snapshot(state: &AppState, view: &View) -> Vec<Value> {
+    let tables = lookups(state);
+    let facts = &view.hist(super::state::part::FACTS).facts;
     let fact = |kind: &str| {
         facts
             .iter()
@@ -41,28 +72,19 @@ pub(super) async fn snapshot(
             .max()
             .unwrap_or(0)
     };
-    let created: String = crate::db::query_scalar("SELECT created_at FROM accounts WHERE account_id=$1")
-        .bind(account)
-        .fetch_one(&mut *db)
-        .await?;
     let mut records = BTreeMap::<i64, String>::new();
-    records.insert(1, created);
-    records.insert(2, view.login_days.to_string());
+    records.insert(1, view.created().to_owned());
+    records.insert(2, view.login_days().to_string());
     // Dates, not elapsed 24-hour periods; repeated logins do not advance streaks.
     let mut dates: BTreeSet<String> = view
-        .metrics
+        .metrics_of("LoginDaily")
         .iter()
         .filter(|m| m.1 == "LoginDaily" && m.4 > 0)
         .map(|m| m.0.clone())
         .collect();
-    if let Some(day) =
-        crate::db::query_scalar::<String>("SELECT last_day FROM progression_login WHERE account_id=$1")
-            .bind(account)
-            .fetch_optional(&mut *db)
-            .await?
-    {
+    if let Some(day) = view.last_login_day() {
         if !day.is_empty() {
-            dates.insert(day);
+            dates.insert(day.to_owned());
         }
     }
     let (mut streak, mut longest, mut previous) = (0, 0, None::<chrono::NaiveDate>);
@@ -81,7 +103,7 @@ pub(super) async fn snapshot(
     records.insert(3, streak.to_string());
     records.insert(4, longest.to_string());
     let chapter = view
-        .dungeons
+        .dungeons()
         .iter()
         .filter(|d| {
             d.2 > 0
@@ -96,11 +118,11 @@ pub(super) async fn snapshot(
     if let Some(c) = chapter {
         records.insert(6, c.to_string());
     }
-    records.insert(7, view.costumes.to_string());
+    records.insert(7, view.costumes().to_string());
     for (id, gachas) in [(11, [3, 4]), (12, [1, 2])] {
         records.insert(
             id,
-            view.metrics
+            view.metrics_of("ExecEquipGacha")
                 .iter()
                 .filter(|m| m.1 == "ExecEquipGacha" && gachas.contains(&m.2))
                 .map(|m| m.4)
@@ -121,7 +143,7 @@ pub(super) async fn snapshot(
     ] {
         records.insert(
             id,
-            view.heroes
+            view.heroes()
                 .iter()
                 .filter(|h| n(h, key) >= minimum)
                 .count()
@@ -130,7 +152,7 @@ pub(super) async fn snapshot(
     }
     records.insert(
         108,
-        view.heroes
+        view.heroes()
             .iter()
             .filter(|h| {
                 (1..=4).all(|i| {
@@ -141,22 +163,14 @@ pub(super) async fn snapshot(
             .count()
             .to_string(),
     );
-    let equipment: BTreeMap<_, _> = state
-        .tables
-        .extensions
-        .rows("EquipItem")
-        .iter()
-        .map(|m| (n(m, "ItemIndex"), m))
-        .collect();
     for (count_id, star_id, part, details) in [
         (201, 203, 1, vec![90001, 90003]),
         (204, 206, 5, vec![]),
         (207, 209, 7, vec![90004]),
     ] {
         let matches = |idx| {
-            equipment.get(&idx).is_some_and(|m| {
-                n(m, "PartType") == part
-                    && (details.is_empty() || details.contains(&n(m, "DetailIndex")))
+            tables.equipment.get(&idx).is_some_and(|&(part_type, detail)| {
+                part_type == part && (details.is_empty() || details.contains(&detail))
             })
         };
         records.insert(
@@ -192,7 +206,7 @@ pub(super) async fn snapshot(
         records.insert(id, fact(kind).to_string());
     }
     let clears: Vec<_> = view
-        .metrics
+        .metrics_of("ClearDungeon")
         .iter()
         .filter(|m| m.1 == "ClearDungeon" && m.4 > 0)
         .collect();
@@ -209,13 +223,11 @@ pub(super) async fn snapshot(
                 .collect(),
         ),
     ] {
-        let stages: BTreeSet<_> = state
-            .tables
-            .battle
-            .rows("Raid")
+        let stages: BTreeSet<_> = tables
+            .raids
             .iter()
-            .filter(|r| raids.contains(&n(r, "Index")))
-            .map(|r| (n(r, "ChapterIndex"), n(r, "DungeonIndex")))
+            .filter(|r| raids.contains(&r.0))
+            .map(|r| r.1)
             .collect();
         let count: i64 = clears
             .iter()
@@ -224,33 +236,10 @@ pub(super) async fn snapshot(
             .sum();
         records.insert(id, count.to_string());
     }
-    let battle_types: BTreeMap<_, _> = state
-        .tables
-        .battle
-        .rows("CampaignDungeon")
-        .iter()
-        .map(|d| {
-            (
-                (n(d, "ChapterIndex"), n(d, "DungeonIndex")),
-                n(d, "BattleType"),
-            )
-        })
-        .collect();
+    let battle_types = &tables.battle_types;
+    // Each cleared stage once, for matching tower floors.
+    let cleared: BTreeSet<(i64, i64)> = clears.iter().map(|m| (m.2, m.3)).collect();
     for (id, tower) in [(619, 21), (623, 11)] {
-        let floors: Vec<_> = state
-            .tables
-            .battle
-            .rows("TowerFloor")
-            .iter()
-            .filter(|f| n(f, "TowerIndex") == tower)
-            .collect();
-        let matches = |f: &&Value, m: &&(String, String, i64, i64, i64)| {
-            n(f, "ChapterIndex") == m.2
-                && (n(f, "DungeonIndex") == m.3
-                    || f["DungeonIndices"]
-                        .as_array()
-                        .is_some_and(|ids| ids.contains(&json!(m.3))))
-        };
         let battle_type = if tower == 21 { 14 } else { 13 };
         records.insert(
             id,
@@ -262,12 +251,13 @@ pub(super) async fn snapshot(
                 .to_string(),
         );
         if tower == 21 {
+            // A floor is cleared by its own stage or any of its DungeonIndices.
             records.insert(
                 620,
-                floors
-                    .iter()
-                    .filter(|f| clears.iter().any(|m| matches(f, m)))
-                    .map(|f| n(f, "Floor"))
+                tables.floors.get(&tower).into_iter().flatten()
+                    .filter(|(_, chapter, dungeon, dungeons)| cleared.contains(&(*chapter, *dungeon))
+                        || dungeons.iter().any(|d| cleared.contains(&(*chapter, *d))))
+                    .map(|(floor, ..)| *floor)
                     .max()
                     .unwrap_or(0)
                     .to_string(),
@@ -283,23 +273,12 @@ pub(super) async fn snapshot(
             .sum::<i64>()
             .to_string(),
     );
-    let eclipse: Option<String> = crate::db::query_scalar(
-        "SELECT data FROM battle_state WHERE account=$1 AND kind='eclipse_record' AND idx=0",
-    )
-    .bind(account)
-    .fetch_optional(&mut *db)
-    .await?;
-    let eclipse = eclipse
-        .map(|s| serde_json::from_str::<Value>(&s))
-        .transpose()
-        .map_err(|e| ServerError::Internal(e.to_string()))?;
     records.insert(
         626,
-        eclipse
-            .as_ref()
+        view.hist(super::state::part::BATTLE).battle.get("eclipse_record")
             .map(|v| n(v, "BestWave"))
             .unwrap_or(0)
             .to_string(),
     );
-    Ok(records.into_iter().map(|(index,value)|json!({"RecordIndex":index,"RecordValue":value,"UpdatedTime":state.server_time_str()})).collect())
+    records.into_iter().map(|(index,value)|json!({"RecordIndex":index,"RecordValue":value,"UpdatedTime":state.server_time_str()})).collect()
 }

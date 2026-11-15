@@ -41,15 +41,26 @@ pub(crate) use conquest::{enter as conquest_enter, finish as conquest_finish, va
 pub(crate) use warfare::{raid_enter, raid_finish, raid_validate};
 
 pub(crate) async fn guild_reward_boost(db: &mut PgConnection, s: &AppState, a: i64) -> Result<(i64, i64)> {
-    let guild_id: Option<i64> = crate::db::query_scalar("SELECT guild_id FROM guild_members WHERE account_id=$1")
+    // Membership, the guild's existence and its stored info in one read; the
+    // bonus needs only the skill levels, normalized as `guild::view` does.
+    let row: Option<(Option<i64>, Option<String>)> = crate::db::query_as("SELECT g.guild_id,(SELECT data FROM community_state WHERE owner=m.guild_id AND kind='guild' AND idx=0) \
+        FROM guild_members m LEFT JOIN guilds g ON g.guild_id=m.guild_id WHERE m.account_id=$1")
         .bind(a).fetch_optional(&mut *db).await?;
-    let Some(g) = guild_id else { return Ok((0, 0)); };
-    let info = guild::state(db, s, g).await?;
+    let Some((guild, stored)) = row else { return Ok((0, 0)); };
+    if guild.is_none() { return Err(rule("NoGuild")); }
+    let stored: Value = stored.map(|v| parse(&v)).transpose()?.unwrap_or(Value::Null);
+    let mut skills = stored["SkillInfos"].as_array().cloned().unwrap_or_default();
+    for def in s.tables.arena_guild.rows("GuildSkill") {
+        let id = n(def, "GuildSkillIndex");
+        if !skills.iter().any(|v| n(v, "SkillIndex") == id) {
+            skills.push(json!({"SkillIndex":id,"SkillLevel":1}));
+        }
+    }
     let mut result = (0, 0);
-    for skill in info["SkillInfos"].as_array().into_iter().flatten() {
+    for skill in &skills {
         let id = n(skill, "SkillIndex");
         let Some(def) = s.tables.arena_guild.find("GuildSkill", &[("GuildSkillIndex", id)]) else { continue; };
-        let Some(level) = s.tables.arena_guild.find("GuildSkillLevel", &[("GuildSkillIndex", id), ("GuildSkillLevel", n(skill, "SkillLevel"))]) else { continue; };
+        let Some(level) = s.tables.arena_guild.find("GuildSkillLevel", &[("GuildSkillIndex", id), ("GuildSkillLevel", n(skill, "SkillLevel").max(1))]) else { continue; };
         let value = level["Values"][0].as_i64().unwrap_or(0);
         match n(def, "BonusType") { 3 => result.0 += value, 1 => result.1 += value, _ => {} }
     }
@@ -256,19 +267,24 @@ fn parse<T: serde::de::DeserializeOwned>(v: &str) -> Result<T> {
     serde_json::from_str(v).map_err(|e| ServerError::Internal(e.to_string()))
 }
 async fn get(db: &mut PgConnection, a: i64, kind: &str, idx: i64) -> Result<Value> {
-    let v: Option<String> =
-        crate::db::query_scalar("SELECT data FROM community_state WHERE owner=$1 AND kind=$2 AND idx=$3")
+    use crate::api::system::prefetch;
+    let v: Option<String> = match prefetch::get(prefetch::Table::Community, a, kind, idx) {
+        Some(row) => row,
+        None => crate::db::query_scalar("SELECT data FROM community_state WHERE owner=$1 AND kind=$2 AND idx=$3")
             .bind(a)
             .bind(kind)
             .bind(idx)
             .fetch_optional(db)
-            .await?;
+            .await?,
+    };
     v.map(|v| parse(&v))
         .transpose()
         .map(|v| v.unwrap_or(Value::Null))
 }
 async fn put(db: &mut PgConnection, a: i64, kind: &str, idx: i64, v: &Value) -> Result<()> {
-    crate::db::query("INSERT INTO community_state(owner,kind,idx,data) VALUES($1,$2,$3,$4) ON CONFLICT(owner,kind,idx) DO UPDATE SET data=excluded.data").bind(a).bind(kind).bind(idx).bind(v.to_string()).execute(db).await?;
+    let data = v.to_string();
+    crate::db::query("INSERT INTO community_state(owner,kind,idx,data) VALUES($1,$2,$3,$4) ON CONFLICT(owner,kind,idx) DO UPDATE SET data=excluded.data").bind(a).bind(kind).bind(idx).bind(&data).execute(db).await?;
+    crate::api::system::prefetch::put(crate::api::system::prefetch::Table::Community, a, kind, idx, data);
     Ok(())
 }
 async fn claim(
@@ -392,6 +408,7 @@ pub(crate) async fn guild_ticket(
     amount: i64,
 ) -> Result<Value> {
     let mut info = get(db,a,"guild_ticket",0).await?;
+    let stored = info.clone();
     let current:i64 = crate::db::query_scalar("SELECT guild_raid_ticket FROM user_info WHERE account_id=$1")
         .bind(a).fetch_one(&mut *db).await?;
     info["Count"] = json!(if info.is_null(){current.max(2)}else{current});
@@ -407,9 +424,12 @@ pub(crate) async fn guild_ticket(
         let refreshed=crate::api::account::recharge::at(&saved,def,overrides,current,chrono::Utc::now(),0)?;
         saved=refreshed.0; result=refreshed.1; result["AddValue"]=json!(added);
     }
-    crate::db::query("UPDATE user_info SET guild_raid_ticket=$1 WHERE account_id=$2")
-        .bind(n(&saved,"Count")).bind(a).execute(&mut *db).await?;
-    put(db,a,"guild_ticket",0,&saved).await?;
+    // Reading the balance writes only when the recharge changed it.
+    if n(&saved,"Count") != current {
+        crate::db::query("UPDATE user_info SET guild_raid_ticket=$1 WHERE account_id=$2")
+            .bind(n(&saved,"Count")).bind(a).execute(&mut *db).await?;
+    }
+    if saved != stored { put(db,a,"guild_ticket",0,&saved).await?; }
     Ok(result)
 }
 pub(crate) async fn ensure_available(
@@ -440,5 +460,6 @@ pub(crate) async fn ensure_available(
 }
 
 pub(crate) use arena::tickets;
+pub(crate) use arena::RegisteredDeck;
 
 pub(crate) use arena::service_result as service_match_result;

@@ -10,7 +10,7 @@ impl View {
             let parts: Option<Vec<&str>> = v.iter().map(Value::as_str).collect();
             parts?.concat().parse::<i64>().ok().filter(|v| *v > 0)
         });
-        let count = |metric: &str, chapters: &[i64], types: &[i64]| self.metrics.iter()
+        let count = |metric: &str, chapters: &[i64], types: &[i64]| self.metrics_of(metric).iter()
             .filter(|(_,k,c,d,_)| k == metric && (chapters.is_empty() || chapters.contains(c))
                 && (types.is_empty() || self.battle_type(s,*c,*d).is_some_and(|t|types.contains(&t))))
             .map(|v|v.4).sum::<i64>();
@@ -31,10 +31,10 @@ impl View {
                 _ => false,
             }
         };
-        let equipped = |class: &str| self.equipment.iter().any(|e|
+        let equipped = |class: &str| self.equipment().iter().any(|e|
             equipment_matches(n(e,"ItemIndex"),class) && n(e,"InventoryType")==0 &&
-            self.equipped_slots.contains(&n(e,"SlotIndex"))) as i64;
-        let action_count = |action: &str, class: &str| self.metrics.iter()
+            self.equipped_slots().contains(&n(e,"SlotIndex"))) as i64;
+        let action_count = |action: &str, class: &str| self.metrics_of(action).iter()
             .filter(|(_,k,item,_,_)|k==action && equipment_matches(*item,class)).map(|m|m.4).sum::<i64>();
         Some(match (kind, goal) {
             ("WearEquip", "MAIN_MISSION_GOAL_16" | "MILESTONE_MISSION_GOAL_97" | "SUPERPASS_MISSION_GOAL_FREY_10" | "SUPERPASS_MISSION_GOAL_KASEL_10") => equipped("artifact"),
@@ -46,12 +46,12 @@ impl View {
             ("AwakenGear", "MILESTONE_MISSION_GOAL_50" | "MILESTONE_MISSION_GOAL_57" | "MILESTONE_MISSION_GOAL_63") => {
                 let class=match goal {"MILESTONE_MISSION_GOAL_50"=>"legendary","MILESTONE_MISSION_GOAL_57"=>"weapon",_=>"unique_treasure"};
                 let target=required()?;
-                (self.equipment.iter().any(|e|equipment_matches(n(e,"ItemIndex"),class) && n(e,"Star")>=target)
-                    || self.metrics.iter().any(|(_,k,item,star,v)|k=="AwakenGear" && *v>0 && *star>=target && equipment_matches(*item,class))) as i64
+                (self.equipment().iter().any(|e|equipment_matches(n(e,"ItemIndex"),class) && n(e,"Star")>=target)
+                    || self.metrics_of("AwakenGear").iter().any(|(_,k,item,star,v)|k=="AwakenGear" && *v>0 && *star>=target && equipment_matches(*item,class))) as i64
             }
             ("AwakenGear", "MAIN_MISSION_GOAL_25") => {
                 let target=required()?;
-                self.metrics.iter().any(|(_,k,item,star,v)|k=="AwakenGear" && *item>0 && *star>=target && *v>0) as i64
+                self.metrics_of("AwakenGear").iter().any(|(_,k,item,star,v)|k=="AwakenGear" && *item>0 && *star>=target && *v>0) as i64
             }
             ("AwakenGear", "MILESTONE_MISSION_GOAL_128") => action_count("AwakenGear","technomagic"),
             ("UpgradeEquipTier", "MILESTONE_MISSION_GOAL_129") => action_count(kind,"technomagic"),
@@ -63,7 +63,7 @@ impl View {
             ("ArtifactRestore", "MAIN_MISSION_GOAL_15" | "SUPERPASS_MISSION_GOAL_FREY_09" | "SUPERPASS_MISSION_GOAL_KASEL_09" | "MILESTONE_MISSION_GOAL_96") |
             ("EquipRune", "MAIN_MISSION_GOAL_18" | "SUPERPASS_MISSION_GOAL_CLAUSE_07" | "MILESTONE_MISSION_GOAL_55") |
             ("SoulRestore", "MAIN_MISSION_GOAL_48") | ("SoulWeaponRenewOption", "MILESTONE_MISSION_GOAL_66") => self.metric(kind,"all",None,None),
-            ("UseItem", "MAIN_MISSION_GOAL_11") => self.metrics.iter().filter(|(_,k,item,_,_)|
+            ("UseItem", "MAIN_MISSION_GOAL_11") => self.metrics_of("UsePotionItem").iter().filter(|(_,k,item,_,_)|
                 k=="UsePotionItem" && s.tables.inventory.potions.get(&(*item as i32)).is_some_and(|r|n(r,"ActionType")==3))
                 .map(|m|m.4).sum(),
             ("GiveFriendlyPoint", "MILESTONE_MISSION_GOAL_105") => {
@@ -74,7 +74,7 @@ impl View {
             ("ClearDungeon", "MAIN_MISSION_GOAL_9_1") => progress(count("ClearDungeon", &[20002], &[37])),
             ("ClearDungeon", "MILESTONE_MISSION_GOAL_115") => progress(count("ClearDungeon", &[], &[37])),
             ("ClearDungeon", "MILESTONE_MISSION_GOAL_78" | "ESTELLE_SPECIAL_MISSION_GOAL_5002110") => {
-                required().is_some_and(|target| self.guild_damage.get("raid").copied().unwrap_or(0) >= target) as i64
+                required().is_some_and(|target| self.guild_damage().get("raid").copied().unwrap_or(0) >= target) as i64
             }
             ("ClearDungeon", "MAIN_MISSION_GOAL_11582") => progress(count("ClearDungeon", &[], &[40])),
             ("ClearDungeon", "MAIN_MISSION_GOAL_11791") => progress(count("ClearDungeon", &[], &[41])),
@@ -82,7 +82,7 @@ impl View {
             ("ClearDungeon", "MAIN_MISSION_GOAL_14" | "MILESTONE_MISSION_GOAL_2" | "SUPERPASS_MISSION_GOAL_FREY_08" | "SUPERPASS_MISSION_GOAL_KASEL_08"
                 | "MAIN_MISSION_GOAL_34" | "MILESTONE_MISSION_GOAL_1") => {
                 let tower = if matches!(goal,"MAIN_MISSION_GOAL_34"|"MILESTONE_MISSION_GOAL_1") {11} else {21};
-                let floor = self.metrics.iter().filter(|(_,k,_,_,v)| k=="ClearDungeon" && *v>0)
+                let floor = self.metrics_of("ClearDungeon").iter().filter(|(_,k,_,_,v)| k=="ClearDungeon" && *v>0)
                     .filter_map(|(_,_,c,d,_)|self.tower_floor(s,tower,*c,*d))
                     .max().unwrap_or(0);
                 required().is_some_and(|target| floor>=target) as i64

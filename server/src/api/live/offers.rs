@@ -32,8 +32,12 @@ pub(super) async fn purchases(
     a: i64,
 ) -> Result<Vec<Value>> {
     let mut out = vec![];
+    // First active product per index, as `products(s).find` per record gave,
+    // without rescanning the catalog for every purchase record.
+    let mut by_index = std::collections::HashMap::new();
+    for d in products(s) { by_index.entry(n(d, "Index")).or_insert(d); }
     for stored in list(db, a, "product").await? {
-        if let Some(d) = products(s).find(|d| n(d, "Index") == n(&stored, "ProductIndex")) {
+        if let Some(&d) = by_index.get(&n(&stored, "ProductIndex")) {
             // Include a zero ledger after a reset, replacing yesterday's count
             // in a client that has stayed connected across the reset boundary.
             out.push(if n(&stored, "Period") == period(d) { stored } else { ledger(db, a, d).await? });
@@ -181,10 +185,16 @@ fn wire_product_with(s: &AppState, mut product: Value, configured: Option<&Value
 
 /// Lobby products converted to wire form once per loaded table set. Only the
 /// discounted price is account/time dependent; it is applied per request.
-type WiredCatalog = (std::sync::Arc<crate::tables::GameTables>, std::sync::Arc<Vec<(Value, bool)>>);
+pub(super) struct Wired {
+    /// (wire product, has an account-dependent discounted price).
+    products: Vec<(Value, bool)>,
+    /// SHA-256 of the serialized products: the static part of the catalog token.
+    digest: Vec<u8>,
+}
+type WiredCatalog = (std::sync::Arc<crate::tables::GameTables>, std::sync::Arc<Wired>);
 static LOBBY_CATALOG: std::sync::Mutex<Option<WiredCatalog>> = std::sync::Mutex::new(None);
 
-fn wired_lobby_catalog(s: &AppState) -> Result<std::sync::Arc<Vec<(Value, bool)>>> {
+fn wired_lobby_catalog(s: &AppState) -> Result<std::sync::Arc<Wired>> {
     let mut cache = LOBBY_CATALOG.lock().unwrap_or_else(|e| e.into_inner());
     if let Some((tables, wired)) = cache.as_ref() {
         if std::sync::Arc::ptr_eq(tables, &s.tables) {
@@ -193,10 +203,19 @@ fn wired_lobby_catalog(s: &AppState) -> Result<std::sync::Arc<Vec<(Value, bool)>
     }
     // Selection-shop offers are delivered by their native popup request.
     // Their cached rows still need the same enum-name conversion there.
-    let wired = std::sync::Arc::new(products(s)
+    let products = products(s)
         .filter(|data| data["SelectionCategory"].is_null())
         .map(|data| Ok((wire_product_with(s, data.clone(), Some(data))?, n(data, "DiscountLimit") > 0)))
-        .collect::<Result<Vec<_>>>()?);
+        .collect::<Result<Vec<_>>>()?;
+    let digest = {
+        use sha2::{Digest, Sha256};
+        let mut digest = Sha256::new();
+        for (product, _) in &products {
+            digest.update(serde_json::to_vec(product).map_err(|e| ServerError::Internal(e.to_string()))?);
+        }
+        digest.finalize().to_vec()
+    };
+    let wired = std::sync::Arc::new(Wired { products, digest });
     *cache = Some((s.tables.clone(), wired.clone()));
     Ok(wired)
 }
@@ -204,8 +223,8 @@ fn wired_lobby_catalog(s: &AppState) -> Result<std::sync::Arc<Vec<(Value, bool)>
 /// Read-only: safe on a reader connection (no selection-shop rolls).
 pub(super) async fn lobby_snapshot(db: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
     let wired = wired_lobby_catalog(s)?;
-    let mut out = Vec::with_capacity(wired.len());
-    for (product, discounted) in wired.iter() {
+    let mut out = Vec::with_capacity(wired.products.len());
+    for (product, discounted) in wired.products.iter() {
         let mut product = product.clone();
         if *discounted {
             // Wire conversion never touches Price; same result as pricing first.
@@ -215,6 +234,40 @@ pub(super) async fn lobby_snapshot(db: &mut PgConnection, s: &AppState, a: i64) 
         out.push(product);
     }
     Ok(json!({"PayShopProductInfos":out,"PlayerProductPurchaseInfos":purchases(db,s,a).await?}))
+}
+
+/// The compact lobby's catalog. Its token covers the session, the static wired
+/// catalog and every discounted price, the only inputs of PayShopProductInfos,
+/// so it changes exactly when that list would. An acknowledged catalog (~1 MB)
+/// is then neither copied nor serialized again.
+pub(super) async fn conditional_lobby_snapshot(db: &mut PgConnection, s: &AppState, a: i64, session: &str, acknowledged: &str) -> Result<Value> {
+    let wired = wired_lobby_catalog(s)?;
+    let mut prices = Vec::new();
+    for (product, discounted) in wired.products.iter() {
+        if *discounted { prices.push(price(db, a, product).await?.0); }
+    }
+    let token = catalog_token(session, &wired.digest, &prices);
+    let mut out = json!({"PlayerProductPurchaseInfos":purchases(db,s,a).await?});
+    if token != acknowledged {
+        let mut prices = prices.into_iter();
+        out["PayShopProductInfos"] = Value::Array(wired.products.iter().map(|(product, discounted)| {
+            let mut product = product.clone();
+            if *discounted { product["Price"] = json!(prices.next()); }
+            product
+        }).collect());
+    }
+    out["SprkShopCatalogToken"] = json!(token);
+    Ok(out)
+}
+
+pub(crate) fn catalog_token(session: &str, digest: &[u8], prices: &[i64]) -> String {
+    use sha2::{Digest, Sha256};
+    let mut hash = Sha256::new();
+    hash.update((session.len() as u64).to_le_bytes());
+    hash.update(session.as_bytes());
+    hash.update(digest);
+    for price in prices { hash.update(price.to_le_bytes()); }
+    hex::encode(hash.finalize())
 }
 
 #[cfg(test)]

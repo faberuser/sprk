@@ -22,8 +22,8 @@ async fn profile_snapshot() {
         let c: Vec<Value> = state.tables.progression.clear_missions.iter().map(|r| json!({"P":view.quest(&state,r),"L":view.last("clear",n(r,"Index"),"all")})).collect();
         let clear = t.elapsed();
         let t = Instant::now(); let o = opened_mission_categories(&state, &view); let cats = t.elapsed();
-        let t = Instant::now(); let p = play_record::snapshot(&mut conn, &state, account, &view).await.unwrap(); let play = t.elapsed();
-        let t = Instant::now(); let at = attendance::snapshot(&mut conn, &state, account, &view).await.unwrap(); let att = t.elapsed();
+        let t = Instant::now(); let p = play_record::snapshot(&state, &view); let play = t.elapsed();
+        let t = Instant::now(); let at = attendance::from_view(&state, &view); let att = t.elapsed();
         let t = Instant::now(); let full = snapshot(&mut conn, &state, account).await.unwrap(); let total = t.elapsed();
         println!("round {round}: load={load:?} achievements={ach:?}({}) subquests={sub:?}({}) clear={clear:?}({}) categories={cats:?} play_records={play:?}({}) attendance={att:?} | full snapshot={total:?} bytes={}",
             a.len(), s.len(), c.len(), p.len(), serde_json::to_vec(&full).unwrap().len());

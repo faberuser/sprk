@@ -173,10 +173,16 @@ pub(crate) async fn notify(
     let Ok(bytes) = to_bytes(body, 16 * 1024 * 1024).await else {
         return Response::builder().status(500).body(Body::empty()).unwrap();
     };
-    let Ok(mut value) = serde_json::from_slice::<Value>(&bytes) else {
+    // Only the result codes decide whether to synchronize; the whole body
+    // (100+ KB with a progression snapshot) is parsed only to add updates.
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "PascalCase")]
+    struct Status { base_result: Option<Value>, result: Option<Value> }
+    let Ok(status) = serde_json::from_slice::<Status>(&bytes) else {
         return Response::from_parts(parts, Body::from(bytes));
     };
-    if value["BaseResult"] != "Success" || value["Result"] != "Success" {
+    let success = Some(json!("Success"));
+    if status.base_result != success || status.result != success {
         return Response::from_parts(parts, Body::from(bytes));
     }
     let result = async {
@@ -201,6 +207,9 @@ pub(crate) async fn notify(
     .await;
     match result {
         Ok((updates, team_buffs)) if !updates.is_empty() || !team_buffs.is_empty() => {
+            let Ok(mut value) = serde_json::from_slice::<Value>(&bytes) else {
+                return Response::from_parts(parts, Body::from(bytes));
+            };
             // Full equipment snapshots (e.g. applying presets) must agree with
             // reserved updates regardless of the client's callback ordering.
             update_snapshots(&mut value, &updates);

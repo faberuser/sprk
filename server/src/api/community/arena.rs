@@ -64,6 +64,7 @@ pub(crate) async fn tickets(
     amount: i64,
 ) -> Result<Value> {
     let mut v = get(db, a, "tickets", if kind == "Sword" { 0 } else { 1 }).await?;
+    let stored = v.clone();
     if kind == "Sword" {
         let current:i64 = crate::db::query_scalar("SELECT sword FROM user_info WHERE account_id=$1")
             .bind(a).fetch_one(&mut *db).await?;
@@ -83,9 +84,12 @@ pub(crate) async fn tickets(
             result["AddValue"] = json!(added);
         }
         saved["Value"] = saved["Count"].clone();
-        crate::db::query("UPDATE user_info SET sword=$1 WHERE account_id=$2")
-            .bind(n(&saved,"Count")).bind(a).execute(&mut *db).await?;
-        put(db,a,"tickets",0,&saved).await?;
+        // Reading the balance writes only when the recharge changed it.
+        if n(&saved,"Count") != current {
+            crate::db::query("UPDATE user_info SET sword=$1 WHERE account_id=$2")
+                .bind(n(&saved,"Count")).bind(a).execute(&mut *db).await?;
+        }
+        if saved != stored { put(db,a,"tickets",0,&saved).await?; }
         return Ok(result);
     }
     let defaults = settings(
@@ -318,7 +322,7 @@ async fn ranked_row(db: &mut PgConnection, s: &AppState, season: i64, kind: i64,
         json!({"Rank":rank,"TotalRank":rank,"TierRank":rank,"TierIndex":tier(s,kind,rank+1,score),"MatchScore":score,"SeasonWin":wins,"SeasonLose":losses,"ServerGroup":"local","CountryCode":"US"}),
     );
     u["UserInfo"] = u.clone();
-    u["HeroInfos"] = ranking_deck(db, account, season, kind).await?;
+    u["HeroInfos"] = ranking_deck(db, s, account, season, kind).await?;
     Ok(u)
 }
 /// One account's leaderboard row (as in `ranking_kind`), or None when it is
@@ -337,22 +341,55 @@ async fn ranked_count(db: &mut PgConnection, season: i64, kind: i64) -> Result<i
         .bind(kind).bind(season).fetch_one(db).await?;
     Ok(count.min(RANKED_LIMIT))
 }
-async fn ranking_deck(db: &mut PgConnection, account: i64, season: i64, kind: i64) -> Result<Value> {
+/// A completed run's formation with each Hero's registered (Star, Level), or
+/// None for a Hero missing from its registration. A run's formation and
+/// registration never change once it is complete, so this is cached per run.
+pub(crate) type RegisteredDeck = std::sync::Arc<Vec<(i64, Option<(Value, Value)>)>>;
+const REGISTERED_DECKS_KEPT: usize = 4096;
+
+async fn ranking_deck(db: &mut PgConnection, s: &AppState, account: i64, season: i64, kind: i64) -> Result<Value> {
     // Honor registration contains the eligible collection, not the final four.
     // Its draft persists the actual combat formation in Heroes before loading.
     // Never substitute another league/season, a friendly duel or a random team.
-    // Older Honor rows hold whole collections inline (~1.5 MB; newer ones use
-    // arena_snapshots). Filter on the trigger-kept
-    // `season`/`squad` columns (squad = non-friendly with 1-4 Heroes) so no
-    // rejected row is JSON-parsed, then extract only the formation's Heroes.
-    let saved: Option<(i64,String)> = crate::db::query_as("SELECT id,sprk_json_text(data,'$.Heroes') FROM arena_runs WHERE account=$1 AND kind=$2 AND status='complete' AND season=$3 AND squad=1 ORDER BY id DESC LIMIT 1")
+    // Filter on the trigger-kept `season`/`squad` columns (squad = non-friendly
+    // with 1-4 Heroes); the newest run is found without parsing any JSON.
+    let run: Option<i64> = crate::db::query_scalar("SELECT id FROM arena_runs WHERE account=$1 AND kind=$2 AND status='complete' AND season=$3 AND squad=1 ORDER BY id DESC LIMIT 1")
         .bind(account).bind(kind).bind(season).fetch_optional(&mut *db).await?;
-    let Some((run, heroes)) = saved else { return Ok(json!([])); };
+    let Some(run) = run else { return Ok(json!([])); };
+    let cached = s.registered_decks.lock().unwrap_or_else(|e| e.into_inner()).get(&run).cloned();
+    let deck = match cached {
+        Some(deck) => deck,
+        None => {
+            let deck = std::sync::Arc::new(registered_deck(db, run).await?);
+            let mut decks = s.registered_decks.lock().unwrap_or_else(|e| e.into_inner());
+            if decks.len() >= REGISTERED_DECKS_KEPT { decks.clear(); }
+            decks.insert(run, deck.clone());
+            deck
+        }
+    };
+    let mut result = vec![];
+    for (id, registered) in deck.iter() {
+        if let Some((star, level)) = registered {
+            result.push(json!({"Index":id,"Star":star,"Level":level}));
+        } else if let Some((star,level)) = crate::db::query_as::<(i64,i64)>("SELECT star,level FROM heroes WHERE account_id=$1 AND hero_index=$2")
+            .bind(account).bind(id).fetch_optional(&mut *db).await? {
+            result.push(json!({"Index":id,"Star":star,"Level":level}));
+        }
+    }
+    Ok(json!(result))
+}
+/// Read a completed run's formation and its Heroes' registered Star/Level.
+async fn registered_deck(db: &mut PgConnection, run: i64) -> Result<Vec<(i64, Option<(Value, Value)>)>> {
+    // Older Honor rows hold whole collections inline (~1.5 MB; newer ones use
+    // arena_snapshots): extract only the formation's Heroes.
+    let heroes: Option<String> = crate::db::query_scalar("SELECT sprk_json_text(data,'$.Heroes') FROM arena_runs WHERE id=$1")
+        .bind(run).fetch_one(&mut *db).await?;
+    let Some(heroes) = heroes else { return Ok(vec![]); };
     let heroes: Value = parse(&heroes)?;
     let mut seen = std::collections::BTreeSet::new();
     let ids: Vec<i64> = heroes.as_array().into_iter().flatten().filter_map(Value::as_i64)
         .filter(|id| *id > 0 && seen.insert(*id)).collect();
-    if ids.is_empty() { return Ok(json!([])); }
+    if ids.is_empty() { return Ok(vec![]); }
     // One JSON array of the requested Heroes (null for a missing one), after a
     // leading null so indices start at 1. The document is parsed once.
     let paths = (1..=ids.len()).map(|i| format!("d.doc #> sprk_json_path(${i})")).collect::<Vec<_>>().join(",");
@@ -362,17 +399,10 @@ async fn ranking_deck(db: &mut PgConnection, account: i64, season: i64, kind: i6
     let mut query = crate::db::query_scalar::<String>(sqlx::AssertSqlSafe(sql.as_str()));
     for id in &ids { query = query.bind(format!("$.HeroInfos.\"{id}\"")); }
     let registered: Value = parse(&query.bind(run).fetch_one(&mut *db).await?)?;
-    let mut result = vec![];
-    for (i, id) in ids.into_iter().enumerate() {
+    Ok(ids.into_iter().enumerate().map(|(i, id)| {
         let hero = &registered[i + 1];
-        if !hero.is_null() {
-            result.push(json!({"Index":id,"Star":hero["Star"],"Level":hero["Level"]}));
-        } else if let Some((star,level)) = crate::db::query_as::<(i64,i64)>("SELECT star,level FROM heroes WHERE account_id=$1 AND hero_index=$2")
-            .bind(account).bind(id).fetch_optional(&mut *db).await? {
-            result.push(json!({"Index":id,"Star":star,"Level":level}));
-        }
-    }
-    Ok(json!(result))
+        (id, (!hero.is_null()).then(|| (hero["Star"].clone(), hero["Level"].clone())))
+    }).collect())
 }
 pub(super) async fn battle_info(db: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
     battle_info_kind(db, s, a, 0).await

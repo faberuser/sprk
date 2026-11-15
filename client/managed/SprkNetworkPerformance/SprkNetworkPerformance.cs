@@ -212,6 +212,10 @@ public static class SprkNetworkPerformance
 			dictionary.Remove(key);
 		}
 		dictionary["X-SPRK-Sections"] = "1";
+		// Every AchievementInfos consumer merges by index (AccountAttrManager.Set),
+		// so a changed list may carry only the entries that changed since the
+		// acknowledged one; its token still names the full list.
+		dictionary["X-SPRK-Achievement-Delta"] = "1";
 		dictionary["X-SPRK-Context"] = text;
 		lock (gate)
 		{

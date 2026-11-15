@@ -331,14 +331,18 @@ fn roll(chance: i64, scale: i64) -> bool {
 }
 
 pub(crate) async fn get(db: &mut PgConnection, account: i64, kind: &str, id: i64) -> Result<Value> {
-    let text: Option<String> = crate::db::query_scalar(
-        "SELECT data FROM extension_state WHERE account_id=$1 AND kind=$2 AND idx=$3",
-    )
-    .bind(account)
-    .bind(kind)
-    .bind(id)
-    .fetch_optional(db)
-    .await?;
+    use crate::api::system::prefetch;
+    let text: Option<String> = match prefetch::get(prefetch::Table::Extension, account, kind, id) {
+        Some(row) => row,
+        None => crate::db::query_scalar(
+            "SELECT data FROM extension_state WHERE account_id=$1 AND kind=$2 AND idx=$3",
+        )
+        .bind(account)
+        .bind(kind)
+        .bind(id)
+        .fetch_optional(db)
+        .await?,
+    };
     text.map(|s| serde_json::from_str(&s).map_err(|e| ServerError::Internal(e.to_string())))
         .transpose()
         .map(|v| v.unwrap_or(Value::Null))
@@ -350,7 +354,9 @@ pub(crate) async fn put(
     id: i64,
     value: &Value,
 ) -> Result<()> {
-    crate::db::query("INSERT INTO extension_state(account_id,kind,idx,data) VALUES($1,$2,$3,$4) ON CONFLICT(account_id,kind,idx) DO UPDATE SET data=excluded.data").bind(account).bind(kind).bind(id).bind(value.to_string()).execute(db).await?;
+    let data = value.to_string();
+    crate::db::query("INSERT INTO extension_state(account_id,kind,idx,data) VALUES($1,$2,$3,$4) ON CONFLICT(account_id,kind,idx) DO UPDATE SET data=excluded.data").bind(account).bind(kind).bind(id).bind(&data).execute(db).await?;
+    crate::api::system::prefetch::put(crate::api::system::prefetch::Table::Extension, account, kind, id, data);
     Ok(())
 }
 pub(crate) async fn list(

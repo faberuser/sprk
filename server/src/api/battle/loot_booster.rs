@@ -549,10 +549,7 @@ pub(super) async fn percent(
         }
     }
     let battle = campaign::dungeon(s, r)?["BattleType"].clone();
-    item::normalize_booster_timers(db, s, a).await?;
-    let timers: Vec<i32> = crate::db::query_scalar(
-        "SELECT item_index FROM item_boosters WHERE account_id=$1 AND start_time<=sprk_datetime('now') AND end_time>sprk_datetime('now')",
-    ).bind(a).fetch_all(db).await?;
+    let timers = item::active_boosters(db, s, a, true).await?;
     let mut percent = if active(entry) { 100_i64 } else { 0 };
     for id in timers {
         if let Some(b) = s.tables.inventory.booster_effect(id) {

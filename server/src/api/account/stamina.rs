@@ -66,15 +66,19 @@ pub(crate) async fn chicken_cap(
     a: i64,
     team_level: i64,
 ) -> Result<(i64, i64)> {
+    let ids: Vec<i32> = crate::db::query_scalar("SELECT hero_index FROM heroes WHERE account_id=$1")
+        .bind(a)
+        .fetch_all(&mut *db)
+        .await?;
+    chicken_cap_of(s, team_level, &ids)
+}
+/// `chicken_cap` for the owned hero indices `ids`.
+fn chicken_cap_of(s: &AppState, team_level: i64, ids: &[i32]) -> Result<(i64, i64)> {
     let team = s
         .tables
         .services
         .find("TeamLevel", &[("Level", team_level)])
         .ok_or_else(|| rule("Fail"))?;
-    let ids: Vec<i32> = crate::db::query_scalar("SELECT hero_index FROM heroes WHERE account_id=$1")
-        .bind(a)
-        .fetch_all(&mut *db)
-        .await?;
     let cap = n(team, "MaxStamina")
         + ids
             .iter()
@@ -84,17 +88,18 @@ pub(crate) async fn chicken_cap(
     Ok((cap, n(team, "RechargeStaminaSec").max(1)))
 }
 pub(crate) async fn chicken(db: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
+    // The balance, its level and the owned heroes (cap bonuses) in one read.
     let row = crate::db::query(
-        "SELECT stamina,stamina_recharge_time,team_level FROM user_info WHERE account_id=$1",
+        "SELECT stamina,stamina_recharge_time,team_level,COALESCE((SELECT json_agg(hero_index) FROM heroes WHERE account_id=$1),'[]')::text AS heroes FROM user_info WHERE account_id=$1",
     )
     .bind(a)
     .fetch_one(&mut *db)
     .await?;
-    let (cap, interval) = chicken_cap(db, s, a, row.get("team_level")).await?;
+    let (cap, interval) = chicken_cap_of(s, row.get("team_level"), &serde_json::from_str::<Vec<i32>>(&row.get::<String, _>("heroes")).map_err(|e| crate::error::ServerError::Internal(e.to_string()))?)?;
     let now = s.server_time();
     let old = row.get::<i64, _>("stamina");
-    let last = row.get::<i64, _>("stamina_recharge_time");
-    let last = if last <= 0 || last > now { now } else { last };
+    let stored = row.get::<i64, _>("stamina_recharge_time");
+    let last = if stored <= 0 || stored > now { now } else { stored };
     let added = if old < cap {
         ((now - last) / interval).min(cap - old)
     } else {
@@ -106,12 +111,15 @@ pub(crate) async fn chicken(db: &mut PgConnection, s: &AppState, a: i64) -> Resu
     } else {
         last + added * interval
     };
-    crate::db::query("UPDATE user_info SET stamina=$1,stamina_recharge_time=$2 WHERE account_id=$3")
-        .bind(value)
-        .bind(anchor)
-        .bind(a)
-        .execute(db)
-        .await?;
+    // Reading the balance writes only when the recharge changed it.
+    if value != old || anchor != stored {
+        crate::db::query("UPDATE user_info SET stamina=$1,stamina_recharge_time=$2 WHERE account_id=$3")
+            .bind(value)
+            .bind(anchor)
+            .bind(a)
+            .execute(db)
+            .await?;
+    }
     let next = if value < cap {
         interval - (now - anchor)
     } else {
@@ -137,12 +145,21 @@ pub(crate) async fn snapshot(
     Ok(v)
 }
 pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
+    use crate::api::system::prefetch;
     let mut tx = crate::database::begin(&s.db).await?;
     crate::api::inventory::item::init(&mut tx, s, a).await?;
-    let mut out = vec![];
-    for k in (1..=30).filter(|k| !matches!(k, 3 | 4 | 7)) {
-        out.push(snapshot(&mut tx, s, a, k).await?);
-    }
+    // Every type reads its key and recharge-count rows: one statement per table.
+    let rows = prefetch::Rows::default()
+        .load(&mut tx, prefetch::Table::Battle, a, &["key"]).await?
+        .load(&mut tx, prefetch::Table::Extension, a, &["stamina_recharges"]).await?
+        .load(&mut tx, prefetch::Table::Community, a, &["tickets", "guild_ticket"]).await?;
+    let out = prefetch::scope(rows, async {
+        let mut out = vec![];
+        for k in (1..=30).filter(|k| !matches!(k, 3 | 4 | 7)) {
+            out.push(snapshot(&mut tx, s, a, k).await?);
+        }
+        Ok::<_, crate::error::ServerError>(out)
+    }).await?;
     tx.commit().await?;
     Ok(json!(out))
 }

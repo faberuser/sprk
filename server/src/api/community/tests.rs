@@ -210,6 +210,13 @@ async fn arena_rankings_share_standings_and_show_only_the_competitive_season_squ
         let previous = call(&s,&users[1],"global_arena/get_world_ranker",&format!("{args}&SeasonIndex={}",season-1)).await;
         assert!(previous["Rankers"].as_array().unwrap().is_empty());
     }
+    // Formations are cached per completed run: a newer run replaces the old one.
+    let data = json!({"Season":season,"DuelType":0,"Heroes":[1],"Register":{"AccountInfo":{"HeroInfos":snapshot}}});
+    crate::db::query("INSERT INTO arena_runs(account,kind,status,started,data) VALUES($1,0,'complete',$2,$3)")
+        .bind(a).bind(now()).bind(data.to_string()).execute(&s.db).await.unwrap();
+    let newer = call(&s,&users[0],"global_arena/get_world_ranker","ArenaType=Normal&StartRank=0&EndRank=99").await;
+    let mine = newer["Rankers"].as_array().unwrap().iter().find(|r|r["UserInfo"]["AccountId"]==a).unwrap();
+    assert_eq!(mine["HeroInfos"].as_array().unwrap().iter().map(|h|h["Index"].clone()).collect::<Vec<_>>(),vec![json!(1)]);
 }
 
 #[tokio::test]

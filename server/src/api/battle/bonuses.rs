@@ -9,13 +9,7 @@ pub(crate) async fn calculate(
 ) -> Result<(i64, i64)> {
     let honor_gold = crate::api::inventory::honor_buff::bonus(db, s).await?;
     let guild_bonus = crate::api::community::guild_reward_boost(db, s, a).await?;
-    crate::api::inventory::item::normalize_booster_timers(db, s, a).await?;
-    let active: Vec<i32> = crate::db::query_scalar(
-        "SELECT item_index FROM item_boosters WHERE account_id=$1 AND end_time>sprk_datetime('now')",
-    )
-    .bind(a)
-    .fetch_all(&mut *db)
-    .await?;
+    let active = crate::api::inventory::item::active_boosters(db, s, a, false).await?;
     let (mut gold, mut exp) = (0, 0);
     for id in active {
         if let Some(b) = s.tables.inventory.booster_effect(id) {

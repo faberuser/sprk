@@ -94,10 +94,6 @@ pub(crate) async fn login(state: &AppState, account: i64) -> Result<Value> {
     Ok(out)
 }
 /// Read-only: whether `touch_day` would write nothing (today is already counted).
-async fn day_touched(db: &mut PgConnection, account: i64) -> Result<bool> {
-    Ok(crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM progression_login WHERE account_id=$1 AND last_day=sprk_date('now'))")
-        .bind(account).fetch_one(db).await?)
-}
 async fn touch_day(db: &mut PgConnection, account: i64) -> Result<()> {
     let changed=crate::db::query("INSERT INTO progression_login(account_id,days,last_day) VALUES($1,1,sprk_date('now')) ON CONFLICT(account_id) DO UPDATE SET days=progression_login.days+1,last_day=excluded.last_day WHERE progression_login.last_day!=excluded.last_day").bind(account).execute(&mut *db).await?.rows_affected();
     if changed > 0 {
@@ -111,46 +107,110 @@ pub(crate) async fn snapshot(
     account: i64,
 ) -> Result<Value> {
     let view = View::load(db, account).await?;
-    let play_records = play_record::snapshot(db, state, account, &view).await?;
+    Ok(build(state, view, None).0)
+}
+
+/// A snapshot's view and what each of its sections read, kept by `cache` so
+/// the next snapshot re-evaluates only sections whose inputs changed. The
+/// section values themselves are the snapshot's (`AchievementInfos`,
+/// `SubQuestInfos`, `PlayRecordInfos`, in the same order).
+pub(crate) struct Built {
+    view: View,
+    sections: Sections,
+}
+pub(crate) struct Sections {
+    achievements: Vec<(i64, state::Deps)>,
+    subquests: Vec<(i64, state::Deps)>,
+    play_records: state::Deps,
+}
+
+thread_local! {
+    /// Sections evaluated (not reused) by `build` on this thread (tests and
+    /// the incremental snapshot's debug trace).
+    pub(super) static EVALUATED: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+fn evaluated() {
+    EVALUATED.with(|c| c.set(c.get() + 1));
+}
+
+/// Evaluate a snapshot from `view`. With `previous` (built from the same
+/// tables on the same day) and what changed since, sections whose recorded
+/// inputs are unchanged are reused instead of evaluated again.
+fn build(state: &AppState, view: View, previous: Option<(Sections, Value, &state::Deps)>) -> (Value, Built) {
+    let groups = state::mission_groups(state);
+    let tables = &state.tables.progression;
+    let (old, mut old_value, changed) = match previous {
+        Some((sections, value, changed)) => (Some(sections), value, Some(changed)),
+        None => (None, Value::Null, None),
+    };
+    let mut take = |key: &str| match old_value[key].take() { Value::Array(values) => values, _ => vec![] };
+    let (old_achievements, old_subquests, old_play) = match old {
+        Some(Sections { achievements, subquests, play_records }) => (Some(achievements), Some(subquests), Some(play_records)),
+        None => (None, None, None),
+    };
+    let (old_achievement_values, old_subquest_values, old_play_values) =
+        (take("AchievementInfos"), take("SubQuestInfos"), take("PlayRecordInfos"));
+    // Same tables, so the previous sections are in the same order: reuse a
+    // section (moving its value) unless something it read changed.
+    let sections = |groups: &[(i64, Vec<usize>)], old: Option<Vec<(i64, state::Deps)>>, values: Vec<Value>,
+                    evaluate: &dyn Fn(i64, &[usize]) -> Value| {
+        let mut previous = old.filter(|o| o.len() == groups.len() && values.len() == groups.len())
+            .map(|o| o.into_iter().zip(values));
+        let mut deps = Vec::with_capacity(groups.len());
+        let mut out = Vec::with_capacity(groups.len());
+        for (id, rows) in groups {
+            match previous.as_mut().and_then(Iterator::next) {
+                Some(((old_id, old_deps), value)) if old_id == *id && !changed.is_some_and(|c| old_deps.affected_by(c)) => {
+                    deps.push((*id, old_deps));
+                    out.push(value);
+                }
+                _ => {
+                    evaluated();
+                    let (value, read) = state::tracked(|| evaluate(*id, rows));
+                    deps.push((*id, read));
+                    out.push(value);
+                }
+            }
+        }
+        (deps, out)
+    };
+    let (achievements, achievement_values) = sections(&groups.achievements, old_achievements, old_achievement_values,
+        &|id, rows| view.achievement_info(state, id, &state::rows_of(&tables.achievements, rows)));
+    let (subquests, subquest_values) = sections(&groups.sub_quests, old_subquests, old_subquest_values,
+        &|id, rows| view.subquest_info(state, id, &state::rows_of(&tables.sub_quests, rows)));
+    let play_records = match old_play {
+        Some(deps) if !changed.is_some_and(|c| deps.affected_by(c)) => {
+            let mut records = old_play_values;
+            // UpdatedTime is the observation time, not an evaluated input.
+            for record in &mut records { record["UpdatedTime"] = json!(state.server_time_str()); }
+            (deps, records)
+        }
+        _ => { evaluated(); let (records, deps) = state::tracked(|| play_record::snapshot(state, &view)); (deps, records) }
+    };
+    let claims = view.claims_all();
     let mut chapter = std::collections::BTreeMap::<i64, i64>::new();
-    for c in view.claims.iter().filter(|c| c.0 == "chapter") {
+    for c in claims.iter().filter(|c| c.0 == "chapter") {
         *chapter.entry(c.1).or_default() |= 1 << c.2;
     }
-    let mut out = json!({"AchievementInfos":view.achievement_infos(state),"SubQuestInfos":view.subquest_infos(state),"MainQuestInfo":{"Step":0,"Progress":0},"LoginDailyCount":view.login_days,
-        "LoginDailyInfos":view.claims.iter().filter(|c|c.0=="login").map(|c|json!({"LoginDailyIndex":c.1,"CompletedCount":1,"CompletedTime":c.4})).collect::<Vec<_>>(),
-        "NewbieMissionInfos":view.claims.iter().filter(|c|c.0=="newbie").map(|c|json!({"MissionIndex":c.1,"UpdateTime":c.4})).collect::<Vec<_>>(),
+    let mut out = json!({"AchievementInfos":achievement_values,
+        "SubQuestInfos":subquest_values,
+        "MainQuestInfo":{"Step":0,"Progress":0},"LoginDailyCount":view.login_days(),
+        "LoginDailyInfos":claims.iter().filter(|c|c.0=="login").map(|c|json!({"LoginDailyIndex":c.1,"CompletedCount":1,"CompletedTime":c.4})).collect::<Vec<_>>(),
+        "NewbieMissionInfos":claims.iter().filter(|c|c.0=="newbie").map(|c|json!({"MissionIndex":c.1,"UpdateTime":c.4})).collect::<Vec<_>>(),
         "ChapterRewardInfos":chapter.into_iter().map(|(id,mask)|json!({"ChapterIndex":id,"LastRewardDiff":mask})).collect::<Vec<_>>(),
-        "ClearMissionInfos":state.tables.progression.clear_missions.iter().map(|r|json!({"MissionIndex":n(r,"Index"),"LastStep":view.last("clear",n(r,"Index"),"all"),"Progress":view.quest(state,r),"RewardedTime":view.claims.iter().find(|c|c.0=="clear"&&c.1==n(r,"Index")).map(|c|c.4.clone())})).collect::<Vec<_>>()});
+        "ClearMissionInfos":state.tables.progression.clear_missions.iter().map(|r|json!({"MissionIndex":n(r,"Index"),"LastStep":view.last("clear",n(r,"Index"),"all"),"Progress":view.quest(state,r),"RewardedTime":claims.iter().find(|c|c.0=="clear"&&c.1==n(r,"Index")).map(|c|c.4.clone())})).collect::<Vec<_>>()});
     out["OpendMissionCategories"] = opened_mission_categories(state, &view);
-    out["PlayRecordInfos"] = json!(play_records);
-    let main: Option<(i64, i64)> =
-        crate::db::query_as("SELECT step,progress FROM progression_main_quest WHERE account_id=$1")
-            .bind(account)
-            .fetch_optional(&mut *db)
-            .await?;
-    if let Some((step, progress)) = main {
+    let (play_deps, play_values) = play_records;
+    out["PlayRecordInfos"] = json!(play_values);
+    if let Some((step, progress)) = view.main_quest() {
         out["MainQuestInfo"] = json!({"Step":step,"Progress":progress});
     }
-    let (attendance_datas, attendance_infos) = attendance::snapshot(db, state, account, &view).await?;
+    let (attendance_datas, attendance_infos) = attendance::from_view(state, &view);
     out["AttendanceDatas"] = json!(attendance_datas);
-    let products: Vec<(i64, String)> = crate::db::query_as(
-        "SELECT product_index,created_time FROM progression_entitlements WHERE account_id=$1",
-    )
-    .bind(account)
-    .fetch_all(&mut *db)
-    .await?;
-    out["PlayerProductPurchaseInfos"] = json!(products.iter().map(|(id,time)| json!({"ProductIndex":id,"PurchasedCount":1,"PurchasedTime":time,"StartTime":time})).collect::<Vec<_>>());
+    out["PlayerProductPurchaseInfos"] = json!(view.entitlements().iter().map(|(id,time)| json!({"ProductIndex":id,"PurchasedCount":1,"PurchasedTime":time,"StartTime":time})).collect::<Vec<_>>());
     out["AttendanceInfos"] = json!(attendance_infos);
-    let events: Vec<String> =
-        crate::db::query_scalar("SELECT data FROM progression_world_events WHERE account_id=$1")
-            .bind(account)
-            .fetch_all(db)
-            .await?;
-    out["WorldMapEventInfos"] = json!(events
-        .iter()
-        .filter_map(|s| serde_json::from_str::<Value>(s).ok())
-        .collect::<Vec<_>>());
-    Ok(out)
+    out["WorldMapEventInfos"] = json!(view.world_events());
+    (out, Built { view, sections: Sections { achievements, subquests, play_records: play_deps } })
 }
 pub(crate) async fn mission_categories(
     db: &mut PgConnection,
@@ -177,12 +237,11 @@ pub(super) async fn handle(state: AppState, body: Bytes, action: &str) -> Result
     touch_day(&mut tx, account).await?;
     match execute(&mut tx, &state, account, &req, action).await {
         Ok(mut out) => {
-            // Build the refreshed snapshot after commit on a reader (it sees the
-            // claim): under the writer it held every other request for ~400 ms.
+            // Refresh the snapshot after commit on a reader (it sees the claim):
+            // the session cache re-evaluates only the missions the claim changed.
             tx.commit().await?;
-            let mut reads = state.reads.begin().await?;
-            let snapshot = snapshot(&mut reads, &state, account).await?;
-            reads.commit().await?;
+            let session_key = req.0.get("SessionKey").or(req.0.get("SessionId")).map(String::as_str).unwrap_or("");
+            let snapshot = cache::get(&state, session_key, account).await?;
             for (wire, field) in [
                 ("AchievementInfos", "AchievementInfos"),
                 ("ReservedMainQuestInfo", "MainQuestInfo"),
@@ -191,7 +250,6 @@ pub(super) async fn handle(state: AppState, body: Bytes, action: &str) -> Result
             ] {
                 out[wire] = snapshot[field].clone();
             }
-            let session_key = req.0.get("SessionKey").or(req.0.get("SessionId")).map(String::as_str).unwrap_or("");
             out["ReservedSubQuestInfos"] = json!(notifications::subquest_updates(&state, session_key, &snapshot["SubQuestInfos"]));
             Ok(Json(out))
         }
@@ -547,7 +605,7 @@ async fn execute(
                 table.clear_products.iter().any(|p| {
                     n(p, "ProductGroupIndex") == n(row, "ProductGroupIndex")
                         && (n(p, "PurchaseType") != 2
-                            || view.entitlements.contains(&n(p, "PayShopProductIndex")))
+                            || view.entitled(n(p, "PayShopProductIndex")))
                         && view.condition(&p["MissionOpenCondition"])
                 })
             } else {
@@ -566,7 +624,7 @@ async fn execute(
                             n(p, "PurchaseType") == 2
                                 && n(p, "RewardType") == 6
                                 && n(p, "ProductGroupIndex") == n(row, "ProductGroupIndex")
-                                && view.entitlements.contains(&n(p, "PayShopProductIndex"))
+                                && view.entitled(n(p, "PayShopProductIndex"))
                         })
                         .count()
                         >= needed
@@ -614,7 +672,7 @@ async fn execute(
                 .ok_or_else(|| rule("ChapterClearRewardDataNotFound"))?;
             if !(0..=7).contains(&step)
                 || view
-                    .claims
+                    .claims_all()
                     .iter()
                     .any(|c| c.0 == "chapter" && c.1 == id && c.2 == step)
             {
@@ -656,7 +714,7 @@ async fn execute(
                 .map(|h| json!({"HeroInfo":h,"TeamExpResult":r["ExpResultInfos"].get(0)}))
                 .unwrap_or(Value::Null);
             let mask = view
-                .claims
+                .claims_all()
                 .iter()
                 .filter(|c| c.0 == "chapter" && c.1 == id)
                 .fold(1 << step, |m, c| m | (1 << c.2));

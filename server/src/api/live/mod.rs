@@ -312,6 +312,17 @@ pub(crate) async fn shop_snapshot(s: &AppState, a: i64) -> Result<Value> {
     Ok(value)
 }
 
+/// `shop_snapshot` for a compact lobby client holding catalog token `acknowledged`.
+pub(crate) async fn lobby_shop_snapshot(s: &AppState, a: i64, session: &str, acknowledged: &str) -> Result<Value> {
+    let mut tx = s.reads.begin().await?;
+    let value = offers::conditional_lobby_snapshot(&mut tx, s, a, session, acknowledged).await?;
+    tx.commit().await?;
+    Ok(value)
+}
+
+#[cfg(test)]
+pub(crate) use offers::catalog_token;
+
 pub(crate) async fn validate_purchase_dungeon(
     db: &mut PgConnection,
     s: &AppState,

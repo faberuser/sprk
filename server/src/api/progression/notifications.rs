@@ -102,8 +102,9 @@ pub async fn notify(State(state): State<AppState>, request: HttpRequest, next: N
             // can replace just one section independently of that combined state.
             if headers.get("x-sprk-sections").is_some_and(|v| v == "1") {
                 for (wire, field) in SNAPSHOT_FIELDS { value[wire] = updates[field].clone(); }
-                let login = state.get_session(&session_key).map(|s| s.login_sections.clone());
-                conditional_sections_after_login(&mut value, &session_key, &headers, login.as_deref());
+                let info = state.get_session(&session_key);
+                conditional_sections_with_deltas(&mut value, &session_key, &headers,
+                    info.as_ref().map(|s| &*s.login_sections), info.as_ref().map(|s| &*s.delivered_achievements));
             } else {
                 append_snapshots(&mut value, &updates, &session_key, &acknowledged);
             }
@@ -124,8 +125,9 @@ pub async fn notify(State(state): State<AppState>, request: HttpRequest, next: N
 }
 
 /// A client acknowledges only a snapshot it has received. Lost responses and
-/// new sessions therefore cause a full resend. Achievements replace native state,
-/// so never send a partial AchievementInfos array.
+/// new sessions therefore cause a full resend. The native client merges
+/// AchievementInfos by index; only a client that asks for it
+/// (`x-sprk-achievement-delta`) is sent just the changed entries.
 const SNAPSHOT_FIELDS: [(&str, &str); 4] = [
     ("AchievementInfos", "AchievementInfos"),
     ("ReservedMainQuestInfo", "MainQuestInfo"),
@@ -163,17 +165,67 @@ pub(crate) fn section_token(session: &str, wire: &str, snapshot: &Value) -> Stri
 pub(crate) fn remember_login_sections(state: &AppState, session: &str, achievements: &Value) {
     if let Some(info) = state.sessions.get(session) {
         let token = section_token(session, "AchievementInfos", achievements);
+        remember_achievements(&info.delivered_achievements, &token, achievements);
         info.login_sections.lock().unwrap_or_else(|e| e.into_inner()).insert("AchievementInfos".into(), token);
     }
+}
+
+/// Achievement lists recently delivered to one session: (section token, a
+/// digest of every entry by AchievementIndex), oldest first.
+pub(crate) type DeliveredAchievements = std::collections::VecDeque<(String, std::sync::Arc<std::collections::BTreeMap<i64, [u8; 16]>>)>;
+/// A client acknowledges the newest list it applied; a few older ones cover
+/// replies that were lost or are still in flight.
+const DELIVERED_ACHIEVEMENTS_KEPT: usize = 4;
+
+/// Each entry's digest by AchievementIndex; None when an entry has no index.
+fn achievement_digests(snapshot: &Value) -> Option<std::collections::BTreeMap<i64, [u8; 16]>> {
+    use sha2::{Digest, Sha256};
+    snapshot.as_array()?.iter().map(|entry| {
+        let digest = Sha256::digest(serde_json::to_vec(entry).ok()?);
+        Some((entry["AchievementIndex"].as_i64()?, digest[..16].try_into().ok()?))
+    }).collect()
+}
+
+fn remember_achievements(delivered: &std::sync::Mutex<DeliveredAchievements>, token: &str, snapshot: &Value) {
+    let Some(digests) = achievement_digests(snapshot) else { return; };
+    let mut delivered = delivered.lock().unwrap_or_else(|e| e.into_inner());
+    if delivered.iter().any(|(t, _)| t == token) { return; }
+    delivered.push_back((token.to_owned(), std::sync::Arc::new(digests)));
+    while delivered.len() > DELIVERED_ACHIEVEMENTS_KEPT { delivered.pop_front(); }
+}
+
+/// The entries of `snapshot` that differ from the list delivered as `held`,
+/// or None (send everything) when that list is unknown or lost an entry.
+fn achievement_delta(delivered: &std::sync::Mutex<DeliveredAchievements>, held: &str, snapshot: &Value) -> Option<Vec<Value>> {
+    let base = delivered.lock().unwrap_or_else(|e| e.into_inner()).iter().find(|(t, _)| t == held)?.1.clone();
+    let current = achievement_digests(snapshot)?;
+    if base.keys().any(|index| !current.contains_key(index)) { return None; }
+    Some(snapshot.as_array()?.iter()
+        .filter(|entry| entry["AchievementIndex"].as_i64().is_some_and(|index| base.get(&index) != current.get(&index)))
+        .cloned().collect())
 }
 
 /// `login` holds tokens delivered by this session's login reply. A client
 /// without its own token for a section is treated as holding that baseline,
 /// until the section is acknowledged or sent in full again (a full resend may
 /// be lost, so after it only the client's acknowledgement counts).
+#[cfg(test)]
 pub(crate) fn conditional_sections_after_login(value: &mut Value, session: &str, headers: &axum::http::HeaderMap,
     login: Option<&std::sync::Mutex<std::collections::BTreeMap<String, String>>>) {
+    conditional_sections_with_deltas(value, session, headers, login, None)
+}
+
+/// `conditional_sections_after_login`; with `delivered` (the session's recent
+/// achievement lists) and a client that merges partial lists
+/// (`x-sprk-achievement-delta: 1`), a changed achievement list carries only
+/// the entries that differ from the list the client holds: the one it
+/// acknowledged, or else its login list. The token is always the full list's,
+/// so applying the reply leaves the client holding exactly that list.
+pub(crate) fn conditional_sections_with_deltas(value: &mut Value, session: &str, headers: &axum::http::HeaderMap,
+    login: Option<&std::sync::Mutex<std::collections::BTreeMap<String, String>>>,
+    delivered: Option<&std::sync::Mutex<DeliveredAchievements>>) {
     if !headers.get("x-sprk-sections").is_some_and(|v| v == "1") { return; }
+    let deltas = delivered.filter(|_| headers.get("x-sprk-achievement-delta").is_some_and(|v| v == "1"));
     for (wire, name, header) in [
         ("AchievementInfos", "SprkAchievementToken", "x-sprk-achievements"),
         ("ReservedMainQuestInfo", "SprkMainQuestToken", "x-sprk-main-quest"),
@@ -184,6 +236,8 @@ pub(crate) fn conditional_sections_after_login(value: &mut Value, session: &str,
         let token = section_token(session, wire, snapshot);
         let acknowledged = headers.get(header).and_then(|h| h.to_str().ok());
         let mut baseline = login.map(|m| m.lock().unwrap_or_else(|e| e.into_inner()));
+        // The list the client holds: acknowledged, or else the login reply's.
+        let held = acknowledged.map(str::to_owned).or_else(|| baseline.as_ref().and_then(|b| b.get(wire).cloned()));
         let delivered = baseline.as_ref().and_then(|b| b.get(wire)).is_some_and(|t| *t == token);
         if acknowledged.is_some() { if let Some(b) = baseline.as_mut() { b.remove(wire); } }
         if acknowledged == Some(token.as_str()) {
@@ -194,6 +248,13 @@ pub(crate) fn conditional_sections_after_login(value: &mut Value, session: &str,
             value[name] = json!(token);
         } else {
             if let Some(b) = baseline.as_mut() { b.remove(wire); }
+            if let (Some(delivered), "AchievementInfos") = (deltas, wire) {
+                let snapshot = value[wire].clone();
+                if let Some(changed) = held.and_then(|held| achievement_delta(delivered, &held, &snapshot)) {
+                    value[wire] = json!(changed);
+                }
+                remember_achievements(delivered, &token, &snapshot);
+            }
             value[name] = json!(token);
         }
     }
@@ -219,6 +280,68 @@ fn append_snapshots(value: &mut Value, updates: &Value, session: &str, acknowled
 #[cfg(test)]
 mod tests {
     use super::*;
+    /// The client merges AchievementInfos by index (`AccountAttrManager.Set`).
+    fn merge(held: &Value, reply: &Value) -> Value {
+        let mut list: Vec<Value> = held.as_array().unwrap().clone();
+        for entry in reply.as_array().unwrap() {
+            match list.iter_mut().find(|e| e["AchievementIndex"] == entry["AchievementIndex"]) {
+                Some(old) => *old = entry.clone(),
+                None => list.push(entry.clone()),
+            }
+        }
+        json!(list)
+    }
+    /// The client asks for achievement deltas on every request.
+    #[test]
+    fn the_client_opts_in_to_achievement_deltas() {
+        let source = include_str!("../../../../client/managed/SprkNetworkPerformance/SprkNetworkPerformance.cs");
+        assert!(source.contains("dictionary[\"X-SPRK-Achievement-Delta\"] = \"1\";"));
+    }
+    #[test]
+    fn opted_in_clients_get_only_changed_achievements_relative_to_the_list_they_hold() {
+        let list = |progress: [i64; 3]| json!((1..=3).map(|i| json!({"AchievementIndex":i,"LastStep":0,"Achievement":progress[i as usize - 1]})).collect::<Vec<_>>());
+        let (v1, v2, v3) = (list([0, 0, 0]), list([0, 5, 0]), list([0, 5, 9]));
+        let token = |v: &Value| section_token("session", "AchievementInfos", v);
+        let login = std::sync::Mutex::new(std::collections::BTreeMap::from([("AchievementInfos".to_string(), token(&v1))]));
+        let delivered = std::sync::Mutex::new(DeliveredAchievements::default());
+        remember_achievements(&delivered, &token(&v1), &v1);
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert("x-sprk-sections", "1".parse().unwrap());
+        headers.insert("x-sprk-achievement-delta", "1".parse().unwrap());
+        let reply = |snapshot: &Value, headers: &axum::http::HeaderMap| {
+            let mut value = json!({"AchievementInfos": snapshot});
+            conditional_sections_with_deltas(&mut value, "session", headers, Some(&login), Some(&delivered));
+            value
+        };
+        // Holding the login list (nothing acknowledged yet): one changed entry.
+        let first = reply(&v2, &headers);
+        assert_eq!(first["AchievementInfos"], json!([v2[1]]));
+        assert_eq!(first["SprkAchievementToken"], json!(token(&v2)), "the token is the full list's");
+        assert_eq!(merge(&v1, &first["AchievementInfos"]), v2);
+        // Acknowledged v2: only what changed since v2.
+        headers.insert("x-sprk-achievements", token(&v2).parse().unwrap());
+        let second = reply(&v3, &headers);
+        assert_eq!(second["AchievementInfos"], json!([v3[2]]));
+        assert_eq!(merge(&v2, &second["AchievementInfos"]), v3);
+        // That reply was lost: the client still acknowledges v2 and gets the same delta.
+        assert_eq!(reply(&v3, &headers)["AchievementInfos"], second["AchievementInfos"]);
+        // An unknown list, a list without an entry it held, or a client that
+        // did not opt in gets everything.
+        headers.insert("x-sprk-achievements", "0".repeat(64).parse().unwrap());
+        assert_eq!(reply(&v3, &headers)["AchievementInfos"], v3);
+        headers.insert("x-sprk-achievements", token(&v3).parse().unwrap());
+        let shorter = json!([v3[0], v3[1]]);
+        assert_eq!(reply(&shorter, &headers)["AchievementInfos"], shorter);
+        let mut legacy = headers.clone();
+        legacy.remove("x-sprk-achievement-delta");
+        legacy.insert("x-sprk-achievements", token(&v2).parse().unwrap());
+        assert_eq!(reply(&v1, &legacy)["AchievementInfos"], v1);
+        // Only a few recent lists are kept.
+        for step in 10..20 { remember_achievements(&delivered, &format!("{step:064}"), &v1); }
+        headers.insert("x-sprk-achievements", token(&v2).parse().unwrap());
+        assert_eq!(reply(&v3, &headers)["AchievementInfos"], v3);
+        assert!(delivered.lock().unwrap().len() <= DELIVERED_ACHIEVEMENTS_KEPT);
+    }
     #[test]
     fn login_baseline_omits_resend_until_acknowledged_or_replaced() {
         let achievements = json!([{"AchievementIndex":1,"LastStep":2}]);

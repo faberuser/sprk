@@ -8,10 +8,10 @@ pub(crate) async fn unlock_team_buffs(
     state: &AppState,
     account: i64,
 ) -> Result<Vec<Value>> {
-    let level: i64 = crate::db::query_scalar("SELECT team_level FROM user_info WHERE account_id=$1")
+    // The team level and the unlocked buffs in one read.
+    let (level, existing): (i64, String) = crate::db::query_as("SELECT team_level,COALESCE((SELECT json_agg(idx) FROM extension_state WHERE account_id=$1 AND kind='team_buff'),'[]')::text FROM user_info WHERE account_id=$1")
         .bind(account).fetch_one(&mut *db).await?;
-    let existing: BTreeSet<i64> = crate::db::query_scalar("SELECT idx FROM extension_state WHERE account_id=$1 AND kind='team_buff'")
-        .bind(account).fetch_all(&mut *db).await?.into_iter().collect();
+    let existing: BTreeSet<i64> = serde_json::from_str(&existing).map_err(|e| ServerError::Internal(e.to_string()))?;
     let mut added = Vec::new();
     for row in &state.tables.inventory.team_levels {
         let open_level = n(row, "Level");
