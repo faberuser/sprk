@@ -231,7 +231,7 @@ pub(super) async fn execute(
                 settings(s, "GuildContributionPoint", 100),
             )
             .await?;
-            out["GuildPointResult"] = points;
+            out["GuildPointResult"] = super::guild_point_result(db, a, points).await?;
             info["ActivityPoint"] = json!(n(&info, "ActivityPoint") + activity);
             info["ContributedGem"] = json!(after);
             m["AccActivityPoint"] = json!(n(&m, "AccActivityPoint") + activity);

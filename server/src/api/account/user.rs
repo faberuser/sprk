@@ -743,7 +743,7 @@ pub async fn login(
         login_daily_infos: progression["LoginDailyInfos"].as_array().cloned().unwrap_or_default(),
         player_archive_infos: vec![],
         player_currency_infos: battle["PlayerCurrencyInfos"].as_array().cloned().unwrap_or_default(),
-        guild_point_info: serde_json::json!({"GuildPoint":community["GuildPoint"],"DailyAccGuildPoint":0,"DailyAccGuildPointResetTime":(chrono::Utc::now().date_naive()+chrono::Duration::days(1)).format("%Y-%m-%d 00:00:00").to_string()}),
+        guild_point_info: serde_json::json!({"GuildPoint":community["GuildPoint"],"DailyAccGuildPoint":community["DailyAccGuildPoint"].as_i64().unwrap_or(0),"DailyAccGuildPointResetTime":(chrono::Utc::now().date_naive()+chrono::Duration::days(1)).format("%Y-%m-%d 00:00:00").to_string()}),
         newbie_mission_infos: progression["NewbieMissionInfos"].as_array().cloned().unwrap_or_default(),
         free_equip_gacha_infos: free_gacha.as_array().cloned().unwrap_or_default(),
         equip_gacha_infos: gacha.as_array().cloned().unwrap_or_default(),

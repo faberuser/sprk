@@ -476,7 +476,7 @@ pub(crate) async fn settle(
     }
     if exp_cost > 0 {
         out["ExpResult2"] = dungeons::stamina_exp(db, s, a, exp_cost).await?;
-        let award = dungeons::eclipse_points(db, s, a, exp_cost).await?;
+        let award = dungeons::stamina_awards(db, s, a, exp_cost).await?;
         dungeons::attach_eclipse_points(out, &award);
     }
     if flask_cost > 0 {fill_stamina_flasks(db,s,a,entry,flask_cost,out).await?;}

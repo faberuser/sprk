@@ -105,13 +105,38 @@ pub(super) async fn view(db: &mut PgConnection, s: &AppState, g: i64) -> Result<
 pub(super) fn contribution_day(s: &AppState) -> String {
     time(now() - constant(s, "GuildContributeResetHour", 3) * 3600)[..10].into()
 }
-pub(super) async fn member(db: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
-    let (g, role) = membership(db, a).await?;
-    let mut u = user(db, a).await?;
+/// Start date of the current personal activity week. Native resets each
+/// member's AccActivityPoint on GuildMemberAccActivityPointResetDOW (.NET
+/// DayOfWeek, Saturday = 6) at the guild day boundary; the guild total stays.
+pub(super) fn activity_week(s: &AppState) -> String {
+    use chrono::Datelike;
+    let reset_dow = constant(s, "GuildMemberAccActivityPointResetDOW", 6).rem_euclid(7);
+    let day = (chrono::Utc::now()
+        - chrono::Duration::hours(constant(s, "GuildContributeResetHour", 3)))
+    .date_naive();
+    let back = (day.weekday().num_days_from_sunday() as i64 - reset_dow).rem_euclid(7);
+    (day - chrono::Duration::days(back)).format("%Y-%m-%d").to_string()
+}
+/// Stored per-member guild state, with the weekly activity reset applied.
+pub(super) async fn member_state(db: &mut PgConnection, s: &AppState, a: i64, g: i64) -> Result<Value> {
     let mut v = get(db, a, "guild_member", g).await?;
     if v.is_null() {
         v = json!({"AccActivityPoint":0,"AccSuppressPoint":0,"AccWood":0,"AccStone":0,"AccMetal":0,"ReqGuildSkill":0,"BidRaidIndex":0,"BidRaidRewardItemIndex":0,"BidRaidRewardTime":null});
     }
+    let week = activity_week(s);
+    if v["ActivityWeek"] != week {
+        // Rows saved before weekly tracking existed keep their score once.
+        if !v["ActivityWeek"].is_null() {
+            v["AccActivityPoint"] = json!(0);
+        }
+        v["ActivityWeek"] = json!(week);
+    }
+    Ok(v)
+}
+pub(super) async fn member(db: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
+    let (g, role) = membership(db, a).await?;
+    let mut u = user(db, a).await?;
+    let mut v = member_state(db, s, a, g).await?;
     if v["Day"] != contribution_day(s) {
         v["Day"] = json!(contribution_day(s));
     }

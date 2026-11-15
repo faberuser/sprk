@@ -335,7 +335,7 @@ async fn execute(
         if kind == "FriendshipPoint" {
             out["FriendshipPointResult"] = currency;
         } else if kind == "GuildPoint" {
-            out["GuildPointResult"] = currency;
+            out["GuildPointResult"] = crate::api::community::guild_point_result(db, account, currency).await?;
         } else if kind == "RoyalPoint" {
             out["RoyalPointResult"] = currency;
         } else {

@@ -140,3 +140,54 @@ async fn guild_attendance_missed_day_resets_streak_and_legacy_empty_card_starts_
     assert_eq!(claim["GuildMemberAttendanceInfo"]["SuccessiveCount"], 1);
     assert_eq!(claim["GuildMemberAttendanceInfo"]["MaxSuccessiveCount"], 10);
 }
+
+#[tokio::test]
+async fn spent_stamina_earns_guild_and_weekly_member_activity() {
+    let s=setup().await;let u=login(&s,"guild-stamina").await;
+    let a=n(&u["UserInfo"],"AccountId");let g=create(&s,&u,"Stamina",1).await;
+    crate::db::query("UPDATE user_info SET stamina=100 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
+    let mut db=s.db.acquire().await.unwrap();
+    let before=n(&guild::state(&mut db,&s,g).await.unwrap(),"ActivityPoint");
+    let mine=n(&guild::member(&mut db,&s,a).await.unwrap(),"AccActivityPoint");
+    let rate=settings(&s,"GuildActivityPerStamina",1);
+    // The shared stamina charge used by campaign, raid and dispatch settlement.
+    let charged=crate::api::battle::charge_key(&mut db,&s,a,1,10).await.unwrap();
+    assert_eq!(charged["AddValue"],-10,"{charged}");
+    use chrono::Datelike;
+    let week=chrono::NaiveDate::parse_from_str(&guild::activity_week(&s),"%Y-%m-%d").unwrap();
+    assert_eq!(week.weekday(),chrono::Weekday::Sat,"GuildMemberAccActivityPointResetDOW=6");
+    let award=&charged["EclipsePointAward"];
+    assert_eq!(award["GuildActivityPointResult"]["NewValue"],before+10*rate,"{award}");
+    assert_eq!(award["GuildMemberAccActivityPointResult"]["AddValue"],10*rate);
+    assert_eq!(award["GuildMemberAccActivityPointResult"]["NewValue"],mine+10*rate);
+    assert_eq!(n(&guild::state(&mut db,&s,g).await.unwrap(),"ActivityPoint"),before+10*rate);
+    let exp:i64=crate::db::query_scalar("SELECT exp FROM guilds WHERE guild_id=$1").bind(g).fetch_one(&mut *db).await.unwrap();
+    assert_eq!(exp,before+10*rate);
+    assert_eq!(n(&guild::member(&mut db,&s,a).await.unwrap(),"AccActivityPoint"),mine+10*rate);
+    // A new week clears the personal score but the guild keeps its total.
+    let mut m=get(&mut db,a,"guild_member",g).await.unwrap();
+    m["ActivityWeek"]=json!("2000-01-01");put(&mut db,a,"guild_member",g,&m).await.unwrap();
+    assert_eq!(n(&guild::member(&mut db,&s,a).await.unwrap(),"AccActivityPoint"),0);
+    assert_eq!(n(&guild::state(&mut db,&s,g).await.unwrap(),"ActivityPoint"),before+10*rate);
+    // Guild Coins: the creator is Guild Master, earning and capping 20% more.
+    let coins=&award["GuildPointResult"];
+    assert_eq!(coins["AddValue"],12,"{award}");assert_eq!(coins["AddDailyAccValue"],12);assert_eq!(coins["NewDailyAccValue"],12);
+    assert_eq!(daily_guild_point(&mut db,a).await.unwrap(),12);
+    let today=chrono::Utc::now().format("%Y-%m-%d").to_string();
+    put(&mut db,a,"guild_point_daily",0,&json!({"Day":today,"Acc":1195})).await.unwrap();
+    let capped=crate::api::battle::charge_key(&mut db,&s,a,1,10).await.unwrap();
+    assert_eq!(capped["EclipsePointAward"]["GuildPointResult"]["AddValue"],5,"master cap is 1200");
+    let full=crate::api::battle::charge_key(&mut db,&s,a,1,10).await.unwrap();
+    assert!(full["EclipsePointAward"]["GuildPointResult"].is_null(),"{full}");
+    assert!(!full["EclipsePointAward"]["GuildActivityPointResult"].is_null(),"activity has no daily cap");
+    // A regular member earns 1:1 up to 1000.
+    crate::db::query("UPDATE guild_members SET role=0 WHERE account_id=$1").bind(a).execute(&mut *db).await.unwrap();
+    put(&mut db,a,"guild_point_daily",0,&json!({"Day":"2000-01-01","Acc":1000})).await.unwrap();
+    let member=crate::api::battle::charge_key(&mut db,&s,a,1,10).await.unwrap();
+    assert_eq!(member["EclipsePointAward"]["GuildPointResult"]["AddValue"],10,"yesterday's total resets");
+    put(&mut db,a,"guild_point_daily",0,&json!({"Day":today,"Acc":995})).await.unwrap();
+    let member=crate::api::battle::charge_key(&mut db,&s,a,1,10).await.unwrap();
+    assert_eq!(member["EclipsePointAward"]["GuildPointResult"]["AddValue"],5,"member cap is 1000");
+    // Free charges and players outside a guild earn nothing.
+    assert!(crate::api::battle::charge_key(&mut db,&s,a,1,0).await.unwrap()["EclipsePointAward"]["GuildActivityPointResult"].is_null());
+}

@@ -417,7 +417,7 @@ pub(super) async fn execute(
                 {
                     return Err(rule("WrongItemCount"));
                 }
-                out["GuildPointResult"] = hero::currency(
+                let paid = hero::currency(
                     db,
                     a,
                     "GuildPoint",
@@ -426,6 +426,7 @@ pub(super) async fn execute(
                         .ok_or_else(|| rule("WrongItemCount"))?,
                 )
                 .await?;
+                out["GuildPointResult"] = super::guild_point_result(db, a, paid).await?;
                 let mut rw = Rewards::default();
                 item::give(
                     db,
