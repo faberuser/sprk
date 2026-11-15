@@ -14,6 +14,9 @@ pub struct SessionInfo {
     /// Section tokens for snapshots the login reply already delivered. Used
     /// only until the client acknowledges or receives that section again.
     pub(crate) login_sections: Arc<std::sync::Mutex<std::collections::BTreeMap<String, String>>>,
+    /// Achievement lists recently delivered to this client, for sending only
+    /// the entries that changed since the one it holds.
+    pub(crate) delivered_achievements: Arc<std::sync::Mutex<crate::api::progression::notifications::DeliveredAchievements>>,
     #[allow(dead_code)]
     pub session_key: String,
     #[allow(dead_code)]
@@ -37,6 +40,8 @@ pub struct AppState {
     pub conquest: Arc<crate::api::battle::cooperative::BattleHub>,
     pub sessions: Arc<DashMap<String, SessionInfo>>,
     pub(crate) hero_equipment_lookup: Arc<std::sync::Mutex<crate::api::inventory::hero_level::Lookup>>,
+    /// Completed arena runs' formations (community::arena::ranking_deck).
+    pub(crate) registered_decks: Arc<std::sync::Mutex<std::collections::HashMap<i64, crate::api::community::RegisteredDeck>>>,
     #[allow(dead_code)]
     pub server_start_time: chrono::DateTime<chrono::Utc>,
     pub tables: Arc<GameTables>,
@@ -54,6 +59,7 @@ impl AppState {
             conquest: Arc::new(crate::api::battle::cooperative::BattleHub::default()),
             sessions: Arc::new(DashMap::new()),
             hero_equipment_lookup: Arc::new(std::sync::Mutex::new(Default::default())),
+            registered_decks: Arc::new(std::sync::Mutex::new(Default::default())),
             server_start_time: chrono::Utc::now(),
             tables: Arc::new(tables),
         }
@@ -79,6 +85,7 @@ impl AppState {
             progression_cache: Arc::new(tokio::sync::Mutex::new(None)),
             equipment_revision: Arc::new(std::sync::Mutex::new(None)),
             login_sections: Arc::new(std::sync::Mutex::new(std::collections::BTreeMap::new())),
+            delivered_achievements: Arc::new(std::sync::Mutex::new(Default::default())),
             session_key: session_key.clone(),
             aes_key,
             login_time: now,

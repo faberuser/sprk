@@ -1,5 +1,5 @@
 use super::*;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 fn request(user:&Value)->GiveRewardHeroInnRouletteRequest {
     GiveRewardHeroInnRouletteRequest {session_id:None,session_key:Some(user["UserInfo"]["SessionKey"].as_str().unwrap().into()),roulette_index:Some("1".into())}
@@ -20,7 +20,13 @@ async fn inn_roulette_all_sections_credit_once_and_enforce_daily_quota() {
         let after:(i64,i64,i64)=crate::db::query_as("SELECT gold,gem,friendship_point FROM user_info WHERE account_id=$1").bind(account).fetch_one(&s.db).await.unwrap();
         let value=reward.value1 as i64;
         assert_eq!(after,(before.0+if reward.type1=="Gold"{value}else{0},before.1+if reward.type1=="Gem"{value}else{0},before.2+if reward.type1=="FriendshipPoint"{value}else{0}));
-        if reward.type1=="Gem" {assert_eq!(out.currency_results.unwrap()[0].new_value,after.1+4000);}
+        if reward.type1=="Gem" {
+            // The native client reads NewSysGem/NewPayGem, not NewValue; without
+            // them both partitions display as 0 until the next ruby result.
+            let gem=serde_json::to_value(&out.currency_results.as_ref().unwrap()[0]).unwrap();
+            assert_eq!(gem["NewValue"],after.1+4000);
+            assert_eq!((&gem["Field1"],&gem["Value1"],&gem["Field2"],&gem["Value2"]),(&json!("NewSysGem"),&json!(after.1),&json!("NewPayGem"),&json!(4000)),"{gem}");
+        }
         let duplicate=spin_roulette(s.clone(),request(&user),section).await.unwrap().0;
         assert_eq!(duplicate.result,"NoMoreRoulette");
         assert_eq!(crate::db::query_scalar::<i64>("SELECT spin_count FROM hero_inn_roulette_spins WHERE account_id=$1").bind(account).fetch_one(&s.db).await.unwrap(),1);

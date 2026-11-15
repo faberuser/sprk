@@ -632,6 +632,23 @@ async fn punishment_rune_crafting_equipping_preservation_and_break_are_atomic() 
             assert_eq!(cached["PunishmentRuneOptionInfos"], json!([rolled.clone()]));
             let saved = crate::api::services::records::snapshot(&mut db, a, &[1]).await.unwrap();
             assert_eq!(saved["Heroes"][0]["PunishmentRuneOptionInfos"], json!([rolled.clone()]));
+            // The batched party snapshot equals the per-hero assembly it replaced.
+            let party: Vec<i64> = crate::db::query_scalar("SELECT hero_index FROM heroes WHERE account_id=$1 ORDER BY hero_index DESC")
+                .bind(a).fetch_all(&mut *db).await.unwrap();
+            let (mut heroes, mut equips, mut seen) = (vec![], vec![], std::collections::BTreeSet::new());
+            for id in &party {
+                let mut h = crate::api::heroes::info(&mut db, a, *id as i32).await.unwrap();
+                h["PunishmentRuneOptionInfos"] = crate::api::extensions::punishment::options(&mut db, a, &h).await.unwrap();
+                for part in 1..=10 {
+                    let slot = n(&h, &format!("EquipItemSlotIndex{part}"));
+                    if slot > 0 && seen.insert(slot) { equips.push(json!(crate::api::extensions::equip(&mut db, a, slot).await.unwrap())); }
+                }
+                heroes.push(h);
+            }
+            let batched = crate::api::services::records::snapshot(&mut db, a, &party).await.unwrap();
+            assert_eq!(batched, json!({"AccountId":a.to_string(),"Heroes":heroes,"EquipItems":equips}));
+            assert!(!party.is_empty());
+            assert!(crate::api::services::records::snapshot(&mut db, a, &[1, 999_999]).await.is_err(), "a missing hero fails");
         }
         let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test"))
             .await.unwrap().0;

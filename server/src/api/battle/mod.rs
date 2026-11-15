@@ -299,13 +299,16 @@ fn day() -> String {
     chrono::Utc::now().format("%Y-%m-%d").to_string()
 }
 pub(crate) async fn get(db: &mut PgConnection, a: i64, kind: &str, idx: i64) -> Result<Value> {
-    let data: Option<String> =
-        crate::db::query_scalar("SELECT data FROM battle_state WHERE account=$1 AND kind=$2 AND idx=$3")
+    use crate::api::system::prefetch;
+    let data: Option<String> = match prefetch::get(prefetch::Table::Battle, a, kind, idx) {
+        Some(row) => row,
+        None => crate::db::query_scalar("SELECT data FROM battle_state WHERE account=$1 AND kind=$2 AND idx=$3")
             .bind(a)
             .bind(kind)
             .bind(idx)
             .fetch_optional(db)
-            .await?;
+            .await?,
+    };
     Ok(data
         .map(|v| read_json(&v))
         .transpose()?
@@ -326,16 +329,21 @@ pub(crate) fn campaign_inspection_deck(s: &AppState, entry: &Value, played: i64)
     Some(deck)
 }
 pub(crate) async fn put(db: &mut PgConnection, a: i64, kind: &str, idx: i64, v: &Value) -> Result<()> {
-    crate::db::query("INSERT INTO battle_state(account,kind,idx,data) VALUES($1,$2,$3,$4) ON CONFLICT(account,kind,idx) DO UPDATE SET data=excluded.data").bind(a).bind(kind).bind(idx).bind(v.to_string()).execute(db).await?;
+    let data = v.to_string();
+    crate::db::query("INSERT INTO battle_state(account,kind,idx,data) VALUES($1,$2,$3,$4) ON CONFLICT(account,kind,idx) DO UPDATE SET data=excluded.data").bind(a).bind(kind).bind(idx).bind(&data).execute(db).await?;
+    crate::api::system::prefetch::put(crate::api::system::prefetch::Table::Battle, a, kind, idx, data);
     Ok(())
 }
 async fn list(db: &mut PgConnection, a: i64, kind: &str) -> Result<Vec<Value>> {
-    let rows: Vec<String> =
-        crate::db::query_scalar("SELECT data FROM battle_state WHERE account=$1 AND kind=$2 ORDER BY idx")
+    use crate::api::system::prefetch;
+    let rows: Vec<String> = match prefetch::list(prefetch::Table::Battle, a, kind) {
+        Some(rows) => rows,
+        None => crate::db::query_scalar("SELECT data FROM battle_state WHERE account=$1 AND kind=$2 ORDER BY idx")
             .bind(a)
             .bind(kind)
             .fetch_all(db)
-            .await?;
+            .await?,
+    };
     rows.iter().map(|v| read_json(v)).collect()
 }
 async fn owned(db: &mut PgConnection, a: i64, heroes: &[i64]) -> Result<()> {
@@ -436,6 +444,18 @@ pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
     // FirstLobby can run while party heartbeats write on another connection.
     // Reserve the writer before reading progress that may need repair.
     crate::postgres::lock_account(&mut *tx, a).await?;
+    use crate::api::system::prefetch;
+    let rows = prefetch::Rows::default()
+        // Kinds written only through `put` (see prefetch): keys, towers and
+        // the dungeon lists this snapshot reads.
+        .load(&mut tx, prefetch::Table::Battle, a, &["key", "tower", "under_prison", "raid", "godking", "dungeon", "top_clear", "hideout", "conquest", "punishment_open"]).await?
+        .load(&mut tx, prefetch::Table::Community, a, &["tickets", "guild_ticket"]).await?;
+    let out = prefetch::scope(rows, login_snapshot(&mut tx, s, a)).await?;
+    tx.commit().await?;
+    Ok(out)
+}
+async fn login_snapshot(tx: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
+    let mut tx = tx;
     item::init(&mut tx, s, a).await?;
     entry_costs::abandon_on_login(&mut tx,s,a).await?;
     seasons::settle(&mut tx, s, a).await?;
@@ -495,7 +515,6 @@ pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
         .fetch_all(&mut *tx)
         .await?;
     out["PlayerCurrencyInfos"] = json!(currencies.iter().map(|r|json!({"CurrencyType":r.get::<String,_>("kind"),"Amount":r.get::<i64,_>("value"),"DailyAmount":0,"DailyResetTime":null,"NextResetTime":-1})).collect::<Vec<_>>());
-    tx.commit().await?;
     Ok(out)
 }
 

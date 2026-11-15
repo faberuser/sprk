@@ -394,7 +394,7 @@ pub(super) async fn execute(
     if !deferred && n(&info, "CostType") == 1 && wins > 0 {
         let spent=n(&info, "Cost") / total * wins;
         out["ExpResult"] = dungeons::stamina_exp(db, s, a, spent).await?;
-        let award = dungeons::eclipse_points(db, s, a, spent).await?;
+        let award = dungeons::stamina_awards(db, s, a, spent).await?;
         dungeons::attach_eclipse_points(&mut out, &award);
         entry_costs::fill_stamina_flasks(db,s,a,&mut json!({"Heroes":heroes}),spent,&mut out).await?;
     }

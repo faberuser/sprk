@@ -90,6 +90,8 @@ fn http_router(router: Router) -> Router {
 mod performance_tests;
 #[cfg(test)]
 mod database_tests;
+#[cfg(test)]
+mod request_profile_tests;
 
 // Game state and middleware are confined to this router. Update downloads never
 // initialize a database, chat/battle listeners, or a native worker.
@@ -170,8 +172,17 @@ async fn game_router() -> anyhow::Result<Router> {
     }
 
 
-    // Build router with all API routes
-    let app = Router::new()
+    let app = game_routes(state.clone());
+
+    // Operational readiness must bypass the encrypted game-request middleware.
+    Ok(app.merge(Router::new().route("/health/battle", get(
+        |axum::extract::State(s): axum::extract::State<AppState>| async move { s.conquest.readiness().await }
+    )).with_state(state)))
+}
+
+/// Every game route with its middleware, without listeners or background tasks.
+pub(crate) fn game_routes(state: AppState) -> Router {
+    Router::new()
         .route("/client/storage_status", post(api::system::storage::report))
         .route("/ws/chat", get(websocket::chat))
         .route("/ws/battle", get(websocket::battle))
@@ -400,12 +411,7 @@ async fn game_router() -> anyhow::Result<Router> {
         .layer(middleware::from_fn_with_state(state.clone(), api::system::middleware::decrypt_request))
         // Outermost: the progression/equipment notifiers above write too.
         .layer(middleware::from_fn_with_state(state.clone(), api::system::middleware::acting_account))
-        .with_state(state.clone());
-
-    // Operational readiness must bypass the encrypted game-request middleware.
-    Ok(app.merge(Router::new().route("/health/battle", get(
-        |axum::extract::State(s): axum::extract::State<AppState>| async move { s.conquest.readiness().await }
-    )).with_state(state)))
+        .with_state(state.clone())
 }
 
 fn service_router(game: Option<Router>, updates: Option<Router>) -> Router {

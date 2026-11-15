@@ -204,24 +204,35 @@ public sealed class SprkLoginSettingsProbe : MonoBehaviour
 		{
 			throw new Exception("Others upper row alignment");
 		}
-		UIButton component = transform3.GetComponent<UIButton>();
 		UIButtonColor.State[] array = new UIButtonColor.State[3]
 		{
 			UIButtonColor.State.Normal,
 			UIButtonColor.State.Hover,
 			UIButtonColor.State.Pressed
 		};
-		for (int j = 0; j < array.Length; j++)
+		UIButton component3 = button_Coupon.GetComponent<UIButton>();
+		UISprite uISprite = ((component3 != null && component3.tweenTarget != null) ? component3.tweenTarget.GetComponent<UISprite>() : button_Coupon.GetComponent<UISprite>());
+		Transform[] array3 = new Transform[2] { transform3, button_Logout };
+		string[] array4 = new string[2]
 		{
-			UIButtonColor.State state = array[j];
-			component.SetState(state, immediate: true);
-			UISprite component2 = component.tweenTarget.GetComponent<UISprite>();
-			if (component2 == null || component2.spriteName != "Common_Button7_Cancel" || component2.atlas == null || component2.atlas.GetSprite(component2.spriteName) == null)
+			SprkAccounts.DeleteButtonSprite,
+			SprkAccounts.LogoutButtonSprite
+		};
+		for (int k = 0; k < array3.Length; k++)
+		{
+			UIButton component = array3[k].GetComponent<UIButton>();
+			for (int j = 0; j < array.Length; j++)
 			{
-				throw new Exception("Delete background is not red: " + state.ToString() + " target=" + component.tweenTarget.name + " sprite=" + ((component2 == null) ? "null" : component2.spriteName) + " atlas=" + ((component2 == null || component2.atlas == null) ? "null" : component2.atlas.name));
+				UIButtonColor.State state = array[j];
+				component.SetState(state, immediate: true);
+				UISprite component2 = ((component.tweenTarget != null) ? component.tweenTarget.GetComponent<UISprite>() : array3[k].GetComponent<UISprite>());
+				if (component2 == null || component2.spriteName != array4[k] || component2.atlas == null || component2.atlas.GetSprite(component2.spriteName) == null || (uISprite != null && (Mathf.Abs((float)component2.width * component2.transform.lossyScale.x - (float)uISprite.width * uISprite.transform.lossyScale.x) > 2f * uISprite.transform.lossyScale.x || Mathf.Abs((float)component2.height * component2.transform.lossyScale.y - (float)uISprite.height * uISprite.transform.lossyScale.y) > 2f * uISprite.transform.lossyScale.y)))
+				{
+					throw new Exception(array3[k].name + " background mismatch: " + state.ToString() + " sprite=" + ((component2 == null) ? "null" : component2.spriteName) + " atlas=" + ((component2 == null || component2.atlas == null) ? "null" : component2.atlas.name));
+				}
 			}
+			component.SetState(UIButtonColor.State.Normal, immediate: true);
 		}
-		component.SetState(UIButtonColor.State.Normal, immediate: true);
 		Transform[] array2 = new Transform[3] { transform2, transform3, transform4 };
 		for (int j = 0; j < array2.Length; j++)
 		{
@@ -236,7 +247,7 @@ public sealed class SprkLoginSettingsProbe : MonoBehaviour
 		texture2D.Apply();
 		File.WriteAllBytes(Path.Combine(path, "others.png"), texture2D.EncodeToPNG());
 		UnityEngine.Object.Destroy(texture2D);
-		File.WriteAllText(Path.Combine(path, "others-result.txt"), "PASS: native Others prefab Coupon above Language, upper alignment, eight refreshes, single callbacks and red Normal/Hover/Pressed backgrounds.");
+		File.WriteAllText(Path.Combine(path, "others-result.txt"), "PASS: native Others prefab Coupon above Language, upper alignment, eight refreshes, single callbacks and coupon-shaped red Delete and orange Logout backgrounds.");
 		File.WriteAllText(Path.Combine(path, "result.txt"), "PASS: native login buttons cleaned, one Settings callback, native settings opened before login with " + rows.Length + " rows; translated labels, GameOption and PayShop artwork, all tabs, login texture changes, refresh, close/reopen, pool cleanup and download-state preservation; no consent toast on initial setup, refresh, reopen or reuse without login context; explicit notification changes still show consent messages; visible panel screenshot exported.");
 		Application.Quit();
 	}

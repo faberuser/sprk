@@ -43,7 +43,7 @@ pub(crate) async fn charge(
     let mut result = charge_reserved(db, s, a, kind, cost).await?;
     if kind == 1 && cost > 0 {
         result["RaiderExpResult"] = stamina_exp(db, s, a, cost).await?;
-        let award = Box::pin(eclipse_points(db, s, a, cost)).await?;
+        let award = Box::pin(stamina_awards(db, s, a, cost)).await?;
         if !award.is_null() {
             result["EclipsePointAward"] = award;
         }
@@ -415,9 +415,31 @@ pub(super) async fn eclipse_points(db: &mut PgConnection, s: &AppState, a: i64, 
     Ok(json!({"CurrencyResults":[shown, settled],"KeyResult":key}))
 }
 
-/// Adds an `eclipse_points` award to a battle response the native reward
-/// popup reads (CurrencyResults + EclipseStaminaResult).
+/// Everything spent stamina earns besides Raider EXP: Darkness Corruption
+/// points, Guild Coins and guild Activity Score. Null when nothing changed.
+pub(super) async fn stamina_awards(db: &mut PgConnection, s: &AppState, a: i64, stamina: i64) -> Result<Value> {
+    let mut award = eclipse_points(db, s, a, stamina).await?;
+    let guild = crate::api::community::stamina_activity(db, s, a, stamina).await?;
+    if let Some(fields) = guild.as_object() {
+        if award.is_null() {
+            award = json!({});
+        }
+        for (k, v) in fields {
+            award[k] = v.clone();
+        }
+    }
+    Ok(award)
+}
+
+/// Adds a `stamina_awards` award to a battle response the native reward
+/// popup reads (CurrencyResults + EclipseStaminaResult) and the guild results
+/// AccountManager.ApplyGuildResult reads.
 pub(super) fn attach_eclipse_points(out: &mut Value, award: &Value) {
+    for key in ["GuildPointResult", "GuildActivityPointResult", "GuildMemberAccActivityPointResult"] {
+        if !award[key].is_null() {
+            out[key] = award[key].clone();
+        }
+    }
     let Some(results) = award["CurrencyResults"].as_array() else { return };
     if !out["CurrencyResults"].is_array() {
         out["CurrencyResults"] = json!([]);

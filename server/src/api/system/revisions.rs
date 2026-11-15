@@ -19,3 +19,4 @@ pub(crate) async fn progression(db: &mut PgConnection, account: i64) -> Result<(
     Ok(crate::db::query_as("SELECT COALESCE((SELECT revision FROM response_revisions WHERE scope='progression' AND account=$1),0),COALESCE((SELECT revision FROM response_revisions WHERE scope='progression' AND account=0),0)")
         .bind(account).fetch_one(db).await?)
 }
+

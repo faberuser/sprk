@@ -114,9 +114,13 @@ async fn guild_contribution_limits_and_attendance_are_persistent() {
     let s = setup().await;
     let u = login(&s, "donor").await;
     create(&s, &u, "Donators", 1).await;
+    {let a=n(&u["UserInfo"],"AccountId");let mut db=s.db.acquire().await.unwrap();put(&mut db,a,"guild_point_daily",0,&json!({"Day":chrono::Utc::now().format("%Y-%m-%d").to_string(),"Acc":300})).await.unwrap();}
     for _ in 0..5 {
         let v = call(&s, &u, "guild/contribute_guild", "").await;
         assert_eq!(v["Result"], "Success", "{v}");
+        // Donations do not count toward the stamina cap but must report it.
+        assert_eq!(v["GuildPointResult"]["AddDailyAccValue"], 0, "{v}");
+        assert_eq!(v["GuildPointResult"]["NewDailyAccValue"], 300, "{v}");
     }
     assert_ne!(
         call(&s, &u, "guild/contribute_guild", "").await["Result"],
@@ -210,6 +214,13 @@ async fn arena_rankings_share_standings_and_show_only_the_competitive_season_squ
         let previous = call(&s,&users[1],"global_arena/get_world_ranker",&format!("{args}&SeasonIndex={}",season-1)).await;
         assert!(previous["Rankers"].as_array().unwrap().is_empty());
     }
+    // Formations are cached per completed run: a newer run replaces the old one.
+    let data = json!({"Season":season,"DuelType":0,"Heroes":[1],"Register":{"AccountInfo":{"HeroInfos":snapshot}}});
+    crate::db::query("INSERT INTO arena_runs(account,kind,status,started,data) VALUES($1,0,'complete',$2,$3)")
+        .bind(a).bind(now()).bind(data.to_string()).execute(&s.db).await.unwrap();
+    let newer = call(&s,&users[0],"global_arena/get_world_ranker","ArenaType=Normal&StartRank=0&EndRank=99").await;
+    let mine = newer["Rankers"].as_array().unwrap().iter().find(|r|r["UserInfo"]["AccountId"]==a).unwrap();
+    assert_eq!(mine["HeroInfos"].as_array().unwrap().iter().map(|h|h["Index"].clone()).collect::<Vec<_>>(),vec![json!(1)]);
 }
 
 #[tokio::test]
@@ -423,7 +434,7 @@ async fn guild_booty_can_be_bought_from_both_native_shops_and_persists() {
     let a=n(&u["UserInfo"],"AccountId");
     let id=s.tables.get_item_index("STAMINA_POTION_S").unwrap();
     {
-        let mut db=s.db.acquire().await.unwrap();hero::currency(&mut db,a,"GuildPoint",10000).await.unwrap();
+        let mut db=s.db.acquire().await.unwrap();hero::currency(&mut db,a,"GuildPoint",10000).await.unwrap();put(&mut db,a,"guild_point_daily",0,&json!({"Day":chrono::Utc::now().format("%Y-%m-%d").to_string(),"Acc":300})).await.unwrap();
         for (key,equip) in [(1,false),(2,false)] {
             put(&mut db,g,"guild_booty",key,&json!({"Id":key,"ShopIndex":4,"ItemIndex":id,"ItemCount":3,"Count":3,"Equipment":equip,"Price":10,"Expires":now()+86400,"CreatedTime":time(now())})).await.unwrap();
         }
@@ -435,6 +446,7 @@ async fn guild_booty_can_be_bought_from_both_native_shops_and_persists() {
         let bought=call(&s,&u,"guild_raid/buy_guild_raid_booty_item",&args).await;
         assert_eq!(bought["Result"],"Success","{bought}");
         assert_eq!(bought["GuildPointResult"]["AddValue"],-30);
+        assert_eq!(bought["GuildPointResult"]["NewDailyAccValue"],300,"{bought}");
         assert_ne!(call(&s,&u,"guild_raid/buy_guild_raid_booty_item",&args).await["Result"],"Success");
     }
     assert_eq!(call(&s,&u,"guild_raid/get_guild_raid_all_booty_items","").await["ItemInfos"],json!([]));
@@ -446,7 +458,7 @@ async fn guild_booty_can_be_bought_from_both_native_shops_and_persists() {
 async fn guild_restored_shop_stock_matches_current_building_level_and_prices() {
     let s=setup().await;let u=login(&s,"guild-shop-buyer").await;create(&s,&u,"Shopper",1).await;
     let a=n(&u["UserInfo"],"AccountId");
-    {let mut db=s.db.acquire().await.unwrap();for currency in ["GuildPoint","GuildArenaPoint"] {hero::currency(&mut db,a,currency,1_000_000).await.unwrap();}}
+    {let mut db=s.db.acquire().await.unwrap();for currency in ["GuildPoint","GuildArenaPoint"] {hero::currency(&mut db,a,currency,1_000_000).await.unwrap();}put(&mut db,a,"guild_point_daily",0,&json!({"Day":chrono::Utc::now().format("%Y-%m-%d").to_string(),"Acc":300})).await.unwrap();}
     let request=|shop|Bytes::from(format!("SessionKey={}&ShopIndex={shop}",u["UserInfo"]["SessionKey"].as_str().unwrap()));
     for shop in [4,20,21,27] {
         let v=crate::api::inventory::shop::get_shop_list(State(s.clone()),request(shop)).await.unwrap().0;
@@ -460,6 +472,8 @@ async fn guild_restored_shop_stock_matches_current_building_level_and_prices() {
         let body=Bytes::from(format!("SessionKey={}&ShopIndex={shop}&ShopItemIndex={}&ShopItemPurchaseCount=1",u["UserInfo"]["SessionKey"].as_str().unwrap(),n(row,"ListNo")));
         let bought=crate::api::inventory::shop::buy_shop_item(State(s.clone()),body).await.unwrap().0;
         assert_eq!(bought["Result"],"Success","shop {shop}: {bought}");
+        if !bought["GuildPointResult"].is_null() {assert_eq!(bought["GuildPointResult"]["NewDailyAccValue"],300,"shop {shop}: {bought}");}
+        if shop==4 {assert!(!bought["GuildPointResult"].is_null(),"the guild shop sells for Guild Coins: {bought}");}
         let again=crate::api::inventory::shop::get_shop_list(State(s.clone()),request(shop)).await.unwrap().0;
         assert_eq!(again["ShopItems"].as_array().unwrap().iter().find(|v|n(v,"ListNo")==n(row,"ListNo")).unwrap()["Purchased"],1);
     }

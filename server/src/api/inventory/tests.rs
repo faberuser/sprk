@@ -2781,3 +2781,60 @@ async fn bag_overflow_counts_once_and_packs_a_batch_into_few_mails() {
     assert_eq!(fresh.equipment.len(), 1);
     assert!(fresh.overflow_mail.is_none());
 }
+
+#[tokio::test]
+async fn rolled_drops_are_stored_with_their_options_and_the_batch_tracks_free_slots() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let base=s.tables.inventory.constant("EquipItemMaxCount",280);
+    let mut tx=s.db.begin().await.unwrap();
+    // Three free slots.
+    for _ in 0..base-3 {
+        crate::db::query("INSERT INTO equip_items(account_id,item_index) VALUES($1,1001)").bind(a).execute(&mut *tx).await.unwrap();
+    }
+    let mut r = crate::api::tutorial::Rewards { mail_overflow: true, ..Default::default() };
+    // A rewardable piece of equipment that rolls options.
+    let mut indices: Vec<i32> = s.tables.inventory.equipment.keys().copied().collect();
+    indices.sort();
+    let index = indices.into_iter().find(|i| s.tables.items.reward_item(*i).is_some_and(|m| m.kind == "Equip") && {
+        let mut e = crate::models::equip::EquipItemInfo::default();
+        item::make_options(&s, *i, &mut e, &[]).is_ok() && e.option_index_1 != 0
+    }).expect("equipment with options");
+    let grant = ItemGrant { index, count: 1, star: 4, custom: 0 };
+    item::give(&mut tx,&s,a,grant,&mut r).await.unwrap();
+    // The piece is inserted with the options it was rolled with.
+    let piece = r.equipment[0].clone();
+    let stored: (i64,i64,i64,i64,i64) = crate::db::query_as("SELECT option_index_1,option_step_1,option_index_2,option_step_2,rune_slot_count FROM equip_items WHERE account_id=$1 AND slot_index=$2")
+        .bind(a).bind(piece.slot_index).fetch_one(&mut *tx).await.unwrap();
+    assert_eq!(stored, (piece.option_index_1.into(), piece.option_step_1.into(), piece.option_index_2.into(), piece.option_step_2.into(), piece.rune_slot_count.into()));
+    assert_ne!(piece.option_index_1, 0, "a rolled drop has options");
+    // Equipment added to the batch by another path makes the next grant
+    // recount instead of trusting the batch's own free-slot count.
+    crate::api::tutorial::equipment(&mut tx, a, crate::models::equip::EquipItemInfo { item_index: 1001, ..Default::default() }, &mut r).await.unwrap();
+    item::give(&mut tx,&s,a,grant,&mut r).await.unwrap();
+    assert!(r.bag_full);
+    assert!(r.overflow_mail.is_none(), "the last free slot took the piece");
+    item::give(&mut tx,&s,a,grant,&mut r).await.unwrap();
+    assert_eq!(r.equipment.len(), 3);
+    assert_eq!(item::free_slots(&mut tx,&s,a,0).await.unwrap(), 0, "never over capacity");
+    let mailed: String = crate::db::query_scalar("SELECT reward_equipment FROM mails WHERE account_id=$1 AND title='Battle equipment rewards'").bind(a).fetch_one(&mut *tx).await.unwrap();
+    assert_eq!(serde_json::from_str::<Vec<crate::models::equip::EquipItemInfo>>(&mailed).unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn rewarding_a_locked_item_reports_its_lock_and_creation_time() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let mut tx=s.db.begin().await.unwrap();
+    crate::db::query("INSERT INTO items(account_id,item_index,count,locked) VALUES($1,120001,1,1) ON CONFLICT(account_id,item_index) DO UPDATE SET locked=1")
+        .bind(a).execute(&mut *tx).await.unwrap();
+    let mut r = crate::api::tutorial::Rewards::default();
+    item::give(&mut tx,&s,a,ItemGrant { index: 120001, count: 5, star: 0, custom: 0 },&mut r).await.unwrap();
+    let result = r.items.last().unwrap().clone();
+    assert_eq!((result["ItemIndex"].clone(), result["Locked"].clone()), (json!(120001), json!(1)));
+    let created: Option<String> = crate::db::query_scalar("SELECT created_time FROM items WHERE account_id=$1 AND item_index=120001").bind(a).fetch_one(&mut *tx).await.unwrap();
+    assert!(created.is_some());
+    // An equipment grant adds no item result and leaves the earlier one as it was.
+    item::give(&mut tx,&s,a,ItemGrant { index: 1001, count: 1, star: 4, custom: 0 },&mut r).await.unwrap();
+    assert_eq!(r.items.last().unwrap(), &result);
+}

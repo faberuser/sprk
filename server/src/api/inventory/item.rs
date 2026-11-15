@@ -124,6 +124,8 @@ pub(crate) async fn money(
 }
 
 /// Unequipped equipment in one bag. `?1` = account, `?2` = inventory type.
+/// It collects the equipped slots once instead of rescanning the account's
+/// heroes per bag row (5 ms vs 0.15 ms for ~1000 items; this runs per drop).
 const EQUIP_BAG_COUNT: &str = "SELECT COUNT(*) FROM equip_items WHERE account_id=$1 AND inventory_type=$2 AND slot_index NOT IN (\
     SELECT equip_item_slot_index_1 FROM heroes WHERE account_id=$1 AND equip_item_slot_index_1 IS NOT NULL UNION ALL \
     SELECT equip_item_slot_index_2 FROM heroes WHERE account_id=$1 AND equip_item_slot_index_2 IS NOT NULL UNION ALL \
@@ -161,13 +163,14 @@ pub(crate) async fn free_slots(
     } else {
         "inventory_extend"
     };
-    let extend: i64 = crate::db::query_scalar(sqlx::AssertSqlSafe(format!(
-        "SELECT {column} FROM inventory_settings WHERE account_id=$1"
+    // The bag's extension and its unequipped pieces in one statement.
+    let (extend, count): (i64, i64) = crate::db::query_as(sqlx::AssertSqlSafe(format!(
+        "SELECT COALESCE((SELECT {column} FROM inventory_settings WHERE account_id=$1),0)::bigint,({EQUIP_BAG_COUNT})"
     )))
     .bind(account)
-    .fetch_optional(&mut *db)
-    .await?
-    .unwrap_or(0);
+    .bind(inventory)
+    .fetch_one(&mut *db)
+    .await?;
     let size = state
         .tables
         .inventory
@@ -191,13 +194,6 @@ pub(crate) async fn free_slots(
     } else {
         state.tables.inventory.constant("EquipItemMaxCount", 280)
     };
-    // Collect the equipped slots once instead of rescanning the account's
-    // heroes per bag row (5 ms vs 0.15 ms for ~1000 items; this runs per drop).
-    let count: i64 = crate::db::query_scalar(EQUIP_BAG_COUNT)
-    .bind(account)
-    .bind(inventory)
-    .fetch_one(db)
-    .await?;
     Ok(base + extend * size - count)
 }
 pub(crate) async fn give(
@@ -274,7 +270,9 @@ pub(crate) async fn give(
         }
     }
     let equip_start = rewards.equipment.len();
-    tutorial::grant_item(
+    let items_before = rewards.items.len();
+    // Rolled equipment is inserted with its options in one statement.
+    tutorial::grant_item_rolled(
         db,
         state,
         account,
@@ -285,12 +283,11 @@ pub(crate) async fn give(
             custom,
         },
         rewards,
+        true,
     )
     .await?;
     if metadata.kind == "Equip" && custom == 0 {
         for equip in &mut rewards.equipment[equip_start..] {
-            make_options(state, index, equip, &[])?;
-            save_options(db, account, equip).await?;
             if crate::api::extensions::equip_item(&state,index as i64).is_some_and(|v|n(v,"EquipType")==1){
                 equip.identified=0;
                 crate::api::extensions::save_equip(db,account,equip).await?;
@@ -302,9 +299,13 @@ pub(crate) async fn give(
         // pieces, and recounting per piece held the writer for ~24 s in production.
         let added = (rewards.equipment.len() - equip_start) as i64;
         let overflow = if rewards.bag_full { added } else {
-            let free = free_slots(db, state, account, 0).await?;
+            let free = match rewards.bag_free {
+                Some((free, len)) if len == equip_start => free - added,
+                _ => free_slots(db, state, account, 0).await?,
+            };
             let overflow = (-free).clamp(0, added);
             rewards.bag_full = free + overflow <= 0;
+            rewards.bag_free = Some((free + overflow, rewards.equipment.len() - overflow as usize));
             overflow
         };
         // Remove only the newly rolled overflow; preserve its exact options in mail.
@@ -320,9 +321,15 @@ pub(crate) async fn give(
         mailed.reverse();
         mail_overflow(db, account, rewards, mailed).await?;
     }
-    crate::db::query("UPDATE items SET created_time=COALESCE(created_time,sprk_datetime('now')) WHERE account_id=$1 AND item_index=$2").bind(account).bind(index).execute(&mut *db).await?;
-    // Rewarding additional copies must preserve the item's lock in the client response.
-    if let Some(result) = rewards.items.last_mut().filter(|r| r["ItemIndex"] == index) {
+    // Only an items row this grant upserted needs its first-grant time.
+    if rewards.items.len() > items_before {
+        crate::db::query("UPDATE items SET created_time=COALESCE(created_time,sprk_datetime('now')) WHERE account_id=$1 AND item_index=$2").bind(account).bind(index).execute(&mut *db).await?;
+    }
+    // Rewarding additional copies must preserve the item's lock in the client
+    // response. A result this grant added already carries it (its upsert
+    // returned `locked`); re-read it only for an earlier result.
+    let added = rewards.items.len() > items_before;
+    if let Some(result) = rewards.items.last_mut().filter(|r| !added && r["ItemIndex"] == index) {
         let locked: i32 =
             crate::db::query_scalar("SELECT locked FROM items WHERE account_id=$1 AND item_index=$2")
                 .bind(account)
@@ -1414,15 +1421,52 @@ pub(crate) async fn booster_login(state: &AppState, account: i64) -> Result<Vec<
     Ok(result)
 }
 
+/// Legacy booster item indices whose timers belong to another booster.
+fn booster_aliases(state: &AppState) -> Vec<i32> {
+    state.tables.inventory.boosters.iter()
+        .filter(|(&index, data)| {
+            let group = n(data, "BoosterItemIndex");
+            matches!(n(data, "Type"), 1 | 2 | 3) && group > 0 && group != i64::from(index)
+        })
+        .map(|(&index, _)| index).collect()
+}
+
+/// Unexpired booster timers (with `started_only`, also already started), as
+/// `normalize_booster_timers` followed by a read would return them: one read
+/// unless a legacy alias row is left to merge.
+pub(crate) async fn active_boosters(
+    db: &mut PgConnection, state: &AppState, account: i64, started_only: bool,
+) -> Result<Vec<i32>> {
+    let aliases = booster_aliases(state);
+    let mut normalized = false;
+    loop {
+        let rows: Vec<(i32, bool, bool)> = crate::db::query_as("SELECT item_index,end_time>sprk_datetime('now'),start_time<=sprk_datetime('now') FROM item_boosters WHERE account_id=$1")
+            .bind(account).fetch_all(&mut *db).await?;
+        if !normalized && rows.iter().any(|(index, ..)| aliases.contains(index)) {
+            normalize_booster_timers(db, state, account).await?;
+            normalized = true;
+            continue;
+        }
+        return Ok(rows.into_iter().filter(|(_, unexpired, started)| *unexpired && (*started || !started_only))
+            .map(|(index, ..)| index).collect());
+    }
+}
+
 pub(crate) async fn normalize_booster_timers(
     db: &mut PgConnection, state: &AppState, account: i64,
 ) -> Result<()> {
     let now = state.server_time_str();
+    let aliases = booster_aliases(state);
+    if aliases.is_empty() { return Ok(()); }
+    // Almost every account has no legacy alias row left: find them in one read.
+    let present: Vec<i32> = crate::db::query_scalar("SELECT item_index FROM item_boosters WHERE account_id=$1 AND item_index IN (SELECT sprk_json_ints($2))")
+        .bind(account).bind(serde_json::to_string(&aliases).map_err(|e| ServerError::Internal(e.to_string()))?)
+        .fetch_all(&mut *db).await?;
     for (&index, data) in &state.tables.inventory.boosters {
-        let group = n(data, "BoosterItemIndex");
-        if !matches!(n(data, "Type"), 1 | 2 | 3) || group <= 0 || group == i64::from(index) {
+        if !present.contains(&index) {
             continue;
         }
+        let group = n(data, "BoosterItemIndex");
         // Older servers stored day/week consumable IDs separately, while the
         // client maps both onto one timer. Preserve every unexpired second once
         // and delete the alias in the same caller-owned transaction.

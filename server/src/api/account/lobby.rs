@@ -148,7 +148,7 @@ pub async fn enter_lobby(
     State(state): State<AppState>,
     Form(req): Form<EnterLobbyRequest>,
 ) -> Result<Json<EnterLobbyResponse>> {
-    enter_lobby_inner(state, req, false).await
+    enter_lobby_inner(state, req, false, None).await
 }
 
 /// The native lobby response does not define UserInfo/Heroes/Items. The patched
@@ -160,27 +160,18 @@ pub async fn enter_lobby_http(
 ) -> Result<Json<serde_json::Value>> {
     let compact=headers.get("x-sprk-compact-lobby").is_some_and(|v|v=="1");
     let session=req.session_key.as_deref().or(req.session_id.as_deref()).unwrap_or("").to_owned();
-    let mut response=enter_lobby_inner(state.clone(), req, compact).await?;
-    if compact {
-        conditional_catalog(&mut response.0.battle, &session,
-            headers.get("x-sprk-shop-catalog").and_then(|v|v.to_str().ok()).unwrap_or(""));
-    }
+    let catalog=compact.then(||headers.get("x-sprk-shop-catalog").and_then(|v|v.to_str().ok()).unwrap_or(""));
+    let response=enter_lobby_inner(state.clone(), req, compact, catalog).await?;
     let mut value=serde_json::to_value(response.0).map_err(|e|ServerError::Internal(e.to_string()))?;
-    let login = state.get_session(&session).map(|s| s.login_sections.clone());
-    crate::api::progression::notifications::conditional_sections_after_login(&mut value, &session, &headers, login.as_deref());
+    let info = state.get_session(&session);
+    crate::api::progression::notifications::conditional_sections_with_deltas(&mut value, &session, &headers,
+        info.as_ref().map(|s| &*s.login_sections), info.as_ref().map(|s| &*s.delivered_achievements));
     Ok(Json(value))
 }
 
-fn conditional_catalog(fields: &mut serde_json::Value, session: &str, acknowledged: &str) {
-    use sha2::{Digest, Sha256};
-    let mut digest=Sha256::new();digest.update(session.as_bytes());
-    digest.update(serde_json::to_vec(&fields["PayShopProductInfos"]).unwrap());
-    let token=hex::encode(digest.finalize());
-    if token==acknowledged {fields.as_object_mut().unwrap().remove("PayShopProductInfos");}
-    fields["SprkShopCatalogToken"]=serde_json::json!(token);
-}
-
-async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: bool) -> Result<Json<EnterLobbyResponse>> {
+/// `catalog` is the shop catalog token a compact client acknowledged: the
+/// catalog is then omitted while unchanged. `None` always sends it, untokened.
+async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: bool, catalog: Option<&str>) -> Result<Json<EnterLobbyResponse>> {
     // Client sends SessionKey, not SessionId
     let session_id = req.session_key.or(req.session_id)
         .ok_or_else(|| ServerError::SessionExpired)?;
@@ -367,9 +358,13 @@ async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: boo
     }
     battle.as_object_mut().unwrap().remove("BattleKeyResults");
     let supporting=crate::api::services::login(&state,account_id).await?;
-    for(k,v)in supporting.as_object().unwrap(){battle[k]=v.clone();}
-    let shop=crate::api::live::shop_snapshot(&state,account_id).await?;
-    for(k,v)in shop.as_object().unwrap(){battle[k]=v.clone();}
+    // Move, not clone: the shop catalog alone is ~1 MB of JSON.
+    if let serde_json::Value::Object(fields)=supporting{for(k,v)in fields{battle[k]=v;}}
+    let shop=match catalog {
+        Some(acknowledged)=>crate::api::live::lobby_shop_snapshot(&state,account_id,&session_id,acknowledged).await?,
+        None=>crate::api::live::shop_snapshot(&state,account_id).await?,
+    };
+    if let serde_json::Value::Object(fields)=shop{for(k,v)in fields{battle[k]=v;}}
     let (remain_day_second, remain_week_second, remain_month_second) = reset_countdowns(Utc::now());
     Ok(Json(EnterLobbyResponse {
         battle,
@@ -430,8 +425,8 @@ mod reset_tests {
         let state=AppState::new(db,crate::tables::test_tables());
         let login=crate::api::account::user::test_login(State(state.clone()),axum::body::Bytes::from_static(b"LoginId=compact-lobby")).await.unwrap().0;
         let req=||EnterLobbyRequest{session_id:None,session_key:Some(login.user_info.session_key.clone())};
-        let legacy=serde_json::to_value(enter_lobby_inner(state.clone(),req(),false).await.unwrap().0).unwrap();
-        let compact=serde_json::to_value(enter_lobby_inner(state.clone(),req(),true).await.unwrap().0).unwrap();
+        let legacy=serde_json::to_value(enter_lobby_inner(state.clone(),req(),false,None).await.unwrap().0).unwrap();
+        let compact=serde_json::to_value(enter_lobby_inner(state.clone(),req(),true,None).await.unwrap().0).unwrap();
         for key in ["Heroes","Items","UserInfo"] {assert!(compact.get(key).is_none(),"{key}");}
         assert!(!legacy["Heroes"].as_array().unwrap().is_empty());
         for key in ["DungeonInfos","LoginDailyCount","AttendanceDatas","AchievementInfos","OpendMissionCategories","PayShopProductInfos"] {
@@ -474,16 +469,14 @@ mod reset_tests {
     }
 
     #[test]
-    fn catalog_acknowledgements_resend_changed_empty_lost_and_new_session_snapshots() {
-        let catalog=serde_json::json!({"PayShopProductInfos":[{"Index":1,"Price":5}]});
-        let mut first=catalog.clone();conditional_catalog(&mut first,"one","");
-        let token=first["SprkShopCatalogToken"].as_str().unwrap();
-        let mut repeated=catalog.clone();conditional_catalog(&mut repeated,"one",token);
-        assert!(repeated.get("PayShopProductInfos").is_none());
-        for (mut value,session,ack) in [(catalog.clone(),"two",token),(catalog.clone(),"one",""),
-            (serde_json::json!({"PayShopProductInfos":[]}),"one",token),
-            (serde_json::json!({"PayShopProductInfos":[{"Index":1,"Price":6}]}),"one",token)] {
-            conditional_catalog(&mut value,session,ack);assert!(value["PayShopProductInfos"].is_array());
+    fn catalog_tokens_change_with_session_catalog_and_discounted_prices() {
+        use crate::api::live::catalog_token;
+        let token=catalog_token("one",b"catalog",&[5]);
+        assert_eq!(token,catalog_token("one",b"catalog",&[5]));
+        for other in [catalog_token("two",b"catalog",&[5]),catalog_token("one",b"changed",&[5]),
+            catalog_token("one",b"catalog",&[6]),catalog_token("one",b"catalog",&[]),
+            catalog_token("onec",b"atalog",&[5])] {
+            assert_ne!(token,other);
         }
     }
 }

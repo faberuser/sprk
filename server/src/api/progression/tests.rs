@@ -1807,10 +1807,10 @@ async fn progression_latency_profile() {
     let s=AppState::new(db,crate::tables::test_tables());
     let account:i64=crate::db::query_scalar("SELECT account_id FROM heroes GROUP BY account_id ORDER BY COUNT(*) DESC LIMIT 1").fetch_one(&s.db).await.unwrap();
     let mut connection=s.db.acquire().await.unwrap();
-    let now=std::time::Instant::now();let view=View::load(&mut connection,account).await.unwrap();println!("PROFILE view_load_ms={:.2} heroes={} metrics={} claims={}",now.elapsed().as_secs_f64()*1000.,view.heroes.len(),view.metrics.len(),view.claims.len());
+    let now=std::time::Instant::now();let view=View::load(&mut connection,account).await.unwrap();println!("PROFILE view_load_ms={:.2} heroes={} metrics={} claims={}",now.elapsed().as_secs_f64()*1000.,view.sizes().0,view.sizes().1,view.sizes().2);
     let now=std::time::Instant::now();let achievements=view.achievement_infos(&s);println!("PROFILE achievements_ms={:.2} count={}",now.elapsed().as_secs_f64()*1000.,achievements.len());
     let now=std::time::Instant::now();let quests=view.subquest_infos(&s);println!("PROFILE subquests_ms={:.2} count={}",now.elapsed().as_secs_f64()*1000.,quests.len());
-    let now=std::time::Instant::now();let records=play_record::snapshot(&mut connection,&s,account,&view).await.unwrap();println!("PROFILE records_ms={:.2} count={}",now.elapsed().as_secs_f64()*1000.,records.len());
+    let now=std::time::Instant::now();let records=play_record::snapshot(&s,&view);println!("PROFILE records_ms={:.2} count={}",now.elapsed().as_secs_f64()*1000.,records.len());
     let now=std::time::Instant::now();let _=opened_mission_categories(&s,&view);println!("PROFILE categories_ms={:.2}",now.elapsed().as_secs_f64()*1000.);
     let now=std::time::Instant::now();let result=snapshot(&mut connection,&s,account).await.unwrap();println!("PROFILE full_snapshot_ms={:.2}",now.elapsed().as_secs_f64()*1000.);
     // PlayRecord timestamps describe response creation, not saved progress.

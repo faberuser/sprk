@@ -35,12 +35,28 @@ pub(crate) fn arena_history_query() -> &'static str {
 }
 
 impl History {
+    #[cfg(test)]
     pub async fn load(db: &mut PgConnection, account: i64) -> Result<Self> {
+        let mut out = Self::default();
+        out.reload(db, account, super::state::part::ALL, None).await?;
+        Ok(out)
+    }
+
+    /// Load the history parts in `mask` (see `state::part`), keeping the
+    /// others. Returns the parts whose data changed.
+    /// `owned_equipment`: the account's equipment item indices when the caller
+    /// just loaded them (HIST_EQUIP then needs no statement of its own).
+    pub(super) async fn reload(&mut self, db: &mut PgConnection, account: i64, mask: u64, owned_equipment: Option<BTreeSet<i64>>) -> Result<u64> {
+        use super::state::part::*;
         fn parse(raw: String) -> Result<Value> {
             serde_json::from_str(&raw)
                 .map_err(|e| ServerError::Internal(format!("Invalid mission history: {e}")))
         }
-        let mut out = Self::default();
+        let before = std::mem::take(self);
+        let out = self;
+        let has = |bit: u64| mask & bit != 0;
+        if has(ARENA) {
+        out.arena.clear();
         for (kind, at, raw) in crate::db::query_as::<(i64,i64,String)>(arena_history_query())
             .bind(account).fetch_all(&mut *db).await? {
             let data = parse(raw)?;
@@ -52,31 +68,65 @@ impl History {
         }
         out.arena_archive = crate::db::query_as("SELECT kind,day,matches,wins,best_streak,best_tier FROM arena_history_archive WHERE account=$1")
             .bind(account).fetch_all(&mut *db).await?;
+        }
+        // Missions read only BestWave of eclipse_record and two fields of the
+        // ordeal run, which reaches ~0.5 MB; the eclipse run is never read.
+        // Deserializing just those fields skips building the rest per snapshot.
+        #[derive(serde::Deserialize)]
+        struct Ordeal {
+            #[serde(rename = "SelectedTier", default)]
+            selected_tier: Value,
+            #[serde(rename = "ClearNodeIndices", default)]
+            clear_node_indices: Value,
+        }
+        if has(BATTLE) {
+        out.battle.clear();
         for (kind, raw) in crate::db::query_as::<(String,String)>(
-            "SELECT kind,data FROM battle_state WHERE account=$1 AND kind IN ('eclipse_record','eclipse','ordeal') AND idx=0")
-            .bind(account).fetch_all(&mut *db).await? { out.battle.insert(kind, parse(raw)?); }
-        out.equipment =
+            "SELECT kind,data FROM battle_state WHERE account=$1 AND kind IN ('eclipse_record','ordeal') AND idx=0")
+            .bind(account).fetch_all(&mut *db).await? {
+            // A non-object state (never written today) keeps the full parse.
+            let data = match (kind == "ordeal").then(|| serde_json::from_str::<Ordeal>(&raw)) {
+                Some(Ok(o)) => json!({"SelectedTier": o.selected_tier, "ClearNodeIndices": o.clear_node_indices}),
+                _ => parse(raw)?,
+            };
+            out.battle.insert(kind, data);
+        }
+        }
+        if has(HIST_EQUIP) {
+        out.equipment = if let Some(owned) = owned_equipment { owned } else {
             crate::db::query_scalar("SELECT DISTINCT item_index FROM equip_items WHERE account_id=$1")
                 .bind(account)
                 .fetch_all(&mut *db)
                 .await?
                 .into_iter()
-                .collect();
+                .collect()
+        };
+        }
+        if has(FACTS) {
         out.facts =
             crate::db::query_as("SELECT kind,idx,value FROM play_record_values WHERE account_id=$1")
                 .bind(account)
                 .fetch_all(&mut *db)
                 .await?;
+        }
+        if has(GUILD_ATT) {
         out.guild_attendance = crate::db::query_scalar("SELECT COUNT(DISTINCT period) FROM community_claims WHERE account=$1 AND kind='guild_attend_total'")
             .bind(account).fetch_one(&mut *db).await?;
+        }
+        if has(GUILD_WINS) {
         out.guild_wins = crate::db::query_scalar(
             "SELECT COUNT(*) FROM guild_arena_records WHERE account=$1 AND win=1",
         )
         .bind(account)
         .fetch_one(&mut *db)
         .await?;
+        }
+        if has(CONQUEST) {
         out.conquest_entries = crate::db::query_scalar("SELECT COUNT(*) FROM community_state WHERE kind='guild_conquest_history' AND sprk_json_int(data,'$.AccountId')=$1")
             .bind(account).fetch_one(&mut *db).await?;
+        }
+        if has(GUILD_DECKS) {
+        out.guild_decks.clear();
         for raw in
             crate::db::query_scalar::<String>("SELECT data FROM guild_arena_decks WHERE account=$1")
                 .bind(account)
@@ -85,15 +135,46 @@ impl History {
         {
             out.guild_decks.push(parse(raw)?);
         }
+        }
+        if has(PET) {
         let pet = crate::api::extensions::get(db, account, "pet_misc", 6).await?;
         out.pet_hatches = n(&pet, "MiscValue");
+        }
+        if has(MONTHLY) {
         out.monthly_stories = crate::db::query_scalar("SELECT COUNT(*) FROM extension_state WHERE account_id=$1 AND kind='monthly_hero' AND sprk_json_text(data,'$.CompletedTime') IS NOT NULL")
             .bind(account).fetch_one(&mut *db).await?;
+        }
+        if has(LINKED) {
         out.linked_account = crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM credentials c JOIN accounts a ON a.login_id=c.login_id WHERE a.account_id=$1)")
             .bind(account).fetch_one(&mut *db).await?;
+        }
+        if has(WORLD_RANK) {
         out.world_rank = crate::db::query_scalar("SELECT MIN(place) FROM (SELECT account,ROW_NUMBER() OVER (PARTITION BY boss,season ORDER BY total DESC,account) place FROM (SELECT account,boss,season,MAX(score) total FROM battle_scores WHERE family='world_boss' GROUP BY account,boss,season HAVING MAX(score)>0)) WHERE account=$1")
             .bind(account).fetch_one(&mut *db).await?;
-        Ok(out)
+        }
+        let mut changed = 0;
+        macro_rules! keep {
+            ($bit:expr, $($field:ident),+) => {
+                if has($bit) {
+                    if $(out.$field != before.$field)||+ { changed |= $bit; }
+                } else {
+                    $(out.$field = before.$field;)+
+                }
+            };
+        }
+        keep!(ARENA, arena, arena_archive);
+        keep!(BATTLE, battle);
+        keep!(HIST_EQUIP, equipment);
+        keep!(FACTS, facts);
+        keep!(GUILD_ATT, guild_attendance);
+        keep!(GUILD_WINS, guild_wins);
+        keep!(CONQUEST, conquest_entries);
+        keep!(GUILD_DECKS, guild_decks);
+        keep!(PET, pet_hatches);
+        keep!(MONTHLY, monthly_stories);
+        keep!(LINKED, linked_account);
+        keep!(WORLD_RANK, world_rank);
+        Ok(changed)
     }
 
     pub(super) fn arena_count(&self, kind: i64, period: &str, win: bool) -> i64 {
@@ -173,7 +254,7 @@ impl View {
         }
     }
     fn stage_count(&self, s: &AppState, metric: &str, period: &str, types: &[i64]) -> i64 {
-        self.metrics
+        self.metrics_of(metric)
             .iter()
             .filter(|(day, kind, c, d, _)| {
                 kind == metric
@@ -201,7 +282,7 @@ impl View {
             })
             .map(|r| (n(r, "ChapterIndex"), n(r, "DungeonIndex")))
             .collect();
-        self.metrics
+        self.metrics_of(metric)
             .iter()
             .filter(|(day, k, c, d, _)| {
                 k == metric
@@ -227,7 +308,7 @@ impl View {
         let value = match kind {
             "EndEclipse" => match goal {
                 "MILESTONE_MISSION_GOAL_10" => predicate(n(
-                    self.history
+                    self.hist(super::state::part::BATTLE)
                         .battle
                         .get("eclipse_record")
                         .unwrap_or(&Value::Null),
@@ -235,7 +316,7 @@ impl View {
                 )),
                 "MILESTONE_MISSION_GOAL_119" => self.metric("EndEclipse", "all", None, None).max(
                     (n(
-                        self.history
+                        self.hist(super::state::part::BATTLE)
                             .battle
                             .get("eclipse_record")
                             .unwrap_or(&Value::Null),
@@ -244,13 +325,13 @@ impl View {
                 ),
                 _ => return None,
             },
-            "EnterArena" => self.history.arena_count(0, "all", false),
+            "EnterArena" => self.hist(super::state::part::ARENA).arena_count(0, "all", false),
             "EndArena" => match goal {
                 "MAIN_MISSION_GOAL_29" | "MILESTONE_MISSION_GOAL_42" => {
-                    self.history.arena_count(1, "all", false)
+                    self.hist(super::state::part::ARENA).arena_count(1, "all", false)
                 }
                 "MILESTONE_MISSION_GOAL_40" | "MILESTONE_MISSION_GOAL_43" => {
-                    predicate(self.history.arena_best(
+                    predicate(self.hist(super::state::part::ARENA).arena_best(
                         if goal == "MILESTONE_MISSION_GOAL_40" {
                             0
                         } else {
@@ -282,7 +363,7 @@ impl View {
                         })
                         .iter()
                         .any(|r| {
-                            n(r, "Index") == self.history.best_tier(arena) && n(r, "Tier") >= tier
+                            n(r, "Index") == self.hist(super::state::part::ARENA).best_tier(arena) && n(r, "Tier") >= tier
                         }) as i64
                 }
                 _ => return None,
@@ -303,7 +384,7 @@ impl View {
                     "MAIN_MISSION_GOAL_68" => 4,
                     _ => return None,
                 };
-                self.metrics
+                self.metrics_of(kind)
                     .iter()
                     .filter(|m| {
                         m.1 == kind
@@ -324,8 +405,7 @@ impl View {
                 if args.len() != 2 || args[1] <= 0 {
                     return Some(0);
                 }
-                self.heroes
-                    .iter()
+                self.heroes_with_index(args[0])
                     .find(|h| n(h, "HeroIndex") == args[0])
                     .is_some_and(|h| {
                         let page = format!("TranscendSkillPage{}", n(h, "ApplySkillPage").max(1));
@@ -342,14 +422,14 @@ impl View {
                             })
                     }) as i64
             }
-            "GuildLoginDaily" => predicate(self.history.guild_attendance),
-            "GuildArenaAttackSuccess" => self.history.guild_wins,
+            "GuildLoginDaily" => predicate(self.hist(super::state::part::GUILD_ATT).guild_attendance),
+            "GuildArenaAttackSuccess" => self.hist(super::state::part::GUILD_WINS).guild_wins,
             "SetGuildArenaDeck" => {
-                (!self.history.guild_decks.is_empty() || self.metric(kind, "all", None, None) > 0)
+                (!self.hist(super::state::part::GUILD_DECKS).guild_decks.is_empty() || self.metric(kind, "all", None, None) > 0)
                     as i64
             }
             "SetGuildArenaDeckSkill" => {
-                (self.history.guild_decks.iter().any(|d| {
+                (self.hist(super::state::part::GUILD_DECKS).guild_decks.iter().any(|d| {
                     d["SkillSlotIndices"]
                         .as_array()
                         .is_some_and(|a| !a.is_empty())
@@ -357,13 +437,13 @@ impl View {
             }
             "UsePetIncubator" => self
                 .metric(kind, "all", None, None)
-                .max(self.history.pet_hatches),
+                .max(self.hist(super::state::part::PET).pet_hatches),
             "CraftEquip" | "IdentifiedEquip" => self.metric(kind, "all", None, None),
-            "MonthlyHeroClear" => self.history.monthly_stories,
+            "MonthlyHeroClear" => self.hist(super::state::part::MONTHLY).monthly_stories,
             "EndOrdealArena" => match goal {
                 "MILESTONE_MISSION_GOAL_6311" => {
                     self.metric("WinOrdealArena", "all", None, None).max(
-                        self.history
+                        self.hist(super::state::part::BATTLE)
                             .battle
                             .get("ordeal")
                             .and_then(|v| v["ClearNodeIndices"].as_array())
@@ -389,10 +469,10 @@ impl View {
                         _ => return None,
                     };
                     (self
-                        .metrics
+                        .metrics_of("ClearOrdealArenaTier")
                         .iter()
                         .any(|m| m.1 == "ClearOrdealArenaTier" && m.2 >= tier && m.4 > 0)
-                        || self.history.battle.get("ordeal").is_some_and(|v| {
+                        || self.hist(super::state::part::BATTLE).battle.get("ordeal").is_some_and(|v| {
                             n(v, "SelectedTier") >= tier
                                 && s.tables.battle.rows("OrdealArenaNode").iter().any(|r| {
                                     n(r, "NodeType") == 3
@@ -410,7 +490,7 @@ impl View {
                 .rows("SubStoryUnlock")
                 .iter()
                 .filter(|r| {
-                    self.dungeons.iter().any(|d| {
+                    self.stage(n(r, "ChapterIndex"), n(r, "DungeonIndex")).any(|d| {
                         d.0 == n(r, "ChapterIndex") && d.1 == n(r, "DungeonIndex") && d.2 > 0
                     })
                 })
@@ -423,24 +503,65 @@ impl View {
     }
 
     fn discovered_equipment(&self) -> BTreeSet<i64> {
-        self.history
+        self.hist(super::state::part::HIST_EQUIP)
             .equipment
             .iter()
             .copied()
             .chain(
-                self.history
+                self.hist(super::state::part::FACTS)
                     .facts
                     .iter()
                     .filter(|(k, _, v)| k == "equip_count" && *v > 0)
                     .map(|(_, id, _)| *id),
             )
             .chain(
-                self.metrics
+                self.metrics_of("AddEquip")
                     .iter()
                     .filter(|m| m.1 == "AddEquip" && m.4 > 0)
                     .map(|m| m.2),
             )
             .collect()
+    }
+
+    /// Distinct discovered equipment and item indices per Total* achievement kind.
+    fn inventory_totals(&self, s: &AppState) -> &super::state::InventoryTotals {
+        // Memoised: record its inputs on every call, not only the first.
+        self.hist(super::state::part::HIST_EQUIP | super::state::part::FACTS);
+        self.items();
+        self.metrics_of("AddEquip");
+        self.metrics_of("AddItem");
+        self.inventory_totals.get_or_init(|| {
+            let ids = self.discovered_equipment();
+            let mut sets: [BTreeSet<i64>; 4] = Default::default();
+            // Only the discovered items, through the view's table index.
+            for &index in &ids {
+                let Some((part, detail, _)) = self.equipment_metadata(s, index) else { continue; };
+                if !matches!(detail, 90001 | 90003 | 90004) && part != 5 { sets[0].insert(index); }
+                if part == 1 && matches!(detail, 90001 | 90003) { sets[1].insert(index); }
+                if part == 7 && detail == 90004 { sets[2].insert(index); }
+                if part == 5 { sets[3].insert(index); }
+            }
+            let normal: BTreeSet<i64> = self
+                .items()
+                .iter()
+                .filter(|(_, v)| **v > 0)
+                .map(|(id, _)| *id)
+                .chain(
+                    self.metrics_of("AddItem")
+                        .iter()
+                        .filter(|m| m.1 == "AddItem" && m.4 > 0)
+                        .map(|m| m.2),
+                )
+                .collect();
+            super::state::InventoryTotals {
+                equipment: sets[0].len() as i64,
+                unique_weapon: sets[1].len() as i64,
+                unique_treasure: sets[2].len() as i64,
+                artifact: sets[3].len() as i64,
+                item: normal.union(&ids).count() as i64,
+                normal_item: normal.len() as i64,
+            }
+        })
     }
 
     pub(super) fn history_achievement(
@@ -471,16 +592,16 @@ impl View {
                     n(row, "ReqSub1Value").max(1),
                 ))
             }
-            "JoinMatch" => self.history.arena_count(0, p, false),
-            "MatchVictory" => self.history.arena_count(0, p, true),
-            "JoinMatchBanPick" | "JoinMatchBanPickWeekly" => self.history.arena_count(1, p, false),
-            "WinMatchBanPick" => self.history.arena_count(1, p, true),
-            "MatchGrade" => self.history.best_tier(0),
-            "GlobalMatchBanPickGrade" => self.history.best_tier(1),
+            "JoinMatch" => self.hist(super::state::part::ARENA).arena_count(0, p, false),
+            "MatchVictory" => self.hist(super::state::part::ARENA).arena_count(0, p, true),
+            "JoinMatchBanPick" | "JoinMatchBanPickWeekly" => self.hist(super::state::part::ARENA).arena_count(1, p, false),
+            "WinMatchBanPick" => self.hist(super::state::part::ARENA).arena_count(1, p, true),
+            "MatchGrade" => self.hist(super::state::part::ARENA).best_tier(0),
+            "GlobalMatchBanPickGrade" => self.hist(super::state::part::ARENA).best_tier(1),
             "MatchTierRank" | "GlobalMatchBanPickTierRank" => {
                 let arena = if kind == "MatchTierRank" { 0 } else { 1 };
                 return Some((
-                    self.history.arena.iter().any(|(k, _, d)| {
+                    self.hist(super::state::part::ARENA).arena.iter().any(|(k, _, d)| {
                         *k == arena
                             && n(&d["End"]["MatchResult"], "NewTierIndex") >= req
                             && d["End"]["MatchResult"]["NewTierRank"]
@@ -492,7 +613,7 @@ impl View {
             }
             "ClearTower" => {
                 return Some((
-                    self.metrics
+                    self.metrics_of("ClearDungeon")
                         .iter()
                         .filter(|m| m.1 == "ClearDungeon" && m.4 > 0)
                         .filter_map(|m| self.tower_floor(s, req, m.2, m.3))
@@ -501,7 +622,7 @@ impl View {
                     n(row, "ReqSub1Value").max(1),
                 ))
             }
-            "JoinGuildSuppress" => self.history.conquest_entries,
+            "JoinGuildSuppress" => self.hist(super::state::part::CONQUEST).conquest_entries,
             "ExecEquipGacha" => {
                 let typ = match row["ReqValue"].as_str()? {
                     "High" => 1,
@@ -509,7 +630,7 @@ impl View {
                     _ => return None,
                 };
                 return Some((
-                    self.metrics
+                    self.metrics_of(kind)
                         .iter()
                         .filter(|m| {
                             m.1 == kind
@@ -524,60 +645,23 @@ impl View {
                     n(row, "ReqSub1Value").max(1),
                 ));
             }
-            "TotalEquipment" | "TotalUniqueWeapon" | "TotalUniqueTreasure" | "TotalArtifact" => {
-                let ids = self.discovered_equipment();
-                s.tables
-                    .extensions
-                    .rows("EquipItem")
-                    .iter()
-                    .filter(|r| {
-                        ids.contains(&n(r, "ItemIndex"))
-                            && match kind {
-                                "TotalUniqueWeapon" => {
-                                    n(r, "PartType") == 1
-                                        && matches!(n(r, "DetailIndex"), 90001 | 90003)
-                                }
-                                "TotalUniqueTreasure" => {
-                                    n(r, "PartType") == 7 && n(r, "DetailIndex") == 90004
-                                }
-                                "TotalArtifact" => n(r, "PartType") == 5,
-                                _ => {
-                                    !matches!(n(r, "DetailIndex"), 90001 | 90003 | 90004)
-                                        && n(r, "PartType") != 5
-                                }
-                            }
-                    })
-                    .map(|r| n(r, "ItemIndex"))
-                    .collect::<BTreeSet<_>>()
-                    .len() as i64
-            }
-            "TotalItem" | "TotalNormalItem" => {
-                let mut ids: BTreeSet<_> = self
-                    .items
-                    .iter()
-                    .filter(|(_, v)| **v > 0)
-                    .map(|(id, _)| *id)
-                    .chain(
-                        self.metrics
-                            .iter()
-                            .filter(|m| m.1 == "AddItem" && m.4 > 0)
-                            .map(|m| m.2),
-                    )
-                    .collect();
-                if kind == "TotalItem" {
-                    ids.extend(self.discovered_equipment());
-                }
-                ids.len() as i64
-            }
-            "TotalSoulWeapon" => self.soul_weapons.len() as i64,
+            // Row-independent: computed once per snapshot (one pass over the
+            // EquipItem table) instead of once per achievement row.
+            "TotalEquipment" => self.inventory_totals(s).equipment,
+            "TotalUniqueWeapon" => self.inventory_totals(s).unique_weapon,
+            "TotalUniqueTreasure" => self.inventory_totals(s).unique_treasure,
+            "TotalArtifact" => self.inventory_totals(s).artifact,
+            "TotalItem" => self.inventory_totals(s).item,
+            "TotalNormalItem" => self.inventory_totals(s).normal_item,
+            "TotalSoulWeapon" => self.soul_weapons().len() as i64,
             "TotalSoulWeaponUpgrade" => self
-                .soul_weapons
+                .soul_weapons()
                 .iter()
                 .map(|r| n(r, "Grade"))
                 .max()
                 .unwrap_or(0),
             "TotalSoulWeaponReinforce" => self
-                .soul_weapons
+                .soul_weapons()
                 .iter()
                 .map(|r| n(r, "ReinforceLevel"))
                 .max()
@@ -589,7 +673,7 @@ impl View {
             }
             "TotalMonster" | "TotalNormalMonster" | "TotalBossMonster" => {
                 let known: BTreeSet<_> = self
-                    .metrics
+                    .metrics_of("DefeatMonster")
                     .iter()
                     .filter(|m| m.1 == "DefeatMonster" && m.4 > 0)
                     .map(|m| m.2)
@@ -610,13 +694,13 @@ impl View {
             }
             "WorldBossMaxRank" => {
                 return Some((
-                    self.history
+                    self.hist(super::state::part::WORLD_RANK)
                         .world_rank
                         .is_some_and(|rank| rank <= req && rank > 0) as i64,
                     1,
                 ))
             }
-            "LinkAccount" => return Some((self.history.linked_account as i64, 1)),
+            "LinkAccount" => return Some((self.hist(super::state::part::LINKED).linked_account as i64, 1)),
             _ => return None,
         };
         Some((value.max(0), req.max(1)))

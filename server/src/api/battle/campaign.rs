@@ -707,10 +707,13 @@ async fn complete_inner(
     let mut flasks = vec![];
     let mut flask_items = vec![];
     let loaned = loaned_campaign_heroes(s, d, r)?;
-    for id in party {
-        // Loaned story actors never receive account hero EXP.
-        if story_party(s, d).is_some() || loaned.contains(id) { continue; }
-        let h = hero::info(db, a, *id as i32).await?;
+    // Loaned story actors never receive account hero EXP.
+    let earning: Vec<i64> = party.iter().copied()
+        .filter(|id| story_party(s, d).is_none() && !loaned.contains(id)).collect();
+    // Every earning hero and its stored details (flask progress) in one read.
+    let mut loaded = hero::owned_details(db, a, &earning).await?;
+    for id in &earning {
+        let (mut h, mut details) = loaded.get(id).cloned().ok_or_else(|| rule("NoHero"))?;
         let old = n(&h, "Level") as i32;
         let cap = s
             .tables
@@ -736,27 +739,35 @@ async fn complete_inner(
                 cap,
             )
         };
-        crate::db::query("UPDATE heroes SET level=$1,exp=$2 WHERE account_id=$3 AND hero_index=$4")
-            .bind(level)
-            .bind(new_exp)
-            .bind(a)
-            .bind(id)
-            .execute(&mut *db)
-            .await?;
+        // A capped hero keeps its level and EXP: nothing to write.
+        if level != old || new_exp != n(&h, "Exp") {
+            crate::db::query("UPDATE heroes SET level=$1,exp=$2 WHERE account_id=$3 AND hero_index=$4")
+                .bind(level)
+                .bind(new_exp)
+                .bind(a)
+                .bind(id)
+                .execute(&mut *db)
+                .await?;
+        }
+        let old_exp = n(&h, "Exp");
+        h["Level"] = json!(level);
+        h["Exp"] = json!(new_exp);
         if old >= cap && grant_loot {
             if let Some((f, items)) =
-                super::super::extensions::consumables::fill_flask(db, s, a, *id as i32, exp).await?
+                super::super::extensions::consumables::fill_flask_with(db, s, a, *id as i32, exp, &mut details).await?
             {
                 flasks.push(f);
                 flask_items.extend(items);
             }
         }
+        // A repeated party slot sees this slot's level, EXP and flask.
+        loaded.insert(*id, (h, details));
         // The result card shows TotalExp(NewLevel, NewValue) minus
         // TotalExp(OldLevel, NewValue - AddValue), matching the client's own
         // tutorial result builder. AddValue is therefore the local-EXP delta
         // (negative after level-ups), not the base gain; otherwise level-ups
         // inflate the label and the booster share is never shown.
-        let (add_value, booster) = if old >= cap { (0, 0) } else { (new_exp - n(&h, "Exp"), exp - base_exp) };
+        let (add_value, booster) = if old >= cap { (0, 0) } else { (new_exp - old_exp, exp - base_exp) };
         hero_exp.push(json!({"HeroIndex":id,"OldLevel":old,"NewLevel":level,"NewValue":new_exp,"AddValue":add_value,"AddBoosterValue":booster,"AddTeamLevelValue":0}));
     }
     p["MaxStar"] = json!(n(&p, "MaxStar").max(diff * 10 + star));

@@ -27,6 +27,38 @@ pub(crate) async fn options(
     Ok(json!(options))
 }
 
+/// `options` for several heroes with one statement.
+pub(crate) async fn options_for(
+    db: &mut PgConnection,
+    account: i64,
+    heroes: &[Value],
+) -> Result<Vec<Value>> {
+    let slot_sets: Vec<BTreeSet<i64>> = heroes.iter().map(|hero| hero["HeroRunePageInfos"].as_array().into_iter().flatten()
+        .map(|page| n(page, "EquipItemSlotIndex")).filter(|slot| *slot > 0).collect()).collect();
+    let all: BTreeSet<i64> = slot_sets.iter().flatten().copied().collect();
+    let mut stored = std::collections::HashMap::<i64, String>::new();
+    if !all.is_empty() {
+        let list = serde_json::to_string(&all).map_err(|e| ServerError::Internal(e.to_string()))?;
+        for (slot, raw) in crate::db::query_as::<(i64, Option<String>)>(
+            "SELECT slot_index,punishment_rune_option FROM equip_items WHERE account_id=$1 AND slot_index IN (SELECT sprk_json_ints($2))",
+        ).bind(account).bind(list).fetch_all(&mut *db).await? {
+            if let Some(raw) = raw { stored.insert(slot, raw); }
+        }
+    }
+    slot_sets.iter().map(|slots| {
+        let mut options = vec![];
+        for slot in slots {
+            if let Some(raw) = stored.get(slot) {
+                let mut option: Value = serde_json::from_str(raw)
+                    .map_err(|e| ServerError::Internal(e.to_string()))?;
+                option["EquipItemSlotIndex"] = json!(slot);
+                options.push(option);
+            }
+        }
+        Ok(json!(options))
+    }).collect()
+}
+
 pub(crate) async fn attached(db: &mut PgConnection, account: i64, slot: i64) -> Result<bool> {
     Ok(crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM hero_details h,sprk_json_each(h.data,'$.HeroRunePageInfos') r WHERE h.account_id=$1 AND sprk_json_int(r.value,'$.EquipItemSlotIndex')=$2)").bind(account).bind(slot).fetch_one(db).await?)
 }

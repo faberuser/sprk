@@ -133,6 +133,7 @@ const DERIVED: &[(&str, &str)] = &[
     ("arena_runs", "SELECT id,kind,status,season,nonduel,squad FROM arena_runs ORDER BY id"),
     ("arena_snapshots", "SELECT run FROM arena_snapshots ORDER BY run"),
     ("response_revisions keys", "SELECT scope,account FROM response_revisions ORDER BY 1,2"),
+    ("response_revision_parts", "SELECT scope,account,part FROM response_revision_parts ORDER BY 1,2,3"),
 ];
 
 fn row_strings(rows: Vec<sqlx::postgres::PgRow>) -> Vec<String> {

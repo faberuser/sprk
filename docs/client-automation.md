@@ -164,6 +164,19 @@ player and guild level/name spacing, centering and shadow labels across
 several text lengths. This fixture does not load account portraits or replace
 the server ranking regression tests.
 
+`achievement-delta-probe` requires a logged-in account and an
+`achievement-delta-*` profile. `target=1` sends `tutorial/begin_tutorial`
+through the native requester (with the `Ping` flag, which passes a running
+tutorial's service block), so `OnBaseResponse` applies the reply as in play;
+poll until the status starts with `DONE` or `FAIL`. The status lists the
+`X-SPRK-*` headers sent, the reply size, how many achievements it carried
+(`-1`: omitted) and the client's resulting achievement list.
+`client/scripts/automation/achievement_delta_check.py <run> <label> [SQL]`
+runs SQL on the run's database first (to change the account's progress),
+runs the probe and compares the client's list with the server's full list.
+A fresh isolated database has no accounts: register one with the login
+form's Create an Account (`text` steps take a `text` field).
+
 `eclipse-gauge-probe` requires Login and an `eclipse-gauge-*` profile. Start
 with `target=1`, then poll without a target until the returned status is
 `PASS` or `FAIL` (allow 90 seconds). It checks the native gauge prefab at

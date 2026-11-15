@@ -476,7 +476,7 @@ pub(crate) async fn settle(
     }
     if exp_cost > 0 {
         out["ExpResult2"] = dungeons::stamina_exp(db, s, a, exp_cost).await?;
-        let award = dungeons::eclipse_points(db, s, a, exp_cost).await?;
+        let award = dungeons::stamina_awards(db, s, a, exp_cost).await?;
         dungeons::attach_eclipse_points(out, &award);
     }
     if flask_cost > 0 {fill_stamina_flasks(db,s,a,entry,flask_cost,out).await?;}
@@ -502,13 +502,13 @@ pub(super) async fn fill_stamina_flasks(
     let heroes:Vec<Value>=if let Some(ids)=entry["Heroes"].as_array() {ids.clone()}
         else {read_json(entry["HeroIndices"].as_str().unwrap_or("[]"))?};
     let mut seen=BTreeSet::new();
-    for id in heroes.iter().filter_map(Value::as_i64) {
-        if id<=0 || id>i32::MAX as i64 || !seen.insert(id) ||
-            entry["LoanedHeroIndices"].as_array().is_some_and(|ids|ids.contains(&json!(id))) {continue;}
-        let owned:bool=crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=$1 AND hero_index=$2)")
-            .bind(a).bind(id).fetch_one(&mut *db).await?;
-        if !owned {continue;}
-        if let Some((flask,items))=crate::api::extensions::consumables::fill_stamina_flask(db,s,a,id as i32,spent).await? {
+    let ids:Vec<i64>=heroes.iter().filter_map(Value::as_i64).filter(|&id| id>0 && id<=i32::MAX as i64 && seen.insert(id) &&
+        !entry["LoanedHeroIndices"].as_array().is_some_and(|ids|ids.contains(&json!(id)))).collect();
+    // Ownership and stored flask progress of the whole party in one read.
+    let mut owned=crate::api::heroes::owned_details(db,a,&ids).await?;
+    for id in ids {
+        let Some((_,mut details))=owned.remove(&id) else {continue;};
+        if let Some((flask,items))=crate::api::extensions::consumables::fill_stamina_flask_with(db,s,a,id as i32,spent,&mut details).await? {
             let mut results=out["FlaskResults"].as_array().cloned().unwrap_or_default();results.push(flask);out["FlaskResults"]=json!(results);
             let mut results=out["FlaskItemResults"].as_array().cloned().unwrap_or_default();results.extend(items);out["FlaskItemResults"]=json!(results);
         }

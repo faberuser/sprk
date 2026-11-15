@@ -20,6 +20,16 @@ pub struct ProgressionTable {
     pub mission_visuals: Vec<Value>,
     #[serde(default)]
     pub calendars: Vec<Value>,
+    /// Mission rows grouped per mission, computed on first use.
+    #[serde(skip)]
+    pub mission_groups: std::sync::OnceLock<MissionGroups>,
+}
+/// Achievement rows by `Index` and sub-quest rows by `QuestIndex`, in index
+/// order, as indices into `achievements` / `sub_quests` (table order).
+#[derive(Debug, Clone, Default)]
+pub struct MissionGroups {
+    pub achievements: Vec<(i64, Vec<usize>)>,
+    pub sub_quests: Vec<(i64, Vec<usize>)>,
 }
 impl ProgressionTable {
     pub fn load(dir: &Path) -> Result<Self, Box<dyn std::error::Error>> {

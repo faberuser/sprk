@@ -41,19 +41,97 @@ pub(crate) use conquest::{enter as conquest_enter, finish as conquest_finish, va
 pub(crate) use warfare::{raid_enter, raid_finish, raid_validate};
 
 pub(crate) async fn guild_reward_boost(db: &mut PgConnection, s: &AppState, a: i64) -> Result<(i64, i64)> {
-    let guild_id: Option<i64> = crate::db::query_scalar("SELECT guild_id FROM guild_members WHERE account_id=$1")
+    // Membership, the guild's existence and its stored info in one read; the
+    // bonus needs only the skill levels, normalized as `guild::view` does.
+    let row: Option<(Option<i64>, Option<String>)> = crate::db::query_as("SELECT g.guild_id,(SELECT data FROM community_state WHERE owner=m.guild_id AND kind='guild' AND idx=0) \
+        FROM guild_members m LEFT JOIN guilds g ON g.guild_id=m.guild_id WHERE m.account_id=$1")
         .bind(a).fetch_optional(&mut *db).await?;
-    let Some(g) = guild_id else { return Ok((0, 0)); };
-    let info = guild::state(db, s, g).await?;
+    let Some((guild, stored)) = row else { return Ok((0, 0)); };
+    if guild.is_none() { return Err(rule("NoGuild")); }
+    let stored: Value = stored.map(|v| parse(&v)).transpose()?.unwrap_or(Value::Null);
+    let mut skills = stored["SkillInfos"].as_array().cloned().unwrap_or_default();
+    for def in s.tables.arena_guild.rows("GuildSkill") {
+        let id = n(def, "GuildSkillIndex");
+        if !skills.iter().any(|v| n(v, "SkillIndex") == id) {
+            skills.push(json!({"SkillIndex":id,"SkillLevel":1}));
+        }
+    }
     let mut result = (0, 0);
-    for skill in info["SkillInfos"].as_array().into_iter().flatten() {
+    for skill in &skills {
         let id = n(skill, "SkillIndex");
         let Some(def) = s.tables.arena_guild.find("GuildSkill", &[("GuildSkillIndex", id)]) else { continue; };
-        let Some(level) = s.tables.arena_guild.find("GuildSkillLevel", &[("GuildSkillIndex", id), ("GuildSkillLevel", n(skill, "SkillLevel"))]) else { continue; };
+        let Some(level) = s.tables.arena_guild.find("GuildSkillLevel", &[("GuildSkillIndex", id), ("GuildSkillLevel", n(skill, "SkillLevel").max(1))]) else { continue; };
         let value = level["Values"][0].as_i64().unwrap_or(0);
         match n(def, "BonusType") { 3 => result.0 += value, 1 => result.1 += value, _ => {} }
     }
     Ok(result)
+}
+
+/// Guild Coins earned from stamina today (UTC), as PlayerGuildPointInfo's
+/// DailyAccGuildPoint reports it.
+pub(crate) async fn daily_guild_point(db: &mut PgConnection, a: i64) -> Result<i64> {
+    let v = get(db, a, "guild_point_daily", 0).await?;
+    Ok(if v["Day"] == day() { n(&v, "Acc") } else { 0 })
+}
+/// Completes a GuildPointResult that did not come from stamina. The client
+/// overwrites its DailyAccGuildPoint with NewDailyAccValue on every result,
+/// so a missing value would read as 0.
+pub(crate) async fn guild_point_result(db: &mut PgConnection, a: i64, mut result: Value) -> Result<Value> {
+    if result["AddDailyAccValue"].is_null() {
+        result["AddDailyAccValue"] = json!(0);
+    }
+    result["NewDailyAccValue"] = json!(daily_guild_point(db, a).await?);
+    Ok(result)
+}
+/// Spent stamina earns Guild Coins for the member (up to MaxDailyAccGuildPoint
+/// a day; the Guild Master earns and may hold GuildMasterAdd*Percentage more),
+/// plus Activity Score for the guild and the member's weekly score, as
+/// natively. Returns null outside a guild, otherwise the GuildPointResult,
+/// GuildActivityPointResult and GuildMemberAccActivityPointResult EndCampaign
+/// carries.
+pub(crate) async fn stamina_activity(db: &mut PgConnection, s: &AppState, a: i64, spent: i64) -> Result<Value> {
+    let spent = spent.max(0);
+    if spent == 0 {
+        return Ok(Value::Null);
+    }
+    // Lock the guild so concurrent members' battles do not lose each other's points.
+    let guild: Option<(i64, i64)> = crate::db::query_as("SELECT g.guild_id,m.role FROM guild_members m JOIN guilds g ON g.guild_id=m.guild_id WHERE m.account_id=$1 FOR UPDATE OF g")
+        .bind(a).fetch_optional(&mut *db).await?;
+    let Some((g, role)) = guild else { return Ok(Value::Null); };
+    let mut out = json!({});
+    let master = role == 2;
+    let bonus = |key: &str, value: i64| if master { value.saturating_mul(100 + constant(s, key, 20).max(0)) / 100 } else { value };
+    let cap = bonus("GuildMasterAddDailyAccGuildPointPercentage", constant(s, "MaxDailyAccGuildPoint", 1000));
+    let acc = daily_guild_point(db, a).await?;
+    let coins = bonus("GuildMasterAddGuildPointPercentage", spent.saturating_mul(settings(s, "GuildPointPerStamina", 1).max(0)))
+        .min((cap - acc).max(0));
+    if coins > 0 {
+        let mut result = hero::currency(db, a, "GuildPoint", coins).await?;
+        put(db, a, "guild_point_daily", 0, &json!({"Day":day(),"Acc":acc + coins})).await?;
+        result["AddDailyAccValue"] = json!(coins);
+        result["NewDailyAccValue"] = json!(acc + coins);
+        out["GuildPointResult"] = result;
+    }
+    let gain = spent.saturating_mul(settings(s, "GuildActivityPerStamina", 1).max(0));
+    if gain <= 0 {
+        return Ok(if coins > 0 { out } else { Value::Null });
+    }
+    let mut info = get(db, g, "guild", 0).await?;
+    if info.is_null() {
+        info = guild::state(db, s, g).await?;
+    }
+    let total = n(&info, "ActivityPoint").saturating_add(gain);
+    info["ActivityPoint"] = json!(total);
+    put(db, g, "guild", 0, &info).await?;
+    crate::db::query("UPDATE guilds SET exp=$1 WHERE guild_id=$2").bind(total).bind(g).execute(&mut *db).await?;
+    let mut m = guild::member_state(db, s, a, g).await?;
+    let mine = n(&m, "AccActivityPoint").saturating_add(gain);
+    m["AccActivityPoint"] = json!(mine);
+    put(db, a, "guild_member", g, &m).await?;
+    crate::db::query("UPDATE guild_members SET contribution=contribution+$1 WHERE account_id=$2 AND guild_id=$3").bind(gain).bind(a).bind(g).execute(&mut *db).await?;
+    out["GuildActivityPointResult"] = json!({"NewValue":total});
+    out["GuildMemberAccActivityPointResult"] = json!({"AddValue":gain,"NewValue":mine});
+    Ok(out)
 }
 
 pub fn routes(t: &crate::tables::BattleTable) -> axum::Router<AppState> {
@@ -256,19 +334,24 @@ fn parse<T: serde::de::DeserializeOwned>(v: &str) -> Result<T> {
     serde_json::from_str(v).map_err(|e| ServerError::Internal(e.to_string()))
 }
 async fn get(db: &mut PgConnection, a: i64, kind: &str, idx: i64) -> Result<Value> {
-    let v: Option<String> =
-        crate::db::query_scalar("SELECT data FROM community_state WHERE owner=$1 AND kind=$2 AND idx=$3")
+    use crate::api::system::prefetch;
+    let v: Option<String> = match prefetch::get(prefetch::Table::Community, a, kind, idx) {
+        Some(row) => row,
+        None => crate::db::query_scalar("SELECT data FROM community_state WHERE owner=$1 AND kind=$2 AND idx=$3")
             .bind(a)
             .bind(kind)
             .bind(idx)
             .fetch_optional(db)
-            .await?;
+            .await?,
+    };
     v.map(|v| parse(&v))
         .transpose()
         .map(|v| v.unwrap_or(Value::Null))
 }
 async fn put(db: &mut PgConnection, a: i64, kind: &str, idx: i64, v: &Value) -> Result<()> {
-    crate::db::query("INSERT INTO community_state(owner,kind,idx,data) VALUES($1,$2,$3,$4) ON CONFLICT(owner,kind,idx) DO UPDATE SET data=excluded.data").bind(a).bind(kind).bind(idx).bind(v.to_string()).execute(db).await?;
+    let data = v.to_string();
+    crate::db::query("INSERT INTO community_state(owner,kind,idx,data) VALUES($1,$2,$3,$4) ON CONFLICT(owner,kind,idx) DO UPDATE SET data=excluded.data").bind(a).bind(kind).bind(idx).bind(&data).execute(db).await?;
+    crate::api::system::prefetch::put(crate::api::system::prefetch::Table::Community, a, kind, idx, data);
     Ok(())
 }
 async fn claim(
@@ -374,7 +457,7 @@ pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
     arena::settle(&mut tx, s, a).await?;
     warfare::settle(&mut tx, s, a).await?;
     conquest::settle(&mut tx,s,a).await?;
-    let mut out = json!({"BattleInfo":arena::battle_info(&mut tx,s,a).await?,"SwordResult":arena::tickets(&mut tx,s,a,"Sword",0).await?,"GuildPoint":hero::currency(&mut tx,a,"GuildPoint",0).await?["NewValue"]});
+    let mut out = json!({"BattleInfo":arena::battle_info(&mut tx,s,a).await?,"SwordResult":arena::tickets(&mut tx,s,a,"Sword",0).await?,"GuildPoint":hero::currency(&mut tx,a,"GuildPoint",0).await?["NewValue"],"DailyAccGuildPoint":daily_guild_point(&mut tx,a).await?});
     out["GuildRaidTicket"] = guild_ticket(&mut tx, s, a, 0).await?;
     let withdrawal = get(&mut tx, a, "withdraw", 0).await?;
     out["MiscInfo"] = json!({"GuildWithdrawCount":n(&withdrawal,"Count"),"GuildWithdrawTime":if n(&withdrawal,"At")>0{json!(time(n(&withdrawal,"At")))}else{Value::Null}});
@@ -392,6 +475,7 @@ pub(crate) async fn guild_ticket(
     amount: i64,
 ) -> Result<Value> {
     let mut info = get(db,a,"guild_ticket",0).await?;
+    let stored = info.clone();
     let current:i64 = crate::db::query_scalar("SELECT guild_raid_ticket FROM user_info WHERE account_id=$1")
         .bind(a).fetch_one(&mut *db).await?;
     info["Count"] = json!(if info.is_null(){current.max(2)}else{current});
@@ -407,9 +491,12 @@ pub(crate) async fn guild_ticket(
         let refreshed=crate::api::account::recharge::at(&saved,def,overrides,current,chrono::Utc::now(),0)?;
         saved=refreshed.0; result=refreshed.1; result["AddValue"]=json!(added);
     }
-    crate::db::query("UPDATE user_info SET guild_raid_ticket=$1 WHERE account_id=$2")
-        .bind(n(&saved,"Count")).bind(a).execute(&mut *db).await?;
-    put(db,a,"guild_ticket",0,&saved).await?;
+    // Reading the balance writes only when the recharge changed it.
+    if n(&saved,"Count") != current {
+        crate::db::query("UPDATE user_info SET guild_raid_ticket=$1 WHERE account_id=$2")
+            .bind(n(&saved,"Count")).bind(a).execute(&mut *db).await?;
+    }
+    if saved != stored { put(db,a,"guild_ticket",0,&saved).await?; }
     Ok(result)
 }
 pub(crate) async fn ensure_available(
@@ -440,5 +527,6 @@ pub(crate) async fn ensure_available(
 }
 
 pub(crate) use arena::tickets;
+pub(crate) use arena::RegisteredDeck;
 
 pub(crate) use arena::service_result as service_match_result;

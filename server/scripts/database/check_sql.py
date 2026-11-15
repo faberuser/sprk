@@ -22,8 +22,9 @@ QUERY = re.compile(
     r'(?:crate::db::query|crate::db::query_scalar|crate::db::query_as|sqlx::query|sqlx::query_scalar|sqlx::query_as)'
     r'(?:::<[^>]*>)?\(\s*(?:sqlx::AssertSqlSafe\()?(r(#*)"(.*?)"\2|"((?:[^"\\]|\\.)*)")', re.S)
 # Statements on objects that only exist at test time (created by test helpers
-# and by the lock tests' scratch table).
-SKIP = ("sprk_test_writes", "FROM counter", "INTO counter", "UPDATE counter", "TABLE counter")
+# and by the lock tests' scratch table), and the optional pg_stat_statements
+# extension the request profiling harness reads when it is installed.
+SKIP = ("sprk_test_writes", "FROM counter", "INTO counter", "UPDATE counter", "TABLE counter", "pg_stat_statements")
 
 
 def unescape(body: str) -> str:

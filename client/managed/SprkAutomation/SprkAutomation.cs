@@ -1062,6 +1062,17 @@ public sealed class SprkAutomation : MonoBehaviour
 				Write(reply);
 				return;
 			}
+			if (command.action == "achievement-delta-probe")
+			{
+				if (command.target == 1)
+				{
+					SprkAchievementDeltaProbe.Begin();
+				}
+				reply = Snapshot(command.id);
+				reply.materials.Add(SprkAchievementDeltaProbe.Status);
+				Write(reply);
+				return;
+			}
 			if (command.action == "reward-boosters-probe")
 			{
 				ProbeRewardBoosters(command);

@@ -87,6 +87,11 @@ pub(crate) struct Rewards {
     /// With `mail_overflow`: the bag reached capacity during this batch. A
     /// batch only adds equipment, so later drops overflow without recounting.
     pub(crate) bag_full: bool,
+    /// With `mail_overflow`: the main bag's free slots after the last counted
+    /// grant and `equipment.len()` then. A batch only adds equipment, so a
+    /// later grant subtracts its own pieces instead of recounting the bag
+    /// (recounted when other equipment joined the batch meanwhile).
+    pub(crate) bag_free: Option<(i64, usize)>,
     /// With `mail_overflow`: this batch's overflow mail and its equipment, so
     /// further drops join it (up to OVERFLOW_MAIL_EQUIPMENT) instead of one mail each.
     pub(crate) overflow_mail: Option<(i64, Vec<EquipItemInfo>)>,
@@ -156,19 +161,18 @@ pub(crate) async fn equipment(
     mut item: EquipItemInfo,
     rewards: &mut Rewards,
 ) -> Result<()> {
-    let result = crate::db::query_scalar::<i64>("INSERT INTO equip_items (account_id, item_index, star, level, exp, option_index_1, option_step_1, option_index_2, option_step_2, option_index_3, option_step_3, option_index_4, option_step_4, rune_slot_count, rune_item_index_1, rune_item_index_2, rune_item_index_3, created_time, identified) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 1) RETURNING slot_index")
+    let result = crate::db::query_scalar::<i64>("INSERT INTO equip_items (account_id, item_index, star, level, exp, option_index_1, option_step_1, option_index_2, option_step_2, option_index_3, option_step_3, option_index_4, option_step_4, rune_slot_count, rune_item_index_1, rune_item_index_2, rune_item_index_3, created_time, identified, option_renew_count_1, is_renewed_option_1, option_renew_count_2, is_renewed_option_2, option_renew_count_3, is_renewed_option_3, option_renew_count_4, is_renewed_option_4) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 1, $19, $20, $21, $22, $23, $24, $25, $26) RETURNING slot_index")
         .bind(account_id).bind(item.item_index).bind(item.star).bind(item.level).bind(item.exp)
         .bind(item.option_index_1).bind(item.option_step_1).bind(item.option_index_2).bind(item.option_step_2)
         .bind(item.option_index_3).bind(item.option_step_3).bind(item.option_index_4).bind(item.option_step_4)
         .bind(item.rune_slot_count).bind(item.rune_item_index_1).bind(item.rune_item_index_2).bind(item.rune_item_index_3)
-        .bind(&item.created_time).fetch_one(&mut *db).await?;
-    item.slot_index = result as i32;
-    crate::db::query("UPDATE equip_items SET option_renew_count_1 = $1, is_renewed_option_1 = $2, option_renew_count_2 = $3, is_renewed_option_2 = $4, option_renew_count_3 = $5, is_renewed_option_3 = $6, option_renew_count_4 = $7, is_renewed_option_4 = $8 WHERE slot_index = $9 AND account_id = $10")
+        .bind(&item.created_time)
         .bind(item.option_renew_count_1).bind(item.is_renewed_option_1)
         .bind(item.option_renew_count_2).bind(item.is_renewed_option_2)
         .bind(item.option_renew_count_3).bind(item.is_renewed_option_3)
         .bind(item.option_renew_count_4).bind(item.is_renewed_option_4)
-        .bind(item.slot_index).bind(account_id).execute(&mut *db).await?;
+        .fetch_one(&mut *db).await?;
+    item.slot_index = result as i32;
     item.uid = item.slot_index.to_string();
     item.identified = 1;
     rewards.equipment.push(item);
@@ -181,6 +185,19 @@ pub(crate) async fn grant_item(
     account_id: i64,
     grant: ItemGrant,
     rewards: &mut Rewards,
+) -> Result<()> {
+    grant_item_rolled(db, state, account_id, grant, rewards, false).await
+}
+
+/// `grant_item`; with `roll_options`, non-custom equipment is inserted with
+/// freshly rolled options (`inventory::item::make_options`).
+pub(crate) async fn grant_item_rolled(
+    db: &mut PgConnection,
+    state: &AppState,
+    account_id: i64,
+    grant: ItemGrant,
+    rewards: &mut Rewards,
+    roll_options: bool,
 ) -> Result<()> {
     let ItemGrant {
         index,
@@ -228,6 +245,9 @@ pub(crate) async fn grant_item(
             item.item_index = index;
             item.star = star;
             item.created_time = state.server_time_str();
+            if roll_options && custom == 0 {
+                crate::api::inventory::item::make_options(state, index, &mut item, &[])?;
+            }
             equipment(db, account_id, item, rewards).await?;
         }
     } else {
