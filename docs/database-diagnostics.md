@@ -52,19 +52,19 @@ deadlock unless it locks.
    settlement on the room master, mail, party messages, coupons, inventory
    initialization.
 3. **Shared rows.**
-   - Guild content: community requests of a guild member take the guild's
-     lock (`postgres::lock_guild`) after the account lock.
-   - Party/raid rooms: the room row is read `FOR UPDATE` before the JSON is
-     rewritten.
-   - Arena: matchmaking writes both players' queue entries and swords, so
-     arena requests and arena settlements take one arena queue lock
-     (`postgres::lock_arena_queue`) after the account lock and run in turn; a
-     queue entry that changed anyway aborts the pairing.
-   - Guild arena pairing locks the opponent guild with a `try` lock
-     (skipping a busy one instead of waiting, which could deadlock) and
-     re-reads it.
-   - Counters shared across players (guild conquest keys, honor buff,
-     friendship points) are single atomic statements.
+    - Guild content: community requests of a guild member take the guild's
+      lock (`postgres::lock_guild`) after the account lock.
+    - Party/raid rooms: the room row is read `FOR UPDATE` before the JSON is
+      rewritten.
+    - Arena: matchmaking writes both players' queue entries and swords, so
+      arena requests and arena settlements take one arena queue lock
+      (`postgres::lock_arena_queue`) after the account lock and run in turn; a
+      queue entry that changed anyway aborts the pairing.
+    - Guild arena pairing locks the opponent guild with a `try` lock
+      (skipping a busy one instead of waiting, which could deadlock) and
+      re-reads it.
+    - Counters shared across players (guild conquest keys, honor buff,
+      friendship points) are single atomic statements.
 4. **Retry wrapper.** `postgres::transaction(pool, Isolation, closure)` reruns
    on 40001/40P01. Request handlers do not use it (they have side effects
    inside transactions); a deadlock fails one request, which the client
@@ -81,14 +81,14 @@ Lock waits of 250 ms or more are logged as `Waited long for a lock` with the
 All SQL is PostgreSQL with `$1, $2, …` placeholders. Helpers in
 `server/migrations/0001_helpers.sql`:
 
-| Need | Helper |
-| --- | --- |
-| Current or shifted time as text (UTC) | `sprk_datetime('now')`, `sprk_datetime(x, '-5 seconds')`; column default `sprk_now()` |
-| Dates | `sprk_date(...)`, `sprk_utc_day()` |
-| Epoch seconds of a text timestamp | `sprk_epoch(x)` (truncated) |
-| Read a JSON field from a text column | `sprk_json_int` / `sprk_json_text` / `sprk_json_real` / `sprk_json` (jsonb), with `'$.a.b'` paths |
-| Change JSON | `sprk_json_set` (one path; nest for several), `sprk_json_remove` |
-| Inspect JSON | `sprk_json_type`, `sprk_json_array_length`, `sprk_json_each`, `sprk_json_ints($n)` (a JSON array of integers as rows) |
+| Need                                  | Helper                                                                                                                |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Current or shifted time as text (UTC) | `sprk_datetime('now')`, `sprk_datetime(x, '-5 seconds')`; column default `sprk_now()`                                 |
+| Dates                                 | `sprk_date(...)`, `sprk_utc_day()`                                                                                    |
+| Epoch seconds of a text timestamp     | `sprk_epoch(x)` (truncated)                                                                                           |
+| Read a JSON field from a text column  | `sprk_json_int` / `sprk_json_text` / `sprk_json_real` / `sprk_json` (jsonb), with `'$.a.b'` paths                     |
+| Change JSON                           | `sprk_json_set` (one path; nest for several), `sprk_json_remove`                                                      |
+| Inspect JSON                          | `sprk_json_type`, `sprk_json_array_length`, `sprk_json_each`, `sprk_json_ints($n)` (a JSON array of integers as rows) |
 
 Helpers call each other schema-qualified (`public.`), because index
 maintenance runs with `search_path = pg_catalog`.
@@ -165,15 +165,15 @@ Portainer git stacks cannot bind-mount files from the repository; this needs
 Docker Compose 2.23.1 or newer. If the volume was created without them (roles
 missing), run that script by hand in the `postgres` container.
 
-| Variable | Use |
-| --- | --- |
-| `SPRK_DB_SUPERUSER_PASSWORD` | bootstrap superuser (maintenance only) |
-| `SPRK_DB_OWNER_PASSWORD` | `sprk_owner` |
-| `SPRK_DB_APP_PASSWORD` | `sprk_app` |
-| `SPRK_DB_SHARED_BUFFERS` | about 25% of the memory available to PostgreSQL (default 512MB) |
-| `SPRK_DB_MAX_WAL_SIZE` | default 4GB |
+| Variable                     | Use                                                                                                                                                                                                                                                            |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SPRK_DB_SUPERUSER_PASSWORD` | bootstrap superuser (maintenance only)                                                                                                                                                                                                                         |
+| `SPRK_DB_OWNER_PASSWORD`     | `sprk_owner`                                                                                                                                                                                                                                                   |
+| `SPRK_DB_APP_PASSWORD`       | `sprk_app`                                                                                                                                                                                                                                                     |
+| `SPRK_DB_SHARED_BUFFERS`     | about 25% of the memory available to PostgreSQL (default 512MB)                                                                                                                                                                                                |
+| `SPRK_DB_MAX_WAL_SIZE`       | default 4GB                                                                                                                                                                                                                                                    |
 | `SPRK_DB_SYNCHRONOUS_COMMIT` | default `off`: a commit returns before its WAL flush (as the former SQLite `synchronous=NORMAL`). A host or PostgreSQL crash can lose the last ~0.6 s of commits but never corrupts. `on` waits for the disk on every commit (2–20 ms on the production disk). |
-| `SPRK_DB_MAX_CONNECTIONS` | connections per pool (default 16) |
+| `SPRK_DB_MAX_CONNECTIONS`    | connections per pool (default 16)                                                                                                                                                                                                                              |
 
 Use long random URL-safe passwords (letters, digits, `-` and `_`). They take
 effect only when the volume is first created; change them later with
@@ -201,15 +201,21 @@ that directory: if the NAS is not mounted, `postgres-backup` does not start,
 rather than writing "NAS" copies onto the local disk. For point-in-time
 recovery add WAL archiving (pgBackRest or WAL-G) later.
 
+The commands below use `docker exec`, which works from any directory, including
+when the stack is deployed through Portainer and the host has no compose file.
+Find the container names with `docker ps --format '{{.Names}}'` (for example
+`sprk-postgres-1` and `sprk-game-1`) and substitute them. Never pass `-t`: a TTY
+corrupts the binary dump.
+
 ```bash
 # Manual dump
-docker compose exec -T postgres pg_dump -U postgres -Fc sprk > sprk-manual.dump
+docker exec sprk-postgres-1 pg_dump -U postgres -Fc sprk > sprk-manual.dump
 
 # Restore into the running database
-docker compose stop game
-docker compose exec -T postgres pg_restore -U sprk_owner -d sprk --clean --if-exists \
+docker stop sprk-game-1
+docker exec -i sprk-postgres-1 pg_restore -U sprk_owner -d sprk --clean --if-exists \
     --no-owner --single-transaction --exit-on-error < /srv/sprk/db-backups/sprk-<time>.dump
-docker compose start game
+docker start sprk-game-1
 ```
 
 The restore replaces the contents of the `sprk` database in one transaction (a
@@ -241,10 +247,10 @@ three:
    players are on. On the Docker host, with `db_diagnostics.py` copied there,
    run it from a throwaway Python container on the stack's network:
 
-   ```bash
-   docker run --rm --network sprk_default -v "$PWD":/w:ro python:3.12-slim sh -c \
-     'pip install -q --root-user-action=ignore "psycopg[binary]" && python -I /w/db_diagnostics.py --database-url "postgres://sprk_owner:<owner password>@postgres:5432/sprk"' > db-report.txt
-   ```
+    ```bash
+    docker run --rm --network sprk_default -v "$PWD":/w:ro python:3.12-slim sh -c \
+      'pip install -q --root-user-action=ignore "psycopg[binary]" && python -I /w/db_diagnostics.py --database-url "postgres://sprk_owner:<owner password>@postgres:5432/sprk"' > db-report.txt
+    ```
 
 3. **A dump** (a daily one from `postgres-backup`, or a manual one, see
    "Backups and restore"), to test fixes on real data.
@@ -279,18 +285,18 @@ python -I server/scripts/database/db_diagnostics.py --log <path/sprk-game.log> -
 
 Either flag can be used alone. The report prints:
 
-| Section | What it means |
-| --- | --- |
-| PostgreSQL contention errors | Deadlocks (40P01), serialization failures (40001), `lock_timeout`, `statement_timeout`, idle-in-transaction kills, too many connections, by path. A few deadlocks under heavy play are tolerable (the request fails and the client retries); a growing count names a hot row or an inconsistent lock order. |
-| Pool acquire timeouts, slow acquires | All pooled connections were busy. Look for long transactions first, then raise `SPRK_DB_MAX_CONNECTIONS`. |
-| `Waited long for a lock` | Waits of 250 ms or more for the same player's, a guild's or the arena queue's previous transaction, by lock and path. The holder is the slow path to fix. |
-| `Slow HTTP request` by path | Requests of 100 ms or more (`SLOW_REQUEST_MS` in `performance.rs`). |
-| sqlx `slow statement` | Single statements of 1 s or more, including lock waits. |
-| Largest tables, dead rows, last vacuum | Growth and bloat. A table with many dead rows and no recent vacuum needs autovacuum tuning. |
-| Buffer cache hit rate | Below about 99% under load means the working set does not fit in `shared_buffers`/memory. |
-| Top statements (`pg_stat_statements`) | Where database time goes, by total time. Compare means before and after a fix. |
-| Long transactions, lock waits | Live view: who holds locks others wait for. A transaction open for seconds usually awaits non-database work it should not hold a transaction across. |
-| Plans of hot queries | Queries that run on a timer or hot paths. `Seq Scan` on a large table, or a `Filter` that parses JSON per row (`sprk_json...`), is a regression. |
+| Section                                | What it means                                                                                                                                                                                                                                                                                               |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PostgreSQL contention errors           | Deadlocks (40P01), serialization failures (40001), `lock_timeout`, `statement_timeout`, idle-in-transaction kills, too many connections, by path. A few deadlocks under heavy play are tolerable (the request fails and the client retries); a growing count names a hot row or an inconsistent lock order. |
+| Pool acquire timeouts, slow acquires   | All pooled connections were busy. Look for long transactions first, then raise `SPRK_DB_MAX_CONNECTIONS`.                                                                                                                                                                                                   |
+| `Waited long for a lock`               | Waits of 250 ms or more for the same player's, a guild's or the arena queue's previous transaction, by lock and path. The holder is the slow path to fix.                                                                                                                                                   |
+| `Slow HTTP request` by path            | Requests of 100 ms or more (`SLOW_REQUEST_MS` in `performance.rs`).                                                                                                                                                                                                                                         |
+| sqlx `slow statement`                  | Single statements of 1 s or more, including lock waits.                                                                                                                                                                                                                                                     |
+| Largest tables, dead rows, last vacuum | Growth and bloat. A table with many dead rows and no recent vacuum needs autovacuum tuning.                                                                                                                                                                                                                 |
+| Buffer cache hit rate                  | Below about 99% under load means the working set does not fit in `shared_buffers`/memory.                                                                                                                                                                                                                   |
+| Top statements (`pg_stat_statements`)  | Where database time goes, by total time. Compare means before and after a fix.                                                                                                                                                                                                                              |
+| Long transactions, lock waits          | Live view: who holds locks others wait for. A transaction open for seconds usually awaits non-database work it should not hold a transaction across.                                                                                                                                                        |
+| Plans of hot queries                   | Queries that run on a timer or hot paths. `Seq Scan` on a large table, or a `Filter` that parses JSON per row (`sprk_json...`), is a regression.                                                                                                                                                            |
 
 ### Rules when fixing
 
@@ -359,35 +365,35 @@ Either flag can be used alone. The report prints:
 
 - **Arena rows** are large: Honor (BanPick) registers the whole collection, so
   an `arena_runs` row can reach 1.2–1.8 MB.
-  - Each registered `AccountInfo` lives in `arena_snapshots(run, data)`,
-    written once at registration (`Register.AccountInfo` is null in the run
-    JSON; an `AFTER DELETE` trigger drops it with the run). Pairing stores
-    Honor's `Wait.MatchInfo.AccountInfos` as `[]` and re-polls rebuild it
-    (`arena::stored_wait`), so polls, pairing, triggers and settlement handle
-    a few KB. `arena::prebuild` builds the registration's Hero snapshots on
-    the read pool before any lock is taken. Readers of old inline rows keep
-    working (`arena::registered_account`, `COALESCE` in ranking decks and
-    Honor season records).
-  - Queue polls update only `arena_runs.last_poll`; pairing filters on the
-    `last_poll` and `season` columns (index `arena_waiting_queue`).
-    `last_poll` is excluded from the progression revision triggers.
-  - Account-scoped `OnlineMatchUid` lookups write `+account` so the planner
-    uses `arena_online_match_status` instead of the account index, which
-    would JSON-parse every run of that player; the match result lookup
-    selects ids through a `UNION` so the JSON is only read through that
-    index. `arena_completion_lookup_uses_match_index` checks the plans.
-  - Settlement writes `MatchUid`/`GiveUp` with the result in one update and
-    drops the completed row's `Wait.MatchInfo.AccountInfos`.
-  - Rankings (`battle_info_kind`, `get_match_rank`, inspection, season
-    rewards) count the rows ahead of one account (`ranked`) instead of
-    building the whole leaderboard; world rankers build only the requested
-    page. Ranking decks filter on the trigger-kept `season`/`squad` columns.
-  - Retention: each player keeps only the newest `ARENA_RUNS_KEPT` (20)
-    finished runs per arena kind, plus the newest complete run per season, the
-    newest squad run per season and the newest non-friendly run. The
-    `arena_retention_*` triggers prune inside the statement that finishes a
-    run, first folding deleted runs into `arena_history_archive` (per account,
-    kind and UTC day), which mission history adds back.
+    - Each registered `AccountInfo` lives in `arena_snapshots(run, data)`,
+      written once at registration (`Register.AccountInfo` is null in the run
+      JSON; an `AFTER DELETE` trigger drops it with the run). Pairing stores
+      Honor's `Wait.MatchInfo.AccountInfos` as `[]` and re-polls rebuild it
+      (`arena::stored_wait`), so polls, pairing, triggers and settlement handle
+      a few KB. `arena::prebuild` builds the registration's Hero snapshots on
+      the read pool before any lock is taken. Readers of old inline rows keep
+      working (`arena::registered_account`, `COALESCE` in ranking decks and
+      Honor season records).
+    - Queue polls update only `arena_runs.last_poll`; pairing filters on the
+      `last_poll` and `season` columns (index `arena_waiting_queue`).
+      `last_poll` is excluded from the progression revision triggers.
+    - Account-scoped `OnlineMatchUid` lookups write `+account` so the planner
+      uses `arena_online_match_status` instead of the account index, which
+      would JSON-parse every run of that player; the match result lookup
+      selects ids through a `UNION` so the JSON is only read through that
+      index. `arena_completion_lookup_uses_match_index` checks the plans.
+    - Settlement writes `MatchUid`/`GiveUp` with the result in one update and
+      drops the completed row's `Wait.MatchInfo.AccountInfos`.
+    - Rankings (`battle_info_kind`, `get_match_rank`, inspection, season
+      rewards) count the rows ahead of one account (`ranked`) instead of
+      building the whole leaderboard; world rankers build only the requested
+      page. Ranking decks filter on the trigger-kept `season`/`squad` columns.
+    - Retention: each player keeps only the newest `ARENA_RUNS_KEPT` (20)
+      finished runs per arena kind, plus the newest complete run per season, the
+      newest squad run per season and the newest non-friendly run. The
+      `arena_retention_*` triggers prune inside the statement that finishes a
+      run, first folding deleted runs into `arena_history_archive` (per account,
+      kind and UTC day), which mission history adds back.
 - **Mail.** `mails` rows reach about 0.2 MB; watch the table in the
   largest-tables section. Rewards that overflow a full bag join the batch's
   open mail, up to `OVERFLOW_MAIL_EQUIPMENT` (25) pieces; `item::free_slots`
@@ -417,25 +423,25 @@ Either flag can be used alone. The report prints:
   `metrics_of(kind)`, `last(...)`, `stage(...)`, `hist(part)`...), which record
   what each section read, down to the metric kind, claimed mission, Hero and
   campaign stage. Rules:
-  - A new `View` input needs a `part` bit, its query in `View::refresh` and a
-    mapping in `part::of` for every revision part that changes it. An unknown
-    part rebuilds everything (safe but slow), and
-    `every_recorded_revision_part_maps_to_view_parts` fails.
-  - Read data through an accessor, never through `self.d`; memoised values
-    (`inventory_totals`) mark their inputs on every call.
-  - Tests compare every incremental snapshot with a full rebuild
-    (`verify_incremental`), and
-    `incremental_snapshots_match_full_rebuilds_and_reuse_unaffected_sections`
-    checks how many sections a write re-evaluates.
-  - An entry keeps its 60 s expiry across incremental rebuilds, so a reused
-    section is never older than a full rebuild would allow.
-  - Reused sections move out of the previous snapshot (`Sections` keeps only
-    what each read); mission rows are grouped once per loaded tables
-    (`state::mission_groups`), and table lookups (`View`'s, `play_record`'s)
-    survive a refresh. Build table indexes once, never per evaluation.
-  - Hero fields that battles change and no mission reads
-    (`UNREAD_HERO_FIELDS`, flask progress) stay out of the view, so they never
-    count as a hero change.
+    - A new `View` input needs a `part` bit, its query in `View::refresh` and a
+      mapping in `part::of` for every revision part that changes it. An unknown
+      part rebuilds everything (safe but slow), and
+      `every_recorded_revision_part_maps_to_view_parts` fails.
+    - Read data through an accessor, never through `self.d`; memoised values
+      (`inventory_totals`) mark their inputs on every call.
+    - Tests compare every incremental snapshot with a full rebuild
+      (`verify_incremental`), and
+      `incremental_snapshots_match_full_rebuilds_and_reuse_unaffected_sections`
+      checks how many sections a write re-evaluates.
+    - An entry keeps its 60 s expiry across incremental rebuilds, so a reused
+      section is never older than a full rebuild would allow.
+    - Reused sections move out of the previous snapshot (`Sections` keeps only
+      what each read); mission rows are grouped once per loaded tables
+      (`state::mission_groups`), and table lookups (`View`'s, `play_record`'s)
+      survive a refresh. Build table indexes once, never per evaluation.
+    - Hero fields that battles change and no mission reads
+      (`UNREAD_HERO_FIELDS`, flask progress) stay out of the view, so they never
+      count as a hero change.
 - **Per-type state reads.** The lobby's key, ticket, tower and dungeon-list
   snapshots read a `battle_state`/`extension_state`/`community_state` row per
   type. `system::prefetch` loads those kinds in one statement per table for one

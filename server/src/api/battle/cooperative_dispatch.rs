@@ -125,7 +125,7 @@ async fn prepare(s: &AppState, a: i64, slot: i64) -> Result<bool> {
     // Independent across jobs, stable when a repeat is retried after a restart.
     let seed = id.bytes().fold(2166136261_u32, |hash, byte| (hash ^ byte as u32).wrapping_mul(16777619)) & 0x7fffffff;
     let payload = json!({"RunId":id,"Dispatch":true,"BossHp":0,"BossIndex":0,"Seed":seed,
-        "Simulation":job["SimulationSnapshot"]});
+        "Simulation":job["SimulationSnapshot"],"SkillRules":job["SkillRules"]});
     let sent = sender.try_send(("WorkerPrepare".into(), payload)).is_ok();
     if sent {
         let _ = sender.try_send(("WorkerStart".into(), json!({"RunId":id})));

@@ -139,6 +139,7 @@ public class HeroSkillSubComponent : UIScrollItemBehaviour, InitOnCreate, SkillS
 		SetSkillLevel(skillInfo);
 		SetupTooltipText();
 		SetSelected(Select: false);
+		SprkSkillPriority.Attach(this, _isMine, skillInfo);
 		return true;
 	}
 

@@ -55,6 +55,7 @@ public static class JM_NShared_StartDispatch_Request
 		{
 			dictionary.Add("SessionId", o.SessionId);
 		}
+		SprkSkillPriority.EncodeDispatch(dictionary, o.HeroIndices);
 		return dictionary;
 	}
 }

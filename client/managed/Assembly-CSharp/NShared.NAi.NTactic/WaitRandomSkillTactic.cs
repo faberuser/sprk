@@ -53,9 +53,19 @@ public class WaitRandomSkillTactic : SnapshotObject, IAiTactic, ISnapshotObject
 				return;
 			}
 			List<int> list = new List<int>();
+			// SPRK: auto rules chosen in Hero Info (only set for the player's own dispatch heroes).
+			int priorityRules = SprkSkillPriority.Rules(creature);
+			int bestSkill = 0;
+			int bestRank = int.MaxValue;
 			for (int num = skillIndexList.Count - 1; num >= 0; num--)
 			{
 				int num2 = skillIndexList[num];
+				int ruleSlot = (priorityRules == 0) ? 0 : SprkSkillPriority.SlotOfSkill(creature.CreatureData, num2);
+				if (SprkSkillPriority.IsOff(priorityRules, ruleSlot))
+				{
+					continue;
+				}
+				int rank = SprkSkillPriority.Rank(priorityRules, ruleSlot);
 				int num3 = num2;
 				int resultSkillIndex = num2;
 				bool isReplaced = false;
@@ -82,7 +92,22 @@ public class WaitRandomSkillTactic : SnapshotObject, IAiTactic, ISnapshotObject
 				if (creature.GetUserSkillLevel(num3) > 0)
 				{
 					list.Add(num3);
+					if (rank < bestRank && !creature.SkillController.CooltimeManager.IsInCooltime(num3))
+					{
+						UsingSkillInfo usingSkillInfo2 = creature.SkillController.UsingSkillInfo;
+						if (usingSkillInfo2 == null || (usingSkillInfo2.SkillData.Index != num2 && usingSkillInfo2.FiredSkillData.Index != num2))
+						{
+							bestRank = rank;
+							bestSkill = num3;
+						}
+					}
 				}
+			}
+			List<int> allCandidates = list;
+			if (bestSkill != 0)
+			{
+				// The best-ranked ready skill; ready-ness is checked above even without smart AI.
+				list = new List<int> { bestSkill };
 			}
 			if (list.Count == 0)
 			{
@@ -90,6 +115,10 @@ public class WaitRandomSkillTactic : SnapshotObject, IAiTactic, ISnapshotObject
 			}
 			int index = creature.NextRandom(list.Count, "IAiTactic.Update");
 			int key = list[index];
+			if (priorityRules != 0 && SprkSkillPriority.Tracing)
+			{
+				SprkSkillPriority.Trace((bestSkill != 0) ? "sim-ranked" : "sim-random", (creature.CreateInfo.HeroInfo != null) ? creature.CreateInfo.HeroInfo.HeroIndex : 0, priorityRules, string.Join(",", allCandidates), key);
+			}
 			skillData = GameRoot.Instance.SkillDataContainer.GetData(key);
 			_skillIndexHolder.Set(skillData);
 		}
