@@ -117,6 +117,7 @@ public static class JM_NShared_Login_Response
 		o.AutoOpenInGameEvent = BaseJsonMarshaler.ParseValueBool(d, "AutoOpenInGameEvent");
 		o.ServerName = BaseJsonMarshaler.ParseValueString(d, "ServerName");
 		o.IsTutorialSkip = BaseJsonMarshaler.ParseValueBool(d, "IsTutorialSkip");
+		o.SprkOpeningSkipOffer = BaseJsonMarshaler.ParseValueBool(d, "SprkOpeningSkipOffer");
 		o.UseRenewalPayShop = BaseJsonMarshaler.ParseValueInt(d, "UseRenewalPayShop");
 		o.ClassBuffPointInfos = BaseJsonMarshaler.ParseArray(d, "ClassBuffPointInfos", JM_NShared_ClassBuffPointInfo.Parse);
 		o.ClassBuffInfos = BaseJsonMarshaler.ParseArray(d, "ClassBuffInfos", JM_NShared_ClassBuffInfo.Parse);

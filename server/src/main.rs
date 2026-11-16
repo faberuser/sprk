@@ -397,6 +397,7 @@ pub(crate) fn game_routes(state: AppState) -> Router {
         .route("/tutorial/complete_tutorial", post(api::tutorial::complete_tutorial))
         .route("/tutorial/progress", post(api::tutorial::get_tutorial_progress))
         .route("/tutorial/skip", post(api::tutorial::skip_tutorial))
+        .route("/tutorial/skip_opening", post(api::tutorial::skip_opening_tutorial))
         .route("/tutorial/reward", post(api::tutorial::get_tutorial_reward))
         // Never expose admin commands on the game listener (including its fallback).
         .merge(api::system::cheat::public_routes())

@@ -50,5 +50,7 @@ public class StateBase_BackgroundDownload : StateBase
 		{
 			yield return null;
 		}
+		// Before the Login event starts the prologue, so a skipped opening never begins.
+		yield return SprkOpeningSkip.Offer();
 	}
 }

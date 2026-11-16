@@ -167,6 +167,8 @@ pub struct LoginResponse {
     pub deck_infos: Vec<serde_json::Value>,
     pub achievement_infos: Vec<serde_json::Value>,
     pub is_tutorial_skip: bool,
+    /// SPRK: a new player may skip the opening tutorial (see `tutorial::OPENING_TUTORIALS`).
+    pub sprk_opening_skip_offer: bool,
     pub server_name: String,
     // Critical field - account creation time
     pub created_time: String,
@@ -709,6 +711,7 @@ pub async fn login(
         deck_infos: vec![],
         achievement_infos: progression["AchievementInfos"].as_array().cloned().unwrap_or_default(),
         is_tutorial_skip: tutorial_skip,
+        sprk_opening_skip_offer: crate::api::tutorial::opening_skip_offered(&state, account_id).await?,
         server_name: "Private Server".to_string(),
         created_time: crate::db::query_scalar("SELECT created_at FROM accounts WHERE account_id=$1").bind(account_id).fetch_one(&state.db).await?,
         message_server_info: serde_json::json!({"Address":state.chat.address, "Port":state.chat.port}),

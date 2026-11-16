@@ -2568,6 +2568,7 @@ public class AccountManager : GlobalAutoBehaviour<AccountManager>, IAccountInfo
 		CountryServerName = string.Empty;
 		SingletonAuto<HonoraryChamberManager>.instance.Set(response.RecordsOfHonorTopInfos);
 		IsTutorialSkip = response.IsTutorialSkip;
+		SprkOpeningSkip.OnLogin(response);
 		SingletonUpdater<LoginManager>.instance.FirstLogined.Value = true;
 	}
 

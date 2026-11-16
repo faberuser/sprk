@@ -226,4 +226,6 @@ public class Response : GenericResponse<ResultType>
 	public PlayerAnyMisc[] PlayerAnyMiscs { get; set; }
 
 	public UserInfo[] DuplicateUserInfos { get; set; }
+
+	public bool SprkOpeningSkipOffer { get; set; }
 }

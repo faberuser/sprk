@@ -683,6 +683,61 @@ pub async fn skip_tutorial(
     }))
 }
 
+/// The scripted opening: the prologue, the guided battles 1-1, 1-2 and 1-3,
+/// then the chain 10201 -> 10202 -> 10200 that normally runs when the player
+/// walks to node 1-4 and unlocks the Heroes, Inventory and Special Shop buttons
+/// (`BottomButtonData.TutorialIndex`). Skipping ends where free play starts.
+pub(crate) const OPENING_TUTORIALS: [i32; 9] =
+    [1000, 10000, 10001, 10002, 10010, 10110, 10201, 10202, 10200];
+
+/// The opening may be skipped by an account that has not used the global
+/// tutorial skip and has no campaign clear beyond the opening's own 1-1 to 1-3.
+async fn opening_skippable(db: &mut PgConnection, account_id: i64) -> Result<bool> {
+    Ok(crate::db::query_scalar("SELECT NOT EXISTS(SELECT 1 FROM tutorial_settings WHERE account_id=$1 AND is_skipped=1) AND NOT EXISTS(SELECT 1 FROM campaign_progress WHERE account_id=$1 AND clear_count>0 AND NOT (chapter_id=1 AND dungeon_id BETWEEN 1 AND 3))")
+        .bind(account_id).fetch_one(db).await?)
+}
+
+/// Login offers the skip to a new player until the opening is finished.
+pub(crate) async fn opening_skip_offered(state: &AppState, account_id: i64) -> Result<bool> {
+    let mut db = state.db.acquire().await?;
+    if !opening_skippable(&mut db, account_id).await? {
+        return Ok(false);
+    }
+    let finished: bool = crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM tutorial_progress WHERE account_id=$1 AND tutorial_index=$2 AND is_completed=1)")
+        .bind(account_id).bind(OPENING_TUTORIALS[OPENING_TUTORIALS.len() - 1]).fetch_one(&mut *db).await?;
+    Ok(!finished)
+}
+
+/// Completes the whole opening as if it had been played: every step grants its
+/// own rewards and clears its battle, atomically. Steps already completed
+/// return their refreshed receipts, so a retried request changes nothing.
+pub async fn skip_opening_tutorial(
+    State(state): State<AppState>,
+    Form(req): Form<TutorialRequest>,
+) -> Result<Json<Value>> {
+    let account_id = account(&state, &req)?;
+    let mut tx = crate::database::begin(&state.db).await?;
+    crate::postgres::lock_account(&mut *tx, account_id).await?;
+    if !opening_skippable(&mut tx, account_id).await? {
+        return Err(ServerError::InvalidRequest(
+            "The opening tutorial can no longer be skipped".into(),
+        ));
+    }
+    let mut responses = Vec::with_capacity(OPENING_TUTORIALS.len());
+    for index in OPENING_TUTORIALS {
+        let data = state
+            .tables
+            .tutorials
+            .get(index)
+            .ok_or_else(|| ServerError::Internal(format!("Missing opening tutorial {index}")))?;
+        responses.push(complete_in_transaction(&mut tx, &state, account_id, index, data).await?);
+    }
+    tx.commit().await?;
+    Ok(Json(
+        json!({"BaseResult": "Success", "Result": "Success", "Responses": responses}),
+    ))
+}
+
 pub async fn get_tutorial_reward(
     State(state): State<AppState>,
     Form(req): Form<TutorialRequest>,
