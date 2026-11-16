@@ -224,7 +224,7 @@ public static class SprkSoulWeaponAutoEnhance
 			GameObject copy = UnityEngine.Object.Instantiate(window.EtherInjectionButton.gameObject, parent, worldPositionStays: true);
 			copy.name = "SprkAutoEnhance";
 			StripBehaviours(copy);
-			CopyNormalColors(window.EtherInjectionButton.gameObject, copy);
+			CopyNormalLook(window.EtherInjectionButton.gameObject, copy);
 			button = copy.GetComponent<UIButton>();
 			if (button == null)
 			{
@@ -287,16 +287,36 @@ public static class SprkSoulWeaponAutoEnhance
 		return box;
 	}
 
-	/// A button colour component takes the widget's colour at first use as its
-	/// "normal" colour. A copy made while Add Ether is disabled would take the
-	/// grey tint and stay grey when enabled, so use Add Ether's own colours.
-	private static void CopyNormalColors(GameObject source, GameObject copy)
+	/// A button takes the widget's colour and sprite at first use as its
+	/// "normal" look. The window disables Add Ether just before the copy is
+	/// made, so the copy would record the grey tint and the disabled sprite and
+	/// stay grey when enabled. Use Add Ether's own normal look instead, then put
+	/// the copy in the Disabled state its cloned collider already has, so the
+	/// next enable switches it to the normal look.
+	private static void CopyNormalLook(GameObject source, GameObject copy)
 	{
 		UIButtonColor[] from = source.GetComponentsInChildren<UIButtonColor>(includeInactive: true);
 		UIButtonColor[] to = copy.GetComponentsInChildren<UIButtonColor>(includeInactive: true);
 		for (int i = 0; i < from.Length && i < to.Length; i++)
 		{
 			to[i].defaultColor = from[i].defaultColor;
+			UIButton fromButton = from[i] as UIButton;
+			UIButton toButton = to[i] as UIButton;
+			if (fromButton != null && toButton != null)
+			{
+				if (!string.IsNullOrEmpty(fromButton.normalSprite))
+				{
+					toButton.normalSprite = fromButton.normalSprite;
+				}
+				if (fromButton.normalSprite2D != null)
+				{
+					toButton.normalSprite2D = fromButton.normalSprite2D;
+				}
+			}
+		}
+		foreach (UIButtonColor color in to)
+		{
+			color.SetState(color.isEnabled ? UIButtonColor.State.Normal : UIButtonColor.State.Disabled, true);
 		}
 	}
 
