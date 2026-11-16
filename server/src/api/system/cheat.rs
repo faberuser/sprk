@@ -197,19 +197,16 @@ pub async fn gm_add_hero(
     let level = req.level.unwrap_or(1);
     let star = req.star.unwrap_or(1);
 
-    // Add hero - hero_index same as hero_id for individual adds
-    let result = crate::db::query_scalar::<i64>(
-        "INSERT INTO heroes (account_id, hero_id, hero_index, star, level, skill_level_1, skill_level_2, skill_level_3, skill_level_4) VALUES ($1, $2, $3, $4, $5, 1, 1, 1, 1) RETURNING unique_hero_id"
-    )
-    .bind(account_id)
-    .bind(hero_id)
-    .bind(hero_id)
-    .bind(star)
-    .bind(level)
-    .fetch_one(&state.db)
-    .await?;
-
-    let unique_hero_id = result;
+    // The request's HeroId is the hero index; an owned hero is returned unchanged.
+    let hero_index = i32::try_from(hero_id).map_err(|_| ServerError::InvalidRequest("Invalid hero_id".into()))?;
+    let mut tx = crate::database::begin(&state.db).await?;
+    crate::postgres::lock_account(&mut *tx, account_id).await?;
+    let unique_hero_id = match grant_hero(&mut tx, account_id, hero_index, star, 0, level).await? {
+        Some(id) => id,
+        None => crate::db::query_scalar("SELECT unique_hero_id FROM heroes WHERE account_id=$1 AND hero_index=$2")
+            .bind(account_id).bind(hero_index).fetch_one(&mut *tx).await?,
+    };
+    tx.commit().await?;
 
     Ok(Json(GmAddHeroResponse {
         base_result: BaseResultType::Success as i32,
@@ -450,6 +447,17 @@ pub async fn gm_reset_account(
     }))
 }
 
+/// Adds a hero the account does not own yet and returns its unique ID.
+/// `hero_id` is account-local and allocated like normal recruitment
+/// (`tutorial::grant_item_rolled`): story recruits get sequential IDs, so
+/// reusing the hero index as the ID collided with them. Callers hold the
+/// account lock so concurrent grants cannot pick the same ID.
+async fn grant_hero(db: &mut sqlx::PgConnection, account_id: i64, hero_index: i32, star: i32, transcend: i32, level: i32) -> Result<Option<i64>> {
+    Ok(crate::db::query_scalar("INSERT INTO heroes (account_id, hero_id, hero_index, star, transcend, level, skill_level_1, skill_level_2, skill_level_3, skill_level_4) SELECT $1, COALESCE(MAX(hero_id), 0) + 1, $2, $3, $4, $5, 1, 1, 1, 1 FROM heroes WHERE account_id = $1 HAVING NOT EXISTS (SELECT 1 FROM heroes WHERE account_id = $1 AND hero_index = $2) RETURNING unique_hero_id")
+        .bind(account_id).bind(hero_index).bind(star).bind(transcend).bind(level)
+        .fetch_optional(&mut *db).await?)
+}
+
 /// GM add all heroes request
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]
@@ -458,6 +466,8 @@ pub struct GmAddAllHeroesRequest {
     pub account_id: Option<i64>,
     pub level: Option<i32>,
     pub star: Option<i32>,
+    /// Transcendence 0-5 (T1-T5); needs 5 stars.
+    pub transcend: Option<i32>,
 }
 
 /// GM add all heroes response
@@ -466,6 +476,8 @@ pub struct GmAddAllHeroesRequest {
 pub struct GmAddAllHeroesResponse {
     pub base_result: i32,
     pub heroes_added: i32,
+    /// Owned heroes raised to the requested star, transcendence or level.
+    pub heroes_upgraded: i32,
 }
 
 /// Handle GM add all heroes request
@@ -480,33 +492,39 @@ pub async fn gm_add_all_heroes(
     let level = req.level.unwrap_or(90);
     let star = req.star.unwrap_or(5);
 
-    // Add all real heroes from CreatureTable (TagType 1-7, base indices only)
-    let mut heroes_added = 0;
-    for &hero_index in ALL_HERO_INDICES {
-        let existing = crate::db::query("SELECT 1 FROM heroes WHERE account_id = $1 AND hero_index = $2")
-            .bind(account_id)
-            .bind(hero_index)
-            .fetch_optional(&state.db)
-            .await?;
+    let transcend = req.transcend.unwrap_or(0);
+    if !(1..=5).contains(&star) || !(0..=5).contains(&transcend) || (transcend > 0 && star != 5) {
+        return Err(ServerError::InvalidRequest("Star must be 1-5 and Transcend 0-5 (Transcend needs 5 stars)".into()));
+    }
+    let cap = state.tables.tutorials.support.hero_stars.iter()
+        .find(|s| s.star == star && s.transcended == transcend)
+        .map(|s| s.max_hero_level)
+        .ok_or_else(|| ServerError::Internal("Missing hero star data".into()))?;
+    // A level above the star/transcendence cap would be unreachable in the game.
+    let level = level.clamp(1, cap);
 
-        if existing.is_none() {
-            crate::db::query(
-                "INSERT INTO heroes (account_id, hero_id, hero_index, star, level, skill_level_1, skill_level_2, skill_level_3, skill_level_4) VALUES ($1, $2, $3, $4, $5, 1, 1, 1, 1)"
-            )
-            .bind(account_id)
-            .bind(hero_index as i64)  // hero_id = hero_index for simplicity
-            .bind(hero_index)
-            .bind(star)
-            .bind(level)
-            .execute(&state.db)
-            .await?;
+    // Add all real heroes from CreatureTable (TagType 1-7, base indices only).
+    // Owned heroes are raised to the requested grade, never lowered.
+    let mut heroes_added = 0;
+    let mut tx = crate::database::begin(&state.db).await?;
+    crate::postgres::lock_account(&mut *tx, account_id).await?;
+    let mut upgraded = 0;
+    for &hero_index in ALL_HERO_INDICES {
+        if grant_hero(&mut tx, account_id, hero_index, star, transcend, level).await?.is_some() {
             heroes_added += 1;
+        } else if crate::db::query("UPDATE heroes SET star=GREATEST(star,$3), transcend=GREATEST(transcend,$4), level=GREATEST(level,$5) WHERE account_id=$1 AND hero_index=$2 AND (star<$3 OR transcend<$4 OR level<$5)")
+            .bind(account_id).bind(hero_index).bind(star).bind(transcend).bind(level)
+            .execute(&mut *tx).await?.rows_affected() > 0
+        {
+            upgraded += 1;
         }
     }
+    tx.commit().await?;
 
     Ok(Json(GmAddAllHeroesResponse {
         base_result: BaseResultType::Success as i32,
         heroes_added,
+        heroes_upgraded: upgraded,
     }))
 }
 
