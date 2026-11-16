@@ -5,6 +5,11 @@ launcher, and the tools that build, test and publish client updates.
 
 Run every command from the repository root.
 
+Android is a research direction, not a supported client build. See
+[Native Android with one maintained C# source tree](../docs/android-shared-source-feasibility.md)
+for investigated runtime options, archived APK findings and the recommended
+proof-of-concept plan.
+
 ## What is source and what is not
 
 A game folder (`sprk-client`) is a Unity player plus assets. Only two kinds of
