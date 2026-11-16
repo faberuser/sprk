@@ -15,6 +15,10 @@ use serde_json::{json, Value};
 use sqlx::{PgConnection};
 use crate::db::RowExt;
 
+#[path = "package_rewards.rs"]
+mod package_rewards;
+use package_rewards::PackageRewards;
+
 pub(crate) fn rule(code: &str) -> ServerError {
     ServerError::InvalidRequest(code.into())
 }
@@ -385,6 +389,19 @@ pub(crate) async fn reward_with_loot_bonus(
     rewards: &mut Rewards,
     loot_percent: i64,
 ) -> Result<()> {
+    reward_with_loot_bonus_batched(db, state, account, index, rewards, loot_percent,
+        &mut PackageRewards::default()).await
+}
+
+async fn reward_with_loot_bonus_batched(
+    db: &mut PgConnection,
+    state: &AppState,
+    account: i64,
+    index: i32,
+    rewards: &mut Rewards,
+    loot_percent: i64,
+    batch: &mut PackageRewards,
+) -> Result<()> {
     let row = state
         .tables
         .get_reward(index)
@@ -398,10 +415,11 @@ pub(crate) async fn reward_with_loot_bonus(
         let amount = if max > 0 && rand::rng().random_range(0..1000) < rate {
             rand::rng().random_range(min.max(0)..=max.max(min).max(0)) as i64
         } else { 0 };
-        if amount > 0 { rewards.currencies.push(crate::api::heroes::currency(db,account,kind,amount).await?); }
+        if amount > 0 { batch.currency(db, state, account, kind, amount, rewards).await?; }
     }
-    tutorial::currency(db, account, "Gold", row.roll_gold(), rewards).await?;
-    tutorial::currency(db, account, "Gem", row.roll_gem(), rewards).await?;
+    for (kind, amount) in [("Gold", row.roll_gold()), ("Gem", row.roll_gem())] {
+        if amount != 0 { batch.currency(db, state, account, kind, amount, rewards).await?; }
+    }
     for mut drop in row.roll_items(&state.tables.reward_string_pool) {
         let (mut code, mut filter) = crate::tables::parse_item_code(&drop.item_code);
         if state.tables.get_item_index(&code).is_none() && state.tables.item_groups.contains(&code) {
@@ -420,11 +438,11 @@ pub(crate) async fn reward_with_loot_bonus(
                 let balance:i64=crate::db::query_scalar("SELECT COALESCE((SELECT value FROM battle_currencies WHERE account=$1 AND kind='ShakmehMiddleBossPoint'),0)").bind(account).fetch_one(&mut *db).await?;
                 amount=amount.min((max-balance).max(0));
             }
-            rewards.currencies.push(crate::api::heroes::currency(db,account,&code,amount).await?);
+            batch.currency(db, state, account, &code, amount, rewards).await?;
             continue;
         }
         if code == "EventDungeonPoint" || code == "RaidPoint" {
-            tutorial::currency(db, account, &code, drop.count as i64, rewards).await?;
+            if drop.count != 0 { batch.currency(db, state, account, &code, drop.count as i64, rewards).await?; }
             continue;
         }
         let (index, count, star) = if let Some(index) = state.tables.get_item_index(&code) {
@@ -449,7 +467,7 @@ pub(crate) async fn reward_with_loot_bonus(
         let bonus = i64::from(count).checked_mul(loot_percent.max(0))
             .and_then(|v| i32::try_from(v / 100).ok())
             .ok_or_else(|| rule("InvalidItemCount"))?;
-        give(
+        batch.give(
             db,
             state,
             account,
@@ -644,6 +662,12 @@ async fn execute(
         i32::try_from(req.number("ItemCount", 1)?)
             .ok().filter(|count| *count > 0)
             .ok_or_else(|| rule("InvalidItemCount"))?
+    } else if action == "use_package_select_item" {
+        let count = req.number("ItemCount", 1)?;
+        if !(1..=100_000).contains(&count) {
+            return Err(rule("InvalidItemCount"));
+        }
+        count as i32
     } else {
         positive(req, "ItemCount")?
     };
@@ -853,11 +877,17 @@ async fn execute(
                 .packages
                 .get(&index)
                 .ok_or_else(|| rule("PackageDataNotFound"))?;
-            if n(package, "MaxOpenCount") > 0 && count as i64 > n(package, "MaxOpenCount") {
+            // Match the client's raised legacy cap, preserving special package limits.
+            let max_open = match n(package, "MaxOpenCount") {
+                50 => 1000,
+                limit => limit,
+            };
+            if max_open > 0 && count as i64 > max_open {
                 return Err(rule("InvalidItemCount"));
             }
             out["ItemResult"] = consume(db, account, index, count).await?;
             let mut results = vec![];
+            let mut batch = PackageRewards::new();
             for _ in 0..count {
                 use rand::RngExt;
                 let mut roll = rand::rng().random_range(0..1000);
@@ -874,9 +904,14 @@ async fn execute(
                     return Err(rule("PackageDataNotFound"));
                 }
                 let mut rewards = Rewards::default();
-                reward(db, state, account, selected as i32, &mut rewards).await?;
+                reward_with_loot_bonus_batched(db, state, account, selected as i32,
+                    &mut rewards, 0, &mut batch).await?;
+                if rewards.team_exp_to_add != 0 || !rewards.heroes.is_empty() {
+                    batch.flush(db, state, account).await?;
+                }
                 results.push(reward_response(db, state, account, rewards).await?);
             }
+            batch.flush(db, state, account).await?;
             out["RewardResults"] = json!(results);
         }
         "use_package_select_item" => {

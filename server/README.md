@@ -180,6 +180,31 @@ The first run builds a migrated template database; each test clones it into its
 own database, and leftovers are dropped on the next run. Parallel tests open
 many connections, hence `-c max_connections=300`.
 
+### Bulk package-opening benchmark
+
+With `SPRK_TEST_POSTGRES_URL` set, run the isolated, ignored benchmark:
+
+```bash
+cargo test --locked package_batch_benchmark -- --ignored --nocapture
+```
+
+It warms each fixture once, then measures three 1,000-open requests, including
+trigger row writes and response size. On local PostgreSQL, debug-build median
+handler times measured on 2026-11-16 were:
+
+| Package | Before batching | After batching | Row writes before → after |
+| --- | --- | --- | --- |
+| Gold (`94067`) | 1,160 ms | 32 ms | 5,006 → 16 |
+| Rubies and items (`93008`) | 12,051 ms | 99 ms | 38,006 → 80 |
+
+These are handler benchmarks, not end-to-end HTTP or production guarantees.
+Each package still rolls independently and returns its own running balances;
+only positive persistence is coalesced. Stateful/special grants flush pending
+rewards before using the existing helpers. Caps, locks, triggers and atomic
+rollback remain enforced. Response size still scales with the opening count.
+
+### Native battle tests
+
 Native battle tests are ignored by default. Run them against a game executable:
 
 ```bash

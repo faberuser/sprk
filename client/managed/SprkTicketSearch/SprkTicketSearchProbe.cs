@@ -898,9 +898,65 @@ public static class SprkTicketSearchProbe
 		finally { Define.PatchDownloaded = downloaded; }
 	}
 
+	private static string InventoryBulkTest()
+	{
+		Show("SelectionItemUsePopup");
+		SelectionItemUsePopup popup = shown.GetComponent<SelectionItemUsePopup>();
+		ItemData ticket = GameRoot.Instance.ItemDataContainer.GetData(94609);
+		typeof(SelectionItemUsePopup).GetField("_usingItemData", Any).SetValue(popup, new SelectionPopupItemInfo(ticket, 200000));
+		typeof(SelectionItemUsePopup).GetField("_selectedItemIndex", Any).SetValue(popup, 100115);
+		popup.OnClickMax();
+		Check(popup.InputSelectedCount.value == "100000", "ticket Max displays six digits");
+		Check(popup.ButtonOk.isEnabled && !popup.ButtonPlus.isEnabled, "ticket Max enables OK and disables Plus");
+		popup.OnClickMinus();
+		Check(popup.InputSelectedCount.value == "99999", "ticket Minus below Max");
+		popup.OnClickPlus();
+		Check(popup.InputSelectedCount.value == "100000", "ticket Plus reaches Max");
+		popup.InputSelectedCount.value = "100001";
+		popup.OnChangeInputSelectCount();
+		Check(popup.InputSelectedCount.value == "100000", "ticket input clamps above Max");
+		typeof(SelectionItemUsePopup).GetField("_usingItemData", Any).SetValue(popup, new SelectionPopupItemInfo(ticket, 12345));
+		popup.OnClickMax();
+		Check(popup.InputSelectedCount.value == "12345", "ticket Max respects owned count");
+		Check(SprkHeroMaterialTickets.InitialCount(200000, 0, 200000) == 100000, "material ticket prefill uses bulk cap");
+
+		GameObject fixture = new GameObject("InventoryBulkPackageFixture");
+		fixture.SetActive(false);
+		try
+		{
+			InvenItemDesc item = fixture.AddComponent<InvenItemDesc>();
+			PropertyInfo itemCount = typeof(InvenItemDesc).GetProperty("ItemCount", Any);
+			itemCount.SetValue(item, 2000L, null);
+			Check((long)Method(typeof(InvenItemDesc), "GetMaxOpenPackageItem", 0).Invoke(item, null) == 1000L, "package bulk cap");
+			itemCount.SetValue(item, 23L, null);
+			Check((long)Method(typeof(InvenItemDesc), "GetMaxOpenPackageItem", 0).Invoke(item, null) == 23L, "package owned count");
+
+			InvenRandomBoxDesc box = fixture.AddComponent<InvenRandomBoxDesc>();
+			ItemData packageItem = GameRoot.Instance.ItemDataContainer.GetData(94067);
+			PackageItemData package = GameRoot.Instance.PackageItemDataContainer.GetData(packageItem.Code);
+			int oldMax = package.MaxOpenCount;
+			typeof(InvenRandomBoxDesc).GetProperty("ItemData", Any).SetValue(box, packageItem, null);
+			typeof(InvenRandomBoxDesc).GetProperty("ItemCount", Any).SetValue(box, 2000L, null);
+			try
+			{
+				package.MaxOpenCount = 50;
+				Check((long)Method(typeof(InvenRandomBoxDesc), "GetMaxOpenPackageItem", 0).Invoke(box, null) == 1000L, "random package legacy cap");
+				package.MaxOpenCount = 1;
+				Check((long)Method(typeof(InvenRandomBoxDesc), "GetMaxOpenPackageItem", 0).Invoke(box, null) == 1L, "random package special limit");
+			}
+			finally { package.MaxOpenCount = oldMax; }
+		}
+		finally { UnityEngine.Object.DestroyImmediate(fixture); }
+		return "PASS: native ticket input/Max/Plus/Minus/OK and ownership at 100000; material prefill; package cap 1000, ownership and special limits. No account items consumed.";
+	}
+
 	public static string Run(string mode)
 	{
 		Prepare();
+		if (mode == "inventory-bulk-test")
+		{
+			return InventoryBulkTest();
+		}
 		if (mode == "inspect-hero-test")
 		{
 			return InspectHeroTest();

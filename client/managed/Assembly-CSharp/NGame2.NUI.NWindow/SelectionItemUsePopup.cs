@@ -20,6 +20,8 @@ public class SelectionItemUsePopup : BaseWindow, ItemIconComponent.Listener
 
 	public const string PrefabPath = "Resources/Prefab2/Window/MessagePopup/SelectionItemUsePopup";
 
+	public const int MaxUseCount = 100000;
+
 	public UILabel LabelTitle;
 
 	public UILabel LabelContentDescription;
@@ -214,7 +216,7 @@ public class SelectionItemUsePopup : BaseWindow, ItemIconComponent.Listener
 		UIHelper.EnableButton(ButtonMinus, _currentCount > 1);
 		if (_usingItemData != null)
 		{
-			UIHelper.EnableButton(ButtonPlus, _currentCount < Mathf.Min(_usingItemData.Count, 1000));
+			UIHelper.EnableButton(ButtonPlus, _currentCount < Mathf.Min(_usingItemData.Count, MaxUseCount));
 		}
 	}
 
@@ -229,7 +231,7 @@ public class SelectionItemUsePopup : BaseWindow, ItemIconComponent.Listener
 		{
 			enable = false;
 		}
-		if (_currentCount < 1 || _currentCount > Mathf.Min(_usingItemData.Count, 1000))
+		if (_currentCount < 1 || _currentCount > Mathf.Min(_usingItemData.Count, MaxUseCount))
 		{
 			enable = false;
 		}
@@ -254,7 +256,7 @@ public class SelectionItemUsePopup : BaseWindow, ItemIconComponent.Listener
 
 	public void OnClickPlus()
 	{
-		if (_usingItemData != null && _currentCount + 1 <= Mathf.Min(_usingItemData.Count, 1000))
+		if (_usingItemData != null && _currentCount + 1 <= Mathf.Min(_usingItemData.Count, MaxUseCount))
 		{
 			_currentCount++;
 			UpdateCount();
@@ -274,7 +276,7 @@ public class SelectionItemUsePopup : BaseWindow, ItemIconComponent.Listener
 	{
 		if (_usingItemData != null)
 		{
-			_currentCount = Mathf.Min(_usingItemData.Count, 1000);
+			_currentCount = Mathf.Min(_usingItemData.Count, MaxUseCount);
 			UpdateCount();
 		}
 	}
@@ -297,7 +299,7 @@ public class SelectionItemUsePopup : BaseWindow, ItemIconComponent.Listener
 		if (!(InputSelectedCount == null) && _usingItemData != null)
 		{
 			int.TryParse(InputSelectedCount.value, out _currentCount);
-			_currentCount = Mathf.Clamp(_currentCount, 0, Mathf.Min(_usingItemData.Count, 1000));
+			_currentCount = Mathf.Clamp(_currentCount, 0, Mathf.Min(_usingItemData.Count, MaxUseCount));
 			UpdateCount();
 		}
 	}

@@ -184,3 +184,11 @@ zero, partial and full progress, then verifies animation completion for small
 gains, ticket conversion, multiple tickets and the ticket cap. It uses fixture
 values without spending account resources; server Eclipse tests separately
 check campaign spending, persisted points, conversion and replay protection.
+
+The `ticket-search-probe` command with `text="inventory-bulk-test"` requires
+Login and a `ticket-search-*` automation profile. It checks the native ticket
+quantity input, Max/Plus/Minus/OK states and ownership at the 100,000-use cap,
+material-ticket prefill, and both package description paths at the 1,000-open
+cap, including preserved special package limits. It uses fixture counts and
+restores modified table values; it does not consume account items. The server
+inventory regression tests separately verify redemption and rejected batches.

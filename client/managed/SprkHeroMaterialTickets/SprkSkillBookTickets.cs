@@ -177,7 +177,7 @@ public static class SprkSkillBookTickets
 
 		public void OnClickOk(SelectionItemUsePopup popup, int usingItemIndex, int selecteditemIndex, int itemCount)
 		{
-			if (waiting || ticket == 0 || usingItemIndex != ticket || selecteditemIndex != material || itemCount <= 0 || itemCount > 1000)
+			if (waiting || ticket == 0 || usingItemIndex != ticket || selecteditemIndex != material || itemCount <= 0 || itemCount > SelectionItemUsePopup.MaxUseCount)
 			{
 				return;
 			}
