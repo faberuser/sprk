@@ -101,6 +101,25 @@ There is no unattended AI daemon: the runner executes scenarios; during an
 active coding session the assistant can inspect failures, patch code, rebuild,
 restart, and rerun them. It does not synthesize successful combat outcomes.
 
+### Battle keyboard settings regression
+
+Launch the test copy with an isolated `battle-keyboard-*` profile. In Login,
+send `battle-keyboard-probe` through the Python `request` API with `target=1`
+and `text="run"` (`text="init"` only creates the native settings fixture).
+The probe checks default OFF, all 48 preset keys/modifiers/labels, custom
+persistence across presets and managed-cache reload, duplicates and unbinding,
+preference restoration, idempotent settings-row injection and its editor callback.
+Synchronous native fixtures also cover normal/Soul Weapon action resolution,
+screen-X ordering, inactive/disabled/transparent widget rejection, locked-skill
+click delegation and single-back capture cancellation without binding changes.
+It leaves the keyboard editor open for a screenshot; allow rendering frames
+before capturing. It deliberately bypasses account-dependent `settings.Open`.
+
+This fixture does not establish full battle validation: also test left-to-right
+hero ordering, real modifier/key-down edges and reservation/cancellation in a
+battle, plus hidden main-party/alternate-party controls. Native key capture can
+be exercised by selecting Custom, clicking a binding and using `key SHIFT_TAB`.
+
 ## Validation and restoration
 
 Verified on the actual client: launch, screenshot, UI enumeration, native event

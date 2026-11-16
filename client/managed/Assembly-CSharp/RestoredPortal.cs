@@ -609,7 +609,7 @@ public static class RestoredPortal
 	public static bool MenuShortcutKeyUp(KeyCode key)
 	{
 		UIInput selection = UIInput.selection;
-		if (UICamera.inputHasFocus || (selection != null && selection.isActiveAndEnabled))
+		if (SprkBattleKeyboard.SettingsOpen || UICamera.inputHasFocus || (selection != null && selection.isActiveAndEnabled))
 		{
 			return false;
 		}

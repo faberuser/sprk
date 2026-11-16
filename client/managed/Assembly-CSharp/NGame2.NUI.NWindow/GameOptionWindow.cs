@@ -196,6 +196,14 @@ public class GameOptionWindow : BaseWindow, GameOptionBaseComponent.Listener
 		SetWidgetRoot();
 	}
 
+	public override void OnSystemBackButton()
+	{
+		if (!SprkBattleKeyboard.HandleSettingsBack(this))
+		{
+			base.OnSystemBackButton();
+		}
+	}
+
 	public override void Awake()
 	{
 		base.Awake();
@@ -333,6 +341,7 @@ public class GameOptionWindow : BaseWindow, GameOptionBaseComponent.Listener
 			}
 		}
 		SprkGraphicsOptions.Setup(this);
+		SprkBattleKeyboard.Setup(this);
 	}
 
 	public void RefreshComponent(int index)

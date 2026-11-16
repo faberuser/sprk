@@ -346,6 +346,16 @@ public sealed class SprkAutomation : MonoBehaviour
 			{
 				throw new InvalidOperationException("Invalid command ID");
 			}
+			if (command.action == "battle-keyboard-probe")
+			{
+				SprkBattleKeyboardProbe.CheckContext(command.target, command.text);
+				PrepareInstalledProbeAssets();
+				var keyboardReport = SprkBattleKeyboardProbe.Run(command.text);
+				reply = Snapshot(command.id);
+				reply.materials.AddRange(keyboardReport);
+				Write(reply);
+				return;
+			}
 			if (command.action == "dispatch-selection-probe")
 			{
 				string environmentVariable = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
