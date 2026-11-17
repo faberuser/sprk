@@ -98,8 +98,33 @@ async fn touch_day(db: &mut PgConnection, account: i64) -> Result<()> {
     let changed=crate::db::query("INSERT INTO progression_login(account_id,days,last_day) VALUES($1,1,sprk_date('now')) ON CONFLICT(account_id) DO UPDATE SET days=progression_login.days+1,last_day=excluded.last_day WHERE progression_login.last_day!=excluded.last_day").bind(account).execute(&mut *db).await?.rows_affected();
     if changed > 0 {
         record(db, account, "LoginDaily", 0, 0, 1).await?;
+        fold_old_metrics(db, account).await?;
     }
     Ok(())
+}
+
+/// Days of metric history kept per day. Older days only count toward "all"
+/// periods (periods reach back at most 62 days, to a monthly reset), so they
+/// are summed into one `METRIC_HISTORY_DAY` row per (kind, arg, arg2): every
+/// full snapshot loads all of a player's metric rows, which otherwise grow by
+/// hundreds a day. LoginDaily keeps its dates for login streaks.
+pub(crate) const METRIC_DAYS_KEPT: i64 = 90;
+/// Sorts before every period start, so `day >= period` never counts it.
+pub(crate) const METRIC_HISTORY_DAY: &str = "0001-01-01";
+
+/// Fold one account's metric days older than `METRIC_DAYS_KEPT` into
+/// `METRIC_HISTORY_DAY`, keeping every sum. Runs on the first login of a day,
+/// under the account lock, so usually one day crosses the limit at a time.
+pub(crate) async fn fold_old_metrics(db: &mut PgConnection, account: i64) -> Result<u64> {
+    let folded = crate::db::query("WITH old AS (DELETE FROM progression_metrics WHERE account_id=$1 \
+            AND day < sprk_date('now',$2) AND day <> $3 AND kind <> 'LoginDaily' RETURNING kind,arg,arg2,value) \
+        INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) \
+        SELECT $1,$3,kind,arg,arg2,LEAST(SUM(value),9223372036854775807)::bigint FROM old GROUP BY kind,arg,arg2 \
+        ON CONFLICT(account_id,day,kind,arg,arg2) DO UPDATE \
+        SET value=LEAST(progression_metrics.value::numeric+excluded.value,9223372036854775807)::bigint")
+        .bind(account).bind(format!("-{METRIC_DAYS_KEPT} days")).bind(METRIC_HISTORY_DAY)
+        .execute(&mut *db).await?.rows_affected();
+    Ok(folded)
 }
 pub(crate) async fn snapshot(
     db: &mut PgConnection,

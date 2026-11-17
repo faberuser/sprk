@@ -167,6 +167,8 @@ pub struct LoginResponse {
     pub deck_infos: Vec<serde_json::Value>,
     pub achievement_infos: Vec<serde_json::Value>,
     pub is_tutorial_skip: bool,
+    /// SPRK: a new player may skip the opening tutorial (see `tutorial::OPENING_TUTORIALS`).
+    pub sprk_opening_skip_offer: bool,
     pub server_name: String,
     // Critical field - account creation time
     pub created_time: String,
@@ -599,8 +601,7 @@ pub async fn login(
     let pet_infos=crate::api::extensions::list(&mut *state.db.acquire().await?,account_id,"pet").await?;
     let hero_rune_page_infos = heroes.iter().flat_map(|h| h.details.get("HeroRunePageInfos").and_then(serde_json::Value::as_array).into_iter().flatten().cloned()).collect();
     crate::api::battle::party_messages::new_login(&state,account_id).await?;
-    let battle = crate::api::battle::login(&state,account_id).await?;
-    let community = crate::api::community::login(&state,account_id).await?;
+    let (battle, community, stamina) = crate::api::account::stamina::locked_logins(&state,account_id).await?;
     user_info.guild_point=community["GuildPoint"].as_i64().unwrap_or(0);
     user_info.sword=community["SwordResult"]["NewValue"].as_i64().unwrap_or(0);
     user_info.guild_raid_ticket=community["GuildRaidTicket"]["NewValue"].as_i64().unwrap_or(user_info.guild_raid_ticket as i64);
@@ -615,7 +616,6 @@ pub async fn login(
             if let Ok(value)=serde_json::from_value(key.clone()){stamina_results.push(value);}
         }
     }
-    let stamina=crate::api::account::stamina::login(&state,account_id).await?;
     stamina_results=serde_json::from_value(stamina.clone()).map_err(|e|ServerError::Internal(e.to_string()))?;
     for key in stamina.as_array().into_iter().flatten(){if let Some(kind)=key["Type"].as_str(){user_value[if kind=="Chicken"{"Stamina"}else{kind}]=key["NewValue"].clone();}}
     // Honor medals are stored with the extended currencies, but the native
@@ -709,6 +709,7 @@ pub async fn login(
         deck_infos: vec![],
         achievement_infos: progression["AchievementInfos"].as_array().cloned().unwrap_or_default(),
         is_tutorial_skip: tutorial_skip,
+        sprk_opening_skip_offer: crate::api::tutorial::opening_skip_offered(&state, account_id).await?,
         server_name: "Private Server".to_string(),
         created_time: crate::db::query_scalar("SELECT created_at FROM accounts WHERE account_id=$1").bind(account_id).fetch_one(&state.db).await?,
         message_server_info: serde_json::json!({"Address":state.chat.address, "Port":state.chat.port}),

@@ -633,3 +633,30 @@ async fn legend_costumes_discount_dispatch_stamina_like_the_native_window() {
     assert_eq!(n(&job, "Cost"), charged);
     assert_eq!(stamina(&s, &u).await, 1000 - charged);
 }
+
+#[tokio::test]
+async fn dispatch_freezes_only_valid_party_skill_rules_for_the_native_worker() {
+    let (s, u) = fixture(false).await;
+    // {"1":13,"2":5}: hero 1 is dispatched, hero 2 is not. Unity escapes the value twice, so
+    // the form decoder leaves it escaped once (as captured from the real client).
+    let rules = "%257b%25221%2522%253a13%252c%25222%2522%253a5%257d";
+    let v = call(&s, &u, "dispatch/start_dispatch", &format!("ChapterIndex=1&DungeonIndex=1&Difficulty=1&HeroIndices=[1]&RepeatCount=1&DeckIndex=1&SkillRules={rules}")).await;
+    assert_eq!(v["Result"], "Success", "{v}");
+    let slot = n(&v["DispatchBattleInfo"], "SlotIndex");
+    let job = get(&mut s.db.acquire().await.unwrap(), account(&u), "dispatch", slot).await.unwrap();
+    assert_eq!(job["SkillRules"], json!({"1": 13}));
+    // Values outside the 5-slot encoding, non-numeric heroes and malformed input are dropped.
+    assert!(dispatch::skill_rules(r#"{"1":32768,"1x":3,"1":0}"#, &[1]).is_empty());
+    assert!(dispatch::skill_rules("not json", &[1]).is_empty());
+    assert!(dispatch::skill_rules("", &[1]).is_empty());
+    // Plain JSON from API clients is accepted too.
+    assert_eq!(dispatch::skill_rules(r#"{"1":185}"#, &[1]), dispatch::skill_rules("%7b%221%22%3a185%7d", &[1]));
+    assert_eq!(dispatch::skill_rules(r#"{"1":185}"#, &[1]).get("1"), Some(&json!(185)));
+}
+
+#[tokio::test]
+async fn dispatch_without_skill_rules_stores_none() {
+    let (s, u) = fixture(false).await;
+    let job = start(&s, &u, 1).await;
+    assert!(job.get("SkillRules").is_none(), "{job}");
+}

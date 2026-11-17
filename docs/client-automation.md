@@ -101,6 +101,34 @@ There is no unattended AI daemon: the runner executes scenarios; during an
 active coding session the assistant can inspect failures, patch code, rebuild,
 restart, and rerun them. It does not synthesize successful combat outcomes.
 
+### Battle keyboard settings regression
+
+Launch the test copy with an isolated `battle-keyboard-*` profile. In Login,
+send `battle-keyboard-probe` through the Python `request` API with `target=1`
+and `text="run"` (`text="init"` only creates the native settings fixture).
+The probe checks default OFF, all 48 preset keys/modifiers/labels, custom
+persistence across presets and managed-cache reload, duplicates and unbinding,
+preference restoration, idempotent settings-row injection and its editor callback.
+Synchronous native fixtures also cover normal/Soul Weapon action resolution,
+screen-X ordering, inactive/disabled/transparent widget rejection, locked-skill
+click delegation and single-back capture cancellation without binding changes.
+It leaves the keyboard editor open for a screenshot; allow rendering frames
+before capturing. It deliberately bypasses account-dependent `settings.Open`.
+
+This fixture does not establish full battle validation: also test left-to-right
+hero ordering, real modifier/key-down edges and reservation/cancellation in a
+battle, plus hidden main-party/alternate-party controls. Native key capture can
+be exercised by selecting Custom, clicking a binding and using `key SHIFT_TAB`.
+
+In a running battle (same `battle-keyboard-*` profile), `battle-keyboard-live`
+reports the battle hook's gate (party open/visible, battle started/enabled),
+the key badge text on every hero's skills and `fires` / `firesBeforeStart` counters;
+`text="enable"` turns the controls on first. `key` accepts digits and letters,
+so `key 1` during combat followed by `battle-keyboard-live` shows whether a
+real key press reached a skill. Keep profile names short: the account lock
+file path exceeds Windows MAX_PATH with long ones and login then fails with
+"This account is open in another window."
+
 ## Validation and restoration
 
 Verified on the actual client: launch, screenshot, UI enumeration, native event
@@ -184,3 +212,11 @@ zero, partial and full progress, then verifies animation completion for small
 gains, ticket conversion, multiple tickets and the ticket cap. It uses fixture
 values without spending account resources; server Eclipse tests separately
 check campaign spending, persisted points, conversion and replay protection.
+
+The `ticket-search-probe` command with `text="inventory-bulk-test"` requires
+Login and a `ticket-search-*` automation profile. It checks the native ticket
+quantity input, Max/Plus/Minus/OK states and ownership at the 100,000-use cap,
+material-ticket prefill, and both package description paths at the 1,000-open
+cap, including preserved special package limits. It uses fixture counts and
+restores modified table values; it does not consume account items. The server
+inventory regression tests separately verify redemption and rejected batches.

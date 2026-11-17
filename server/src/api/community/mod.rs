@@ -451,9 +451,11 @@ pub(crate) async fn validate_shop(
     }
     Ok(level)
 }
-pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
-    let mut tx = crate::database::begin(&s.db).await?;
-    item::init(&mut tx, s, a).await?;
+/// The login snapshot inside the caller's transaction, which holds the
+/// account lock and has initialized the inventory
+/// (`account::stamina::locked_logins`).
+pub(crate) async fn login_in(tx: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
+    let mut tx = tx;
     arena::settle(&mut tx, s, a).await?;
     warfare::settle(&mut tx, s, a).await?;
     conquest::settle(&mut tx,s,a).await?;
@@ -465,7 +467,6 @@ pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
         out["MyGuildInfo"] = guild::state(&mut tx, s, g).await?;
         out["GuildMemberInfo"] = guild::member(&mut tx, s, a).await?;
     }
-    tx.commit().await?;
     Ok(out)
 }
 pub(crate) async fn guild_ticket(

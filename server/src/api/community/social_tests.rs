@@ -1167,6 +1167,14 @@ async fn current_chapter_profiles_follow_saved_main_story_progress_across_friend
     // A recent low chapter deck must not replace actual cleared progress.
     crate::api::battle::put(&mut s.db.acquire().await.unwrap(),target,"inspection_deck",1,&json!({"ChapterIndex":1,"HeroIndex1":1})).await.unwrap();
     assert_eq!(friend::profile(&s,target).await.unwrap()["LastChapterIndex"],modern_c);
+    // Unchanged players are served from the per-revision cache (a marked
+    // entry survives), and any progression write recomputes the stage.
+    s.last_stages.lock().unwrap().get_mut(&target).unwrap().2=(77,7);
+    assert_eq!(friend::profile(&s,target).await.unwrap()["LastChapterIndex"],77);
+    let listed=friend::get_friend_list(State(s.clone()),form(&a,"")).await.unwrap().0;
+    assert_eq!(listed["FriendInvitorInfos"].as_array().unwrap().iter().find(|v|v["AccountId"]==target).unwrap()["LastChapterIndex"],77);
+    crate::db::query("UPDATE campaign_progress SET clear_count=clear_count+1 WHERE account_id=$1 AND chapter_id=$2").bind(target).bind(legacy_c).execute(&s.db).await.unwrap();
+    assert_eq!(friend::profile(&s,target).await.unwrap()["LastChapterIndex"],modern_c);
 }
 
 #[tokio::test]

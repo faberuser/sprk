@@ -410,14 +410,15 @@ public class InvenRandomBoxDesc : BaseWindow, IUserObserver<ItemInfo>, IUserObse
 
 	private long GetMaxOpenPackageItem()
 	{
-		int valueInt = GameRoot.Instance.ConstantDataContainer.GetValueInt("MaxPackageItemOpen");
+		int valueInt = 1000;
 		long num = valueInt;
 		int maxOpenCountFromPackageItemTable = GetMaxOpenCountFromPackageItemTable();
 		long num2 = maxOpenCountFromPackageItemTable;
 		int num3 = 0;
 		if (num2 > num3)
 		{
-			num = num2;
+			// Raise the legacy bulk cap without removing special per-package limits.
+			num = num2 == 50 ? 1000 : num2;
 		}
 		int amountCurrencyInItem = GetAmountCurrencyInItem(CurrencyType.EclipsePoint);
 		int amountCurrencyInItem2 = GetAmountCurrencyInItem(CurrencyType.ShakmehMiddleBossPoint);

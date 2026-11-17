@@ -86,6 +86,7 @@ public class HeroParty : BaseWindowUpdater
 
 	public void Init(long playerId, BaseSkillComponent.ClickIconCallback onClickSkill, bool autoPlayerable, Listener listener, int chapterIndex, int dungeonIndex, bool enabledSwapParty)
 	{
+		SprkBattleKeyboardInput.Attach(this);
 		_playerId = playerId;
 		_onClickSkill = onClickSkill;
 		_listener = listener;

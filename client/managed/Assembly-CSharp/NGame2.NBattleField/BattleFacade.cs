@@ -443,6 +443,7 @@ public class BattleFacade : SingletonAuto<BattleFacade>
 
 	public void CreateBattle(int chapterIndex, int dungeonIndex, int difficulty, bool isScenario, bool isOnlineMode, bool autoStart, BattleInstanceExtraData extraData, int onlineGameSpeedRatio = 1)
 	{
+		SprkDiscordPresence.BattleCreated(chapterIndex, dungeonIndex);
 		IsOnlineMode = isOnlineMode;
 		ResetBattle();
 		PrepareBeforeStartThread();

@@ -58,6 +58,7 @@ public static class BattleSimulationFacade
 			BattleSimulatorList.Add(battleInst);
 		}
 		battleInst.Init(uid, battleSimulationInfo);
+		battleInst.SprkSkillPriorityRules = SprkSkillPriority.Capture(heroIndices);
 		SingletonUpdater<ThreadManager>.instance.Enqueue((Action)delegate
 		{
 			battleInst.BattleStart(enableBattleLog);

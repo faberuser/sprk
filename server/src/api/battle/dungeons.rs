@@ -1354,7 +1354,30 @@ async fn daily_attempts(db: &mut PgConnection, a: i64, kind: &str, c: i64) -> Re
     Ok(p)
 }
 pub(super) async fn under(db: &mut PgConnection, s: &AppState, a: i64, c: i64) -> Result<Value> {
-    let mut p = get(db, a, "under_prison", c).await?;
+    let cleared: Vec<i64> = crate::db::query_scalar(
+        "SELECT dungeon_id FROM campaign_progress WHERE account_id=$1 AND chapter_id=$2 AND clear_count>0",
+    ).bind(a).bind(c).fetch_all(&mut *db).await?;
+    under_with(db, s, a, c, &cleared).await
+}
+/// `under` for every chapter in `chapters`, reading their clears in one statement.
+pub(super) async fn under_all(db: &mut PgConnection, s: &AppState, a: i64, chapters: &[i64]) -> Result<Vec<Value>> {
+    if chapters.is_empty() { return Ok(Vec::new()); }
+    let list = serde_json::to_string(chapters).map_err(|e| crate::error::ServerError::Internal(e.to_string()))?;
+    let rows: Vec<(i64, i64)> = crate::db::query_as(
+        "SELECT chapter_id,dungeon_id FROM campaign_progress WHERE account_id=$1 AND chapter_id IN (SELECT sprk_json_ints($2)) AND clear_count>0",
+    ).bind(a).bind(list).fetch_all(&mut *db).await?;
+    let mut out = Vec::with_capacity(chapters.len());
+    for &c in chapters {
+        let cleared: Vec<i64> = rows.iter().filter(|r| r.0 == c).map(|r| r.1).collect();
+        out.push(under_with(db, s, a, c, &cleared).await?);
+    }
+    Ok(out)
+}
+/// The Stockade state of chapter `c` given its cleared dungeons; written only
+/// when it changed (every lobby entry reads each chapter).
+async fn under_with(db: &mut PgConnection, s: &AppState, a: i64, c: i64, cleared: &[i64]) -> Result<Value> {
+    let stored = get(db, a, "under_prison", c).await?;
+    let mut p = stored.clone();
     if p.is_null() {
         p = json!({"ChapterIndex":c,"CompletedCount":0,"Diff":0,"MaxTryCount":settings(s,"UnderPrisonMaxDailyAttempts",3),"LastCompletedTime":null,"Day":day()});
     }
@@ -1364,17 +1387,16 @@ pub(super) async fn under(db: &mut PgConnection, s: &AppState, a: i64, c: i64) -
     }
     // Older servers stored campaign difficulty (usually zero), not Stockade's
     // stage tier. Recover only tiers backed by successful, persisted clears.
-    let cleared: Vec<i64> = crate::db::query_scalar(
-        "SELECT dungeon_id FROM campaign_progress WHERE account_id=$1 AND chapter_id=$2 AND clear_count>0",
-    ).bind(a).bind(c).fetch_all(&mut *db).await?;
-    for dungeon in cleared {
+    for &dungeon in cleared {
         if let Some(stage) = s.tables.battle.find(
             "UnderPrisonDungeon", &[("ChapterIndex", c), ("DungeonIndex", dungeon)],
         ) {
             p["Diff"] = json!(n(&p, "Diff").max(n(stage, "Diff")));
         }
     }
-    put(db, a, "under_prison", c, &p).await?;
+    if p != stored {
+        put(db, a, "under_prison", c, &p).await?;
+    }
     Ok(p)
 }
 pub(super) async fn execute(

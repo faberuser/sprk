@@ -346,6 +346,34 @@ public sealed class SprkAutomation : MonoBehaviour
 			{
 				throw new InvalidOperationException("Invalid command ID");
 			}
+			if (command.action == "battle-keyboard-probe")
+			{
+				SprkBattleKeyboardProbe.CheckContext(command.target, command.text);
+				PrepareInstalledProbeAssets();
+				var keyboardReport = SprkBattleKeyboardProbe.Run(command.text);
+				reply = Snapshot(command.id);
+				reply.materials.AddRange(keyboardReport);
+				Write(reply);
+				return;
+			}
+			if (command.action == "battle-keyboard-live")
+			{
+				string liveProfile = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE") ?? "";
+				if (!liveProfile.StartsWith("battle-keyboard-", StringComparison.Ordinal))
+				{
+					throw new InvalidOperationException("Live keyboard probe requires a battle-keyboard-* profile");
+				}
+				Type liveKeyboard = Assembly.Load("SprkBattleKeyboard").GetType("SprkBattleKeyboard", true);
+				if (command.text == "enable")
+				{
+					liveKeyboard.GetProperty("ControlsEnabled").SetValue(null, true);
+				}
+				Type liveInput = Assembly.Load("SprkBattleKeyboard").GetType("SprkBattleKeyboardInput", true);
+				reply = Snapshot(command.id);
+				reply.materials.Add((string)liveInput.GetMethod("Diagnose").Invoke(null, null));
+				Write(reply);
+				return;
+			}
 			if (command.action == "dispatch-selection-probe")
 			{
 				string environmentVariable = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");

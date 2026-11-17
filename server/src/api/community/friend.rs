@@ -25,18 +25,78 @@ pub async fn profile(state: &AppState, account: i64) -> Result<Value> {
 }
 async fn profile_row(db: &mut PgConnection, state: &AppState, row: &sqlx::postgres::PgRow) -> Result<Value> {
     let account: i64 = row.get("account_id");
+    let stage = last_stages(db, state, &[account]).await?[&account];
+    Ok(profile_with(state, row, stage))
+}
+/// Profiles of `rows` (each with the columns `profile_row` reads), in order,
+/// reading every player's last stage in one go.
+async fn profile_rows(db: &mut PgConnection, state: &AppState, rows: &[&sqlx::postgres::PgRow]) -> Result<Vec<Value>> {
+    let accounts: Vec<i64> = rows.iter().map(|row| row.get("account_id")).collect();
+    let stages = last_stages(db, state, &accounts).await?;
+    Ok(rows.iter().zip(&accounts).map(|(row, account)| profile_with(state, row, stages[account])).collect())
+}
+fn profile_with(state: &AppState, row: &sqlx::postgres::PgRow, (chapter, dungeon): (i64, i64)) -> Value {
+    let account: i64 = row.get("account_id");
     let last: Option<String> = row.get("last_login");
     let logout: Option<String> = row.get("last_logout");
     let last_online = last.iter().chain(logout.iter()).max().cloned();
     let online = online(state, account);
+    json!({"AccountId":account, "Nick":row.get::<String,_>("nick"), "TeamLevel":row.get::<i32,_>("team_level"), "AvatarHeroIndex":row.get::<i32,_>("avatar_hero_index"),
+        "VIPLevel":0, "IsOnline":online, "LastLoginTime":last, "LastOnlineTime":last_online, "LastLogoutTime":logout, "TierIndex":0, "MatchScore":0, "LastChapterIndex":chapter, "LastDungeonIndex":dungeon})
+}
+
+/// account -> (progression revision, battle tables, last main-story stage).
+pub(crate) type LastStages = std::collections::HashMap<i64, (i64, usize, (i64, i64))>;
+
+/// Each player's highest cleared main-story stage ((1,1) without one). Login
+/// shows it for every friend, and deriving it parses every stored dungeon
+/// row (~200 per player, ~3 ms each): it is kept per player until that
+/// player's progression revision changes, which every clear bumps.
+pub(crate) async fn last_stages(db: &mut PgConnection, state: &AppState, accounts: &[i64]) -> Result<std::collections::HashMap<i64, (i64, i64)>> {
+    let mut out = std::collections::HashMap::new();
+    if accounts.is_empty() { return Ok(out); }
+    let json_list = |ids: &[i64]| serde_json::to_string(ids).map_err(|e| ServerError::Internal(e.to_string()));
+    // Revisions first: a clear committed after this read can only make the
+    // entry look stale, never label older stages with a newer revision.
+    let revisions: std::collections::HashMap<i64, i64> = crate::db::query_as::<(i64, i64)>(
+        "SELECT account,revision FROM response_revisions WHERE scope='progression' AND account IN (SELECT sprk_json_ints($1))")
+        .bind(json_list(accounts)?).fetch_all(&mut *db).await?.into_iter().collect();
+    let revision = |a: &i64| revisions.get(a).copied().unwrap_or(0);
+    let tables = std::sync::Arc::as_ptr(&state.tables.battle) as usize;
+    let mut stale = Vec::new();
+    {
+        let cache = state.last_stages.lock().unwrap_or_else(|e| e.into_inner());
+        for a in accounts {
+            match cache.get(a) {
+                Some((r, t, stage)) if *r == revision(a) && *t == tables => { out.insert(*a, *stage); }
+                _ => if !stale.contains(a) { stale.push(*a) },
+            }
+        }
+    }
+    if stale.is_empty() { return Ok(out); }
     // Both persisted progress formats are in use. An unlock or a numerically
-    // higher raid/event chapter is not main-story completion.
-    let clears: Vec<(i64,i64)> = crate::db::query_as("SELECT chapter_id,dungeon_id FROM campaign_progress WHERE account_id=$1 AND clear_count>0 UNION SELECT COALESCE(sprk_json_int(data,'$.ChapterIndex'),idx >> 32),COALESCE(sprk_json_int(data,'$.DungeonIndex'),idx & 4294967295) FROM battle_state WHERE account=$2 AND kind='dungeon' AND (sprk_json_int(data,'$.FirstRewardedDiff')>0 OR sprk_json_int(data,'$.MaxStar')>0 OR sprk_json_int(data,'$.ScenarioComplete')=1)")
-        .bind(account).bind(account).fetch_all(db).await?;
+    // higher raid/event chapter is not main-story completion. Each stored
+    // dungeon row is parsed once.
+    let clears: Vec<(i64, i64, i64)> = crate::db::query_as("SELECT account_id,chapter_id,dungeon_id FROM campaign_progress WHERE account_id IN (SELECT sprk_json_ints($1)) AND clear_count>0 \
+        UNION SELECT b.account,COALESCE(sprk_json_int(j->'ChapterIndex'),b.idx >> 32),COALESCE(sprk_json_int(j->'DungeonIndex'),b.idx & 4294967295) \
+        FROM battle_state b CROSS JOIN LATERAL (SELECT b.data::jsonb AS j) x WHERE b.account IN (SELECT sprk_json_ints($1)) AND b.kind='dungeon' \
+        AND (sprk_json_int(j->'FirstRewardedDiff')>0 OR sprk_json_int(j->'MaxStar')>0 OR sprk_json_int(j->'ScenarioComplete')=1)")
+        .bind(json_list(&stale)?).fetch_all(&mut *db).await?;
     let main = main_story_stages(state);
-    let (chapter,dungeon) = clears.into_iter().filter(|stage| main.contains(stage)).max().unwrap_or((1,1));
-    Ok(json!({"AccountId":account, "Nick":row.get::<String,_>("nick"), "TeamLevel":row.get::<i32,_>("team_level"), "AvatarHeroIndex":row.get::<i32,_>("avatar_hero_index"),
-        "VIPLevel":0, "IsOnline":online, "LastLoginTime":last, "LastOnlineTime":last_online, "LastLogoutTime":logout, "TierIndex":0, "MatchScore":0, "LastChapterIndex":chapter, "LastDungeonIndex":dungeon}))
+    let mut best = std::collections::HashMap::<i64, (i64, i64)>::new();
+    for (a, c, d) in clears {
+        if main.contains(&(c, d)) {
+            let entry = best.entry(a).or_insert((c, d));
+            *entry = (*entry).max((c, d));
+        }
+    }
+    let mut cache = state.last_stages.lock().unwrap_or_else(|e| e.into_inner());
+    for a in stale {
+        let stage = best.get(&a).copied().unwrap_or((1, 1));
+        cache.insert(a, (revision(&a), tables, stage));
+        out.insert(a, stage);
+    }
+    Ok(out)
 }
 
 /// Main-story stages (first `CampaignChapter` row has MainField, first
@@ -148,8 +208,8 @@ pub async fn login_data(
     let rows = crate::db::query("SELECT f.account_id AS sender, f.friend_account_id AS receiver, f.status, f.created_at, a.account_id, a.nick, a.last_login, a.last_logout, u.team_level, u.avatar_hero_index FROM friends f JOIN accounts a ON a.account_id = CASE WHEN f.account_id = $1 THEN f.friend_account_id ELSE f.account_id END JOIN user_info u ON u.account_id = a.account_id WHERE (f.account_id = $2 OR f.friend_account_id = $3) AND a.is_banned = 0 ORDER BY f.id")
         .bind(account).bind(account).bind(account).fetch_all(&state.reads).await?;
     let mut outgoing = Vec::new();
-    let mut incoming = Vec::new();
-    for row in rows {
+    let mut incoming_rows = Vec::new();
+    for row in &rows {
         let other: i64 = row.get("account_id");
         let accepted = row.get::<String, _>("status") == "accepted";
         let time: String = row.get("created_at");
@@ -157,12 +217,16 @@ pub async fn login_data(
             outgoing.push(json!({"FriendId":other,"InvitedTime":time}));
         }
         if accepted || row.get::<i64, _>("receiver") == account {
-            let mut info = profile_row(&mut *state.reads.acquire().await?, state, &row).await?;
-            info["InvitedTime"] = json!(time);
-            incoming.push(info);
+            incoming_rows.push(row);
         }
     }
-    let own = point_infos(&mut *state.reads.acquire().await?, account).await?;
+    let mut db = state.reads.acquire().await?;
+    let mut incoming = profile_rows(&mut db, state, &incoming_rows).await?;
+    for (info, row) in incoming.iter_mut().zip(&incoming_rows) {
+        info["InvitedTime"] = json!(row.get::<String, _>("created_at"));
+    }
+    let own = point_infos(&mut db, account).await?;
+    drop(db);
     let rows = crate::db::query("SELECT p.account_id AS friend_id, p.last_send_time, p.last_recv_time FROM friend_points p WHERE p.friend_id = $1 AND EXISTS (SELECT 1 FROM friends f WHERE f.status = 'accepted' AND ((f.account_id = p.account_id AND f.friend_account_id = p.friend_id) OR (f.account_id = p.friend_id AND f.friend_account_id = p.account_id)))")
         .bind(account).fetch_all(&state.reads).await?;
     let sent = rows.iter().map(point_row).collect();
@@ -238,8 +302,7 @@ pub async fn search_friend(State(state): State<AppState>, body: Bytes) -> Result
     }
     query.push(" LIMIT 20");
     let rows = query.build().fetch_all(&state.reads).await?;
-    let mut infos = Vec::with_capacity(rows.len());
-    for row in &rows { infos.push(profile_row(&mut *state.reads.acquire().await?, &state, row).await?); }
+    let infos = profile_rows(&mut *state.reads.acquire().await?, &state, &rows.iter().collect::<Vec<_>>()).await?;
     Ok(Json(
         json!({"BaseResult":"Success", "Result":if !keyword.is_empty() && infos.is_empty() {"FriendNotFound"} else {"Success"}, "FriendInfos":infos}),
     ))

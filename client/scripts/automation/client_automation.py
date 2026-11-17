@@ -162,6 +162,11 @@ def select(reply, selector, kind="button"):
     return found[0]
 
 
+# Windows virtual-key codes; digits and letters exercise battle keyboard bindings.
+KEY_CODES = {"ESC": 27, "ENTER": 13, "SPACE": 32, "TAB": 9, "SHIFT_TAB": 9,
+             **{c: ord(c) for c in "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"}}
+
+
 def native_input(pid, action, x=0, y=0, key="ESC"):
     """Real input; refuses to send keys/clicks unless the selected client owns focus."""
     user = ctypes.WinDLL("user32", use_last_error=True)
@@ -221,7 +226,7 @@ def native_input(pid, action, x=0, y=0, key="ESC"):
         time.sleep(0.05)
         user.mouse_event(4, 0, 0, 0, 0)
     else:
-        keys = {"ESC": 27, "ENTER": 13, "SPACE": 32, "TAB": 9, "SHIFT_TAB": 9}
+        keys = dict(KEY_CODES)
         vk = keys[key]
         if key == "SHIFT_TAB":
             user.keybd_event(16, 0, 0, 0)
@@ -394,7 +399,7 @@ def main():
         if action == "text":
             p.add_argument("text")
     p = sub.add_parser("key")
-    p.add_argument("key", choices=["ESC", "ENTER", "SPACE", "TAB", "SHIFT_TAB"])
+    p.add_argument("key", choices=list(KEY_CODES))
     p = sub.add_parser("click-at", help="Real mouse click using game-client pixel coordinates")
     p.add_argument("x", type=int)
     p.add_argument("y", type=int)

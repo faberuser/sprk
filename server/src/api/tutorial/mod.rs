@@ -104,6 +104,41 @@ pub(crate) struct Rewards {
     pub(crate) team_exp: Vec<Value>,
     pub(crate) team_exp_to_add: i64,
     pub(crate) dungeons: Vec<Value>,
+    /// Set by a package batch (`inventory::PackageRewards`): equipment takes a
+    /// reserved slot and its row is inserted later with the batch's others.
+    pub(crate) deferred_equipment: Option<DeferredEquipment>,
+}
+
+/// Equipment rows a package batch inserts together (`insert_equipment`). Each
+/// piece takes a slot index reserved from the identity sequence, so its
+/// results (and loot boost entries) are complete before the row exists.
+#[derive(Default)]
+pub(crate) struct DeferredEquipment {
+    /// Reserved, unused slot indices (next last). Unused ones become gaps.
+    slots: Vec<i64>,
+    pub(crate) pending: Vec<EquipItemInfo>,
+}
+const RESERVED_SLOTS: i64 = 64;
+
+/// Insert `pieces` (with their reserved slot indices) in one statement, with
+/// the columns `equipment` writes, in slot (= roll) order; the row triggers
+/// run per piece as before.
+pub(crate) async fn insert_equipment(db: &mut PgConnection, account_id: i64, pieces: &[EquipItemInfo]) -> Result<()> {
+    if pieces.is_empty() { return Ok(()); }
+    let rows: Vec<Value> = pieces.iter().map(|e| json!({
+        "slot_index": e.slot_index, "item_index": e.item_index, "star": e.star, "level": e.level, "exp": e.exp,
+        "option_index_1": e.option_index_1, "option_step_1": e.option_step_1, "option_index_2": e.option_index_2, "option_step_2": e.option_step_2,
+        "option_index_3": e.option_index_3, "option_step_3": e.option_step_3, "option_index_4": e.option_index_4, "option_step_4": e.option_step_4,
+        "rune_slot_count": e.rune_slot_count, "rune_item_index_1": e.rune_item_index_1, "rune_item_index_2": e.rune_item_index_2,
+        "rune_item_index_3": e.rune_item_index_3, "created_time": e.created_time, "identified": e.identified,
+        "option_renew_count_1": e.option_renew_count_1, "is_renewed_option_1": e.is_renewed_option_1,
+        "option_renew_count_2": e.option_renew_count_2, "is_renewed_option_2": e.is_renewed_option_2,
+        "option_renew_count_3": e.option_renew_count_3, "is_renewed_option_3": e.is_renewed_option_3,
+        "option_renew_count_4": e.option_renew_count_4, "is_renewed_option_4": e.is_renewed_option_4,
+    })).collect();
+    crate::db::query("INSERT INTO equip_items (slot_index, account_id, item_index, star, level, exp, option_index_1, option_step_1, option_index_2, option_step_2, option_index_3, option_step_3, option_index_4, option_step_4, rune_slot_count, rune_item_index_1, rune_item_index_2, rune_item_index_3, created_time, identified, option_renew_count_1, is_renewed_option_1, option_renew_count_2, is_renewed_option_2, option_renew_count_3, is_renewed_option_3, option_renew_count_4, is_renewed_option_4)         SELECT r.slot_index, $1, r.item_index, r.star, r.level, r.exp, r.option_index_1, r.option_step_1, r.option_index_2, r.option_step_2, r.option_index_3, r.option_step_3, r.option_index_4, r.option_step_4, r.rune_slot_count, r.rune_item_index_1, r.rune_item_index_2, r.rune_item_index_3, r.created_time, r.identified, r.option_renew_count_1, r.is_renewed_option_1, r.option_renew_count_2, r.is_renewed_option_2, r.option_renew_count_3, r.is_renewed_option_3, r.option_renew_count_4, r.is_renewed_option_4         FROM jsonb_to_recordset($2::jsonb) AS r(slot_index bigint, item_index bigint, star bigint, level bigint, exp bigint, option_index_1 bigint, option_step_1 bigint, option_index_2 bigint, option_step_2 bigint, option_index_3 bigint, option_step_3 bigint, option_index_4 bigint, option_step_4 bigint, rune_slot_count bigint, rune_item_index_1 bigint, rune_item_index_2 bigint, rune_item_index_3 bigint, created_time text, identified bigint, option_renew_count_1 bigint, is_renewed_option_1 bigint, option_renew_count_2 bigint, is_renewed_option_2 bigint, option_renew_count_3 bigint, is_renewed_option_3 bigint, option_renew_count_4 bigint, is_renewed_option_4 bigint) ORDER BY r.slot_index")
+        .bind(account_id).bind(Value::Array(rows).to_string()).execute(&mut *db).await?;
+    Ok(())
 }
 
 pub(crate) async fn currency(
@@ -161,6 +196,19 @@ pub(crate) async fn equipment(
     mut item: EquipItemInfo,
     rewards: &mut Rewards,
 ) -> Result<()> {
+    if let Some(deferred) = rewards.deferred_equipment.as_mut() {
+        if deferred.slots.is_empty() {
+            deferred.slots = crate::db::query_scalar::<i64>("SELECT nextval(pg_get_serial_sequence('equip_items','slot_index')) FROM generate_series(1,$1)")
+                .bind(RESERVED_SLOTS).fetch_all(&mut *db).await?;
+            deferred.slots.reverse();
+        }
+        item.slot_index = deferred.slots.pop().ok_or_else(|| ServerError::Internal("No reserved equipment slot".into()))? as i32;
+        item.uid = item.slot_index.to_string();
+        item.identified = 1;
+        deferred.pending.push(item.clone());
+        rewards.equipment.push(item);
+        return Ok(());
+    }
     let result = crate::db::query_scalar::<i64>("INSERT INTO equip_items (account_id, item_index, star, level, exp, option_index_1, option_step_1, option_index_2, option_step_2, option_index_3, option_step_3, option_index_4, option_step_4, rune_slot_count, rune_item_index_1, rune_item_index_2, rune_item_index_3, created_time, identified, option_renew_count_1, is_renewed_option_1, option_renew_count_2, is_renewed_option_2, option_renew_count_3, is_renewed_option_3, option_renew_count_4, is_renewed_option_4) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 1, $19, $20, $21, $22, $23, $24, $25, $26) RETURNING slot_index")
         .bind(account_id).bind(item.item_index).bind(item.star).bind(item.level).bind(item.exp)
         .bind(item.option_index_1).bind(item.option_step_1).bind(item.option_index_2).bind(item.option_step_2)
@@ -186,11 +234,14 @@ pub(crate) async fn grant_item(
     grant: ItemGrant,
     rewards: &mut Rewards,
 ) -> Result<()> {
-    grant_item_rolled(db, state, account_id, grant, rewards, false).await
+    grant_item_rolled(db, state, account_id, grant, rewards, false, None).await
 }
 
 /// `grant_item`; with `roll_options`, non-custom equipment is inserted with
-/// freshly rolled options (`inventory::item::make_options`).
+/// freshly rolled options (`inventory::item::make_options`). With `cap`
+/// (`inventory::item::give`), an item's new count must stay within it, or
+/// nothing is written and the grant fails with InvalidItemCount, and a new
+/// row records its first-grant time: one statement per grant.
 pub(crate) async fn grant_item_rolled(
     db: &mut PgConnection,
     state: &AppState,
@@ -198,6 +249,7 @@ pub(crate) async fn grant_item_rolled(
     grant: ItemGrant,
     rewards: &mut Rewards,
     roll_options: bool,
+    cap: Option<i64>,
 ) -> Result<()> {
     let ItemGrant {
         index,
@@ -251,8 +303,18 @@ pub(crate) async fn grant_item_rolled(
             equipment(db, account_id, item, rewards).await?;
         }
     } else {
-        let row = crate::db::query("INSERT INTO items (account_id, item_index, count) VALUES ($1, $2, $3) ON CONFLICT(account_id, item_index) DO UPDATE SET count = items.count + excluded.count RETURNING count, locked")
-            .bind(account_id).bind(index).bind(count).fetch_one(&mut *db).await?;
+        let row = match cap {
+            Some(cap) => {
+                if i64::from(count) > cap {
+                    return Err(crate::api::inventory::item::rule("InvalidItemCount"));
+                }
+                crate::db::query("INSERT INTO items (account_id, item_index, count, created_time) VALUES ($1, $2, $3, sprk_datetime('now'))                     ON CONFLICT(account_id, item_index) DO UPDATE SET count = items.count + excluded.count, created_time = COALESCE(items.created_time, excluded.created_time)                     WHERE items.count + excluded.count <= $4 RETURNING count, locked")
+                    .bind(account_id).bind(index).bind(count).bind(cap).fetch_optional(&mut *db).await?
+                    .ok_or_else(|| crate::api::inventory::item::rule("InvalidItemCount"))?
+            }
+            None => crate::db::query("INSERT INTO items (account_id, item_index, count) VALUES ($1, $2, $3) ON CONFLICT(account_id, item_index) DO UPDATE SET count = items.count + excluded.count RETURNING count, locked")
+                .bind(account_id).bind(index).bind(count).fetch_one(&mut *db).await?,
+        };
         rewards.items.push(json!({"ItemIndex": index, "AddCount": count, "NewCount": row.get::<i32, _>("count"), "AddBoosterCount": 0, "AddNPCBoosterCount": 0, "AddBonusAssignedItemPercent": 0, "Locked": row.get::<i32,_>("locked"), "IsFirstClearReward": false}));
     }
     Ok(())
@@ -596,6 +658,15 @@ async fn clause_stage_cleared(db: &mut PgConnection, account_id: i64) -> Result<
 /// Original event 10034 starts 20001, whose last step invokes 20002 to award Clause.
 /// Recover both missed/skipped steps after 1-20, preserving their own receipts.
 pub(crate) async fn restore_clause_reward(state: &AppState, account_id: i64) -> Result<()> {
+    // Every lobby entry calls this. Once both tutorials are completed (rows
+    // never revert) there is nothing to recover: skip the lock and the two
+    // receipt rebuilds that were discarded (~14 statements per lobby).
+    let pending: bool = crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM campaign_progress WHERE account_id=$1 AND chapter_id=1 AND dungeon_id=20 AND clear_count>0) \
+        AND (SELECT COUNT(*) FROM tutorial_progress WHERE account_id=$1 AND tutorial_index IN (20001,20002) AND is_completed=1)<2")
+        .bind(account_id).fetch_one(&state.reads).await?;
+    if !pending {
+        return Ok(());
+    }
     let mut tx = crate::database::begin(&state.db).await?;
     // Serialize this recovery with native tutorial completion before reading eligibility.
     crate::postgres::lock_account(&mut *tx, account_id).await?;
@@ -681,6 +752,61 @@ pub async fn skip_tutorial(
         base_result: "Success",
         result: "Success",
     }))
+}
+
+/// The scripted opening: the prologue, the guided battles 1-1, 1-2 and 1-3,
+/// then the chain 10201 -> 10202 -> 10200 that normally runs when the player
+/// walks to node 1-4 and unlocks the Heroes, Inventory and Special Shop buttons
+/// (`BottomButtonData.TutorialIndex`). Skipping ends where free play starts.
+pub(crate) const OPENING_TUTORIALS: [i32; 9] =
+    [1000, 10000, 10001, 10002, 10010, 10110, 10201, 10202, 10200];
+
+/// The opening may be skipped by an account that has not used the global
+/// tutorial skip and has no campaign clear beyond the opening's own 1-1 to 1-3.
+async fn opening_skippable(db: &mut PgConnection, account_id: i64) -> Result<bool> {
+    Ok(crate::db::query_scalar("SELECT NOT EXISTS(SELECT 1 FROM tutorial_settings WHERE account_id=$1 AND is_skipped=1) AND NOT EXISTS(SELECT 1 FROM campaign_progress WHERE account_id=$1 AND clear_count>0 AND NOT (chapter_id=1 AND dungeon_id BETWEEN 1 AND 3))")
+        .bind(account_id).fetch_one(db).await?)
+}
+
+/// Login offers the skip to a new player until the opening is finished.
+pub(crate) async fn opening_skip_offered(state: &AppState, account_id: i64) -> Result<bool> {
+    let mut db = state.db.acquire().await?;
+    if !opening_skippable(&mut db, account_id).await? {
+        return Ok(false);
+    }
+    let finished: bool = crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM tutorial_progress WHERE account_id=$1 AND tutorial_index=$2 AND is_completed=1)")
+        .bind(account_id).bind(OPENING_TUTORIALS[OPENING_TUTORIALS.len() - 1]).fetch_one(&mut *db).await?;
+    Ok(!finished)
+}
+
+/// Completes the whole opening as if it had been played: every step grants its
+/// own rewards and clears its battle, atomically. Steps already completed
+/// return their refreshed receipts, so a retried request changes nothing.
+pub async fn skip_opening_tutorial(
+    State(state): State<AppState>,
+    Form(req): Form<TutorialRequest>,
+) -> Result<Json<Value>> {
+    let account_id = account(&state, &req)?;
+    let mut tx = crate::database::begin(&state.db).await?;
+    crate::postgres::lock_account(&mut *tx, account_id).await?;
+    if !opening_skippable(&mut tx, account_id).await? {
+        return Err(ServerError::InvalidRequest(
+            "The opening tutorial can no longer be skipped".into(),
+        ));
+    }
+    let mut responses = Vec::with_capacity(OPENING_TUTORIALS.len());
+    for index in OPENING_TUTORIALS {
+        let data = state
+            .tables
+            .tutorials
+            .get(index)
+            .ok_or_else(|| ServerError::Internal(format!("Missing opening tutorial {index}")))?;
+        responses.push(complete_in_transaction(&mut tx, &state, account_id, index, data).await?);
+    }
+    tx.commit().await?;
+    Ok(Json(
+        json!({"BaseResult": "Success", "Result": "Success", "Responses": responses}),
+    ))
 }
 
 pub async fn get_tutorial_reward(

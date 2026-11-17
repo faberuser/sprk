@@ -591,10 +591,16 @@ public class BattleManagement : BaseManagement<BattleManagement>, SystemButtonAu
 		int[] cooltimeSkillIndices = creatureCache.CooltimeSkillIndices;
 		int[] disabledAutoUseSkillIndices = creatureCache.DisabledAutoUseSkillIndices;
 		int[] suppressedUsingCheckSkillIndices = creatureCache.SuppressedUsingCheckSkillIndices;
+		// SPRK: per-skill auto rules from Hero Info (Never use / rank 1-3 / Normal).
+		int priorityRules = SprkSkillPriority.Rules(creatureCache.HeroInfo);
 		PoolingList<int> poolingList = default(PoolingList<int>);
 		for (int i = 0; i < skillAutoReserveData.SkillList.Count; i++)
 		{
 			int item = skillAutoReserveData.SkillList[i].Item1;
+			if (SprkSkillPriority.IsOff(priorityRules, item))
+			{
+				continue;
+			}
 			int skillIndexBySlot = creatureCache.CreatureData.GetSkillIndexBySlot(item);
 			if ((disabledAutoUseSkillIndices != null && TypeIterator.Contains(disabledAutoUseSkillIndices, skillIndexBySlot)) || (suppressedUsingCheckSkillIndices != null && !TypeIterator.Contains(suppressedUsingCheckSkillIndices, skillIndexBySlot)))
 			{
@@ -622,6 +628,8 @@ public class BattleManagement : BaseManagement<BattleManagement>, SystemButtonAu
 		{
 			poolingList.Add(10);
 		}
+		// SPRK: the best-ranked ready skill wins over every other ready skill.
+		int prioritySlot = PickPrioritySkillSlot(poolingList, priorityRules);
 		int reservedSkillIndex = creatureCache.ReservedSkillIndex;
 		if (reservedSkillIndex > 0)
 		{
@@ -636,6 +644,16 @@ public class BattleManagement : BaseManagement<BattleManagement>, SystemButtonAu
 					SingletonAuto<BattleFacade>.instance.BattleLogRaiser.ReserveSkill(creatureCache.Uid, -1, 0, autoReserved: false);
 					skillAutoReserveData.ElapsedTime = 0f;
 				}
+				else if (prioritySlot > 0 && SprkSkillPriority.Rank(priorityRules, prioritySlot) < SprkSkillPriority.Rank(priorityRules, creatureCache.ReservedSkillSlotIndex))
+				{
+					// An automatic pick is still waiting (usually for mana); swap it for a better-ranked ready skill.
+					SingletonAuto<BattleFacade>.instance.BattleLogRaiser.ReserveSkill(creatureCache.Uid, prioritySlot, 0, autoReserved: true);
+					skillAutoReserveData.ElapsedTime = 0f;
+					if (SprkSkillPriority.Tracing)
+					{
+						SprkSkillPriority.Trace("auto-swap from " + creatureCache.ReservedSkillSlotIndex, creatureCache.HeroInfo.HeroIndex, priorityRules, JoinSlots(poolingList), prioritySlot);
+					}
+				}
 			}
 			poolingList.Clear();
 		}
@@ -643,12 +661,47 @@ public class BattleManagement : BaseManagement<BattleManagement>, SystemButtonAu
 		{
 			if (!poolingList.IsNullOrEmpty())
 			{
-				int skillSlotIndex = poolingList[UnityEngine.Random.Range(0, poolingList.Count)];
+				int skillSlotIndex = ((prioritySlot > 0) ? prioritySlot : poolingList[UnityEngine.Random.Range(0, poolingList.Count)]);
+				if (priorityRules != 0 && SprkSkillPriority.Tracing)
+				{
+					SprkSkillPriority.Trace("auto", creatureCache.HeroInfo.HeroIndex, priorityRules, JoinSlots(poolingList), skillSlotIndex);
+				}
 				SingletonAuto<BattleFacade>.instance.BattleLogRaiser.ReserveSkill(creatureCache.Uid, skillSlotIndex, 0, autoReserved: true);
 			}
 			poolingList.Clear();
 			skillAutoReserveData.ElapsedTime = 0f;
 		}
+	}
+
+	private static string JoinSlots(PoolingList<int> slots)
+	{
+		string text = "";
+		for (int i = 0; i < slots.Count; i++)
+		{
+			text = text + ((i == 0) ? "" : ",") + slots[i];
+		}
+		return text;
+	}
+
+	private static int PickPrioritySkillSlot(PoolingList<int> readySlots, int priorityRules)
+	{
+		if (priorityRules == 0)
+		{
+			return -1;
+		}
+		int picked = -1;
+		int best = int.MaxValue;
+		for (int i = 0; i < readySlots.Count; i++)
+		{
+			int slot = readySlots[i];
+			int rank = SprkSkillPriority.Rank(priorityRules, slot);
+			if (rank < best)
+			{
+				best = rank;
+				picked = slot;
+			}
+		}
+		return (best == int.MaxValue) ? (-1) : picked;
 	}
 
 	public void UpdateSkillAutoReserve()

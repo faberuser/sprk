@@ -52,7 +52,7 @@ public static class SprkHeroMaterialTickets
 
 		public void OnClickOk(SelectionItemUsePopup popup, int usingItemIndex, int selecteditemIndex, int itemCount)
 		{
-			if (waiting || usingItemIndex != ticket || selecteditemIndex != material || itemCount <= 0 || itemCount > 1000)
+			if (waiting || usingItemIndex != ticket || selecteditemIndex != material || itemCount <= 0 || itemCount > SelectionItemUsePopup.MaxUseCount)
 			{
 				return;
 			}
@@ -120,7 +120,7 @@ public static class SprkHeroMaterialTickets
 
 	public static int InitialCount(int required, int owned, int tickets)
 	{
-		return (int)System.Math.Min(System.Math.Max(0L, (long)required - (long)owned), System.Math.Min(1000L, System.Math.Max(0, tickets)));
+		return (int)System.Math.Min(System.Math.Max(0L, (long)required - (long)owned), System.Math.Min((long)SelectionItemUsePopup.MaxUseCount, System.Math.Max(0, tickets)));
 	}
 
 	public static void Prefill(SelectionItemUsePopup popup, SelectionItemUsePopup.IListener listener, List<ItemIconComponent> choices)

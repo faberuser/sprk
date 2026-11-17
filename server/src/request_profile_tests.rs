@@ -9,6 +9,8 @@
 //! the progression, section and catalog tokens as the client does. With a
 //! superuser URL it also reports the statements each request ran.
 //! `SPRK_PROFILE_LOG=sqlx::query=debug` adds a timeline of every statement.
+//! `SPRK_PROFILE_EXPIRE=1` expires the progression snapshot before each request,
+//! as the first request after `cache::FULL_REBUILD_SECONDS` finds it.
 use crate::state::AppState;
 use axum::body::Body;
 use serde_json::Value;
@@ -26,6 +28,7 @@ async fn profile_requests() {
     }
     let account: i64 = std::env::var("SPRK_PROFILE_ACCOUNT").ok().and_then(|v| v.parse().ok()).unwrap_or(1);
     let repeat: usize = std::env::var("SPRK_PROFILE_REPEAT").ok().and_then(|v| v.parse().ok()).unwrap_or(5);
+    let expire = std::env::var("SPRK_PROFILE_EXPIRE").is_ok_and(|v| v == "1");
     let lines = std::fs::read_to_string(std::env::var("SPRK_PROFILE_REQUESTS").expect("SPRK_PROFILE_REQUESTS")).unwrap();
     let db = crate::postgres::connect(&url).await.unwrap();
     let reads = crate::postgres::connect_read(&url).await.unwrap();
@@ -33,8 +36,12 @@ async fn profile_requests() {
     let state = AppState::new(db, tables).with_reads(reads);
     let login_id: String = crate::db::query_scalar("SELECT login_id FROM accounts WHERE account_id=$1")
         .bind(account).fetch_one(&state.db).await.unwrap();
+    let started = Instant::now();
     let login = crate::api::account::user::test_login(axum::extract::State(state.clone()), axum::body::Bytes::from(format!("LoginId={login_id}")))
         .await.unwrap().0;
+    // The first login also warms the server's caches, as the first player
+    // after a restart does: compare logins between runs, not with requests.
+    println!("{:<44} once  ={:>7.2}ms", "/user/login", started.elapsed().as_secs_f64() * 1000.0);
     let session = login.user_info.session_key.clone();
     crate::api::progression::notifications::remember_login_sections(&state, &session, &serde_json::to_value(&login).unwrap()["AchievementInfos"]);
     let app = crate::game_routes(state.clone());
@@ -56,6 +63,11 @@ async fn profile_requests() {
                 .header("x-sprk-sections", "1").header("x-sprk-achievement-delta", "1").header("x-sprk-compact-lobby", "1");
             for (name, value) in &acks { request = request.header(*name, value); }
             let body = if fields.trim().is_empty() { format!("SessionKey={session}") } else { format!("SessionKey={session}&{}", fields.trim()) };
+            if expire {
+                // As in production for the first request after the entry's
+                // full-rebuild deadline.
+                if let Some(entry) = state.get_session(&session).unwrap().progression_cache.lock().await.as_mut() { entry.expire(); }
+            }
             let before = if stats { crate::db::query_scalar::<i64>("SELECT COALESCE(SUM(calls),0)::bigint FROM pg_stat_statements").fetch_one(&state.db).await.unwrap() } else { 0 };
             let start = Instant::now();
             let response = app.clone().oneshot(request.body(Body::from(body)).unwrap()).await.unwrap();

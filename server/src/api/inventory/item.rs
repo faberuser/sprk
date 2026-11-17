@@ -15,6 +15,10 @@ use serde_json::{json, Value};
 use sqlx::{PgConnection};
 use crate::db::RowExt;
 
+#[path = "package_rewards.rs"]
+mod package_rewards;
+use package_rewards::PackageRewards;
+
 pub(crate) fn rule(code: &str) -> ServerError {
     ServerError::InvalidRequest(code.into())
 }
@@ -203,6 +207,18 @@ pub(crate) async fn give(
     grant: ItemGrant,
     rewards: &mut Rewards,
 ) -> Result<()> {
+    give_with(db, state, account, grant, rewards, false).await
+}
+/// `give`; with `bag_checked`, the caller has already made sure the bag holds
+/// the equipment (`PackageRewards` counts it once per batch, not per piece).
+pub(super) async fn give_with(
+    db: &mut PgConnection,
+    state: &AppState,
+    account: i64,
+    grant: ItemGrant,
+    rewards: &mut Rewards,
+    bag_checked: bool,
+) -> Result<()> {
     let ItemGrant {
         index,
         count,
@@ -255,20 +271,22 @@ pub(crate) async fn give(
         if count > 1000 {
             return Err(rule("EquipItemFull"));
         }
-        if !rewards.mail_overflow { capacity(db, state, account, 0, count as i64).await?; }
-    } else if metadata.kind != "Hero" {
+        if !rewards.mail_overflow && !bag_checked { capacity(db, state, account, 0, count as i64).await?; }
+    }
+    // The new count must stay within ItemMaxCap and i32. The items upsert
+    // checks it against the stored count (nothing is written past it) and
+    // stamps the first-grant time: one statement per grant, which matters
+    // for packages that roll a different item on every opening.
+    let limit = if metadata.kind != "Equip" && metadata.kind != "Hero" {
         let cap = n(data(state, index)?, "ItemMaxCap");
-        let old: i64 =
-            crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=$2")
-                .bind(account)
-                .bind(index)
-                .fetch_optional(&mut *db)
-                .await?
-                .unwrap_or(0);
-        if old + count as i64 > i32::MAX as i64 || (cap > 0 && old + count as i64 > cap) {
+        let limit = if cap > 0 { cap.min(i32::MAX as i64) } else { i32::MAX as i64 };
+        if count as i64 > limit {
             return Err(rule("InvalidItemCount"));
         }
-    }
+        Some(limit)
+    } else {
+        Some(i32::MAX as i64)
+    };
     let equip_start = rewards.equipment.len();
     let items_before = rewards.items.len();
     // Rolled equipment is inserted with its options in one statement.
@@ -284,13 +302,18 @@ pub(crate) async fn give(
         },
         rewards,
         true,
+        limit,
     )
     .await?;
     if metadata.kind == "Equip" && custom == 0 {
-        for equip in &mut rewards.equipment[equip_start..] {
-            if crate::api::extensions::equip_item(&state,index as i64).is_some_and(|v|n(v,"EquipType")==1){
-                equip.identified=0;
-                crate::api::extensions::save_equip(db,account,equip).await?;
+        let unidentified = crate::api::extensions::equip_item(&state,index as i64).is_some_and(|v|n(v,"EquipType")==1);
+        let (pieces, deferred) = (&mut rewards.equipment, &mut rewards.deferred_equipment);
+        for equip in pieces[equip_start..].iter_mut().filter(|_| unidentified) {
+            equip.identified=0;
+            // A deferred piece has no row yet: its pending row is inserted so.
+            match deferred.as_mut().and_then(|d| d.pending.iter_mut().find(|p| p.slot_index == equip.slot_index)) {
+                Some(pending) => pending.identified = 0,
+                None => crate::api::extensions::save_equip(db,account,equip).await?,
             }
         }
     }
@@ -321,10 +344,7 @@ pub(crate) async fn give(
         mailed.reverse();
         mail_overflow(db, account, rewards, mailed).await?;
     }
-    // Only an items row this grant upserted needs its first-grant time.
-    if rewards.items.len() > items_before {
-        crate::db::query("UPDATE items SET created_time=COALESCE(created_time,sprk_datetime('now')) WHERE account_id=$1 AND item_index=$2").bind(account).bind(index).execute(&mut *db).await?;
-    }
+    // An items row this grant upserted has its first-grant time (`limit`).
     // Rewarding additional copies must preserve the item's lock in the client
     // response. A result this grant added already carries it (its upsert
     // returned `locked`); re-read it only for an earlier result.
@@ -385,6 +405,19 @@ pub(crate) async fn reward_with_loot_bonus(
     rewards: &mut Rewards,
     loot_percent: i64,
 ) -> Result<()> {
+    reward_with_loot_bonus_batched(db, state, account, index, rewards, loot_percent,
+        &mut PackageRewards::default()).await
+}
+
+async fn reward_with_loot_bonus_batched(
+    db: &mut PgConnection,
+    state: &AppState,
+    account: i64,
+    index: i32,
+    rewards: &mut Rewards,
+    loot_percent: i64,
+    batch: &mut PackageRewards,
+) -> Result<()> {
     let row = state
         .tables
         .get_reward(index)
@@ -398,10 +431,11 @@ pub(crate) async fn reward_with_loot_bonus(
         let amount = if max > 0 && rand::rng().random_range(0..1000) < rate {
             rand::rng().random_range(min.max(0)..=max.max(min).max(0)) as i64
         } else { 0 };
-        if amount > 0 { rewards.currencies.push(crate::api::heroes::currency(db,account,kind,amount).await?); }
+        if amount > 0 { batch.currency(db, state, account, kind, amount, rewards).await?; }
     }
-    tutorial::currency(db, account, "Gold", row.roll_gold(), rewards).await?;
-    tutorial::currency(db, account, "Gem", row.roll_gem(), rewards).await?;
+    for (kind, amount) in [("Gold", row.roll_gold()), ("Gem", row.roll_gem())] {
+        if amount != 0 { batch.currency(db, state, account, kind, amount, rewards).await?; }
+    }
     for mut drop in row.roll_items(&state.tables.reward_string_pool) {
         let (mut code, mut filter) = crate::tables::parse_item_code(&drop.item_code);
         if state.tables.get_item_index(&code).is_none() && state.tables.item_groups.contains(&code) {
@@ -420,11 +454,11 @@ pub(crate) async fn reward_with_loot_bonus(
                 let balance:i64=crate::db::query_scalar("SELECT COALESCE((SELECT value FROM battle_currencies WHERE account=$1 AND kind='ShakmehMiddleBossPoint'),0)").bind(account).fetch_one(&mut *db).await?;
                 amount=amount.min((max-balance).max(0));
             }
-            rewards.currencies.push(crate::api::heroes::currency(db,account,&code,amount).await?);
+            batch.currency(db, state, account, &code, amount, rewards).await?;
             continue;
         }
         if code == "EventDungeonPoint" || code == "RaidPoint" {
-            tutorial::currency(db, account, &code, drop.count as i64, rewards).await?;
+            if drop.count != 0 { batch.currency(db, state, account, &code, drop.count as i64, rewards).await?; }
             continue;
         }
         let (index, count, star) = if let Some(index) = state.tables.get_item_index(&code) {
@@ -449,7 +483,7 @@ pub(crate) async fn reward_with_loot_bonus(
         let bonus = i64::from(count).checked_mul(loot_percent.max(0))
             .and_then(|v| i32::try_from(v / 100).ok())
             .ok_or_else(|| rule("InvalidItemCount"))?;
-        give(
+        batch.give(
             db,
             state,
             account,
@@ -644,6 +678,12 @@ async fn execute(
         i32::try_from(req.number("ItemCount", 1)?)
             .ok().filter(|count| *count > 0)
             .ok_or_else(|| rule("InvalidItemCount"))?
+    } else if action == "use_package_select_item" {
+        let count = req.number("ItemCount", 1)?;
+        if !(1..=100_000).contains(&count) {
+            return Err(rule("InvalidItemCount"));
+        }
+        count as i32
     } else {
         positive(req, "ItemCount")?
     };
@@ -853,11 +893,17 @@ async fn execute(
                 .packages
                 .get(&index)
                 .ok_or_else(|| rule("PackageDataNotFound"))?;
-            if n(package, "MaxOpenCount") > 0 && count as i64 > n(package, "MaxOpenCount") {
+            // Match the client's raised legacy cap, preserving special package limits.
+            let max_open = match n(package, "MaxOpenCount") {
+                50 => 1000,
+                limit => limit,
+            };
+            if max_open > 0 && count as i64 > max_open {
                 return Err(rule("InvalidItemCount"));
             }
             out["ItemResult"] = consume(db, account, index, count).await?;
             let mut results = vec![];
+            let mut batch = PackageRewards::new();
             for _ in 0..count {
                 use rand::RngExt;
                 let mut roll = rand::rng().random_range(0..1000);
@@ -874,9 +920,14 @@ async fn execute(
                     return Err(rule("PackageDataNotFound"));
                 }
                 let mut rewards = Rewards::default();
-                reward(db, state, account, selected as i32, &mut rewards).await?;
+                reward_with_loot_bonus_batched(db, state, account, selected as i32,
+                    &mut rewards, 0, &mut batch).await?;
+                if rewards.team_exp_to_add != 0 || !rewards.heroes.is_empty() {
+                    batch.flush(db, state, account).await?;
+                }
                 results.push(reward_response(db, state, account, rewards).await?);
             }
+            batch.flush(db, state, account).await?;
             out["RewardResults"] = json!(results);
         }
         "use_package_select_item" => {

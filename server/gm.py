@@ -12,7 +12,7 @@ Usage (one-shot commands):
     python gm.py export-players [--output players.csv]
     python gm.py account <ACCOUNT_ID>        -- save permanent player ID
     python gm.py --account-id 42 currency --gold 1000
-    python gm.py allheroes [--level N] [--star N]
+    python gm.py allheroes [--level N] [--star N] [--transcend N]
     python gm.py unlock
     python gm.py currency [--gold N] [--gem N] [--stamina N]
     python gm.py hero <HERO_ID> [--level N] [--star N]
@@ -290,16 +290,17 @@ def cmd_maxheroes(source_url, output_db):
     output.write_text(json.dumps(report,indent=2))
     print(json.dumps(dict(database=output_db,heroes=len(report['heroes']),report=str(output))))
 
-def cmd_allheroes(cfg, level=90, star=5):
-    print(f"\n>> Grant all heroes (level={level}, star={star}) ...")
+def cmd_allheroes(cfg, level=90, star=5, transcend=5):
+    print(f"\n>> Grant all heroes (level={level}, star={star}, transcend={transcend}) ...")
     result = post(cfg, "/cheat/allheroes", {
         **target(cfg),
         "Level": level,
         "Star": star,
+        "Transcend": transcend,
     })
     pretty(result)
     if "HeroesAdded" in result:
-        print(f"\n  Added {result['HeroesAdded']} heroes.")
+        print(f"\n  Added {result['HeroesAdded']} heroes, upgraded {result.get('HeroesUpgraded', 0)} owned heroes.")
 
 
 def cmd_uwut(cfg):
@@ -424,7 +425,8 @@ def interactive(cfg):
     if action == "allheroes":
         level = prompt_int("Level", 90)
         star = prompt_int("Star", 5)
-        cmd_allheroes(cfg, level, star)
+        transcend = prompt_int("Transcend (0-5, needs 5 stars)", 5 if star == 5 else 0)
+        cmd_allheroes(cfg, level, star, transcend)
 
     elif action == "uwut":
         cmd_uwut(cfg)
@@ -507,6 +509,7 @@ def build_parser() -> argparse.ArgumentParser:
     ah = sub.add_parser("allheroes", help="Grant all 103 core heroes")
     ah.add_argument("--level", type=int, default=90)
     ah.add_argument("--star",  type=int, default=5)
+    ah.add_argument("--transcend", type=int, default=5, help="0-5, needs --star 5 (default 5 = T5)")
 
     sub.add_parser("uwut", help="Equip UW + UT1-4 on all heroes")
 
@@ -575,7 +578,7 @@ def main():
         sys.exit(1)
 
     if args.command == "allheroes":
-        cmd_allheroes(cfg, args.level, args.star)
+        cmd_allheroes(cfg, args.level, args.star, args.transcend if args.star == 5 else 0)
     elif args.command == "uwut":
         cmd_uwut(cfg)
     elif args.command == "unlock":

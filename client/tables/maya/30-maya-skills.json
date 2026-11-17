@@ -2,6 +2,37 @@
   "table": "SkillTable",
   "upsert": [
     {
+      "Index": 1400,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerRatio": 1000,
+      "ActingTimeMs": 700,
+      "DurationTimeMs": [
+        1300
+      ],
+      "CancelOnWaveEnd": true,
+      "TickTimeValue": [
+        "600"
+      ],
+      "BaseAttack": true,
+      "TargetType": "Enemy",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "MaxRangeMm": 6000,
+      "IgnoreBlock": true,
+      "OperationType1": "GetPhysicalDamageR",
+      "OperationTargetType1": "Target",
+      "OperationValue1": [
+        "2600"
+      ],
+      "OperationDelayMs1": [
+        0,
+        50,
+        0
+      ],
+      "OperationState1": ""
+    },
+    {
       "Index": 1410,
       "ReplaceNameKey": "",
       "ReplaceDescKey": "",

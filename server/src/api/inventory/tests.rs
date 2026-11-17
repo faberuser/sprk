@@ -4,6 +4,9 @@ mod forge_shop;
 #[path = "retired_rewards_tests.rs"]
 mod retired_rewards;
 
+#[path = "package_batch_tests.rs"]
+mod package_batch;
+
 use crate::api::{
     account::user,
     inventory::{craft, item},
@@ -13,6 +16,150 @@ use crate::state::AppState;
 use axum::{body::Bytes, extract::State};
 use serde_json::{json, Value};
 use std::sync::Arc;
+
+#[tokio::test]
+async fn inventory_selection_tickets_accept_one_hundred_thousand_per_use() {
+    let (state, u) = setup().await;
+    let (ticket, target) = state
+        .tables
+        .inventory
+        .selectors
+        .iter()
+        .filter(|(&id, _)| !crate::models::item::disabled_reward(id))
+        .flat_map(|(&id, selector)| {
+            selector["ItemIndices"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(move |target| (id, target.as_i64().unwrap() as i32))
+        })
+        .filter(|&(ticket, target)| {
+            ticket != target
+                && !crate::models::item::disabled_reward(target)
+                && state
+                    .tables
+                    .items
+                    .reward_item(target)
+                    .is_some_and(|m| m.kind == "Item")
+                && item::data(&state, target).is_ok_and(|row| {
+                    let cap = item::n(row, "ItemMaxCap");
+                    cap == 0 || cap >= 100_000
+                })
+        })
+        .min()
+        .unwrap();
+    for batch in [1001, 100_000] {
+        put(&state, &u, ticket, batch).await;
+        put(&state, &u, target, 0).await;
+        let response = item::use_package_select_item(
+            State(state.clone()),
+            form(
+                &u,
+                &format!("ItemIndex={ticket}&ItemCount={batch}&SelectItemIndex={target}"),
+            ),
+        )
+        .await
+        .unwrap()
+        .0;
+        assert_eq!(response["Result"], "Success", "{response}");
+        assert_eq!(response["RewardItemResult"]["AddCount"], batch);
+        assert_eq!(count(&state, &u, ticket).await, 0);
+        assert_eq!(count(&state, &u, target).await, batch);
+    }
+    put(&state, &u, ticket, 100_001).await;
+    for batch in [-1, 0, 100_001, i64::MAX] {
+        let response = item::use_package_select_item(
+            State(state.clone()),
+            form(
+                &u,
+                &format!("ItemIndex={ticket}&ItemCount={batch}&SelectItemIndex={target}"),
+            ),
+        )
+        .await
+        .unwrap()
+        .0;
+        assert_eq!(response["Result"], "InvalidItemCount");
+        assert_eq!(count(&state, &u, ticket).await, 100_001);
+        assert_eq!(count(&state, &u, target).await, 100_000);
+    }
+    put(&state, &u, ticket, 99_999).await;
+    let response = item::use_package_select_item(
+        State(state.clone()),
+        form(
+            &u,
+            &format!("ItemIndex={ticket}&ItemCount=100000&SelectItemIndex={target}"),
+        ),
+    )
+    .await
+    .unwrap()
+    .0;
+    assert_eq!(response["Result"], "ItemNotOwned");
+    assert_eq!(count(&state, &u, ticket).await, 99_999);
+    assert_eq!(count(&state, &u, target).await, 100_000);
+}
+
+#[tokio::test]
+async fn inventory_packages_raise_legacy_bulk_cap_and_preserve_special_limits() {
+    let (mut state, u) = setup().await;
+    let package = state
+        .tables
+        .inventory
+        .packages
+        .iter()
+        .filter(|(&id, _)| !crate::models::item::disabled_reward(id))
+        .filter(|(_, p)| {
+            state
+                .tables
+                .get_reward(item::n(p, "RewardIndex1") as i32)
+                .is_some_and(|r| {
+                    r.gold_rate == 1000 && r.gold_min > 0 && r.sub_data_list.is_empty()
+                })
+        })
+        .map(|(&id, _)| id)
+        .min()
+        .unwrap();
+    let tables = Arc::make_mut(&mut state.tables);
+    Arc::make_mut(&mut tables.inventory)
+        .packages
+        .get_mut(&package)
+        .unwrap()["MaxOpenCount"] = json!(50);
+    put(&state, &u, package, 1001).await;
+    let rejected = item::use_package_item(
+        State(state.clone()),
+        form(&u, &format!("ItemIndex={package}&ItemCount=1001")),
+    )
+    .await
+    .unwrap()
+    .0;
+    assert_eq!(rejected["Result"], "InvalidItemCount");
+    assert_eq!(count(&state, &u, package).await, 1001);
+    let opened = item::use_package_item(
+        State(state.clone()),
+        form(&u, &format!("ItemIndex={package}&ItemCount=1000")),
+    )
+    .await
+    .unwrap()
+    .0;
+    assert_eq!(opened["Result"], "Success", "{opened}");
+    assert_eq!(opened["RewardResults"].as_array().unwrap().len(), 1000);
+    assert_eq!(count(&state, &u, package).await, 1);
+
+    let tables = Arc::make_mut(&mut state.tables);
+    Arc::make_mut(&mut tables.inventory)
+        .packages
+        .get_mut(&package)
+        .unwrap()["MaxOpenCount"] = json!(1);
+    put(&state, &u, package, 2).await;
+    let rejected = item::use_package_item(
+        State(state.clone()),
+        form(&u, &format!("ItemIndex={package}&ItemCount=2")),
+    )
+    .await
+    .unwrap()
+    .0;
+    assert_eq!(rejected["Result"], "InvalidItemCount");
+    assert_eq!(count(&state, &u, package).await, 2);
+}
 
 #[tokio::test]
 async fn legacy_legendary_rune_tickets_include_all_2022_runes() {
@@ -2819,6 +2966,26 @@ async fn rolled_drops_are_stored_with_their_options_and_the_batch_tracks_free_sl
     assert_eq!(item::free_slots(&mut tx,&s,a,0).await.unwrap(), 0, "never over capacity");
     let mailed: String = crate::db::query_scalar("SELECT reward_equipment FROM mails WHERE account_id=$1 AND title='Battle equipment rewards'").bind(a).fetch_one(&mut *tx).await.unwrap();
     assert_eq!(serde_json::from_str::<Vec<crate::models::equip::EquipItemInfo>>(&mailed).unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn item_grants_check_the_cap_in_their_upsert_and_stamp_new_rows() {
+    let (mut s,u)=setup().await;
+    let a=u.user_info.account_id;
+    Arc::make_mut(&mut Arc::make_mut(&mut s.tables).inventory).items.get_mut(&40005).unwrap()["ItemMaxCap"]=json!(10);
+    let mut tx=s.db.begin().await.unwrap();
+    crate::db::query("DELETE FROM items WHERE account_id=$1 AND item_index=40005").bind(a).execute(&mut *tx).await.unwrap();
+    let grant=|count|ItemGrant { index: 40005, count, star: 0, custom: 0 };
+    let mut r=crate::api::tutorial::Rewards::default();
+    assert!(item::give(&mut tx,&s,a,grant(11),&mut r).await.is_err(),"over the cap for a new row");
+    item::give(&mut tx,&s,a,grant(8),&mut r).await.unwrap();
+    let row:(i64,Option<String>)=crate::db::query_as("SELECT count,created_time FROM items WHERE account_id=$1 AND item_index=40005").bind(a).fetch_one(&mut *tx).await.unwrap();
+    assert_eq!(row.0,8);assert!(row.1.is_some(),"a new row records its first grant");
+    assert!(item::give(&mut tx,&s,a,grant(3),&mut r).await.is_err(),"over the cap with the stored count");
+    let count:i64=crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=40005").bind(a).fetch_one(&mut *tx).await.unwrap();
+    assert_eq!(count,8,"a refused grant writes nothing");
+    item::give(&mut tx,&s,a,grant(2),&mut r).await.unwrap();
+    assert_eq!(r.items.last().unwrap()["NewCount"],10);
 }
 
 #[tokio::test]

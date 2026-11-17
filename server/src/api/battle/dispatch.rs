@@ -231,6 +231,7 @@ pub(super) async fn execute(
             return Err(rule("DungeonNotFound"));
         }
         let party = ids(r, "HeroIndices", 32)?;
+        let skill_rules = skill_rules(r.text("SkillRules"), &party);
         // Dispatch has a flat roster and its own cap, independent of the
         // interactive raid's main/support split (Dark Legion uses six here).
         if n(d,"DispatchDeckCount") > 0 && party.len() as i64 > n(d,"DispatchDeckCount") {
@@ -302,6 +303,9 @@ pub(super) async fn execute(
         request.0.remove("SessionKey");
         let mut info = json!({"SlotIndex":slot,"ChapterIndex":n(d,"ChapterIndex"),"DungeonIndex":n(d,"DungeonIndex"),"Difficulty":diff,"DeckIndex":int(r,"DeckIndex")?,"RepeatCount":count,"HeroIndices":json!(party).to_string(),"BeginTime":time(now()),"CompleteTime":time(finish),"ClientResult":null,"ClientResultTimeMs":0,"ServerResult":null,"State":"Battle","WinCount":0,"LoseCount":0,"StaminaDiscountRate":discount,"FinishTimestamp":finish,"StartTimestamp":now(),"Cost":cost,"CostType":n(d,"ReqStaminaType"),"Request":request.0});
         info["SimulationVersion"] = json!(2);
+        if !skill_rules.is_empty() {
+            info["SkillRules"] = Value::Object(skill_rules);
+        }
         info["SimulationSnapshot"] = simulation_snapshot(db, s, a, &info).await?;
         info["SimulationJobId"] = json!(uuid::Uuid::new_v4().to_string());
         info["State"] = json!("Simulation");
@@ -552,6 +556,27 @@ async fn sweep_stages(db:&mut PgConnection,s:&AppState,a:i64,r:&Request,count:i6
 }
 
 // Freeze the roster and combat buffs before the player disconnects or changes gear.
+/// Auto-battle skill rules chosen in Hero Info (SPRK client), frozen on the job for the native
+/// worker. Only heroes in the dispatched party and values inside the 5-slot, 3-bit encoding pass.
+/// Unity escapes string fields once more than the form decoding removes, so accept both forms.
+pub(super) fn skill_rules(raw: &str, party: &[i64]) -> serde_json::Map<String, Value> {
+    let mut rules = serde_json::Map::new();
+    let parsed = serde_json::from_str::<Value>(raw).ok().or_else(|| {
+        serde_json::from_str::<Value>(&urlencoding::decode(raw).ok()?).ok()
+    });
+    if let Some(Value::Object(map)) = parsed {
+        for (hero, value) in map {
+            let (Ok(hero), Some(value)) = (hero.parse::<i64>(), value.as_i64()) else {
+                continue;
+            };
+            if party.contains(&hero) && (1..=0x7fff).contains(&value) {
+                rules.insert(hero.to_string(), json!(value));
+            }
+        }
+    }
+    rules
+}
+
 pub(super) async fn simulation_snapshot(db: &mut PgConnection, s: &AppState, a: i64, info: &Value) -> Result<Value> {
     let mut account = crate::api::community::conquest::combat_buffs(db, s, a).await?;
     let user = crate::db::query("SELECT a.nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=$1")

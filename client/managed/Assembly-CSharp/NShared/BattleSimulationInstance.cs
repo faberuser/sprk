@@ -18,6 +18,9 @@ public class BattleSimulationInstance
 
 	private const int DeltaTimeRatio = 100;
 
+	// SPRK: auto-battle skill rules per hero index, read on the main thread before the worker starts.
+	public Dictionary<int, int> SprkSkillPriorityRules;
+
 	public string UID { get; private set; }
 
 	public BattleInstance BattleInstance => _battleInstance;
@@ -150,6 +153,10 @@ public class BattleSimulationInstance
 					CachedHeroInfo cachedHeroInfo = new CachedHeroInfo(value, value.GetEquipItemInfoList());
 					cachedHeroInfo.Validate();
 					BattleCreatureCreateInfo item = BattleCreatureCreateInfo.CreateMyCreatureCreateInfo(cachedHeroInfo, isLeader: false, isAi: true, buffSkillInfo, buffStatInfo);
+					if (SprkSkillPriorityRules != null && SprkSkillPriorityRules.TryGetValue(heroInfo.Key, out var priorityRules))
+					{
+						SprkSkillPriority.Mark(item, priorityRules);
+					}
 					list2.Add(item);
 					num++;
 				}

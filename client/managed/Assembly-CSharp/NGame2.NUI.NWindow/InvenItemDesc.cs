@@ -654,7 +654,7 @@ public class InvenItemDesc : BaseWindow, EquipRuneSlotInfoComponent.IDataProvide
 
 	private long GetMaxOpenPackageItem()
 	{
-		int valueInt = GameRoot.Instance.ConstantDataContainer.GetValueInt("MaxPackageItemOpen");
+		int valueInt = 1000;
 		long itemCount = ItemCount;
 		int num = valueInt;
 		return System.Math.Min(num, itemCount);

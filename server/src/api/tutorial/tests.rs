@@ -519,3 +519,80 @@ async fn clause_login_catches_up_past_chapter_one_without_resetting_owned_hero()
     assert!(recovered.heroes.iter().any(|h|h.hero_index==15 && h.level==80 && h.star==5));
     assert_eq!(crate::db::query_scalar::<i64>("SELECT team_exp FROM user_info WHERE account_id=$1").bind(a).fetch_one(&state.db).await.unwrap(),before);
 }
+
+async fn skip_opening(state: &AppState, key: &str) -> Result<Json<Value>> {
+    skip_opening_tutorial(State(state.clone()), Form(request(key, 0))).await
+}
+
+#[tokio::test]
+async fn new_player_skips_opening_to_chapter_one_four_with_its_rewards() {
+    let (state, first) = setup().await;
+    assert!(first.sprk_opening_skip_offer);
+    let key = &first.user_info.session_key;
+    let out = skip_opening(&state, key).await.unwrap().0;
+    let receipts = out["Responses"].as_array().unwrap();
+    assert_eq!(
+        receipts.iter().map(|r| r["Info"]["TutorialIndex"].as_i64().unwrap()).collect::<Vec<_>>(),
+        OPENING_TUTORIALS.iter().map(|&i| i as i64).collect::<Vec<_>>()
+    );
+    let after = login(&state).await;
+    assert!(!after.sprk_opening_skip_offer);
+    assert!(!after.is_tutorial_skip, "later tutorials stay enabled");
+    let mut heroes: Vec<_> = after.heroes.iter().map(|h| h.hero_index).collect();
+    heroes.sort();
+    assert_eq!(heroes, vec![1, 2, 3, 4]);
+    for index in OPENING_TUTORIALS {
+        assert!(after.tutorials.iter().any(|t| t.tutorial_index == index), "{index}");
+    }
+    let cleared: Vec<i32> = after.chapter_dungeons.iter()
+        .filter(|d| d.chapter_index == 1 && d.daily_completed_count > 0)
+        .map(|d| d.dungeon_index).collect();
+    assert_eq!(cleared, vec![1, 2, 3]);
+    assert!(after.chapter_dungeons.iter().any(|d| d.chapter_index == 1 && d.dungeon_index == 4));
+    assert!(after.user_info.gem > first.user_info.gem);
+
+    // A retried request replays the receipts without granting anything again.
+    let again = skip_opening(&state, key).await.unwrap().0;
+    assert_eq!(again["Responses"].as_array().unwrap().len(), OPENING_TUTORIALS.len());
+    let replay = login(&state).await;
+    assert_eq!(replay.user_info.gem, after.user_info.gem);
+    assert_eq!(replay.user_info.gold, after.user_info.gold);
+    assert_eq!(replay.user_info.team_exp, after.user_info.team_exp);
+    assert_eq!(replay.equip_items.len(), after.equip_items.len());
+}
+
+#[tokio::test]
+async fn opening_skip_resumes_a_partly_played_opening() {
+    let (state, first) = setup().await;
+    let key = &first.user_info.session_key;
+    complete(&state, key, 1000).await;
+    complete(&state, key, 10000).await;
+    let mid = login(&state).await;
+    assert!(mid.sprk_opening_skip_offer);
+    let _ = skip_opening(&state, key).await.unwrap();
+    let after = login(&state).await;
+    assert_eq!(after.heroes.len(), 4);
+    let frey: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM heroes WHERE account_id=$1 AND hero_index=2")
+        .bind(first.user_info.account_id).fetch_one(&state.db).await.unwrap();
+    assert_eq!(frey, 1);
+}
+
+#[tokio::test]
+async fn opening_skip_is_refused_after_progress_or_global_skip() {
+    let (state, first) = setup().await;
+    let key = first.user_info.session_key.clone();
+    crate::db::query("INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, clear_count, best_star, is_unlocked, completed_time) VALUES ($1, 1, 5, 1, 3, 1, '2025-01-01 00:00:00')")
+        .bind(first.user_info.account_id).execute(&state.db).await.unwrap();
+    assert!(!login(&state).await.sprk_opening_skip_offer);
+    assert!(skip_opening(&state, &key).await.is_err());
+    let completed: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM tutorial_progress WHERE account_id=$1")
+        .bind(first.user_info.account_id).fetch_one(&state.db).await.unwrap();
+    assert_eq!(completed, 0);
+
+    crate::db::query("DELETE FROM campaign_progress WHERE account_id=$1")
+        .bind(first.user_info.account_id).execute(&state.db).await.unwrap();
+    let _ = skip_tutorial(State(state.clone()), Form(request(&key, 0))).await.unwrap();
+    let skipped = login(&state).await;
+    assert!(!skipped.sprk_opening_skip_offer);
+    assert!(skip_opening(&state, &skipped.user_info.session_key).await.is_err());
+}

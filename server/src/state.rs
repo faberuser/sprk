@@ -42,6 +42,8 @@ pub struct AppState {
     pub(crate) hero_equipment_lookup: Arc<std::sync::Mutex<crate::api::inventory::hero_level::Lookup>>,
     /// Completed arena runs' formations (community::arena::ranking_deck).
     pub(crate) registered_decks: Arc<std::sync::Mutex<std::collections::HashMap<i64, crate::api::community::RegisteredDeck>>>,
+    /// Players' last main-story stages for friend profiles (community::friend::last_stages).
+    pub(crate) last_stages: Arc<std::sync::Mutex<crate::api::community::friend::LastStages>>,
     #[allow(dead_code)]
     pub server_start_time: chrono::DateTime<chrono::Utc>,
     pub tables: Arc<GameTables>,
@@ -60,6 +62,7 @@ impl AppState {
             sessions: Arc::new(DashMap::new()),
             hero_equipment_lookup: Arc::new(std::sync::Mutex::new(Default::default())),
             registered_decks: Arc::new(std::sync::Mutex::new(Default::default())),
+            last_stages: Arc::new(std::sync::Mutex::new(Default::default())),
             server_start_time: chrono::Utc::now(),
             tables: Arc::new(tables),
         }

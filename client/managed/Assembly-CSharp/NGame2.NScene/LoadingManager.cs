@@ -198,6 +198,7 @@ public class LoadingManager : GlobalAutoBehaviour<LoadingManager>, LoadingDefaul
 			baseScene.OnSceneUnloading(sceneType);
 			baseScene = null;
 		}
+		SprkDiscordPresence.SceneMoving();
 		IsSceneLoading = true;
 		_prevSceneType = CurrentSceneType;
 		CurrentSceneType = sceneType;
