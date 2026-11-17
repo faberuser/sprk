@@ -1,7 +1,7 @@
 //! Coalesce positive package grants without changing per-roll client results.
 use std::collections::BTreeMap;
 
-use super::{data, give, n, rule, AppState, ItemGrant, PgConnection, Result, Rewards, Value};
+use super::{data, free_slots, give, give_with, n, rule, AppState, ItemGrant, PgConnection, Result, Rewards, Value};
 use serde_json::json;
 
 #[derive(Default)]
@@ -9,6 +9,11 @@ pub(super) struct PackageRewards {
     enabled: bool,
     currencies: BTreeMap<String, (Value, i64)>,
     items: BTreeMap<i32, (Value, i32, i64)>,
+    /// Free bag slots, counted once and reduced by this batch's own equipment;
+    /// None until counted, and again after a grant that may add other pieces.
+    bag_free: Option<i64>,
+    /// Equipment rolled since the last flush, inserted together by `flush`.
+    equipment: crate::api::tutorial::DeferredEquipment,
 }
 
 impl PackageRewards {
@@ -78,10 +83,42 @@ impl PackageRewards {
             && state.tables.items.reward_item(grant.index).is_some_and(|m| m.kind == "Item")
             && state.tables.tutorials.support.items.get(&grant.index).is_none_or(|m| m.kind == "Item")
             && state.tables.live.find("Pet", &[("Index", i64::from(grant.index))]).is_none();
+        // Plain equipment writes only its own rows (equip_items, its play
+        // records and metrics, identification, overflow mail), never items or
+        // balances, so the cached ones stay valid: no flush. A package rolling
+        // equipment among items and Gold otherwise flushed them on every
+        // piece and re-granted them unbatched (~5 statements per opening).
+        let equipment = self.enabled
+            && state.tables.items.reward_item(grant.index).is_some_and(|m| m.kind == "Equip")
+            && state.tables.tutorials.support.items.get(&grant.index).is_none_or(|m| m.kind == "Equip")
+            && state.tables.live.find("Pet", &[("Index", i64::from(grant.index))]).is_none();
+        if equipment {
+            if rewards.mail_overflow {
+                // `give` counts the bag once per reward and mails the overflow.
+                self.flush_equipment(db, account).await?;
+                return Box::pin(give(db, state, account, grant, rewards)).await;
+            }
+            let free = match self.bag_free {
+                Some(free) => free,
+                None => free_slots(db, state, account, 0).await?,
+            };
+            if free < i64::from(grant.count) {
+                return Err(rule("EquipItemFull"));
+            }
+            let before = rewards.equipment.len();
+            // Each piece takes a reserved slot; its row joins the batch insert.
+            rewards.deferred_equipment = Some(std::mem::take(&mut self.equipment));
+            let granted = Box::pin(give_with(db, state, account, grant, rewards, true)).await;
+            self.equipment = rewards.deferred_equipment.take().unwrap_or_default();
+            granted?;
+            self.bag_free = Some(free - (rewards.equipment.len() - before) as i64);
+            return Ok(());
+        }
         if !ordinary {
             // Flush and discard cached balances before grants that may convert
             // duplicates, award other items/currencies, or inspect current state.
             self.flush(db, state, account).await?;
+            self.bag_free = None;
             return Box::pin(give(db, state, account, grant, rewards)).await;
         }
         let index = grant.index;
@@ -101,6 +138,8 @@ impl PackageRewards {
         state: &AppState,
         account: i64,
     ) -> Result<()> {
+        // Equipment first: whatever runs after a flush may read the bag.
+        self.flush_equipment(db, account).await?;
         for (kind, (_, amount)) in std::mem::take(&mut self.currencies) {
             if amount != 0 {
                 crate::api::heroes::currency(db, account, &kind, amount).await?;
@@ -114,5 +153,10 @@ impl PackageRewards {
             }
         }
         Ok(())
+    }
+
+    async fn flush_equipment(&mut self, db: &mut PgConnection, account: i64) -> Result<()> {
+        let pending = std::mem::take(&mut self.equipment.pending);
+        crate::api::tutorial::insert_equipment(db, account, &pending).await
     }
 }

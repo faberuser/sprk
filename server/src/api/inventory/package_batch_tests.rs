@@ -334,3 +334,112 @@ async fn package_batch_benchmark() {
         }
     }
 }
+
+/// An equipment index that a reward drop can name (plain, rollable).
+fn fixture_equipment(state: &AppState) -> i32 {
+    (0..)
+        .map_while(|i| state.tables.reward_string_pool.get(i))
+        .filter_map(|code| state.tables.get_item_index(code))
+        .find(|id| {
+            !crate::models::item::disabled_reward(*id)
+                && state.tables.items.reward_item(*id).is_some_and(|m| m.kind == "Equip")
+                && state.tables.tutorials.support.items.get(id).is_none_or(|m| m.kind == "Equip")
+                && crate::api::extensions::equip_item(state, i64::from(*id)).is_none_or(|v| item::n(v, "EquipType") != 1)
+        })
+        .unwrap()
+}
+
+async fn equipment_count(state: &AppState, u: &user::LoginResponse) -> i64 {
+    crate::db::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=$1")
+        .bind(u.user_info.account_id).fetch_one(&state.db).await.unwrap()
+}
+
+#[tokio::test]
+async fn package_batch_equipment_keeps_items_and_currencies_batched_with_running_balances() {
+    let (mut state, u) = setup().await;
+    reset_rewards(&state, &u, 94067, 6).await;
+    let equip = fixture_equipment(&state);
+    let drops = vec![
+        fixture_drop(&state, "Gold", 0, 1),
+        fixture_drop(&state, "", equip, 1),
+        fixture_drop(&state, "", 40005, 1),
+    ];
+    fixture_package(&mut state, 94067, drops);
+    let pieces = equipment_count(&state, &u).await;
+    let gold_metric = metric(&state, &u, "GetGold", 0).await;
+    let item_metric = metric(&state, &u, "AddItem", 40005).await;
+    let equip_metric = metric(&state, &u, "AddEquip", equip).await;
+    let result = open(&state, &u, 94067, 6).await;
+    assert_eq!(result["Result"], "Success", "{result}");
+    for (i, reward) in result["RewardResults"].as_array().unwrap().iter().enumerate() {
+        assert_eq!(reward["CurrencyResults"][0]["NewValue"], 101 + i as i64, "running Gold across equipment");
+        assert_eq!(reward["ItemResults"][0]["NewCount"], i as i64 + 1, "running item count across equipment");
+        assert_eq!(reward["ItemResults"][0]["Locked"], 1);
+        assert_eq!(reward["EquipItemResults"].as_array().unwrap().len(), 1, "{reward}");
+    }
+    let gold: i64 = crate::db::query_scalar("SELECT gold FROM user_info WHERE account_id=$1")
+        .bind(u.user_info.account_id).fetch_one(&state.db).await.unwrap();
+    assert_eq!(gold, 106);
+    assert_eq!(count(&state, &u, 40005).await, 6);
+    assert_eq!(equipment_count(&state, &u).await - pieces, 6);
+    assert_eq!(metric(&state, &u, "GetGold", 0).await - gold_metric, 6);
+    assert_eq!(metric(&state, &u, "AddItem", 40005).await - item_metric, 6);
+    assert_eq!(metric(&state, &u, "AddEquip", equip).await - equip_metric, 6);
+    // Each reported piece is stored under its slot exactly as reported.
+    for reward in result["RewardResults"].as_array().unwrap() {
+        let piece = &reward["EquipItemResults"][0];
+        let row: (i64, i64, i64, i64, i64) = crate::db::query_as("SELECT item_index,star,option_index_1,option_step_1,identified FROM equip_items WHERE account_id=$1 AND slot_index=$2")
+            .bind(u.user_info.account_id).bind(piece["SlotIndex"].as_i64().unwrap()).fetch_one(&state.db).await.unwrap();
+        assert_eq!(row, (piece["ItemIndex"].as_i64().unwrap(), piece["Star"].as_i64().unwrap(),
+            piece["OptionIndex1"].as_i64().unwrap_or(0), piece["OptionStep1"].as_i64().unwrap_or(0), 1), "{piece}");
+    }
+}
+
+#[tokio::test]
+async fn package_batch_stores_unidentified_equipment_unidentified() {
+    let (mut state, u) = setup().await;
+    reset_rewards(&state, &u, 94067, 3).await;
+    // No droppable piece starts unidentified in the shipped tables: mark one.
+    let equip = fixture_equipment(&state);
+    let rows = std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut state.tables).extensions).0.entry("EquipItem".into()).or_default();
+    match rows.iter_mut().find(|r| r["ItemIndex"] == json!(equip)) {
+        Some(row) => row["EquipType"] = json!(1),
+        None => rows.push(json!({"ItemIndex": equip, "EquipType": 1})),
+    }
+    let drops = vec![fixture_drop(&state, "", equip, 1), fixture_drop(&state, "", 40005, 1)];
+    fixture_package(&mut state, 94067, drops);
+    let result = open(&state, &u, 94067, 3).await;
+    assert_eq!(result["Result"], "Success", "{result}");
+    for reward in result["RewardResults"].as_array().unwrap() {
+        let piece = &reward["EquipItemResults"][0];
+        assert_eq!(piece["Identified"], 0, "{piece}");
+        let identified: i64 = crate::db::query_scalar("SELECT identified FROM equip_items WHERE account_id=$1 AND slot_index=$2")
+            .bind(u.user_info.account_id).bind(piece["SlotIndex"].as_i64().unwrap()).fetch_one(&state.db).await.unwrap();
+        assert_eq!(identified, 0);
+    }
+}
+
+#[tokio::test]
+async fn package_batch_counts_the_bag_once_and_refuses_what_does_not_fit() {
+    let (mut state, u) = setup().await;
+    let a = u.user_info.account_id;
+    reset_rewards(&state, &u, 94067, 3).await;
+    let equip = fixture_equipment(&state);
+    let drops = vec![fixture_drop(&state, "Gold", 0, 1), fixture_drop(&state, "", equip, 1)];
+    fixture_package(&mut state, 94067, drops);
+    // Leave exactly two free slots.
+    let free = item::free_slots(&mut *state.db.acquire().await.unwrap(), &state, a, 0).await.unwrap();
+    crate::db::query("INSERT INTO equip_items(account_id,item_index,star,level,exp) SELECT $1,$2,1,1,0 FROM generate_series(1,$3)")
+        .bind(a).bind(equip).bind(free - 2).execute(&state.db).await.unwrap();
+    let pieces = equipment_count(&state, &u).await;
+    let result = open(&state, &u, 94067, 3).await;
+    assert_eq!(result["Result"], "EquipItemFull", "{result}");
+    assert_eq!(count(&state, &u, 94067).await, 3, "nothing consumed");
+    assert_eq!(equipment_count(&state, &u).await, pieces, "no piece kept");
+    let gold: i64 = crate::db::query_scalar("SELECT gold FROM user_info WHERE account_id=$1")
+        .bind(a).fetch_one(&state.db).await.unwrap();
+    assert_eq!(gold, 100, "no Gold kept");
+    assert_eq!(open(&state, &u, 94067, 2).await["Result"], "Success");
+    assert_eq!(equipment_count(&state, &u).await, pieces + 2);
+    assert_eq!(item::free_slots(&mut *state.db.acquire().await.unwrap(), &state, a, 0).await.unwrap(), 0);
+}

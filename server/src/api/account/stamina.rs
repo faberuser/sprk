@@ -153,15 +153,43 @@ pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
         .load(&mut tx, prefetch::Table::Battle, a, &["key"]).await?
         .load(&mut tx, prefetch::Table::Extension, a, &["stamina_recharges"]).await?
         .load(&mut tx, prefetch::Table::Community, a, &["tickets", "guild_ticket"]).await?;
+    let out = prefetch::scope(rows, login_in(&mut tx, s, a)).await?;
+    tx.commit().await?;
+    Ok(out)
+}
+/// The login balances inside the caller's transaction, which holds the
+/// account lock and has initialized the inventory.
+pub(crate) async fn login_in(tx: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
+    let mut out = vec![];
+    for k in (1..=30).filter(|k| !matches!(k, 3 | 4 | 7)) {
+        out.push(snapshot(&mut *tx, s, a, k).await?);
+    }
+    Ok(json!(out))
+}
+
+/// Kinds `login_in` reads, by table, written only through `put`.
+pub(crate) const LOGIN_EXTENSION_KINDS: &[&str] = &["stamina_recharges"];
+
+/// The battle, community and stamina login snapshots (in that order) in one
+/// transaction under the account lock, with one prefetch for all three: the
+/// lobby and login run them back to back, and separately they cost three
+/// lock/commit cycles, three inventory checks and repeated row reads.
+pub(crate) async fn locked_logins(s: &AppState, a: i64) -> Result<(Value, Value, Value)> {
+    use crate::api::system::prefetch;
+    let mut tx = crate::database::begin(&s.db).await?;
+    crate::postgres::lock_account(&mut *tx, a).await?;
+    let rows = prefetch::Rows::default()
+        .load(&mut tx, prefetch::Table::Battle, a, crate::api::battle::LOGIN_BATTLE_KINDS).await?
+        .load(&mut tx, prefetch::Table::Extension, a, LOGIN_EXTENSION_KINDS).await?
+        .load(&mut tx, prefetch::Table::Community, a, &["tickets", "guild_ticket", "withdraw"]).await?;
     let out = prefetch::scope(rows, async {
-        let mut out = vec![];
-        for k in (1..=30).filter(|k| !matches!(k, 3 | 4 | 7)) {
-            out.push(snapshot(&mut tx, s, a, k).await?);
-        }
-        Ok::<_, crate::error::ServerError>(out)
+        let battle = crate::api::battle::login_in(&mut tx, s, a).await?;
+        let community = crate::api::community::login_in(&mut tx, s, a).await?;
+        let stamina = login_in(&mut tx, s, a).await?;
+        Ok::<_, crate::error::ServerError>((battle, community, stamina))
     }).await?;
     tx.commit().await?;
-    Ok(json!(out))
+    Ok(out)
 }
 
 pub(crate) async fn add(

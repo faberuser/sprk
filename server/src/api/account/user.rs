@@ -601,8 +601,7 @@ pub async fn login(
     let pet_infos=crate::api::extensions::list(&mut *state.db.acquire().await?,account_id,"pet").await?;
     let hero_rune_page_infos = heroes.iter().flat_map(|h| h.details.get("HeroRunePageInfos").and_then(serde_json::Value::as_array).into_iter().flatten().cloned()).collect();
     crate::api::battle::party_messages::new_login(&state,account_id).await?;
-    let battle = crate::api::battle::login(&state,account_id).await?;
-    let community = crate::api::community::login(&state,account_id).await?;
+    let (battle, community, stamina) = crate::api::account::stamina::locked_logins(&state,account_id).await?;
     user_info.guild_point=community["GuildPoint"].as_i64().unwrap_or(0);
     user_info.sword=community["SwordResult"]["NewValue"].as_i64().unwrap_or(0);
     user_info.guild_raid_ticket=community["GuildRaidTicket"]["NewValue"].as_i64().unwrap_or(user_info.guild_raid_ticket as i64);
@@ -617,7 +616,6 @@ pub async fn login(
             if let Ok(value)=serde_json::from_value(key.clone()){stamina_results.push(value);}
         }
     }
-    let stamina=crate::api::account::stamina::login(&state,account_id).await?;
     stamina_results=serde_json::from_value(stamina.clone()).map_err(|e|ServerError::Internal(e.to_string()))?;
     for key in stamina.as_array().into_iter().flatten(){if let Some(kind)=key["Type"].as_str(){user_value[if kind=="Chicken"{"Stamina"}else{kind}]=key["NewValue"].clone();}}
     // Honor medals are stored with the extended currencies, but the native

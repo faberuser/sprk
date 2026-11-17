@@ -10,6 +10,10 @@ pub(crate) struct Snapshot {
     /// The view and sections `value` was built from, for an incremental rebuild.
     built: Option<Built>,
 }
+#[cfg(test)]
+impl Snapshot {
+    pub(crate) fn expire(&mut self) { self.expires = 0; }
+}
 impl std::fmt::Debug for Snapshot {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Snapshot").field("revision", &self.revision).field("day", &self.day)
@@ -104,8 +108,12 @@ pub(crate) async fn get(state: &AppState, session_key: &str, account: i64) -> Re
                 (value, built, expires)
             }
             _ => {
+                let started = std::time::Instant::now();
                 let view = View::load(&mut tx, account).await?;
+                let loaded = started.elapsed();
                 let (value, built) = build(state, view, None);
+                tracing::debug!(target: "sprk_progression", account, load_ms = loaded.as_secs_f64() * 1000.0,
+                    build_ms = (started.elapsed() - loaded).as_secs_f64() * 1000.0, "Full progression snapshot");
                 (value, built, expiry(state, now))
             }
         };
@@ -148,8 +156,16 @@ async fn verify_incremental(tx: &mut PgConnection, state: &AppState, account: i6
     assert_eq!(value, full);
 }
 
+/// How long a snapshot is kept, across incremental rebuilds, before a full one.
+/// Every input the view reads bumps the revision with its part (0009/0011) and
+/// evaluation depends on time only through the day and the calendar
+/// boundaries (both checked), so this only bounds what an untracked change
+/// could leave stale. At 60 s it rebuilt fully on most requests of an active
+/// player (a full rebuild loads every metric row: ~45 ms on a large account).
+pub(crate) const FULL_REBUILD_SECONDS: i64 = 600;
+
 fn expiry(state: &AppState, now: i64) -> i64 {
-    let mut expires = now + 60;
+    let mut expires = now + FULL_REBUILD_SECONDS;
     for calendar in &state.tables.progression.calendars {
         for key in ["StartDate", "EndDate"] {
             if let Some(at) = calendar[key].as_str().and_then(|s| chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S").ok()).map(|d| d.and_utc().timestamp()) {

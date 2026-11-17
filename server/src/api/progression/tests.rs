@@ -111,6 +111,43 @@ async fn play_records_login_streaks_use_calendar_days_and_login_is_idempotent() 
 }
 
 #[tokio::test]
+async fn old_metric_days_fold_into_history_without_changing_any_snapshot() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    let day=|offset:i64|(chrono::Utc::now().date_naive()-chrono::Duration::days(offset)).to_string();
+    let rows=[(day(100),"ClearDungeon",1,1,3),(day(95),"ClearDungeon",1,1,4),(day(120),"ClearDungeon",2,5,1),
+        (METRIC_HISTORY_DAY.to_owned(),"ClearDungeon",1,1,2),(day(100),"AddItem",5,0,7),(day(10),"ClearDungeon",1,1,6),
+        (day(100),"LoginDaily",0,0,1),(day(99),"LoginDaily",0,0,1),(day(91),"AddItem",5,0,8)];
+    for (d,kind,arg,arg2,value) in rows {
+        crate::db::query("INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES($1,$2,$3,$4,$5,$6)")
+            .bind(a).bind(d).bind(kind).bind(arg).bind(arg2).bind(value).execute(&s.db).await.unwrap();
+    }
+    let snapshot=|s:AppState|async move { snapshot(&mut s.db.acquire().await.unwrap(),&s,a).await.unwrap() };
+    let before=snapshot(s.clone()).await;
+    let mut db=s.db.acquire().await.unwrap();
+    assert!(fold_old_metrics(&mut db,a).await.unwrap()>0);
+    drop(db);
+    assert_eq!(snapshot(s.clone()).await,before,"folding must keep every evaluated value");
+    let left:Vec<(String,String,i64,i64,i64)>=crate::db::query_as("SELECT day,kind,arg,arg2,value FROM progression_metrics WHERE account_id=$1 AND day<$2 ORDER BY day,kind,arg")
+        .bind(a).bind(day(METRIC_DAYS_KEPT)).fetch_all(&s.db).await.unwrap();
+    assert_eq!(left,vec![
+        (METRIC_HISTORY_DAY.into(),"AddItem".into(),5,0,15),
+        (METRIC_HISTORY_DAY.into(),"ClearDungeon".into(),1,1,9),
+        (METRIC_HISTORY_DAY.into(),"ClearDungeon".into(),2,5,1),
+        (day(100),"LoginDaily".into(),0,0,1),(day(99),"LoginDaily".into(),0,0,1),
+    ]);
+    // The first login of a day folds the day that just crossed the limit.
+    crate::db::query("INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES($1,$2,'ClearDungeon',1,1,5)")
+        .bind(a).bind(day(METRIC_DAYS_KEPT+1)).execute(&s.db).await.unwrap();
+    relogin(&s).await;
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT value FROM progression_metrics WHERE account_id=$1 AND day=$2 AND kind='ClearDungeon' AND arg=1")
+        .bind(a).bind(METRIC_HISTORY_DAY).fetch_one(&s.db).await.unwrap(),9,"same-day relogin does not fold");
+    crate::db::query("UPDATE progression_login SET last_day=sprk_date('now','-1 day') WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
+    relogin(&s).await;
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT value FROM progression_metrics WHERE account_id=$1 AND day=$2 AND kind='ClearDungeon' AND arg=1")
+        .bind(a).bind(METRIC_HISTORY_DAY).fetch_one(&s.db).await.unwrap(),14);
+}
+
+#[tokio::test]
 async fn play_records_arena_bests_and_totals_survive_losses_and_season_removal() {
     let (s,u)=setup().await;let a=u.user_info.account_id;
     crate::db::query("INSERT INTO arena_scores(account,kind,season,score) VALUES($1,0,987654,1000)").bind(a).execute(&s.db).await.unwrap();

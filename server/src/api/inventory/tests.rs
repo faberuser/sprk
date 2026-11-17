@@ -2969,6 +2969,26 @@ async fn rolled_drops_are_stored_with_their_options_and_the_batch_tracks_free_sl
 }
 
 #[tokio::test]
+async fn item_grants_check_the_cap_in_their_upsert_and_stamp_new_rows() {
+    let (mut s,u)=setup().await;
+    let a=u.user_info.account_id;
+    Arc::make_mut(&mut Arc::make_mut(&mut s.tables).inventory).items.get_mut(&40005).unwrap()["ItemMaxCap"]=json!(10);
+    let mut tx=s.db.begin().await.unwrap();
+    crate::db::query("DELETE FROM items WHERE account_id=$1 AND item_index=40005").bind(a).execute(&mut *tx).await.unwrap();
+    let grant=|count|ItemGrant { index: 40005, count, star: 0, custom: 0 };
+    let mut r=crate::api::tutorial::Rewards::default();
+    assert!(item::give(&mut tx,&s,a,grant(11),&mut r).await.is_err(),"over the cap for a new row");
+    item::give(&mut tx,&s,a,grant(8),&mut r).await.unwrap();
+    let row:(i64,Option<String>)=crate::db::query_as("SELECT count,created_time FROM items WHERE account_id=$1 AND item_index=40005").bind(a).fetch_one(&mut *tx).await.unwrap();
+    assert_eq!(row.0,8);assert!(row.1.is_some(),"a new row records its first grant");
+    assert!(item::give(&mut tx,&s,a,grant(3),&mut r).await.is_err(),"over the cap with the stored count");
+    let count:i64=crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=40005").bind(a).fetch_one(&mut *tx).await.unwrap();
+    assert_eq!(count,8,"a refused grant writes nothing");
+    item::give(&mut tx,&s,a,grant(2),&mut r).await.unwrap();
+    assert_eq!(r.items.last().unwrap()["NewCount"],10);
+}
+
+#[tokio::test]
 async fn rewarding_a_locked_item_reports_its_lock_and_creation_time() {
     let (s,u)=setup().await;
     let a=u.user_info.account_id;

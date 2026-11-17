@@ -44,7 +44,8 @@ async fn info_at(
     a: i64,
     date: NaiveDate,
 ) -> Result<Value> {
-    let mut p = get(db, a, "treasure", 0).await?;
+    let stored = get(db, a, "treasure", 0).await?;
+    let mut p = stored.clone();
     let period = week(date);
     // Adopt the old daily record without discarding this week's monster or clear.
     let previous = p["Period"]
@@ -69,7 +70,10 @@ async fn info_at(
     p["Period"] = json!(period.to_string());
     p["ResetTime"] = json!(format!("{period} 00:00:00"));
     p["NextResetTime"] = json!(format!("{} 00:00:00", period + Duration::days(7)));
-    put(db, a, "treasure", 0, &p).await?;
+    // Every lobby entry reads this: write only when the week or record changed.
+    if p != stored {
+        put(db, a, "treasure", 0, &p).await?;
+    }
     Ok(p)
 }
 

@@ -255,6 +255,12 @@ three:
 3. **A dump** (a daily one from `postgres-backup`, or a manual one, see
    "Backups and restore"), to test fixes on real data.
 
+`pg_stat_statements` accumulates from the PostgreSQL start, across game
+deploys, so after a deploy its top statements can still be the previous
+build's (check the SQL text against the current code). For numbers that belong
+to one build, run `SELECT pg_stat_statements_reset()` as `sprk_owner` after the
+deploy and collect the report a day later.
+
 ### Load a dump locally
 
 Into a scratch container, never the local development database:
@@ -332,7 +338,13 @@ Either flag can be used alone. The report prints:
   time and, with a superuser URL, the statements per request;
   `SPRK_PROFILE_LOG=sqlx::query=debug` adds a statement timeline (gaps between
   statements are application work), `sprk_progression=debug` the incremental
-  snapshot's reload and build times. It writes to the copy. Test builds check
+  and full snapshots' load and build times. `SPRK_PROFILE_EXPIRE=1` expires the
+  progression snapshot before each request, as the first request after its
+  full-rebuild deadline finds it; without it the repeated requests all hit a
+  warm snapshot. Run the test binary
+  (`target/release/deps/sprk_server-*.exe profile_requests --ignored --nocapture`)
+  from the repository root: `cargo test` runs it from `server/`, where `tables/`
+  is not found. It writes to the copy. Test builds check
   every incremental progression snapshot against a full rebuild; set
   `SPRK_PROGRESSION_VERIFY=0` when timing.
 - Startup on the release binary in a scratch folder:
@@ -433,12 +445,22 @@ Either flag can be used alone. The report prints:
       (`verify_incremental`), and
       `incremental_snapshots_match_full_rebuilds_and_reuse_unaffected_sections`
       checks how many sections a write re-evaluates.
-    - An entry keeps its 60 s expiry across incremental rebuilds, so a reused
-      section is never older than a full rebuild would allow.
+    - An entry is rebuilt fully every `FULL_REBUILD_SECONDS` (10 minutes, or
+      at the next calendar boundary or day) and keeps that deadline across
+      incremental rebuilds. Evaluation depends on time only through the day
+      and calendars, and every view input is trigger-tracked, so the deadline
+      only bounds what an untracked change could leave stale. Keep it well
+      above client poll intervals: at 60 s most requests of an active player
+      paid a full rebuild.
     - Reused sections move out of the previous snapshot (`Sections` keeps only
       what each read); mission rows are grouped once per loaded tables
       (`state::mission_groups`), and table lookups (`View`'s, `play_record`'s)
       survive a refresh. Build table indexes once, never per evaluation.
+    - A path listed in `performance::observation` skips the snapshot (and the
+      hero level check). The client polls
+      `/shop/refresh_right_away_product_info` once a minute; when the entry
+      expired after 60 s, every poll was a full rebuild.
+      Add a new client poll there unless it spends, grants or claims.
     - Hero fields that battles change and no mission reads
       (`UNREAD_HERO_FIELDS`, flask progress) stay out of the view, so they never
       count as a hero change.
@@ -449,6 +471,46 @@ Either flag can be used alone. The report prints:
   follows their `put`. Prefetch only kinds that are never written by raw SQL.
   Balance reads (`guild_ticket`, Sword tickets) write only when the recharge
   changed them.
+- **Lobby and login.** The lobby is a chain of short statements, so its cost
+  is round trips:
+    - `account::stamina::locked_logins` runs the battle, community and stamina
+      login snapshots in one transaction under the account lock, with one
+      prefetch for all three (`battle::LOGIN_BATTLE_KINDS`, plus `tickets`,
+      `guild_ticket`, `withdraw`, `stamina_recharges`).
+    - `enter_lobby` runs its read-pool reads and the progression snapshot
+      concurrently with that transaction (`tokio::try_join!`), so a snapshot
+      rebuild costs no lobby time.
+    - Per-lobby recoveries check first and do nothing in the common case:
+      `restore_clause_reward` once both tutorials are completed, the local-run
+      withdrawal without an open run. Stockade (`under_all`, one clears query
+      for every chapter) and Treasure House write only when they changed.
+    - Friend profiles (login, friend list, search) show each player's last
+      main-story stage, derived from every stored dungeon row (~3 ms per
+      player). `friend::last_stages` keeps it per player in
+      `AppState::last_stages` until that player's progression revision
+      changes, and computes the missing ones in one statement.
+- **Item grants.** `inventory::item::give` grants a plain item in one upsert:
+  `ItemMaxCap` is checked in its `ON CONFLICT … WHERE` (a refused grant
+  returns no row and writes nothing) and a new row records its first-grant
+  time. Packages that roll a different item per opening cannot batch by
+  item, so this is their per-opening cost. In a package batch
+  (`PackageRewards`), equipment does not flush the batched items and
+  currencies (it writes neither), and the bag is counted once per batch and
+  reduced by the batch's own pieces, instead of once per piece. Any other
+  non-plain grant still flushes and recounts the bag. Its equipment rows are
+  inserted together at each flush (`tutorial::insert_equipment`, one
+  statement): each piece takes a slot index reserved from the
+  `equip_items` identity sequence (64 per statement, unused ones become gaps),
+  so its results are complete before its row exists. A flush comes before
+  anything that reads the bag; code that reads a granted piece's row inside a
+  package batch must flush first.
+- **Metric history.** `progression_metrics` keeps per-day rows for
+  `METRIC_DAYS_KEPT` (90) days; the first login of a day folds the account's
+  older days into one `0001-01-01` row per (kind, arg, arg2)
+  (`progression::fold_old_metrics`), keeping every sum. Periods reach back at
+  most 62 days, so no evaluation changes. `LoginDaily` keeps its dates for
+  login streaks. A new evaluator that needs older per-day rows must exclude
+  its kind there.
 - **Battle settlement.** `end_campaign` reads the party's heroes and details
   in one statement (`heroes::owned_details`) and passes the details to the
   flask helpers; an EXP update is skipped for a capped hero. A rolled drop is

@@ -25,6 +25,17 @@ pub(crate) fn observation(path: &str) -> bool {
             | "/shop/get_shop_list"
             | "/shop/get_all_shop_item_purchase_count"
             | "/shop/list"
+            // Pay shop reads. The client polls refresh_right_away_product_info
+            // once a minute; each poll rebuilt the progression snapshot, fully
+            // when it had expired (~4000 slow requests in two days). Their only write is the daily selection stock roll;
+            // restock_select_shop_info spends Gems and stays covered.
+            | "/shop/refresh_right_away_product_info"
+            | "/shop/refresh_payshop_discount_info"
+            | "/shop/get_payshop_products"
+            | "/shop/get_active_product_info"
+            | "/shop/get_right_away_product_info"
+            | "/shop/get_select_shop_info"
+            | "/shop/get_recommend_popup_info"
             | "/chat/info"
             | "/chat/recent"
             | "/query/session"
@@ -99,8 +110,15 @@ mod tests {
             "/mail/check_new_mail",
             "/guild/get_guildbasicinfo",
             "/guild/get_all_guild_member_info",
+            "/shop/refresh_right_away_product_info",
+            "/shop/refresh_payshop_discount_info",
+            "/shop/get_select_shop_info",
         ] {
             assert!(observation(path));
+        }
+        // Spends currency or buys: progression must follow.
+        for path in ["/shop/restock_select_shop_info", "/shop/buy_payshop_product", "/shop/set_purchase_marketing"] {
+            assert!(!observation(path), "{path}");
         }
         for path in ["/world_boss/get_world_boss_info", "/treasure_house/get_treasure_house_info", "/guild/get_guild_attendance"] {
             assert!(!observation(path), "{path} settles or grants state and must stay serialized");

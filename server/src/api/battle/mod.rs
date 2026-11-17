@@ -401,8 +401,15 @@ async fn rewards(db: &mut PgConnection, s: &AppState, a: i64, r: Rewards) -> Res
 pub(crate) async fn abandon_local_run_on_lobby(
     s: &AppState, a: i64, session: &str,
 ) -> Result<Value> {
-    let mut tx = crate::database::begin(&s.db).await?;
     let mut out = json!({});
+    // Usually no run is open: one statement instead of a locked transaction.
+    // A run opened concurrently is as if the lobby request had come first.
+    let open: bool = crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM battle_runs WHERE account=$1 AND completed=0)")
+        .bind(a).fetch_one(&s.db).await?;
+    if !open {
+        return Ok(out);
+    }
+    let mut tx = crate::database::begin(&s.db).await?;
     let old = crate::db::query("SELECT run_id,entry FROM battle_runs WHERE account=$1 AND completed=0")
         .bind(a).fetch_optional(&mut *tx).await?;
     if let Some(old) = old {
@@ -439,6 +446,9 @@ pub(crate) async fn punishment_lobby_snapshot(s: &AppState, a: i64) -> Result<Va
     }))
 }
 
+/// The battle login snapshot alone (tests); the lobby and login use
+/// `account::stamina::locked_logins`.
+#[cfg(test)]
 pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
     let mut tx = crate::database::begin(&s.db).await?;
     // FirstLobby can run while party heartbeats write on another connection.
@@ -446,15 +456,19 @@ pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
     crate::postgres::lock_account(&mut *tx, a).await?;
     use crate::api::system::prefetch;
     let rows = prefetch::Rows::default()
-        // Kinds written only through `put` (see prefetch): keys, towers and
-        // the dungeon lists this snapshot reads.
-        .load(&mut tx, prefetch::Table::Battle, a, &["key", "tower", "under_prison", "raid", "godking", "dungeon", "top_clear", "hideout", "conquest", "punishment_open"]).await?
+        .load(&mut tx, prefetch::Table::Battle, a, LOGIN_BATTLE_KINDS).await?
         .load(&mut tx, prefetch::Table::Community, a, &["tickets", "guild_ticket"]).await?;
-    let out = prefetch::scope(rows, login_snapshot(&mut tx, s, a)).await?;
+    let out = prefetch::scope(rows, login_in(&mut tx, s, a)).await?;
     tx.commit().await?;
     Ok(out)
 }
-async fn login_snapshot(tx: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
+/// Kinds the login snapshot reads that are written only through `put` (see
+/// prefetch): keys, towers, the dungeon lists, Treasure House and Shakmeh.
+pub(crate) const LOGIN_BATTLE_KINDS: &[&str] = &["key", "tower", "under_prison", "raid", "godking", "dungeon", "top_clear",
+    "hideout", "conquest", "punishment_open", "treasure", "shakmeh_passive"];
+/// The login snapshot inside the caller's transaction, which holds the
+/// account lock (and initializes the inventory here).
+pub(crate) async fn login_in(tx: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
     let mut tx = tx;
     item::init(&mut tx, s, a).await?;
     entry_costs::abandon_on_login(&mut tx,s,a).await?;
@@ -462,10 +476,8 @@ async fn login_snapshot(tx: &mut PgConnection, s: &AppState, a: i64) -> Result<V
     challenge::settle(&mut tx, s, a).await?;
     treasure::info(&mut tx, s, a).await?;
     let towers = dungeons::tower_list(&mut tx, s, a).await?;
-    let mut under = list(&mut tx, a, "under_prison").await?;
-    for info in &mut under {
-        *info = dungeons::under(&mut tx, s, a, n(info, "ChapterIndex")).await?;
-    }
+    let chapters: Vec<i64> = list(&mut tx, a, "under_prison").await?.iter().map(|info| n(info, "ChapterIndex")).collect();
+    let under = dungeons::under_all(&mut tx, s, a, &chapters).await?;
     dungeons::repair_raid_progress(&mut tx,s,a).await?;
     let raid = list(&mut tx, a, "raid").await?;
     let mut god = list(&mut tx, a, "godking").await?;

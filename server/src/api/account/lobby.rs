@@ -246,30 +246,31 @@ async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: boo
         (user_info, heroes, items)
     };
 
-    // Count unread mail
-    let mail_count: i32 = crate::db::query_scalar(
-        "SELECT COUNT(*) FROM mails WHERE account_id = $1 AND is_received = 0"
-    )
-    .bind(account_id)
-    .fetch_one(&state.reads)
-    .await?;
-
-    // Count friend requests
-    let friend_request_count: i32 = crate::db::query_scalar(
-        "SELECT COUNT(*) FROM friends WHERE friend_account_id = $1 AND status = 'pending'"
-    )
-    .bind(account_id)
-    .fetch_one(&state.reads)
-    .await?;
-
-    // Fetch campaign progress for dungeon infos
-    let campaign_rows = crate::db::query(
-        "SELECT chapter_id, dungeon_id, clear_count, best_star, completed_time FROM campaign_progress WHERE account_id = $1 ORDER BY chapter_id, dungeon_id"
-    )
-    .bind(account_id)
-    .fetch_all(&state.reads)
-    .await
-    .unwrap_or_default();
+    // The read-pool snapshot (counts, campaign, Inn, missions) runs while the
+    // account-locked login snapshots run on the writer: the lobby is a chain
+    // of ~100 short statements, and the progression snapshot alone can take
+    // tens of milliseconds when it rebuilds.
+    let reads = async {
+        let mut db = state.reads.acquire().await?;
+        let (mail_count, friend_request_count): (i32, i32) = crate::db::query_as(
+            "SELECT (SELECT COUNT(*) FROM mails WHERE account_id = $1 AND is_received = 0), \
+             (SELECT COUNT(*) FROM friends WHERE friend_account_id = $1 AND status = 'pending')")
+            .bind(account_id).fetch_one(&mut *db).await?;
+        let campaign_rows = crate::db::query(
+            "SELECT chapter_id, dungeon_id, clear_count, best_star, completed_time FROM campaign_progress WHERE account_id = $1 ORDER BY chapter_id, dungeon_id"
+        )
+        .bind(account_id)
+        .fetch_all(&mut *db)
+        .await
+        .unwrap_or_default();
+        let friendly = crate::db::query("SELECT * FROM hero_friendly_info WHERE account_id = $1")
+            .bind(account_id).fetch_optional(&mut *db).await?;
+        drop(db);
+        let progression = crate::api::progression::cache::get(&state, &session_id, account_id).await?;
+        Ok::<_, ServerError>((mail_count, friend_request_count, campaign_rows, friendly, progression))
+    };
+    let ((mail_count, friend_request_count, campaign_rows, friendly, progression), (mut battle, community, stamina)) =
+        tokio::try_join!(reads, crate::api::account::stamina::locked_logins(&state, account_id))?;
 
     // Build dungeon infos from database
     // 
@@ -307,10 +308,7 @@ async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: boo
     // For returning users who skip tutorial, user.rs handles pre-populating dungeons.
 
     // Fetch Hero Inn friendly info if exists
-    let friendly_info = crate::db::query("SELECT * FROM hero_friendly_info WHERE account_id = $1")
-        .bind(account_id)
-        .fetch_optional(&state.reads)
-        .await?
+    let friendly_info = friendly
         .map(|row| PlayerHeroFriendlyInfo {
             hero_index: row.get("hero_index"),
             selected_hero_index: row.get("selected_hero_index"),
@@ -323,15 +321,12 @@ async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: boo
             last_roulette_time: row.get("last_roulette_time"),
         });
 
-    let progression = crate::api::progression::cache::get(&state, &session_id, session.account_id).await?;
-    let mut battle = crate::api::battle::login(&state, account_id).await?;
     // EnterLobby does not reinitialize PlayerCurrencyInfos. Publish withdrawal
     // refunds through the common handler too, so native boss entry sees the
     // restored gauge immediately without requiring a fresh client login.
     if withdrawal["ReservedCurrencyResults"].is_array() {
         battle["ReservedCurrencyResults"] = withdrawal["ReservedCurrencyResults"].clone();
     }
-    let community=crate::api::community::login(&state,account_id).await?;
     battle["GuildInfo"]=community["MyGuildInfo"].clone();
     battle["BattleInfo"]=community["BattleInfo"].clone();
     if let Some(keys)=battle["BattleKeyResults"].as_array_mut(){keys.push(community["SwordResult"].clone());keys.push(community["GuildRaidTicket"].clone());}
@@ -350,7 +345,7 @@ async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: boo
         *user=serde_json::from_value(value).map_err(|e|ServerError::Internal(e.to_string()))?;
     }
     battle.as_object_mut().unwrap().remove("DungeonInfos");
-    battle["StaminaResults"]=crate::api::account::stamina::login(&state,account_id).await?;
+    battle["StaminaResults"]=stamina;
     if let Some(user)=&mut user_info {
         let mut value=serde_json::to_value(&*user).map_err(|e|ServerError::Internal(e.to_string()))?;
         for key in battle["StaminaResults"].as_array().into_iter().flatten(){if let Some(kind)=key["Type"].as_str(){value[if kind=="Chicken"{"Stamina"}else{kind}]=key["NewValue"].clone();}}

@@ -207,6 +207,18 @@ pub(crate) async fn give(
     grant: ItemGrant,
     rewards: &mut Rewards,
 ) -> Result<()> {
+    give_with(db, state, account, grant, rewards, false).await
+}
+/// `give`; with `bag_checked`, the caller has already made sure the bag holds
+/// the equipment (`PackageRewards` counts it once per batch, not per piece).
+pub(super) async fn give_with(
+    db: &mut PgConnection,
+    state: &AppState,
+    account: i64,
+    grant: ItemGrant,
+    rewards: &mut Rewards,
+    bag_checked: bool,
+) -> Result<()> {
     let ItemGrant {
         index,
         count,
@@ -259,20 +271,22 @@ pub(crate) async fn give(
         if count > 1000 {
             return Err(rule("EquipItemFull"));
         }
-        if !rewards.mail_overflow { capacity(db, state, account, 0, count as i64).await?; }
-    } else if metadata.kind != "Hero" {
+        if !rewards.mail_overflow && !bag_checked { capacity(db, state, account, 0, count as i64).await?; }
+    }
+    // The new count must stay within ItemMaxCap and i32. The items upsert
+    // checks it against the stored count (nothing is written past it) and
+    // stamps the first-grant time: one statement per grant, which matters
+    // for packages that roll a different item on every opening.
+    let limit = if metadata.kind != "Equip" && metadata.kind != "Hero" {
         let cap = n(data(state, index)?, "ItemMaxCap");
-        let old: i64 =
-            crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=$2")
-                .bind(account)
-                .bind(index)
-                .fetch_optional(&mut *db)
-                .await?
-                .unwrap_or(0);
-        if old + count as i64 > i32::MAX as i64 || (cap > 0 && old + count as i64 > cap) {
+        let limit = if cap > 0 { cap.min(i32::MAX as i64) } else { i32::MAX as i64 };
+        if count as i64 > limit {
             return Err(rule("InvalidItemCount"));
         }
-    }
+        Some(limit)
+    } else {
+        Some(i32::MAX as i64)
+    };
     let equip_start = rewards.equipment.len();
     let items_before = rewards.items.len();
     // Rolled equipment is inserted with its options in one statement.
@@ -288,13 +302,18 @@ pub(crate) async fn give(
         },
         rewards,
         true,
+        limit,
     )
     .await?;
     if metadata.kind == "Equip" && custom == 0 {
-        for equip in &mut rewards.equipment[equip_start..] {
-            if crate::api::extensions::equip_item(&state,index as i64).is_some_and(|v|n(v,"EquipType")==1){
-                equip.identified=0;
-                crate::api::extensions::save_equip(db,account,equip).await?;
+        let unidentified = crate::api::extensions::equip_item(&state,index as i64).is_some_and(|v|n(v,"EquipType")==1);
+        let (pieces, deferred) = (&mut rewards.equipment, &mut rewards.deferred_equipment);
+        for equip in pieces[equip_start..].iter_mut().filter(|_| unidentified) {
+            equip.identified=0;
+            // A deferred piece has no row yet: its pending row is inserted so.
+            match deferred.as_mut().and_then(|d| d.pending.iter_mut().find(|p| p.slot_index == equip.slot_index)) {
+                Some(pending) => pending.identified = 0,
+                None => crate::api::extensions::save_equip(db,account,equip).await?,
             }
         }
     }
@@ -325,10 +344,7 @@ pub(crate) async fn give(
         mailed.reverse();
         mail_overflow(db, account, rewards, mailed).await?;
     }
-    // Only an items row this grant upserted needs its first-grant time.
-    if rewards.items.len() > items_before {
-        crate::db::query("UPDATE items SET created_time=COALESCE(created_time,sprk_datetime('now')) WHERE account_id=$1 AND item_index=$2").bind(account).bind(index).execute(&mut *db).await?;
-    }
+    // An items row this grant upserted has its first-grant time (`limit`).
     // Rewarding additional copies must preserve the item's lock in the client
     // response. A result this grant added already carries it (its upsert
     // returned `locked`); re-read it only for an earlier result.
