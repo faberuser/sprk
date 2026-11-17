@@ -1326,6 +1326,7 @@ public class UICamera : BehaviourUpdater
 		SprkConquest.Tick();
 		SprkDispatch.Ensure();
 		SprkAutomation.Ensure();
+		SprkDiscordPresence.Ensure();
 		base.Awake();
 		mWidth = Screen.width;
 		mHeight = Screen.height;
