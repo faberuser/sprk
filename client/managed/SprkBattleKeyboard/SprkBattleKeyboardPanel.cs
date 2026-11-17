@@ -9,33 +9,58 @@ using NShared;
 
 using UnityEngine;
 
+// Keyboard editor drawn with the native Game Settings parts (PayShop frame and title bar,
+// Common_Box_3 option rows, Common_CheckBox toggles and Common_Button_Tab tabs).
 public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 {
 	internal static SprkBattleKeyboardPanel Current;
 	private static GameOptionWindow lastBackWindow;
 	private static int lastBackFrame = -1;
 	private const string RowName = "SPRK Battle Keyboard";
+	private const string Title = "Hero Skill Keyboard Controls";
+	private const int FrameWidth = 1480;
+	private const int FrameHeight = 980;
+	private const int RowWidth = 1380;
+	private const int KeyWidth = 230;
+	private const int KeyHeight = 62;
+	private static readonly float[] Columns = { -270f, 0f, 270f, 540f };
+	private static readonly float[] Tabs = { -465f, -155f, 155f, 465f };
+	private static readonly string[] ActionNames = { "Skill 1", "Skill 2", "Skill 3", "Soul Weapon" };
+	private static readonly Color Ink = new Color(0.33f, 0.24f, 0.13f);
+	private static readonly Color Capturing = new Color(1f, 0.86f, 0.35f);
+	private static readonly Color Muted = new Color(0.62f, 0.58f, 0.52f);
 	private GameOptionWindow window;
 	private GameOptionButtonComponent row;
 	private UIRoot uiRoot;
 	private Transform content;
-	private UILabel fontStyle;
 	private readonly List<UIAtlas> atlases = new List<UIAtlas>();
+	private UILabel titleStyle;
+	private UILabel nameStyle;
+	private UILabel toggleStyle;
+	private UILabel tabStyle;
+	private UILabel buttonStyle;
 	private readonly UILabel[] bindingLabels = new UILabel[16];
 	private readonly UISprite[] bindingButtons = new UISprite[16];
 	private readonly UISprite[] presetButtons = new UISprite[4];
-	private UILabel enabledLabel;
+	private readonly UILabel[] presetLabels = new UILabel[4];
+	private UISprite controlsOn;
+	private UISprite controlsOff;
+	private UISprite hintsOn;
+	private UISprite hintsOff;
+	private UISprite captureFrame;
 	private UILabel status;
 	private UILabel confirmLabel;
 	private GameObject clearButton;
 	private GameObject cancelButton;
 	private GameObject confirmButton;
-	private UITexture backdrop;
+	private GameObject copyButton;
+	private UILabel copyLabel;
+	private UIWidget backdrop;
 	private int captureSlot = -1;
-	private int captureFrame;
+	private int captureFrameCount;
 	private int duplicateSlot = -1;
 	private SprkBattleKeyboard.Binding pending;
-	private string message = "Select Custom to edit individual bindings. Custom starts with Preset A.";
+	private string message = "";
 	private Vector2 screenSize;
 
 	internal static void SetupRow(GameOptionWindow window)
@@ -66,7 +91,7 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 				}
 				if (row.ParentRoot.Label_OptionName != null)
 				{
-					row.ParentRoot.Label_OptionName.text = "Hero Skill Keyboard Controls";
+					row.ParentRoot.Label_OptionName.text = Title;
 				}
 				if (row.ParentRoot.ToolTipImage != null)
 				{
@@ -93,7 +118,7 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 	{
 		if (row != null && row.Label_Button != null)
 		{
-			row.Label_Button.text = SprkBattleKeyboard.ControlsEnabled ? "On - Configure" : "Off - Configure";
+			row.Label_Button.text = SprkBattleKeyboard.ControlsEnabled ? "Configure (On)" : "Configure (Off)";
 		}
 	}
 
@@ -137,14 +162,8 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 		}
 	}
 
-	private void Build()
+	private void CollectStyles()
 	{
-		fontStyle = row.Label_Button;
-		if (fontStyle == null || (fontStyle.bitmapFont == null && fontStyle.trueTypeFont == null))
-		{
-			fontStyle = window.GetComponentsInChildren<UILabel>(true)
-				.FirstOrDefault(l => l.bitmapFont != null || l.trueTypeFont != null);
-		}
 		foreach (UISprite sprite in window.GetComponentsInChildren<UISprite>(true))
 		{
 			if (sprite.atlas != null && !atlases.Contains(sprite.atlas))
@@ -152,6 +171,20 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 				atlases.Add(sprite.atlas);
 			}
 		}
+		UILabel[] labels = window.GetComponentsInChildren<UILabel>(true)
+			.Where(l => l.bitmapFont != null || l.trueTypeFont != null).ToArray();
+		Func<string, UILabel> under = part => labels.FirstOrDefault(l => PathOf(l.transform).Contains(part));
+		titleStyle = under("Sprite_Title/");
+		nameStyle = labels.FirstOrDefault(l => l.name == "OptionName");
+		toggleStyle = labels.FirstOrDefault(l => l.name.StartsWith("Label_Toggle", StringComparison.Ordinal));
+		tabStyle = under("Toggle_Battle/");
+		buttonStyle = row.Label_Button != null && (row.Label_Button.bitmapFont != null || row.Label_Button.trueTypeFont != null)
+			? row.Label_Button : toggleStyle;
+	}
+
+	private void Build()
+	{
+		CollectStyles();
 		UIPanel panel = gameObject.AddComponent<UIPanel>();
 		int depth = 0;
 		foreach (UIPanel other in UIPanel.list)
@@ -162,91 +195,158 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 			}
 		}
 		panel.depth = depth + 20;
-		backdrop = Widget<UITexture>(transform, "Modal Blocker", 1920, 1080, Vector2.zero, 0);
-		backdrop.mainTexture = Texture2D.whiteTexture;
-		backdrop.color = new Color(0f, 0f, 0f, 0.85f);
+
+		// Dimmed backdrop like the native Outside_ClickClose, swallowing clicks.
+		UISprite dim = Sprite(transform, "Modal Blocker", "blank_white", 1920, 1080, Vector2.zero, 0);
+		if (dim.atlas == null)
+		{
+			UnityEngine.Object.DestroyImmediate(dim);
+			UITexture texture = dim.gameObject.AddComponent<UITexture>();
+			texture.mainTexture = Texture2D.whiteTexture;
+			backdrop = texture;
+		}
+		else
+		{
+			backdrop = dim;
+		}
+		backdrop.color = new Color(0f, 0f, 0f, 0.63f);
 		NGUITools.AddWidgetCollider(backdrop.gameObject);
 		UIEventListener.Get(backdrop.gameObject).onClick = delegate { };
+
 		content = Child(transform, "Content").transform;
-		UISprite frame = Sprite(content, "Frame", "Common_Box_Text_2", 1120, 820, Vector2.zero, 1);
-		NGUITools.AddWidgetCollider(frame.gameObject);
-		UIEventListener.Get(frame.gameObject).onClick = delegate { };
-		Sprite(content, "Title Bar", "PayShop_Title_Name", 1020, 75, new Vector2(0, 350), 2);
-		Label(content, "Hero Skill Keyboard Controls", 34, 980, 60, new Vector2(0, 350));
-		enabledLabel = Button("Enable", "", new Vector2(0, 270), 480, delegate
+		UISprite fill = Sprite(content, "Frame Fill", "Common_Box_Text_2", FrameWidth, FrameHeight, Vector2.zero, 1);
+		NGUITools.AddWidgetCollider(fill.gameObject);
+		UIEventListener.Get(fill.gameObject).onClick = delegate { };
+		Sprite(content, "Frame", "PayShop_Frame", FrameWidth, FrameHeight, Vector2.zero, 40);
+		Sprite(content, "Title Bar", "PayShop_Title_Name", 1280, 90, new Vector2(0f, 430f), 41);
+		Label(content, Title, 35, new Vector2(0f, 430f), 42, UIWidget.Pivot.Center, titleStyle, 1100);
+		UISprite close = Sprite(content, "Close", "Btn_PayShop_Close", 70, 70, new Vector2(670f, 430f), 43, false);
+		Clickable(close.gameObject, Close, 12);
+
+		OptionRow("Keyboard Controls", 330f, out controlsOn, out controlsOff, delegate (bool on)
 		{
-			if (captureSlot >= 0) return;
-			SprkBattleKeyboard.ControlsEnabled = !SprkBattleKeyboard.ControlsEnabled;
-			Sync();
-		}, out _);
+			SprkBattleKeyboard.ControlsEnabled = on;
+		});
+		OptionRow("Key Hints in Battle", 238f, out hintsOn, out hintsOff, delegate (bool on)
+		{
+			SprkBattleKeyboard.KeyHintsEnabled = on;
+		});
+
+		Sprite(content, "Tab Deco", "Common_Deco_Top_1", 1420, 100, new Vector2(0f, 135f), 2);
 		for (int p = 0; p < 4; p++)
 		{
 			int selected = p;
-			Button("Layout " + p, SprkBattleKeyboard.PresetNames[p], new Vector2(-345 + p * 230, 195), 210, delegate
+			presetButtons[p] = Sprite(content, "Layout " + p, "Common_Button_Tab_Disable", 300, 96, new Vector2(Tabs[p], 135f), 4);
+			presetLabels[p] = Label(content, SprkBattleKeyboard.PresetNames[p], 30, new Vector2(Tabs[p], 135f), 6, UIWidget.Pivot.Center, tabStyle, 260);
+			Clickable(presetButtons[p].gameObject, delegate
 			{
 				if (captureSlot >= 0) return;
 				SprkBattleKeyboard.SelectedPreset = selected;
-				message = selected == 3
-					? "Click a binding, then press a key with optional Ctrl / Alt / Shift / Meta."
-					: "Preset layout (read-only). Select Custom to edit your saved custom bindings.";
+				message = "";
 				Sync();
-			}, out presetButtons[p]);
+			});
 		}
-		Label(content, "Hero", 24, 130, 40, new Vector2(-450, 125));
-		string[] actions = { "Skill 1", "Skill 2", "Skill 3", "Soul Weapon" };
+
 		for (int a = 0; a < 4; a++)
 		{
-			Label(content, actions[a], 24, 200, 40, new Vector2(-275 + a * 210, 125));
+			UILabel header = Label(content, ActionNames[a], 28, new Vector2(Columns[a], 62f), 6, UIWidget.Pivot.Center, null, KeyWidth);
+			header.color = Ink;
+			header.effectStyle = UILabel.Effect.None;
 		}
+		// Drawn under the key cap so only its glow border shows around the slot being captured.
+		captureFrame = Sprite(content, "Capture Frame", "Common_Select_Frame", KeyWidth + 26, KeyHeight + 24, Vector2.zero, 6);
 		for (int h = 0; h < 4; h++)
 		{
-			Label(content, "Hero " + (h + 1), 26, 130, 55, new Vector2(-450, 65 - h * 75));
+			float y = -86f * h;
+			Sprite(content, "Hero Row " + h, "Common_Box_3", RowWidth, 78, new Vector2(0f, y), 3);
+			Label(content, "Hero " + (h + 1), 30, new Vector2(-660f, y), 6, UIWidget.Pivot.Left, nameStyle, 240);
 			for (int a = 0; a < 4; a++)
 			{
 				int slot = h * 4 + a;
-				bindingLabels[slot] = Button("Binding " + slot, "", new Vector2(-275 + a * 210, 65 - h * 75), 195,
-					delegate { BeginCapture(slot); }, out bindingButtons[slot]);
+				bindingButtons[slot] = Sprite(content, "Binding " + slot, "Common_CheckBox", KeyWidth, KeyHeight, new Vector2(Columns[a], y), 7);
+				bindingLabels[slot] = Label(bindingButtons[slot].transform, "", 30, Vector2.zero, 8, UIWidget.Pivot.Center, toggleStyle, KeyWidth - 20);
+				bindingLabels[slot].supportEncoding = false;
+				Clickable(bindingButtons[slot].gameObject, delegate { BeginCapture(slot); });
 			}
 		}
-		status = Label(content, "", 23, 1030, 100, new Vector2(0, -235));
-		Button("Clear", "Clear / Unbind", new Vector2(-370, -325), 225, delegate
+
+		status = Label(content, "", 26, new Vector2(0f, -338f), 6, UIWidget.Pivot.Center, null, 1300);
+		status.color = Ink;
+		status.effectStyle = UILabel.Effect.None;
+		status.overflowMethod = UILabel.Overflow.ShrinkContent;
+		status.height = 70;
+
+		clearButton = Button("Clear Binding", "Common_Button7_Cancel", new Vector2(-540f, -425f), 300, delegate
 		{
 			if (captureSlot < 0) return;
 			SprkBattleKeyboard.AssignCustom(captureSlot, default(SprkBattleKeyboard.Binding));
-			EndCapture("Binding cleared. This action no longer has a keyboard shortcut.");
-		}, out UISprite clear);
-		clearButton = clear.gameObject;
-		Button("Cancel Capture", "Cancel Capture", new Vector2(-115, -325), 245,
-			delegate { EndCapture("Capture cancelled. No bindings changed."); }, out UISprite cancel);
-		cancelButton = cancel.gameObject;
-		confirmLabel = Button("Reassign", "Reassign", new Vector2(145, -325), 235, delegate
+			EndCapture(SlotLabel(captureSlot) + " is now unbound.");
+		}, out _);
+		cancelButton = Button("Cancel", "Common_Button6_Normal", new Vector2(-245f, -425f), 250,
+			delegate { EndCapture("Capture cancelled. No bindings changed."); }, out _);
+		confirmButton = Button("Reassign", "Common_Button6_Emphasis", new Vector2(35f, -425f), 270, delegate
 		{
 			if (captureSlot < 0 || duplicateSlot < 0) return;
 			string previous = SlotLabel(duplicateSlot);
 			SprkBattleKeyboard.AssignCustom(captureSlot, pending);
-			EndCapture("Reassigned " + pending.Label + ". " + previous + " is now unbound.");
-		}, out UISprite confirm);
-		confirmButton = confirm.gameObject;
-		Button("Done", "Done", new Vector2(400, -325), 200, Close, out _);
-		Label(content, "Changes save immediately. Exact modifiers required. Disabled while typing or settings are open.",
-			20, 1050, 45, new Vector2(0, -385));
+			EndCapture(pending.Label + " moved to " + SlotLabel(captureSlot) + ". " + previous + " is now unbound.");
+		}, out confirmLabel);
+		copyButton = Button("Copy to Custom", "Common_Button6_Normal", new Vector2(-520f, -425f), 340, delegate
+		{
+			int source = SprkBattleKeyboard.SelectedPreset;
+			if (captureSlot >= 0 || source >= 3) return;
+			SprkBattleKeyboard.CopyPresetToCustom(source);
+			SprkBattleKeyboard.SelectedPreset = 3;
+			message = SprkBattleKeyboard.PresetNames[source] + " copied to Custom. Click a key to change it.";
+			Sync();
+		}, out copyLabel);
+		Button("Done", "Common_Button6_Emphasis", new Vector2(560f, -425f), 260, Close, out _);
 		Resize();
 		Sync();
+	}
+
+	private void OptionRow(string name, float y, out UISprite on, out UISprite off, Action<bool> set)
+	{
+		Sprite(content, name + " Row", "Common_Box_3", RowWidth, 84, new Vector2(0f, y), 3);
+		Label(content, name, 32, new Vector2(-660f, y), 6, UIWidget.Pivot.Left, nameStyle, 700);
+		on = Toggle("On", new Vector2(330f, y), delegate
+		{
+			if (captureSlot >= 0) return;
+			set(true);
+			Sync();
+		});
+		off = Toggle("Off", new Vector2(590f, y), delegate
+		{
+			if (captureSlot >= 0) return;
+			set(false);
+			Sync();
+		});
+	}
+
+	private UISprite Toggle(string text, Vector2 position, Action action)
+	{
+		UISprite box = Sprite(content, "Toggle " + text, "Common_CheckBox", 60, 60, position, 7);
+		UISprite check = Sprite(box.transform, "Checked", "Common_Check", 124, 106, new Vector2(5f, 24f), 8, false);
+		Label(content, text, 30, position + new Vector2(-48f, 0f), 6, UIWidget.Pivot.Right, toggleStyle, 200);
+		// One hit area covering the caption and the box, like the native toggles.
+		UIWidget hit = Widget<UIWidget>(content, "Toggle " + text + " Input", 220, 76, position + new Vector2(-80f, 0f), 10);
+		Clickable(hit.gameObject, action);
+		return check;
 	}
 
 	private void BeginCapture(int slot)
 	{
 		if (SprkBattleKeyboard.SelectedPreset != 3)
 		{
-			message = "Select Custom first. Switching presets never overwrites your custom bindings.";
+			message = "Presets are read-only. Select Custom, or use Copy to Custom to start from this preset.";
 			Sync();
 			return;
 		}
 		captureSlot = slot;
-		captureFrame = Time.frameCount;
+		captureFrameCount = Time.frameCount;
 		duplicateSlot = -1;
-		message = "Capturing " + SlotLabel(slot) + ": press a key (optional Ctrl / Alt / Shift / Meta).\n"
-			+ "Escape cancels. Backspace / Delete or Clear unbinds. Modifier-only and mouse bindings are not supported.";
+		message = "Press a key for " + SlotLabel(slot) + " (Ctrl / Alt / Shift optional).\n"
+			+ "Esc cancels. Backspace or Delete unbinds.";
 		Sync();
 	}
 
@@ -261,27 +361,75 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 
 	private static string SlotLabel(int slot)
 	{
-		return "Hero " + (slot / 4 + 1) + " / " + (slot % 4 == 3 ? "Soul Weapon" : "Skill " + (slot % 4 + 1));
+		return "Hero " + (slot / 4 + 1) + " " + ActionNames[slot % 4];
+	}
+
+	private string IdleMessage()
+	{
+		if (!SprkBattleKeyboard.ControlsEnabled)
+		{
+			return "Keyboard controls are off. Turn them on to use these keys in battle.";
+		}
+		if (SprkBattleKeyboard.SelectedPreset != 3)
+		{
+			return "Heroes are numbered left to right as shown in battle. Use Copy to Custom to edit this layout.";
+		}
+		return "Heroes are numbered left to right as shown in battle. Click a key to change it.";
 	}
 
 	private void Sync()
 	{
-		enabledLabel.text = SprkBattleKeyboard.ControlsEnabled ? "Keyboard Controls: ON" : "Keyboard Controls: OFF (default)";
+		bool enabled = SprkBattleKeyboard.ControlsEnabled;
+		bool hints = SprkBattleKeyboard.KeyHintsEnabled;
+		SetChecked(controlsOn, enabled);
+		SetChecked(controlsOff, !enabled);
+		SetChecked(hintsOn, hints);
+		SetChecked(hintsOff, !hints);
+		int preset = SprkBattleKeyboard.SelectedPreset;
 		for (int p = 0; p < presetButtons.Length; p++)
 		{
-			presetButtons[p].color = p == SprkBattleKeyboard.SelectedPreset ? new Color(1f, 0.85f, 0.5f) : Color.white;
+			bool active = p == preset;
+			presetButtons[p].spriteName = active ? "Common_Button_Tab_Enable" : "Common_Button_Tab_Disable";
+			presetLabels[p].alpha = active ? 1f : 0.8f;
 		}
+		bool custom = preset == 3;
 		for (int i = 0; i < bindingLabels.Length; i++)
 		{
-			bindingLabels[i].text = i == captureSlot ? "Press key..." : SprkBattleKeyboard.GetBinding(i).Label;
-			bindingButtons[i].color = i == captureSlot ? new Color(1f, 0.85f, 0.5f) : Color.white;
+			SprkBattleKeyboard.Binding binding = SprkBattleKeyboard.GetBinding(i);
+			bool capturing = i == captureSlot;
+			bindingLabels[i].text = capturing ? "Press a key..." : binding.Label;
+			Style(bindingLabels[i], toggleStyle);
+			if (capturing)
+			{
+				bindingLabels[i].color = Capturing;
+			}
+			else if (binding.Key == KeyCode.None)
+			{
+				bindingLabels[i].color = Muted;
+			}
+			bindingButtons[i].alpha = custom || capturing ? 1f : 0.85f;
 		}
-		status.text = message;
+		captureFrame.gameObject.SetActive(captureSlot >= 0);
+		if (captureSlot >= 0)
+		{
+			captureFrame.transform.localPosition = bindingButtons[captureSlot].transform.localPosition;
+		}
+		status.text = string.IsNullOrEmpty(message) ? IdleMessage() : message;
 		clearButton.SetActive(captureSlot >= 0);
 		cancelButton.SetActive(captureSlot >= 0);
 		confirmButton.SetActive(duplicateSlot >= 0);
 		confirmLabel.text = "Reassign";
+		copyButton.SetActive(captureSlot < 0 && !custom);
+		copyLabel.text = "Copy to Custom";
 		RefreshRow(row);
+	}
+
+	private static void SetChecked(UISprite check, bool value)
+	{
+		if (check != null)
+		{
+			check.alpha = value ? 1f : 0f;
+		}
 	}
 
 	internal static bool HandleBack(GameOptionWindow owner)
@@ -308,14 +456,14 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 			Resize();
 		}
 
-		if (captureSlot < 0 || Time.frameCount <= captureFrame || !Application.isFocused)
+		if (captureSlot < 0 || Time.frameCount <= captureFrameCount || !Application.isFocused)
 		{
 			return;
 		}
 		if (Input.GetKeyDown(KeyCode.Backspace) || Input.GetKeyDown(KeyCode.Delete))
 		{
 			SprkBattleKeyboard.AssignCustom(captureSlot, default(SprkBattleKeyboard.Binding));
-			EndCapture("Binding cleared. This action no longer has a keyboard shortcut.");
+			EndCapture(SlotLabel(captureSlot) + " is now unbound.");
 			return;
 		}
 		foreach (KeyCode key in SprkBattleKeyboard.CaptureKeys)
@@ -325,14 +473,14 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 			duplicateSlot = SprkBattleKeyboard.FindDuplicate(captureSlot, pending);
 			if (duplicateSlot >= 0)
 			{
-				message = pending.Label + " is already assigned to " + SlotLabel(duplicateSlot) + ".\n"
-					+ "Reassign will unbind that slot. Click Reassign, press another key, or cancel.";
+				message = pending.Label + " is already used by " + SlotLabel(duplicateSlot) + ".\n"
+					+ "Reassign moves it here and unbinds " + SlotLabel(duplicateSlot) + ", or press another key.";
 				Sync();
 			}
 			else
 			{
 				SprkBattleKeyboard.AssignCustom(captureSlot, pending);
-				EndCapture("Saved " + pending.Label + " for " + SlotLabel(captureSlot) + ".");
+				EndCapture(SlotLabel(captureSlot) + " set to " + pending.Label + ".");
 			}
 			break;
 		}
@@ -343,9 +491,9 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 		screenSize = new Vector2(Screen.width, Screen.height);
 		float height = uiRoot.activeHeight;
 		float width = height * Screen.width / Mathf.Max(1f, Screen.height);
-		content.localScale = Vector3.one * Mathf.Min(height / 1080f, width / 1180f);
-		backdrop.width = Mathf.CeilToInt(width);
-		backdrop.height = Mathf.CeilToInt(height);
+		content.localScale = Vector3.one * Mathf.Min(height / 1080f, width / (FrameWidth + 80f));
+		backdrop.width = Mathf.CeilToInt(width) + 4;
+		backdrop.height = Mathf.CeilToInt(height) + 4;
 		NGUITools.AddWidgetCollider(backdrop.gameObject);
 	}
 
@@ -364,6 +512,16 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 			Current = null;
 			SprkBattleKeyboard.SuppressClosingFrame();
 		}
+	}
+
+	private static string PathOf(Transform t)
+	{
+		string path = t.name;
+		for (t = t.parent; t != null; t = t.parent)
+		{
+			path = t.name + "/" + path;
+		}
+		return path;
 	}
 
 	private GameObject Child(Transform parent, string name)
@@ -385,45 +543,79 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 		return widget;
 	}
 
-	private UISprite Sprite(Transform parent, string name, string spriteName, int width, int height, Vector2 position, int depth)
+	private UISprite Sprite(Transform parent, string name, string spriteName, int width, int height, Vector2 position, int depth, bool sliced = true)
 	{
 		UISprite sprite = Widget<UISprite>(parent, name, width, height, position, depth);
 		sprite.atlas = atlases.FirstOrDefault(a => a.GetSprite(spriteName) != null);
 		sprite.spriteName = spriteName;
-		sprite.type = UIBasicSprite.Type.Sliced;
+		sprite.type = sliced ? UIBasicSprite.Type.Sliced : UIBasicSprite.Type.Simple;
 		sprite.width = width;
 		sprite.height = height;
 		return sprite;
 	}
 
-	private UILabel Label(Transform parent, string text, int size, int width, int height, Vector2 position)
+	private static void Style(UILabel label, UILabel source)
 	{
-		UILabel label = Widget<UILabel>(parent, "Label", width, height, position, 5);
-		if (fontStyle != null)
+		if (source == null)
 		{
-			label.bitmapFont = fontStyle.bitmapFont;
-			if (fontStyle.bitmapFont == null) label.trueTypeFont = fontStyle.trueTypeFont;
-			label.color = fontStyle.color;
-			label.applyGradient = fontStyle.applyGradient;
-			label.gradientTop = fontStyle.gradientTop;
-			label.gradientBottom = fontStyle.gradientBottom;
-			label.effectStyle = fontStyle.effectStyle;
-			label.effectColor = fontStyle.effectColor;
-			label.effectDistance = fontStyle.effectDistance;
-			label.fontStyle = fontStyle.fontStyle;
+			label.color = Color.white;
+			label.applyGradient = false;
+			label.effectStyle = UILabel.Effect.Outline8;
+			label.effectColor = Color.black;
+			return;
+		}
+		label.color = source.color;
+		label.applyGradient = source.applyGradient;
+		label.gradientTop = source.gradientTop;
+		label.gradientBottom = source.gradientBottom;
+		label.effectStyle = source.effectStyle;
+		label.effectColor = source.effectColor;
+		label.effectDistance = source.effectDistance;
+		label.spacingX = source.spacingX;
+		label.fontStyle = source.fontStyle;
+	}
+
+	private UILabel Label(Transform parent, string text, int size, Vector2 position, int depth, UIWidget.Pivot pivot, UILabel style, int width)
+	{
+		UILabel label = Widget<UILabel>(parent, "Label", width, size + 16, position, depth);
+		UILabel font = style ?? nameStyle ?? toggleStyle ?? titleStyle ?? buttonStyle;
+		if (font != null)
+		{
+			label.bitmapFont = font.bitmapFont;
+			if (font.bitmapFont == null) label.trueTypeFont = font.trueTypeFont;
 		}
 		label.fontSize = size;
-		label.alignment = NGUIText.Alignment.Center;
+		label.pivot = pivot;
+		label.alignment = pivot == UIWidget.Pivot.Left ? NGUIText.Alignment.Left
+			: pivot == UIWidget.Pivot.Right ? NGUIText.Alignment.Right : NGUIText.Alignment.Center;
 		label.overflowMethod = UILabel.Overflow.ShrinkContent;
+		label.transform.localPosition = position;
+		Style(label, style);
 		label.text = text;
 		return label;
 	}
 
-	private UILabel Button(string name, string text, Vector2 position, int width, Action action, out UISprite sprite)
+	private void Clickable(GameObject go, Action action, int padding = 0)
 	{
-		sprite = Sprite(content, name, "Common_Button6_Normal", width, 55, position, 3);
-		NGUITools.AddWidgetCollider(sprite.gameObject);
-		UIEventListener.Get(sprite.gameObject).onClick = delegate { action(); };
-		return Label(sprite.transform, text, 25, width - 16, 48, Vector2.zero);
+		NGUITools.AddWidgetCollider(go);
+		BoxCollider collider = go.GetComponent<BoxCollider>();
+		if (padding > 0 && collider != null)
+		{
+			collider.size += new Vector3(padding * 2, padding * 2, 0f);
+		}
+		UIButtonScale scale = go.AddComponent<UIButtonScale>();
+		scale.tweenTarget = go.transform;
+		scale.hover = Vector3.one;
+		scale.pressed = new Vector3(0.95f, 0.95f, 1f);
+		scale.duration = 0.08f;
+		UIEventListener.Get(go).onClick = delegate { action(); };
+	}
+
+	private GameObject Button(string text, string spriteName, Vector2 position, int width, Action action, out UILabel label)
+	{
+		UISprite sprite = Sprite(content, text, spriteName, width, 80, position, 7);
+		label = Label(sprite.transform, text, 30, Vector2.zero, 8, UIWidget.Pivot.Center, buttonStyle, width - 30);
+		Clickable(sprite.gameObject, action);
+		return sprite.gameObject;
 	}
 }

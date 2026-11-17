@@ -361,7 +361,7 @@ internal static class SprkBattleKeyboardProbe
 		Check(row.Button.onClick.Count == 1, "keyboard row must have exactly one callback");
 		Check(row.ParentRoot != null && row.ParentRoot.Label_OptionName != null &&
 			row.ParentRoot.Label_OptionName.text == "Hero Skill Keyboard Controls", "keyboard row caption");
-		Check(row.Label_Button != null && row.Label_Button.text == ((bool)Get("ControlsEnabled") ? "On - Configure" : "Off - Configure"), "keyboard row enabled caption");
+		Check(row.Label_Button != null && row.Label_Button.text == ((bool)Get("ControlsEnabled") ? "Configure (On)" : "Configure (Off)"), "keyboard row enabled caption");
 		Check(NGUITools.FindInParents<UIRoot>(window.gameObject) != null, "native settings UIRoot missing");
 		return row;
 	}

@@ -29,16 +29,68 @@ public static class SprkBattleKeyboard
 				{
 					return "Unbound";
 				}
-				string key = Key.ToString();
-				if (Key >= KeyCode.Alpha0 && Key <= KeyCode.Alpha9)
-				{
-					key = ((int)Key - (int)KeyCode.Alpha0).ToString(CultureInfo.InvariantCulture);
-				}
 				return ((Modifiers & 1) != 0 ? "Ctrl+" : "")
 					+ ((Modifiers & 2) != 0 ? "Alt+" : "")
 					+ ((Modifiers & 4) != 0 ? "Shift+" : "")
-					+ ((Modifiers & 8) != 0 ? "Meta+" : "") + key;
+					+ ((Modifiers & 8) != 0 ? "Meta+" : "") + KeyName(Key);
 			}
+		}
+
+		// Compact form for the in-battle key badges: modifiers as single letters (Shift+1 -> S1).
+		internal string ShortLabel
+		{
+			get
+			{
+				if (Key == KeyCode.None)
+				{
+					return "";
+				}
+				return ((Modifiers & 1) != 0 ? "C" : "")
+					+ ((Modifiers & 2) != 0 ? "A" : "")
+					+ ((Modifiers & 4) != 0 ? "S" : "")
+					+ ((Modifiers & 8) != 0 ? "M" : "") + KeyName(Key);
+			}
+		}
+	}
+
+	internal static string KeyName(KeyCode key)
+	{
+		if (key >= KeyCode.Alpha0 && key <= KeyCode.Alpha9)
+		{
+			return ((int)key - (int)KeyCode.Alpha0).ToString(CultureInfo.InvariantCulture);
+		}
+		if (key >= KeyCode.Keypad0 && key <= KeyCode.Keypad9)
+		{
+			return "Num" + ((int)key - (int)KeyCode.Keypad0).ToString(CultureInfo.InvariantCulture);
+		}
+		switch (key)
+		{
+			case KeyCode.BackQuote: return "`";
+			case KeyCode.Minus: return "-";
+			case KeyCode.Equals: return "=";
+			case KeyCode.LeftBracket: return "[";
+			case KeyCode.RightBracket: return "]";
+			case KeyCode.Backslash: return "\\";
+			case KeyCode.Semicolon: return ";";
+			case KeyCode.Quote: return "'";
+			case KeyCode.Comma: return ",";
+			case KeyCode.Period: return ".";
+			case KeyCode.Slash: return "/";
+			case KeyCode.Return: return "Enter";
+			case KeyCode.KeypadEnter: return "NumEnter";
+			case KeyCode.KeypadPlus: return "Num+";
+			case KeyCode.KeypadMinus: return "Num-";
+			case KeyCode.KeypadMultiply: return "Num*";
+			case KeyCode.KeypadDivide: return "Num/";
+			case KeyCode.KeypadPeriod: return "Num.";
+			case KeyCode.UpArrow: return "Up";
+			case KeyCode.DownArrow: return "Down";
+			case KeyCode.LeftArrow: return "Left";
+			case KeyCode.RightArrow: return "Right";
+			case KeyCode.PageUp: return "PgUp";
+			case KeyCode.PageDown: return "PgDn";
+			case KeyCode.CapsLock: return "Caps";
+			default: return key.ToString();
 		}
 	}
 
@@ -49,7 +101,9 @@ public static class SprkBattleKeyboard
 	private static Binding[] custom;
 	private static bool loaded;
 	private static bool enabled;
+	private static bool hints;
 	private static int preset;
+	private static int revision;
 	private static GameOptionWindow settingsWindow;
 	private static int suppressedThroughFrame = -1;
 
@@ -60,10 +114,28 @@ public static class SprkBattleKeyboard
 		{
 			EnsureLoaded();
 			enabled = value;
+			revision++;
 			SprkTestPrefs.SetInt(Prefix + "Enabled", value ? 1 : 0);
 			SprkTestPrefs.Save();
 		}
 	}
+
+	// Key badges drawn on the battle skill slots (default on; only shown while controls are on).
+	public static bool KeyHintsEnabled
+	{
+		get { EnsureLoaded(); return hints; }
+		set
+		{
+			EnsureLoaded();
+			hints = value;
+			revision++;
+			SprkTestPrefs.SetInt(Prefix + "Hints", value ? 1 : 0);
+			SprkTestPrefs.Save();
+		}
+	}
+
+	// Bumped on every preference change so battle badges refresh immediately.
+	internal static int Revision => revision;
 
 	// Includes the entire game settings window, not just the keyboard editor.
 	public static bool SettingsOpen => SprkBattleKeyboardPanel.Current != null
@@ -104,6 +176,7 @@ public static class SprkBattleKeyboard
 		{
 			EnsureLoaded();
 			preset = Mathf.Clamp(value, 0, 3);
+			revision++;
 			SprkTestPrefs.SetInt(Prefix + "Preset", preset);
 			SprkTestPrefs.Save();
 		}
@@ -137,6 +210,24 @@ public static class SprkBattleKeyboard
 			custom[duplicate] = default(Binding);
 		}
 		custom[slot] = binding;
+		SaveCustom();
+	}
+
+	// Replaces the custom layout with a copy of preset A/B/C so it can be tweaked.
+	internal static void CopyPresetToCustom(int source)
+	{
+		EnsureLoaded();
+		if (source < 0 || source >= presets.Length)
+		{
+			return;
+		}
+		custom = (Binding[])presets[source].Clone();
+		SaveCustom();
+	}
+
+	private static void SaveCustom()
+	{
+		revision++;
 		string[] entries = new string[16];
 		for (int i = 0; i < entries.Length; i++)
 		{
@@ -225,6 +316,8 @@ public static class SprkBattleKeyboard
 			return;
 		}
 		enabled = SprkTestPrefs.GetInt(Prefix + "Enabled", 0) == 1;
+		hints = SprkTestPrefs.GetInt(Prefix + "Hints", 1) == 1;
+		revision++;
 		preset = Mathf.Clamp(SprkTestPrefs.GetInt(Prefix + "Preset", 0), 0, 3);
 		custom = (Binding[])presets[0].Clone();
 		string saved = SprkTestPrefs.GetString(Prefix + "Custom.v1", "");

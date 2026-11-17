@@ -120,6 +120,15 @@ hero ordering, real modifier/key-down edges and reservation/cancellation in a
 battle, plus hidden main-party/alternate-party controls. Native key capture can
 be exercised by selecting Custom, clicking a binding and using `key SHIFT_TAB`.
 
+In a running battle (same `battle-keyboard-*` profile), `battle-keyboard-live`
+reports the battle hook's gate (party open/visible, battle started/enabled),
+the key badge text on every hero's skills and `fires` / `firesBeforeStart` counters;
+`text="enable"` turns the controls on first. `key` accepts digits and letters,
+so `key 1` during combat followed by `battle-keyboard-live` shows whether a
+real key press reached a skill. Keep profile names short: the account lock
+file path exceeds Windows MAX_PATH with long ones and login then fails with
+"This account is open in another window."
+
 ## Validation and restoration
 
 Verified on the actual client: launch, screenshot, UI enumeration, native event
