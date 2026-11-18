@@ -3,19 +3,19 @@
 Run commands from the repository root. Scripts belong to the product they
 serve; CI and Docker orchestration files stay at the root.
 
-| Directory | Purpose |
-| --- | --- |
-| `client/dev.py` | Everyday client commands: build, test copy, install, clean |
-| `client/scripts/build/` | Compiler and test-copy code used by `client/dev.py` and CI |
-| `client/scripts/release/` | Build, sign, publish and select client updates; pin the asset baseline |
-| `client/scripts/automation/` | Drive the real client against an isolated server; scenarios |
-| `client/scripts/launcher/` | Build the launcher and install it into a game folder |
+| Directory                         | Purpose                                                                                                                |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `client/dev.py`                   | Everyday client commands: build, test copy, install, clean                                                             |
+| `client/scripts/build/`           | Compiler and test-copy code used by `client/dev.py` and CI                                                             |
+| `client/scripts/release/`         | Build, sign, publish and select client updates; pin the asset baseline                                                 |
+| `client/scripts/automation/`      | Drive the real client against an isolated server; scenarios                                                            |
+| `client/scripts/launcher/`        | Build the launcher and install it into a game folder                                                                   |
 | `client/android/HybridBootstrap/` | Android build of the shared C# (HybridCLR): content repack, APK, device scripts ([guide](../client/README.md#android)) |
-| `server/scripts/database/` | SQL checking, database diagnostics and the SQLite copy tool |
-| `server/scripts/local/` | Local server startup and process lifetime |
-| `server/scripts/worker/` | Battle worker preparation and image smoke checks |
-| `server/scripts/performance/` | HTTP latency measurements |
-| `server/scripts/docker/` | Container entrypoints, health checks and image build steps |
+| `server/scripts/database/`        | SQL checking, database diagnostics and the SQLite copy tool                                                            |
+| `server/scripts/local/`           | Local server startup and process lifetime                                                                              |
+| `server/scripts/worker/`          | Battle worker preparation and image smoke checks                                                                       |
+| `server/scripts/performance/`     | HTTP latency measurements                                                                                              |
+| `server/scripts/docker/`          | Container entrypoints, health checks and image build steps                                                             |
 
 Main entry points:
 

@@ -114,6 +114,8 @@ public class SystemButtonAuto : BaseWindowUpdater, IAutoBattle
 		ApplyAutoType(EAutoType.Manual, force: true);
 		ApplySpeedType(ESpeedType.Normal, force: true);
 		AdjustOldTypeToNewType();
+		_speedType.Value = (SprkBattleSpeed.Restore(_speedType.Value == ESpeedType.Fast) ? ESpeedType.Fast : ESpeedType.Normal);
+		SprkBattleSpeed.Attach(SpeedSpriteSelector);
 		_listener.OnChangeAuto();
 	}
 
@@ -182,18 +184,11 @@ public class SystemButtonAuto : BaseWindowUpdater, IAutoBattle
 		}
 		else if (_listener != null)
 		{
-			if (_speedType.Value == ESpeedType.Normal)
+			SprkBattleSpeed.ToggleMenu(SpeedSpriteSelector, delegate(bool fast)
 			{
-				_speedType.Value = ESpeedType.Fast;
-			}
-			else if (_speedType.Value == ESpeedType.Fast)
-			{
-				_speedType.Value = ESpeedType.Normal;
-			}
-			else
-			{
-				_speedType.Value = ESpeedType.Normal;
-			}
+				_speedType.Value = (fast ? ESpeedType.Fast : ESpeedType.Normal);
+				UpdatePeriodically();
+			});
 		}
 	}
 

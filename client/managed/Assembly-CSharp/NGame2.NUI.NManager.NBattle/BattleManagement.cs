@@ -973,15 +973,21 @@ public class BattleManagement : BaseManagement<BattleManagement>, SystemButtonAu
 		{
 			return SprkArenaPractice.Speed(_gameSpeedRatio);
 		}
+		float num = (IsEnableAutoSpeedFast() ? GetAutoFastGameSpeedRatio() : _basicGameSpeedRatio);
 		if (IsEnableShowTooltipSpeedSlow())
 		{
-			return SprkArenaPractice.Speed(_showTooltipGameSpeedRatio);
+			return SprkArenaPractice.Speed(Mathf.Min(_showTooltipGameSpeedRatio, num));
 		}
-		if (IsEnableAutoSpeedFast())
+		return SprkArenaPractice.Speed(num);
+	}
+
+	private float GetAutoFastGameSpeedRatio()
+	{
+		if (IsOpened<SystemButtonAuto>() || IsOpened<SystemButtonSpeed>())
 		{
-			return SprkArenaPractice.Speed(_autoFastGameSpeedRatio);
+			return SprkBattleSpeed.Ratio(_autoFastGameSpeedRatio);
 		}
-		return SprkArenaPractice.Speed(_basicGameSpeedRatio);
+		return _autoFastGameSpeedRatio;
 	}
 
 	private void UpdateAutoGameSpeed()
