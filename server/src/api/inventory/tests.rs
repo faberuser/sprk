@@ -1511,6 +1511,28 @@ async fn restored_crafting_all_active_archive_recipes_pay_exact_costs_and_delive
 }
 
 #[tokio::test]
+async fn divine_punishment_artifacts_craft_several_at_once_instantly() {
+    let (state,u)=setup().await;
+    // Dragon's Doomstone, Apocalypsion's Tear, Golem's Fuel, Solenis' Engraving.
+    for id in [126,127,128,129] {
+        let recipe=state.tables.inventory.crafts[&id].clone();
+        assert_eq!(recipe["Countable"],true,"recipe {id}");
+        assert_eq!(item::n(&recipe,"ReqTime"),0,"recipe {id}");
+        materials(&state,&u,&recipe,3).await;
+        crate::db::query("UPDATE user_info SET gold=1000000000 WHERE account_id=$1").bind(u.user_info.account_id).execute(&state.db).await.unwrap();
+        let output=item::n(&recipe,"ItemIndex") as i32;
+        let before=count(&state,&u,output).await;
+        let result=craft::craft_item(State(state.clone()),craft_form(&u,&recipe,3)).await.unwrap().0;
+        assert_eq!(result["Result"],"Success","recipe {id}: {result}");
+        assert_eq!(result["CurrencyResult"]["AddValue"],-3*item::n(&recipe,"ReqGold"),"recipe {id}");
+        assert_eq!(result["CraftSlotResult"]["ItemIndex"],0,"recipe {id}: the slot stays free");
+        assert_eq!(count(&state,&u,output).await,before+3*item::n(&recipe,"ResultItemCount") as i32,"recipe {id}");
+        let material=item::n(&recipe["Materials"][0],"ItemIndex") as i32;
+        assert_eq!(count(&state,&u,material).await,0,"recipe {id}");
+    }
+}
+
+#[tokio::test]
 async fn restored_artifact_crafts_reject_missing_materials_forged_outputs_and_retired_recipes() {
     let (state,u)=setup().await;
     for id in [65,106] {

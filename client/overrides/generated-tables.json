@@ -10,6 +10,7 @@
     "LocalizationJit/LocalizationAll_Russian.jit",
     "TableJit/ClientCreatureTable.jit",
     "TableJit/CostumeTable.jit",
+    "TableJit/CraftItemTable.jit",
     "TableJit/CreatureTable.jit",
     "TableJit/EquipItemTable.jit",
     "TableJit/HeroAnimationViewTable.jit",
