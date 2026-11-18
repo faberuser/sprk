@@ -3,7 +3,9 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 3
-  tags: []
+  tags:
+  - AnimationRoot
+  - BroadcastCamera
   layers:
   - Default
   - TransparentFX
@@ -13,29 +15,29 @@ TagManager:
   - UI
   - 
   - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
+  - Hero3DPreview
+  - GlobalUI
+  - BattleBackground3d
+  - BattleBackgroundUI
+  - BottomFixedUI
+  - BottomUI
+  - Bottom3D
+  - CutSceneUI
+  - CutScene3D
+  - CutSceneBottomUI
+  - Hero3DPreview2
+  - Hero3DPreview3
+  - Hero3DPreview4
+  - Hero3DPreview5
+  - BroadcastUI
+  - Global3D
+  - GlobalVideo
+  - UI3D
+  - UI3DUI
+  - Bottom3DUI
+  - BattleUI
+  - SpineUI
+  - Pet
   - 
   m_SortingLayers:
   - name: Default

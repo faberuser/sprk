@@ -164,7 +164,7 @@ mod tests {
     #[test]
     fn world_boss_two_entry_override_resets_at_utc_midnight_without_accumulating() {
         let def=json!({"AttributeName":"WorldBossGlobalTicket","UpdateType":2,"MaxCountValue":"1","ResetCount":[0,1,1,1,1,1,1]});
-        let rules: Value=serde_json::from_str(include_str!("../../../../tables/BattleRules.json")).unwrap();
+        let rules: Value=serde_json::from_str(include_str!("../../../tables/BattleRules.json")).unwrap();
         let overrides=&rules["EntryRechargeOverrides"]["WorldBossGlobalTicket"];
         assert_eq!(overrides["UtcOffsetSeconds"],0);
         let at=|info:&Value,time:&str,cost| super::at(info,&def,overrides,1,time.parse().unwrap(),cost).unwrap();

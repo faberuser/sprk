@@ -44,7 +44,6 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
-  include("D:/kr/sprk/sprk/client/android/HybridBootstrap/.utmp/RelWithDebInfo/v6o535c3/arm64-v8a/GameActivity/cmake_install.cmake")
   include("D:/kr/sprk/sprk/client/android/HybridBootstrap/.utmp/RelWithDebInfo/v6o535c3/arm64-v8a/FramePacing/cmake_install.cmake")
 
 endif()

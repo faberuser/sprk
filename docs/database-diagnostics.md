@@ -343,12 +343,12 @@ Either flag can be used alone. The report prints:
   full-rebuild deadline finds it; without it the repeated requests all hit a
   warm snapshot. Run the test binary
   (`target/release/deps/sprk_server-*.exe profile_requests --ignored --nocapture`)
-  from the repository root: `cargo test` runs it from `server/`, where `tables/`
-  is not found. It writes to the copy. Test builds check
+  from `server/`, where `cargo test` runs it and finds `tables/`.
+  It writes to the copy. Test builds check
   every incremental progression snapshot against a full rebuild; set
   `SPRK_PROGRESSION_VERIFY=0` when timing.
 - Startup on the release binary in a scratch folder:
-  `DATABASE_URL=<scratch db> RUST_LOG=info PORT=18080 GAME_TABLES_PATH=<repo>/tables target/release/sprk-server.exe`.
+  `DATABASE_URL=<scratch db> RUST_LOG=info PORT=18080 GAME_TABLES_PATH=<repo>/server/tables target/release/sprk-server.exe`.
   `GameTables::load` dominates (about 25–40 s of JSON parsing, not the
   database); migrations and startup recovery take under a second.
 

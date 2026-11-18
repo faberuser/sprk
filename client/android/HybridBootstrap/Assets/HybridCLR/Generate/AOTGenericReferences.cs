@@ -10,6 +10,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
         "System.dll",
         "UniTask.dll",
         "Unity.Postprocessing.Runtime.dll",
+        "UnityEngine.AndroidJNIModule.dll",
         "UnityEngine.AssetBundleModule.dll",
         "UnityEngine.CoreModule.dll",
         "UnityEngine.JSONSerializeModule.dll",
@@ -518,9 +519,11 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
     // System.Action<object,short>
     // System.Action<object>
     // System.Action<ushort>
+    // System.ArraySegment.Enumerator<UnityEngine.jvalue>
     // System.ArraySegment.Enumerator<byte>
     // System.ArraySegment.Enumerator<int>
     // System.ArraySegment.Enumerator<ushort>
+    // System.ArraySegment<UnityEngine.jvalue>
     // System.ArraySegment<byte>
     // System.ArraySegment<int>
     // System.ArraySegment<ushort>
@@ -547,6 +550,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
     // System.Buffers.TlsOverPerCoreLockedStacksArrayPool.PerCoreLockedStacks<int>
     // System.Buffers.TlsOverPerCoreLockedStacksArrayPool<byte>
     // System.Buffers.TlsOverPerCoreLockedStacksArrayPool<int>
+    // System.ByReference<UnityEngine.jvalue>
     // System.ByReference<byte>
     // System.ByReference<int>
     // System.ByReference<ushort>
@@ -7177,6 +7181,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
     // System.Predicate<object>
     // System.Predicate<ushort>
     // System.ReadOnlyMemory<byte>
+    // System.ReadOnlySpan<UnityEngine.jvalue>
     // System.ReadOnlySpan<byte>
     // System.ReadOnlySpan<int>
     // System.ReadOnlySpan<ushort>
@@ -7191,9 +7196,11 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
     // System.Runtime.CompilerServices.TaskAwaiter<System.Threading.Tasks.VoidTaskResult>
     // System.Runtime.CompilerServices.TaskAwaiter<int>
     // System.Runtime.CompilerServices.TaskAwaiter<object>
+    // System.Span.Enumerator<UnityEngine.jvalue>
     // System.Span.Enumerator<byte>
     // System.Span.Enumerator<int>
     // System.Span.Enumerator<ushort>
+    // System.Span<UnityEngine.jvalue>
     // System.Span<byte>
     // System.Span<int>
     // System.Span<ushort>
@@ -7534,6 +7541,17 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
         // System.Void System.Runtime.InteropServices.SafeBuffer.ReadArray<byte>(ulong,byte[],int,int)
         // uint System.Runtime.InteropServices.SafeBuffer.SizeOf<byte>()
         // System.Threading.Tasks.Task<object> System.Threading.Tasks.Task.Run<object>(System.Func<object>,System.Threading.CancellationToken)
+        // object UnityEngine.AndroidJNIHelper.ConvertFromJNIArray<object>(System.IntPtr)
+        // System.IntPtr UnityEngine.AndroidJNIHelper.GetFieldID<object>(System.IntPtr,string,bool)
+        // System.IntPtr UnityEngine.AndroidJNIHelper.GetMethodID<object>(System.IntPtr,string,object[],bool)
+        // object UnityEngine.AndroidJavaObject.Call<object>(string,object[])
+        // object UnityEngine.AndroidJavaObject.FromJavaArray<object>(System.IntPtr)
+        // object UnityEngine.AndroidJavaObject.FromJavaArrayDeleteLocalRef<object>(System.IntPtr)
+        // object UnityEngine.AndroidJavaObject.GetStatic<object>(string)
+        // object UnityEngine.AndroidJavaObject._Call<object>(System.IntPtr,object[])
+        // object UnityEngine.AndroidJavaObject._Call<object>(string,object[])
+        // object UnityEngine.AndroidJavaObject._GetStatic<object>(System.IntPtr)
+        // object UnityEngine.AndroidJavaObject._GetStatic<object>(string)
         // object[] UnityEngine.AssetBundle.ConvertObjects<object>(UnityEngine.Object[])
         // object[] UnityEngine.AssetBundle.LoadAllAssets<object>()
         // object UnityEngine.AssetBundle.LoadAsset<object>(string)
@@ -7573,6 +7591,10 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
         // object[] UnityEngine.Resources.FindObjectsOfTypeAll<object>()
         // object UnityEngine.Resources.Load<object>(string)
         // object UnityEngine.ScriptableObject.CreateInstance<object>()
+        // object UnityEngine._AndroidJNIHelper.ConvertFromJNIArray<object>(System.IntPtr)
+        // System.IntPtr UnityEngine._AndroidJNIHelper.GetFieldID<object>(System.IntPtr,string,bool)
+        // System.IntPtr UnityEngine._AndroidJNIHelper.GetMethodID<object>(System.IntPtr,string,object[],bool)
+        // string UnityEngine._AndroidJNIHelper.GetSignature<object>(object[])
         // string string.Concat<ushort>(System.Collections.Generic.IEnumerable<ushort>)
         // string string.Join<int>(string,System.Collections.Generic.IEnumerable<int>)
         // string string.JoinCore<int>(System.Char*,int,System.Collections.Generic.IEnumerable<int>)

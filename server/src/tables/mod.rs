@@ -11,7 +11,7 @@ pub(crate) fn test_tables() -> GameTables {
         .get_or_init(|| {
             let path = std::env::var_os("SPRK_TABLE_FIXTURE")
                 .map(std::path::PathBuf::from)
-                .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../tables"));
+                .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("tables"));
             GameTables::load(&path).expect("Test table fixtures must load without fallback")
         })
         .clone()

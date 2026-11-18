@@ -104,7 +104,7 @@ try {
     $env:SERVER_HTTPS = 'false'
     $env:SERVER_NAME = 'Local'
     $env:LOGIN_SERVER = 'http://127.0.0.1:8080/'
-    $env:GAME_TABLES_PATH = Join-Path $project 'tables'
+    $env:GAME_TABLES_PATH = Join-Path $project 'server/tables'
     $env:CHAT_BIND = '127.0.0.1'
     $env:BATTLE_BIND = '127.0.0.1'
     $env:SPRK_WEBSOCKET_ORIGIN = 'ws://127.0.0.1:8080'

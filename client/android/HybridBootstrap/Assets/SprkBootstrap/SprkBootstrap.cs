@@ -33,7 +33,7 @@ public class SprkBootstrap : MonoBehaviour
     void Log(string msg, bool fail = false)
     {
         if (fail) failures++;
-        string line = (fail ? "FAIL " : "") + msg;
+        string line = $"[{Time.realtimeSinceStartup,6:F2}s] " + (fail ? "FAIL " : "") + msg;
         lines.Add(line);
         if (fail) Debug.LogError(Tag + line); else Debug.Log(Tag + line);
         // Written per line so a native crash still leaves the last completed step on disk.
@@ -66,23 +66,71 @@ public class SprkBootstrap : MonoBehaviour
         }
     }
 
+    // Starts every read at once and waits a single time: reading one file per frame cost
+    // ~1.8 s of black screen for the 54 game assemblies.
+    IEnumerator ReadAll(List<string> rels, Dictionary<string, byte[]> into)
+    {
+        var pending = new List<(string rel, UnityWebRequest req)>();
+        foreach (var rel in rels)
+        {
+            string local = Override(rel);
+            if (local != null) { into[rel] = File.ReadAllBytes(local); continue; }
+            string url = Path.Combine(Application.streamingAssetsPath, "sprk", rel);
+            if (!url.Contains("://")) url = "file://" + url;
+            var req = UnityWebRequest.Get(url);
+            req.SendWebRequest();
+            pending.Add((rel, req));
+        }
+        while (pending.Any(p => !p.req.isDone)) yield return null;
+        foreach (var (rel, req) in pending)
+        {
+            into[rel] = req.result == UnityWebRequest.Result.Success ? req.downloadHandler.data : null;
+            req.Dispose();
+        }
+    }
+
+    bool probes;
+
     IEnumerator Start()
     {
-        Application.targetFrameRate = 30;
+        Application.targetFrameRate = 60;
         Log($"device={SystemInfo.deviceModel} abi={(IntPtr.Size == 8 ? "64" : "32")}-bit os={SystemInfo.operatingSystem}");
         Log($"gfx={SystemInfo.graphicsDeviceType} {SystemInfo.graphicsDeviceName}");
 
         byte[] indexBytes = null;
         yield return Read("index.txt", b => indexBytes = b);
-        if (indexBytes == null) { Log("index.txt missing", true); yield break; }
+        if (indexBytes == null) { overlay = true; Log("index.txt missing", true); yield break; }
         var index = Encoding.UTF8.GetString(indexBytes).Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
+        overlay = index.Contains("debug:overlay");
+        probes = index.Contains("debug:probes");
+
+        // Server: the game reads SPRK_HOST_URL (SprkLauncher sets it on Windows). Chosen here,
+        // before any game code runs. "server:local" (written by the dev scripts) skips the
+        // picker and uses the local server through adb reverse.
+        string host = ServerPicker.LocalUrl, hostName = ServerPicker.LocalName;
+        if (!index.Contains("server:local"))
+        {
+            picker = new ServerPicker();
+            Log("waiting for server picker");
+            while (!picker.Done) yield return null;
+            host = picker.Chosen.url;
+            hostName = picker.Chosen.name;
+            picker = null;
+        }
+        Environment.SetEnvironmentVariable("SPRK_HOST_URL", host);
+        Log($"server {hostName}: {host}");
+        var aotNames = index.Where(l => l.StartsWith("aot:")).Select(l => l.Substring(4)).ToList();
+        var hotNames = index.Where(l => l.StartsWith("hot:")).Select(l => l.Substring(4)).ToList();
+        var files = new Dictionary<string, byte[]>();
+        var t0 = Time.realtimeSinceStartup;
+        yield return ReadAll(aotNames.Select(n => $"aot/{n}.dll.bytes").Concat(hotNames.Select(n => $"hot/{n}.dll.bytes")).ToList(), files);
+        Log($"read {files.Count} assemblies in {(Time.realtimeSinceStartup - t0):F2}s");
 
         // 1. Supplementary metadata for AOT generics instantiated by interpreted code.
         int aotOk = 0;
-        foreach (var name in index.Where(l => l.StartsWith("aot:")).Select(l => l.Substring(4)))
+        foreach (var name in aotNames)
         {
-            byte[] dll = null;
-            yield return Read($"aot/{name}.dll.bytes", b => dll = b);
+            byte[] dll = files[$"aot/{name}.dll.bytes"];
             if (dll == null) { Log($"aot {name}: missing", true); continue; }
             var err = RuntimeApi.LoadMetadataForAOTAssembly(dll, HomologousImageMode.SuperSet);
             if (err == LoadImageErrorCode.OK) aotOk++; else Log($"aot {name}: {err}", true);
@@ -90,12 +138,11 @@ public class SprkBootstrap : MonoBehaviour
         Log($"AOT metadata loaded: {aotOk}");
 
         // 2. The game's own assemblies, unchanged from the Windows build.
-        var t0 = Time.realtimeSinceStartup;
+        t0 = Time.realtimeSinceStartup;
         var hot = new Dictionary<string, Assembly>();
-        foreach (var name in index.Where(l => l.StartsWith("hot:")).Select(l => l.Substring(4)))
+        foreach (var name in hotNames)
         {
-            byte[] dll = null;
-            yield return Read($"hot/{name}.dll.bytes", b => dll = b);
+            byte[] dll = files[$"hot/{name}.dll.bytes"];
             if (dll == null) { Log($"hot {name}: missing", true); continue; }
             try { hot[name] = Assembly.Load(dll); }
             catch (Exception e) { Log($"hot {name}: {e.GetType().Name}: {e.Message}", true); }
@@ -118,7 +165,28 @@ public class SprkBootstrap : MonoBehaviour
 
         // 4. Replay the game's [RuntimeInitializeOnLoadMethod] hooks (Unity only runs them for build-time assemblies).
         Invoke(game, "NVespa.UnityStartup", "RuntimeInit_BeforeSceneLoad");
+        if (probes) yield return Probes(game, index);
+
+        // 8. Repacked built-in content (scenes, Resources, MonoScripts, GLES shaders).
+        var content = index.Where(l => l.StartsWith("content:")).Select(l => l.Substring(8)).ToList();
+        if (content.Count > 0) yield return LoadContent(content);
+
+        string start = index.Where(l => l.StartsWith("start:")).Select(l => l.Substring(6)).FirstOrDefault();
+        if (start == null || failures > 0)
+        {
+            Log(failures == 0 ? "RESULT: PASS" : $"RESULT: {failures} failure(s)");
+            yield break;
+        }
+        yield return StartGame(game, start);
+    }
+
+    // Feasibility probes from the first milestone; only with "debug:probes" in index.txt.
+    IEnumerator Probes(Assembly game, List<string> index)
+    {
         Invoke(game, "NVespa.UnityStartup", "RuntimeInit_AfterSceneLoad");
+        var loaded = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+        var sceneComps = loaded.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<Component>(true)).ToList();
+        Log($"scene {loaded.name}: components={sceneComps.Count} missing={sceneComps.Count(c => c == null)} behaviours=[{string.Join(",", sceneComps.OfType<MonoBehaviour>().GroupBy(c => c.GetType().Name).OrderByDescending(g => g.Count()).Take(10).Select(g => $"{g.Key}x{g.Count()}"))}]");
 
         // 5. Real serialized game components with Unity callbacks: NGUI UIPanel driven by AnimatedAlpha.
         yield return ComponentProbe(game);
@@ -134,8 +202,138 @@ public class SprkBootstrap : MonoBehaviour
 
         // 7. Content gate: original asset bundles pushed to persistentDataPath/sprk/bundles.
         yield return BundleProbe(index.Where(l => l.StartsWith("bundle:")).Select(l => l.Substring(7)).ToList());
+    }
 
-        Log(failures == 0 ? "RESULT: PASS" : $"RESULT: {failures} failure(s)");
+    static readonly List<AssetBundle> contentBundles = new List<AssetBundle>();
+    // A player keeps its MonoScripts and always-included shaders resident. Loaded from
+    // bundles they are ordinary assets, and the first single-mode scene load would
+    // unload them (Shader.Find then fails; MonoBehaviours lose their scripts).
+    static readonly List<UnityEngine.Object> keepAlive = new List<UnityEngine.Object>();
+
+    IEnumerator LoadContent(List<string> files)
+    {
+        string root = Path.Combine(Application.persistentDataPath, "sprk", "content");
+        foreach (var f in files)
+        {
+            var t = Time.realtimeSinceStartup;
+            var req = AssetBundle.LoadFromFileAsync(Path.Combine(root, f));
+            yield return req;
+            if (req.assetBundle == null) { Log($"content {f}: failed to load", true); continue; }
+            contentBundles.Add(req.assetBundle);
+            string extra = "";
+            if (f.Contains("ggm"))
+            {
+                // MonoScripts must be in memory before MonoBehaviours deserialize.
+                var all = req.assetBundle.LoadAllAssetsAsync();
+                yield return all;
+                keepAlive.AddRange(all.allAssets);
+                extra = $" scripts={all.allAssets.Length}";
+            }
+            if (f.Contains("shaders"))
+            {
+                // Shader.Find only sees loaded shaders.
+                var all = req.assetBundle.LoadAllAssetsAsync<Shader>();
+                yield return all;
+                keepAlive.AddRange(all.allAssets);
+                extra = $" shaders={all.allAssets.Length} unsupported={all.allAssets.Cast<Shader>().Count(s => !s.isSupported)}";
+            }
+            Log($"content {f}: mounted in {(Time.realtimeSinceStartup - t):F2}s{extra}");
+        }
+
+        if (!probes) yield break;
+        // Resources now resolve through the patched player ResourceManager.
+        try
+        {
+            var loc = Resources.Load<TextAsset>("Localization/Localization_BasicEnglish");
+            Log(loc != null ? $"Resources.Load Localization_BasicEnglish: {loc.bytes.Length} bytes" : "Resources.Load Localization_BasicEnglish: null", loc == null);
+            var res = contentBundles.FirstOrDefault(x => x.name.Contains("resources"));
+            if (res != null)
+            {
+                var viaBundle = res.LoadAsset<GameObject>("prefab2/window/gameoption/myinfowindow");
+                Log(viaBundle == null ? "bundle LoadAsset MyInfoWindow: null" : $"bundle LoadAsset MyInfoWindow: missing={MissingIn(viaBundle)}");
+            }
+            var win = Resources.Load<GameObject>("Prefab2/Window/GameOption/MyInfoWindow");
+            if (win == null) Log("Resources.Load MyInfoWindow: null", true);
+            else
+            {
+                // Informational only: the scene start below is the real test.
+                var inst = Instantiate(win);
+                var comps = inst.GetComponentsInChildren<Component>(true);
+                int missing = comps.Count(c => c == null);
+                var kinds = string.Join(",", comps.Where(c => c != null).GroupBy(c => c.GetType().Name).OrderByDescending(g => g.Count()).Take(8).Select(g => $"{g.Key}x{g.Count()}"));
+                Log($"Resources.Load MyInfoWindow: {inst.GetComponentsInChildren<Transform>(true).Length} transforms, missing={missing} [{kinds}]");
+                Destroy(inst);
+            }
+        }
+        catch (Exception e) { Log($"Resources probe: {e.GetType().Name}: {e.Message}", true); }
+    }
+
+    static int MissingIn(GameObject root)
+    {
+        var inst = Instantiate(root);
+        int missing = inst.GetComponentsInChildren<Component>(true).Count(c => c == null);
+        Destroy(inst);
+        return missing;
+    }
+
+    // On-screen probe log; off unless index.txt has a "debug:overlay" line (the log file is always written).
+    bool overlay;
+    int gameLogLines;
+
+    IEnumerator StartGame(Assembly game, string scene)
+    {
+        Log($"RESULT: PASS (starting {scene})");
+        DontDestroyOnLoad(gameObject);
+        overlay = false;
+        foreach (var cam in FindObjectsByType<Camera>(FindObjectsSortMode.None)) if (cam.name == "BootCamera") Destroy(cam.gameObject);
+        var seen = new Dictionary<string, int>();
+        Application.logMessageReceived += (msg, stack, type) =>
+        {
+            if (type == LogType.Log || type == LogType.Warning || msg.StartsWith(Tag)) return;
+            // Full stack for the first occurrence of each distinct error only.
+            string key = type + msg;
+            seen.TryGetValue(key, out int n);
+            seen[key] = n + 1;
+            if (n > 0 || gameLogLines > 200) return;
+            gameLogLines++;
+            string frames = string.Join(" < ", (stack ?? "").Split('\n').Select(l => l.Trim())
+                .Where(l => l.Length > 0 && !l.StartsWith("UnityEngine.Debug")).Take(8));
+            Log($"[{type}] {msg} @ {frames}");
+        };
+        var load = UnityEngine.SceneManagement.SceneManager.LoadSceneAsync(scene);
+        if (load == null) { Log($"scene {scene}: not found in loaded bundles", true); yield break; }
+        yield return load;
+        Invoke(game, "NVespa.UnityStartup", "RuntimeInit_AfterSceneLoad");
+        var loaded = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+        var sceneComps = loaded.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<Component>(true)).ToList();
+        Log($"scene {loaded.name}: components={sceneComps.Count} missing={sceneComps.Count(c => c == null)} behaviours=[{string.Join(",", sceneComps.OfType<MonoBehaviour>().GroupBy(c => c.GetType().Name).OrderByDescending(g => g.Count()).Take(10).Select(g => $"{g.Key}x{g.Count()}"))}]");
+        yield return FrameStats();
+    }
+
+    // Every 5 s: average / p95 / worst frame time, frames over 50 ms (visible stutter),
+    // gen-0 collections and managed heap. Lines start with "perf " for easy grepping.
+    IEnumerator FrameStats()
+    {
+        var times = new List<float>(512);
+        int gc0 = GC.CollectionCount(0);
+        float window = Time.realtimeSinceStartup, last = window;
+        while (true)
+        {
+            yield return null;
+            float now = Time.realtimeSinceStartup;
+            times.Add((now - last) * 1000f);
+            last = now;
+            if (now - window < 5f) continue;
+            times.Sort();
+            int gc = GC.CollectionCount(0);
+            var s = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+            Log($"perf scene={s.name} fps={times.Count / (now - window):F1} avg={times.Average():F1}ms p95={times[(int)(times.Count * 0.95f)]:F1}ms " +
+                $"max={times[times.Count - 1]:F0}ms hitches>50ms={times.Count(t => t > 50f)} gc0={gc - gc0} heap={GC.GetTotalMemory(false) >> 20}MB " +
+                $"target={Application.targetFrameRate}");
+            times.Clear();
+            gc0 = gc;
+            window = now;
+        }
     }
 
     void Invoke(Assembly asm, string type, string method)
@@ -217,8 +415,12 @@ public class SprkBootstrap : MonoBehaviour
 
     readonly List<Texture2D> shownTextures = new List<Texture2D>();
 
+    ServerPicker picker;
+
     void OnGUI()
     {
+        if (picker != null) { picker.OnGUI(); return; }
+        if (!overlay) return;
         GUI.skin.label.fontSize = Mathf.Max(14, Screen.height / 45);
         GUILayout.BeginArea(new Rect(10, 10, Screen.width * 0.6f, Screen.height - 20));
         scroll = GUILayout.BeginScrollView(scroll);

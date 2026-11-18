@@ -16,3 +16,8 @@
 /Assets/StreamingAssets/
 /Assets/StreamingAssets.meta
 /HotUpdate/
+/.utmp/
+/Assets/SprkTemplate/
+/Assets/SprkTemplate.meta
+/Assets/SprkBootstrap/Generated/
+/Assets/SprkBootstrap/Generated.meta

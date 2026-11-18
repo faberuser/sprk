@@ -25,6 +25,9 @@ public static class SprkAndroidBuild
 
     static string ProjectDir => Path.GetDirectoryName(Application.dataPath);
 
+    // Build output lives with the other generated files: <repo>/artifacts/android-bootstrap.
+    public static string ArtifactsDir => Path.GetFullPath(Path.Combine(ProjectDir, "..", "..", "..", "artifacts", "android-bootstrap"));
+
     static List<string> HotNames() =>
         File.ReadAllLines(Path.Combine(ProjectDir, HotDir, "hot-update.txt")).Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
 
@@ -32,8 +35,14 @@ public static class SprkAndroidBuild
     {
         var android = NamedBuildTarget.Android;
         PlayerSettings.companyName = "SPRK";
-        PlayerSettings.productName = "SPRK Hybrid Probe";
+        // Same name and icon as the Windows game. The package id stays: changing it would be a
+        // new app on the device and lose the installed patch data (8.6 GB) and saved logins.
+        PlayerSettings.productName = "King's Raid";
         PlayerSettings.SetApplicationIdentifier(android, "com.sprk.hybridprobe");
+        ApplyAppIcon();
+        // No "Made with Unity" splash (optional on Unity 6 Personal).
+        PlayerSettings.SplashScreen.show = false;
+        PlayerSettings.SplashScreen.showUnityLogo = false;
         PlayerSettings.SetScriptingBackend(android, ScriptingImplementation.IL2CPP);
         PlayerSettings.SetApiCompatibilityLevel(android, ApiCompatibilityLevel.NET_Unity_4_8);
         PlayerSettings.SetManagedStrippingLevel(android, ManagedStrippingLevel.Minimal);
@@ -49,6 +58,8 @@ public static class SprkAndroidBuild
         // under Vulkan Unity fails "shader compiler platform 18 not in blob" and then crashes.
         PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.Android, false);
         PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[] { UnityEngine.Rendering.GraphicsDeviceType.OpenGLES3 });
+        PlayerSettings.colorSpace = ColorSpace.Gamma; // matches the game's player settings
+        ApplyGameProjectSettings();
 
         var s = HybridCLRSettings.instance;
         s.enable = true;
@@ -64,20 +75,82 @@ public static class SprkAndroidBuild
         Debug.Log("[SprkAndroidBuild] configured");
     }
 
+    // Values read from the game's globalgamemanagers (TagManager). Repacked scenes and
+    // prefabs store tag/layer indices, so the Android player must define the same ones.
+    static readonly string[] GameTags = { "AnimationRoot", "BroadcastCamera" };
+    static readonly string[] GameLayers =
+    {
+        "Default", "TransparentFX", "Ignore Raycast", "", "Water", "UI", "", "", "Hero3DPreview", "GlobalUI",
+        "BattleBackground3d", "BattleBackgroundUI", "BottomFixedUI", "BottomUI", "Bottom3D", "CutSceneUI",
+        "CutScene3D", "CutSceneBottomUI", "Hero3DPreview2", "Hero3DPreview3", "Hero3DPreview4", "Hero3DPreview5",
+        "BroadcastUI", "Global3D", "GlobalVideo", "UI3D", "UI3DUI", "Bottom3DUI", "BattleUI", "SpineUI", "Pet", "",
+    };
+
+    // Built-in shaders the game content uses that only exist in the player's builtin_extra.
+    static readonly string[] IncludedBuiltinShaders = { "Legacy Shaders/Diffuse", "Unlit/Texture", "Unlit/Transparent" };
+
+    static void ApplyGameProjectSettings()
+    {
+        var tagManager = new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/TagManager.asset")[0]);
+        var tags = tagManager.FindProperty("tags");
+        tags.ClearArray();
+        for (int i = 0; i < GameTags.Length; i++) { tags.InsertArrayElementAtIndex(i); tags.GetArrayElementAtIndex(i).stringValue = GameTags[i]; }
+        var layers = tagManager.FindProperty("layers");
+        for (int i = 0; i < GameLayers.Length; i++) layers.GetArrayElementAtIndex(i).stringValue = GameLayers[i];
+        tagManager.ApplyModifiedPropertiesWithoutUndo();
+
+        var graphics = new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/GraphicsSettings.asset")[0]);
+        var always = graphics.FindProperty("m_AlwaysIncludedShaders");
+        var present = Enumerable.Range(0, always.arraySize).Select(i => always.GetArrayElementAtIndex(i).objectReferenceValue).ToList();
+        foreach (var name in IncludedBuiltinShaders)
+        {
+            var shader = Shader.Find(name);
+            if (shader == null) { Debug.Log($"[SprkAndroidBuild] built-in shader not available: {name}"); continue; }
+            if (present.Contains(shader)) continue;
+            always.InsertArrayElementAtIndex(always.arraySize);
+            always.GetArrayElementAtIndex(always.arraySize - 1).objectReferenceValue = shader;
+        }
+        graphics.ApplyModifiedPropertiesWithoutUndo();
+    }
+
     static void WriteLinkXml()
     {
         // Interpreted game code may call anything in the third-party assemblies.
         var plugins = Directory.GetFiles(Path.Combine(Application.dataPath, "Plugins/GameRuntime"), "*.dll")
             .Select(Path.GetFileNameWithoutExtension).OrderBy(n => n);
-        var xml = "<linker>\n" + string.Concat(plugins.Select(n => $"  <assembly fullname=\"{n}\" preserve=\"all\"/>\n")) + "</linker>\n";
+        // Engine modules too: the game code is interpreted, so the linker cannot see which
+        // engine methods it calls and strips them (e.g. Debug.DrawRay -> MissingMethodException
+        // in the world-map input handler, which froze map drag/zoom/taps).
+        string engineDir = Path.Combine(EditorApplication.applicationContentsPath, "Managed", "UnityEngine");
+        var engine = Directory.GetFiles(engineDir, "UnityEngine*.dll").Select(Path.GetFileNameWithoutExtension)
+            .Where(n => n != "UnityEngine" && !n.Contains("Editor")).OrderBy(n => n);
+        var xml = "<linker>\n" + string.Concat(plugins.Concat(engine).Select(n => $"  <assembly fullname=\"{n}\" preserve=\"all\"/>\n")) + "</linker>\n";
         File.WriteAllText(Path.Combine(Application.dataPath, "SprkBootstrap/link.xml"), xml);
         AssetDatabase.ImportAsset("Assets/SprkBootstrap/link.xml");
+    }
+
+    const string IconPath = "Assets/SprkBootstrap/Generated/AppIcon.png"; // written by sync_inputs.py
+
+    static void ApplyAppIcon()
+    {
+        AssetDatabase.ImportAsset(IconPath);
+        var icon = AssetDatabase.LoadAssetAtPath<Texture2D>(IconPath);
+        if (icon == null) throw new Exception($"{IconPath} missing; run sync_inputs.py");
+        PlayerSettings.SetIcons(NamedBuildTarget.Unknown, new[] { icon }, IconKind.Any);
     }
 
     static void EnsureScene()
     {
         Directory.CreateDirectory(Path.Combine(Application.dataPath, "Scenes"));
-        var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
+        // A black frame while the game code and content load: no skybox, light or debug text.
+        var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+        RenderSettings.skybox = null;
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+        RenderSettings.ambientLight = Color.black;
+        var cam = new GameObject("BootCamera").AddComponent<Camera>();
+        cam.clearFlags = CameraClearFlags.SolidColor;
+        cam.backgroundColor = Color.black;
+        cam.cullingMask = 0;
         var go = new GameObject("SprkBootstrap");
         go.AddComponent<SprkBootstrap>();
         EditorSceneManager.SaveScene(scene, ScenePath);
@@ -105,7 +178,7 @@ public static class SprkAndroidBuild
         PrebuildCommand.GenerateAll();
         StageStreamingAssets();
 
-        string apk = Path.Combine(ProjectDir, "Build", "sprk-hybrid-probe.apk");
+        string apk = Path.Combine(ArtifactsDir, "apk", "sprk-hybrid-probe.apk");
         Directory.CreateDirectory(Path.GetDirectoryName(apk));
         var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
         {

@@ -168,6 +168,7 @@
   </assembly>
   <assembly fullname="UnityEngine.AndroidJNIModule">
     <type fullname="UnityEngine.AndroidJNI" preserve="all" />
+    <type fullname="UnityEngine.AndroidJavaClass" preserve="all" />
     <type fullname="UnityEngine.AndroidJavaObject" preserve="all" />
     <type fullname="UnityEngine.AndroidJavaProxy" preserve="all" />
   </assembly>
@@ -277,6 +278,7 @@
     <type fullname="UnityEngine.Ray" preserve="all" />
     <type fullname="UnityEngine.Rect" preserve="all" />
     <type fullname="UnityEngine.RectInt" preserve="all" />
+    <type fullname="UnityEngine.RefreshRate" preserve="all" />
     <type fullname="UnityEngine.RenderTexture" preserve="all" />
     <type fullname="UnityEngine.RenderTextureDescriptor" preserve="all" />
     <type fullname="UnityEngine.RenderTextureFormat" preserve="all" />

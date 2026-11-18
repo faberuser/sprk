@@ -3,7 +3,7 @@
 //! SPRK_PROFILE_DATABASE_URL=<copy url> SPRK_PROFILE_ACCOUNT=<id> SPRK_PROFILE_REQUESTS=<file>
 //! cargo test --release profile_requests -- --ignored --nocapture
 //!
-//! Run from the repository root (it loads `tables/`). Each line of the file is
+//! Run from `server/` (it loads `tables/`, as `cargo test` does). Each line of the file is
 //! `<path> <form fields>` (the SessionKey is added); `#` starts a comment. Every
 //! request goes through the full game router and middleware, and acknowledges
 //! the progression, section and catalog tokens as the client does. With a

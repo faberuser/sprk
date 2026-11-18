@@ -16,22 +16,28 @@ adb() { "$ADB" -s "$SERIAL" "$@"; }
 win() { if command -v cygpath >/dev/null; then cygpath -w "$1"; else echo "$1"; fi; }
 
 if [ $INSTALL = 1 ]; then
-  adb install -r "$(win "$HERE/Build/sprk-hybrid-probe.apk")" | tail -1
+  adb install -r "$(win "$OUT/apk/sprk-hybrid-probe.apk")" | tail -1
 fi
 adb shell am force-stop $PKG
+# The game reaches the local server on 127.0.0.1; forward it (and chat 9001 / battle 9002)
+# to the isolated local stack on this PC.
+for port in 8080 9001 9002; do adb reverse tcp:$port tcp:$port >/dev/null; done
 adb logcat -G 64M >/dev/null 2>&1
 adb logcat -c
 log="$OUT/probe-logcat.txt"
-adb logcat -v time Unity:V CRASH:E DEBUG:E AndroidRuntime:E '*:S' > "$log" &
-cat_pid=$!
-adb shell am start -n $PKG/com.unity3d.player.UnityPlayerGameActivity >/dev/null
+probe=/sdcard/Android/data/$PKG/files/sprk-probe.txt
+adb shell rm -f $probe
+adb shell monkey -p $PKG -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1   # launcher activity, whatever its class
+# Wait for the bootstrap's result or a crash. (No background `adb logcat` stream: killing
+# it from Git Bash leaves the native adb process holding the output open.)
 for _ in $(seq 1 60); do
   sleep 2
-  grep -q "RESULT:\|SIGSEGV\|SIGABRT" "$log" && break
+  adb shell cat $probe 2>/dev/null | grep -q "RESULT:\|server picker" && break
+  adb logcat -d CRASH:E '*:S' 2>/dev/null | grep -q "SIGSEGV\|SIGABRT" && break
 done
 sleep 2
+adb logcat -d -v time Unity:V CRASH:E DEBUG:E AndroidRuntime:E '*:S' > "$log" 2>/dev/null
 adb exec-out screencap -p > "$OUT/probe-screen.png"
-kill $cat_pid 2>/dev/null
 echo "== probe report"
 adb shell cat /sdcard/Android/data/$PKG/files/sprk-probe.txt
 echo "== crash / errors"

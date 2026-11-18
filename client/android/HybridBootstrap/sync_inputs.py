@@ -98,7 +98,14 @@ def main():
     sync(code, HERE / "HotUpdate", hot)
     sync(code, HERE / "Assets/StreamingAssets/sprk/hot", hot, suffix=".dll.bytes")
     (HERE / "HotUpdate/hot-update.txt").write_text("\n".join(hot) + "\n", encoding="utf-8")
-    print(f"staged {len(AOT_PLUGINS)} AOT plugins, {len(hot)} hot-update assemblies")
+    # App icon: the same artwork as the Windows launcher (largest frame of its .ico).
+    from PIL import Image
+    icon_dir = HERE / "Assets/SprkBootstrap/Generated"
+    icon_dir.mkdir(parents=True, exist_ok=True)
+    ico = Image.open(REPO / "client/launcher/Assets/KingsRaid.ico")
+    ico.size = max(ico.info["sizes"])
+    ico.convert("RGBA").save(icon_dir / "AppIcon.png")
+    print(f"staged {len(AOT_PLUGINS)} AOT plugins, {len(hot)} hot-update assemblies, app icon {ico.size[0]}px")
 
 
 if __name__ == "__main__":

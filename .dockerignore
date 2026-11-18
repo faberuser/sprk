@@ -13,8 +13,8 @@
 !server/tests/
 !server/tests/fixtures/
 !server/tests/fixtures/**
-!tables/
-!tables/**
+!server/tables/
+!server/tables/**
 !config/
 !config/client-update-public.pem
 !config/mission-rule-gaps.json

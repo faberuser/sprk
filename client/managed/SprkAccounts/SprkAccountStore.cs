@@ -33,7 +33,7 @@ public sealed class SprkAccountStore
 		}
 		try
 		{
-			using BinaryReader binaryReader = new BinaryReader(new MemoryStream(ProtectedData.Unprotect(File.ReadAllBytes(path), null, DataProtectionScope.CurrentUser)), Encoding.UTF8);
+			using BinaryReader binaryReader = new BinaryReader(new MemoryStream(SprkAccountProtection.Unprotect(File.ReadAllBytes(path))), Encoding.UTF8);
 			if (binaryReader.ReadInt32() != 1)
 			{
 				throw new InvalidDataException();
@@ -206,7 +206,7 @@ public sealed class SprkAccountStore
 			}
 			array = memoryStream.ToArray();
 		}
-		byte[] bytes = ProtectedData.Protect(array, null, DataProtectionScope.CurrentUser);
+		byte[] bytes = SprkAccountProtection.Protect(array);
 		Array.Clear(array, 0, array.Length);
 		Directory.CreateDirectory(Path.GetDirectoryName(path));
 		string sourceFileName = path + ".tmp";

@@ -291,7 +291,7 @@ public sealed class SprkLoginSettings : MonoBehaviour, GameOptionWindow.Listener
 		{
 			return value;
 		}
-		AssetBundle assetBundle = AssetBundle.LoadFromFile(Path.Combine(Application.dataPath, "Documents/Patch/StandaloneWindows/Assetbundle", text, "NguiAtlas_UI_Prefab_" + name + ".unity3d"));
+		AssetBundle assetBundle = AssetBundle.LoadFromFile(Path.Combine(NVespa.UnityCache.GetDownloadedAssetPath("Assetbundle"), text, "NguiAtlas_UI_Prefab_" + name + ".unity3d"));
 		if (assetBundle == null)
 		{
 			throw new InvalidOperationException("The installed settings artwork could not be loaded.");

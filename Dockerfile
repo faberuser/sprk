@@ -38,7 +38,7 @@ RUN apt-get update \
     && useradd --uid 10001 --gid sprk --no-create-home sprk \
     && mkdir /data \
     && chown sprk:sprk /data
-COPY tables /app/tables
+COPY server/tables /app/tables
 COPY config/client-update-public.pem /app/client-update-public.pem
 COPY --from=illustration-model /models /app/illustration-models
 COPY --chown=sprk:sprk build-input/worker /opt/sprk-worker

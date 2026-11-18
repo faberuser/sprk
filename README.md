@@ -210,7 +210,6 @@ from an existing game folder or the pinned release.
 | ------------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | [`server/`](server/README.md)                                             | Rust server, PostgreSQL migrations, tests, GM CLI and server scripts |
 | [`client/`](client/README.md)                                             | Game C# source, launcher, client build/release/automation scripts    |
-| `tables/`                                                                 | Game tables the server loads                                         |
 | `config/`                                                                 | Client-update public key and shared configuration                    |
 | `docs/`                                                                   | Guides: updates, CI, database, automation and more                   |
 | `.github/workflows/`                                                      | Pull-request checks and the build-and-deploy pipeline                |
@@ -261,13 +260,19 @@ configuration, tests, the native battle worker and GM tools.
 ### Work on the client
 
 ```powershell
-python client/dev.py test       # build and start a separate test copy of the game
-python client/dev.py install    # build into your real game and publish a local release
-python client/dev.py clean      # remove the sprk-client-test dir
+python client/dev.py test # build and start a separate test copy of the game
+python client/dev.py install # build into your real game and publish a local release
+python client/dev.py clean # remove the sprk-client-test dir
+python client/android/dev.py test # Android build (prototype): build the APK, install it on BlueStacks or a phone, start it
+python client/android/dev.py test --picker # same, but you choose the server on the device
+python client/android/dev.py hot # C#-only changes: compile + push DLLs + restart, no APK rebuild
+python client/android/dev.py connect # fix "Cannot read Host files" after an ADB/BlueStacks restart
+python client/android/dev.py build # compile game code + build the APK
 ```
 
 [`client/README.md`](client/README.md) covers editing the game code, testing it
 safely, the launcher, replacing assets and tables, and publishing updates.
+The [Android section](client/README.md#android) covers the Android build of the same code; [`docs/android.md`](docs/android.md) lists its open work.
 
 ### Tests and checks
 
@@ -297,6 +302,7 @@ uploaded by hand.
 | [docs/client-updates.md](docs/client-updates.md)               | Update service, local publishing, Docker hosting |
 | [docs/github-client-updates.md](docs/github-client-updates.md) | CI pipeline, release baseline, signing           |
 | [docs/client-automation.md](docs/client-automation.md)         | Driving the real game in tests                   |
+| [docs/android.md](docs/android.md)                             | Android build: open work                         |
 | [docs/database-diagnostics.md](docs/database-diagnostics.md)   | PostgreSQL operations and performance            |
 | [docs/scripts.md](docs/scripts.md)                             | Every script and its purpose                     |
 | [docs/damage-formula.md](docs/damage-formula.md)               | Combat damage calculation                        |

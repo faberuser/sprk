@@ -101,8 +101,10 @@ async fn game_router() -> anyhow::Result<Router> {
     let db = database::init_database().await?;
     
     // Load game tables
-    let tables_path = std::env::var("GAME_TABLES_PATH")
-        .unwrap_or_else(|_| "tables".to_string());
+    let tables_path = std::env::var("GAME_TABLES_PATH").unwrap_or_else(|_| {
+        // Unset: the repository layout, from the repository root or from server/.
+        if Path::new("server/tables").is_dir() { "server/tables" } else { "tables" }.to_string()
+    });
     let tables = match GameTables::load(Path::new(&tables_path)) {
         Ok(t) => {
             tracing::info!("Loaded game tables from: {}", tables_path);

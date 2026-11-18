@@ -265,7 +265,7 @@ def launch(args):
         template = f' TEMPLATE "{args.seed_from}"' if args.seed_from else ""
         with closing(psycopg().connect(ADMIN_URL, autocommit=True)) as admin:
             admin.execute(f'CREATE DATABASE "{name}"{template}')
-        env = dict(os.environ, GAME_TABLES_PATH=str(REPO / "tables"), PORT="8080", CHAT_PORT="9001", CHAT_BIND="127.0.0.1", CHAT_ADDRESS="127.0.0.1", RUST_LOG="info",
+        env = dict(os.environ, GAME_TABLES_PATH=str(REPO / "server/tables"), PORT="8080", CHAT_PORT="9001", CHAT_BIND="127.0.0.1", CHAT_ADDRESS="127.0.0.1", RUST_LOG="info",
                    DATABASE_URL=meta["database"])
         env.pop("DATABASE_MIGRATION_URL", None)
         with (root / "server.log").open("wb") as log:

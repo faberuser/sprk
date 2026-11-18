@@ -797,7 +797,7 @@ public sealed class SprkIllustrationUpscale : MonoBehaviour
 		typeof(Define).GetProperty("PatchDownloaded").GetSetMethod(nonPublic: true).Invoke(null, new object[1] { true });
 		SingletonAuto<LocalizationLoader>.instance.SetEnableLoadFromPatch(enableLoad: true);
 		SingletonAuto<TableDataManager>.instance.Load();
-		string text = Path.Combine(Application.dataPath, "Documents", "Patch", "StandaloneWindows");
+		string text = NVespa.UnityCache.GetDownloadedAssetPath("");
 		Dictionary<string, AssetInfo> dictionary = new Dictionary<string, AssetInfo>();
 		MethodInfo setMethod = typeof(AssetInfo).GetProperty("EntryName").GetSetMethod(nonPublic: true);
 		string[] files = Directory.GetFiles(Path.Combine(text, "Assetbundle"), "*", SearchOption.AllDirectories);

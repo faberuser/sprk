@@ -156,7 +156,9 @@ public sealed class SprkLoginPresentation : MonoBehaviour
 			{
 				return environmentVariable;
 			}
-			return Path.Combine(Application.dataPath, "Documents/Patch/StandaloneWindows/LoginPresentation");
+			// The game's patch root: next to the player data on Windows, the app's files
+			// directory on Android (see UnityCache.RefreshApplicationData).
+			return UnityCache.GetDownloadedAssetPath("LoginPresentation");
 		}
 	}
 
@@ -475,7 +477,7 @@ public sealed class SprkLoginPresentation : MonoBehaviour
 	private static void RestoreLogoSubtitle(UISprite sprite, Texture2D target)
 	{
 		string path = ((SystemOptionData.Spec == ESpecType.Low) ? "LowLargeSpec" : "HighAndMidSpec");
-		AssetBundle assetBundle = AssetBundle.LoadFromFile(Path.Combine(Application.dataPath, "Documents/Patch/StandaloneWindows/Assetbundle", path, "NguiAtlas_UI_Prefab_Login.unity3d"));
+		AssetBundle assetBundle = logoAtlasBundle ?? AssetBundle.LoadFromFile(Path.Combine(UnityCache.GetDownloadedAssetPath("Assetbundle"), path, "NguiAtlas_UI_Prefab_Login.unity3d"));
 		if (assetBundle == null)
 		{
 			throw new InvalidOperationException("Login atlas bundle could not be opened");
@@ -502,9 +504,19 @@ public sealed class SprkLoginPresentation : MonoBehaviour
 			}
 			RectInt rectInt = SpriteRect(uIAtlas, "Logo_Rebellion_White");
 			RectInt rectInt2 = SpriteRect(sprite.atlas, "Logo_Rebellion_White");
-			if (rectInt.width != rectInt2.width || rectInt.height != rectInt2.height || texture2D.format != target.format || SystemInfo.copyTextureSupport == CopyTextureSupport.None)
+			if (rectInt.width != rectInt2.width || rectInt.height != rectInt2.height)
 			{
 				throw new InvalidOperationException("Login atlas layouts differ");
+			}
+			if (texture2D.format != target.format || SystemInfo.copyTextureSupport == CopyTextureSupport.None)
+			{
+				// Pixels cannot be copied between different compressed formats (Android: the
+				// bundle atlas is ASTC, the scene's atlas comes from the Windows data). The
+				// bundle atlas already holds the complete logo, so draw the logo from it.
+				sprite.atlas = uIAtlas;
+				logoAtlasBundle = assetBundle;
+				restoredLogoTexture = target;
+				return;
 			}
 			int num = System.Math.Min(texture2D.mipmapCount, target.mipmapCount);
 			for (int num2 = 0; num2 < num; num2++)
@@ -522,9 +534,15 @@ public sealed class SprkLoginPresentation : MonoBehaviour
 		}
 		finally
 		{
-			assetBundle.Unload(unloadAllLoadedObjects: true);
+			if (logoAtlasBundle != assetBundle)
+			{
+				assetBundle.Unload(unloadAllLoadedObjects: true);
+			}
 		}
 	}
+
+	// Kept loaded while the logo is drawn from it (see the format fallback above).
+	private static AssetBundle logoAtlasBundle;
 
 	private void HideNativeObject(GameObject go)
 	{
