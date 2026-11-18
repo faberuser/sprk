@@ -1,0 +1,27 @@
+<linker>
+  <assembly fullname="ICSharpCode.SharpZipLib" preserve="all"/>
+  <assembly fullname="MessagePack" preserve="all"/>
+  <assembly fullname="MessagePack.Annotations" preserve="all"/>
+  <assembly fullname="Microsoft.NET.StringTools" preserve="all"/>
+  <assembly fullname="Newtonsoft.Json" preserve="all"/>
+  <assembly fullname="spine-unity" preserve="all"/>
+  <assembly fullname="SuperSocket" preserve="all"/>
+  <assembly fullname="System.Runtime.CompilerServices.Unsafe" preserve="all"/>
+  <assembly fullname="UniTask" preserve="all"/>
+  <assembly fullname="UniTask.Addressables" preserve="all"/>
+  <assembly fullname="UniTask.DOTween" preserve="all"/>
+  <assembly fullname="UniTask.Linq" preserve="all"/>
+  <assembly fullname="UniTask.TextMeshPro" preserve="all"/>
+  <assembly fullname="Unity.AI.Navigation" preserve="all"/>
+  <assembly fullname="Unity.Compat" preserve="all"/>
+  <assembly fullname="Unity.Multiplayer.Center.Common" preserve="all"/>
+  <assembly fullname="Unity.Postprocessing.Runtime" preserve="all"/>
+  <assembly fullname="Unity.Tasks" preserve="all"/>
+  <assembly fullname="Unity.TextMeshPro" preserve="all"/>
+  <assembly fullname="Unity.Timeline" preserve="all"/>
+  <assembly fullname="UnityEngine.SpatialTracking" preserve="all"/>
+  <assembly fullname="UnityEngine.UI" preserve="all"/>
+  <assembly fullname="UnityEngine.XR.LegacyInputHelpers" preserve="all"/>
+  <assembly fullname="UniWebView-CSharp" preserve="all"/>
+  <assembly fullname="Vuplex.WebView" preserve="all"/>
+</linker>

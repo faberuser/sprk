@@ -1,0 +1,18 @@
+# Unity-generated
+/Library/
+/Temp/
+/Obj/
+/Logs/
+/UserSettings/
+/Build/
+/HybridCLRData/
+*.csproj
+*.sln
+*.slnx
+
+# Game binaries and compiled SPRK assemblies are staged by sync_inputs.py, never committed.
+/Assets/Plugins/GameRuntime/
+/Assets/Plugins/GameRuntime.meta
+/Assets/StreamingAssets/
+/Assets/StreamingAssets.meta
+/HotUpdate/
