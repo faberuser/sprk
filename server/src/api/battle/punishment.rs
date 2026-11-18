@@ -263,30 +263,52 @@ pub(super) fn opening_team_exp(s: &AppState, stamina: i64) -> Result<i64> {
         .filter(|amount| *amount >= 0).ok_or_else(|| rule("InvalidCost"))
 }
 
+/// Grants what the opening stamina earns, once, on a full raid clear: team EXP
+/// plus the stamina awards every other content pays on spend (guild Activity
+/// Score, Guild Coins, Darkness Corruption). Returns the award for the
+/// response, null when nothing was due.
 pub(super) async fn grant_clear_team_exp(
     db: &mut PgConnection, s: &AppState, a: i64, gate: &mut Value, grant: &mut Rewards,
-) -> Result<()> {
+) -> Result<Value> {
+    // Openings saved before the stamina snapshot derive it from their EXP one.
+    let stamina = if !gate["PendingClearStamina"].is_null() {
+        n(gate, "PendingClearStamina")
+    } else if !gate["PendingClearTeamExp"].is_null() {
+        n(gate, "PendingClearTeamExp") / settings(s, "RaiderExpPerStamina", 100).max(1)
+    } else {
+        opening_stamina(s, gate)?
+    };
     // Openings saved by the previous no-EXP policy have no pending snapshot.
-    // Their current clear count still describes the opening that was paid for.
     let amount = if gate["PendingClearTeamExp"].is_null() {
-        let kind=n(gate,"DungeonType");
-        let group=row(s,"PunishmentGroup",&[("GroupIndex",n(gate,"GroupIndex")),("PunishmentDungeonType",kind)])?;
-        let mut cost=n(group,"OpenStaminaCount");
-        if kind==2 {
-            let increases=group["StaminaIncreaseCount"].as_array();
-            for i in 0..n(gate,"ClearCount") {
-                let increase=increases.and_then(|v|v.get((i as usize).min(v.len().saturating_sub(1))))
-                    .and_then(Value::as_i64).unwrap_or(n(group,"StaminaIncreaseRate"));
-                cost=cost.checked_add(increase).ok_or_else(||rule("InvalidCost"))?;
-            }
-        }
-        opening_team_exp(s,cost)?
+        opening_team_exp(s, opening_stamina(s, gate)?)?
     } else {n(gate,"PendingClearTeamExp")};
     if amount > 0 {
         tutorial::team_exp(db,s,a,amount,grant).await?;
         gate["PendingClearTeamExp"] = json!(0);
     }
-    Ok(())
+    let award = if stamina > 0 {
+        super::dungeons::stamina_awards(db, s, a, stamina).await?
+    } else {
+        Value::Null
+    };
+    gate["PendingClearStamina"] = json!(0);
+    Ok(award)
+}
+
+// The opening's stamina cost; its clear count still describes the opening paid for.
+fn opening_stamina(s: &AppState, gate: &Value) -> Result<i64> {
+    let kind=n(gate,"DungeonType");
+    let group=row(s,"PunishmentGroup",&[("GroupIndex",n(gate,"GroupIndex")),("PunishmentDungeonType",kind)])?;
+    let mut cost=n(group,"OpenStaminaCount");
+    if kind==2 {
+        let increases=group["StaminaIncreaseCount"].as_array();
+        for i in 0..n(gate,"ClearCount") {
+            let increase=increases.and_then(|v|v.get((i as usize).min(v.len().saturating_sub(1))))
+                .and_then(Value::as_i64).unwrap_or(n(group,"StaminaIncreaseRate"));
+            cost=cost.checked_add(increase).ok_or_else(||rule("InvalidCost"))?;
+        }
+    }
+    Ok(cost)
 }
 
 #[cfg(test)]
@@ -390,6 +412,42 @@ mod tests {
             }
         }
     }
+    #[tokio::test]
+    async fn punishment_clear_earns_guild_activity_for_opening_stamina() {
+        let (s,u)=fixture().await;let a=account(&u);
+        crate::db::query("UPDATE user_info SET team_level=100 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
+        crate::api::community::tests::create(&s,&u,"Punisher",1).await;
+        let rate=settings(&s,"GuildActivityPerStamina",1);
+        let mut total=None;
+        for deferred in [false,true] {
+            put(&mut s.db.acquire().await.unwrap(),a,"entry_policy",0,&json!({"RefundPveDefeats":deferred})).await.unwrap();
+            for group in [101001,101002] {
+                let opened=open(&s,&u,group,1).await;
+                assert_eq!(opened["Result"],"Success","{opened}");
+                let cost=n(&opened["OpenPunishmentRaidInfo"],"PendingClearStamina");
+                assert!(cost>0,"{opened}");
+                assert_eq!(call(&s,&u,"contents/begin_content",&entry(group,1,1,"")).await["Result"],"Success");
+                let node=call(&s,&u,"contents/end_content",&end(group,1,true,1)).await;
+                assert!(node["GuildActivityPointResult"].is_null(),"An intermediate victory must not award the opening: {node}");
+                let def=s.tables.battle.rows("PunishmentRaid").iter()
+                    .find(|v|n(v,"GroupIndex")==group && n(v,"Boss")==1 && n(v,"RaidLevel")==1).unwrap();
+                let raid=s.tables.battle.rows("Raid").iter()
+                    .find(|v|n(v,"Index")==n(def,"RaidIndex") && n(v,"Level")==1).unwrap();
+                let dungeon=n(raid,"DungeonIndex");
+                let affixes=if group==101001 {"&AffixIndices=5002&AffixIndices=5003&AffixIndices=5004"}else{"&AffixIndices=6001"};
+                assert_eq!(call(&s,&u,"contents/begin_content",&entry(group,dungeon,1,affixes)).await["Result"],"Success");
+                let won=call(&s,&u,"contents/end_content",&end(group,dungeon,true,1)).await;
+                assert_eq!(won["Result"],"Success","{won}");
+                assert_eq!(won["GuildMemberAccActivityPointResult"]["AddValue"],cost*rate,"deferred={deferred} group={group}: {won}");
+                let guild=n(&won["GuildActivityPointResult"],"NewValue");
+                if let Some(previous)=total {assert_eq!(guild,previous+cost*rate,"{won}");}
+                total=Some(guild);
+                let again=call(&s,&u,"contents/end_content",&end(group,dungeon,true,1)).await;
+                assert!(again["GuildActivityPointResult"].is_null(),"The opening is awarded once: {again}");
+            }
+        }
+    }
+
     #[test]
     fn punishment_automatic_affixes_follow_native_enhancement_thresholds() {
         let tables=crate::tables::test_tables();

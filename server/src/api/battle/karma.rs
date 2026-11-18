@@ -174,6 +174,7 @@ pub(super) async fn opening(
         out["StaminaResult"] = dungeons::charge_reserved(db, s, a, 1, n(group, "OpenStaminaCount")).await?;
         p = json!({"GroupIndex":n(group,"GroupIndex"),"DungeonType":1,"IsOpen":1,"OpenedTime":time(now()),"ExpireTime":time((now()/86400+1)*86400),"OpenLevel":1,"ClearLevel":0,"ClearCount":0,"Day":day()});
         p["PendingClearTeamExp"] = json!(punishment::opening_team_exp(s, n(group,"OpenStaminaCount"))?);
+        p["PendingClearStamina"] = json!(n(group,"OpenStaminaCount"));
         put(db, a, "punishment_open", key, &p).await?;
     } else if action == "reset_punishment_raid" {
         if p.is_null() {
@@ -733,8 +734,9 @@ pub(super) async fn end(
     let mut p = get(db, a, "punishment_open", state_key(n(group, "GroupIndex"))).await?;
     // A defeat settles this attempt and its earned rewards, but keeps the paid
     // opening available for another attempt until reset or a completed clear.
+    let mut award = Value::Null;
     if completed {
-        punishment::grant_clear_team_exp(db, s, a, &mut p, &mut grant).await?;
+        award = punishment::grant_clear_team_exp(db, s, a, &mut p, &mut grant).await?;
         p["IsOpen"] = json!(0);
     }
     p["ClearLevel"] = json!(clear);
@@ -753,6 +755,7 @@ pub(super) async fn end(
         .await?;
     crate::api::progression::record(db,a,"KillMonster",0,0,kills).await?;
     let mut out = rewards(db, s, a, grant).await?;
+    dungeons::attach_eclipse_points(&mut out, &award);
     super::treasure::record_time(db, s, a, r, saved.get("started"), 48, &mut out).await?;
     out["OpenPunishmentRaidInfos"] = json!([p]);
     out["PunishmentRaidInfos"] = json!(list(db, a, "punishment_raid").await?);

@@ -1253,7 +1253,8 @@ pub(super) async fn finish(
         let group = n(definition, "GroupIndex");
         let mut p = get(db, a, "punishment_open", group).await?;
         if n(definition, "Boss") == 1 {
-            super::punishment::grant_clear_team_exp(db, s, a, &mut p, &mut extra).await?;
+            let award = super::punishment::grant_clear_team_exp(db, s, a, &mut p, &mut extra).await?;
+            attach_eclipse_points(out, &award);
             p["ClearLevel"] = json!(n(&p, "ClearLevel").max(level));
             p["ClearCount"] = json!(n(&p, "ClearCount") + 1);
             p["IsOpen"] = json!(0);
@@ -1786,6 +1787,7 @@ pub(super) async fn execute(
                 }
                 p = json!({"GroupIndex":group,"DungeonType":kind,"IsOpen":1,"OpenedTime":time(now()),"ExpireTime":time((now()/86400+1)*86400),"OpenLevel":level,"ClearLevel":previous_level,"ClearCount":clears,"Day":day()});
                 p["PendingClearTeamExp"] = json!(super::punishment::opening_team_exp(s, cost)?);
+                p["PendingClearStamina"] = json!(cost);
                 super::entry_costs::mark_gate(db,a,&mut p,1,cost).await?;
                 put(db, a, "punishment_open", group, &p).await?;
             }
