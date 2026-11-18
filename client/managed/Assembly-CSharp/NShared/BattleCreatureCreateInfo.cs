@@ -102,6 +102,12 @@ public class BattleCreatureCreateInfo
 
 	public long ForceMinHp { get; set; }
 
+	/// <summary>
+	/// SPRK auto-battle skill rules (see SprkSkillPriority) for an AI-driven hero. Serialized with
+	/// the battle logs, so online clients simulate the same AI picks as the server's worker.
+	/// </summary>
+	public int SprkSkillRules { get; set; }
+
 	public static Tuple<string, int, int> GetCompareResult(BattleCreatureCreateInfo l, BattleCreatureCreateInfo r)
 	{
 		Tuple<string, int, int> integrityCheckResult = NShared.HeroInfo.GetIntegrityCheckResult(l.HeroInfo, r.HeroInfo);

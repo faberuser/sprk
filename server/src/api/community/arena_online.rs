@@ -54,6 +54,11 @@ pub(crate) async fn pair(
         if id > other_id { accounts.swap(0,1); }
         accounts[0]["TeamType"] = json!("Left");
         accounts[1]["TeamType"] = json!("Right");
+        // SPRK: auto-battle skill rules at match time; the native worker applies them to AI heroes.
+        for account in &mut accounts {
+            let owner = native_number(&account["UserInfo"], "AccountId");
+            account["SkillRules"] = json!(crate::api::heroes::skill_rules::all(db, owner).await?);
+        }
         let info = json!({"Uid":uid,"ArenaType":if kind==1{"BanPick"}else{"Normal"},"SeasonIndex":season(s).0,
             "AccountInfos":accounts,"BattleServerAddress":s.conquest.address,"BattleServerPort":s.conquest.port,
             "ChapterIndex":1000,"DungeonIndex":if kind==1{2}else{1},"DungeonDifficulty":"Easy","OnlineGameSpeedRatio":100,"ExtraData":null,"CanCheat":false});

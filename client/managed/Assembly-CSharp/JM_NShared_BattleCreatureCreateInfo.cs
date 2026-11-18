@@ -56,6 +56,7 @@ public static class JM_NShared_BattleCreatureCreateInfo
 		o.FirstSkillSlotIndex = BaseJsonMarshaler.ParseValueInt(d, "FirstSkillSlotIndex");
 		o.HasDungeonSkill = BaseJsonMarshaler.ParseValueBool(d, "HasDungeonSkill");
 		o.ForceMinHp = BaseJsonMarshaler.ParseValueLong(d, "ForceMinHp");
+		o.SprkSkillRules = BaseJsonMarshaler.ParseValueInt(d, "SprkSkillRules");
 		return o;
 	}
 
@@ -108,6 +109,11 @@ public static class JM_NShared_BattleCreatureCreateInfo
 		dictionary.Add("FirstSkillSlotIndex", o.FirstSkillSlotIndex.ToString());
 		dictionary.Add("HasDungeonSkill", o.HasDungeonSkill.ToString());
 		dictionary.Add("ForceMinHp", o.ForceMinHp.ToString());
+		// SPRK: only present when set, so logs without skill rules stay unchanged.
+		if (o.SprkSkillRules != 0)
+		{
+			dictionary.Add("SprkSkillRules", o.SprkSkillRules.ToString());
+		}
 		return dictionary;
 	}
 }

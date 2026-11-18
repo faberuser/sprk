@@ -2,6 +2,7 @@
 use crate::models::item::ItemGrant;
 pub mod inn;
 pub mod presets;
+pub mod skill_rules;
 
 #[cfg(test)]
 mod tests;
@@ -56,7 +57,8 @@ endpoints!(
     learn_hero_transcend_skill_page,
     reset_hero_transcend_skill_page,
     hero_limit_break_level_up,
-    hero_limit_break_exp_up
+    hero_limit_break_exp_up,
+    set_skill_rules
 );
 
 pub(crate) async fn details(db: &mut PgConnection, account: i64, index: i32) -> Result<Value> {
@@ -377,6 +379,9 @@ pub(crate) async fn execute(
                 .await?;
         }
         return Ok(out);
+    }
+    if action == "set_skill_rules" {
+        return skill_rules::set(db, account, req).await;
     }
     if action.ends_with("hero_storage_slot") || action == "change_hero_storage_slot_name" {
         return crate::api::heroes::presets::execute(db, state, account, req, action).await;

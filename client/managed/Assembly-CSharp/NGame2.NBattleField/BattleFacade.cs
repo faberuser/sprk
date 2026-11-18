@@ -445,6 +445,8 @@ public class BattleFacade : SingletonAuto<BattleFacade>
 	{
 		SprkDiscordPresence.BattleCreated(chapterIndex, dungeonIndex);
 		IsOnlineMode = isOnlineMode;
+		// SPRK: freeze auto skill rules for AI-driven heroes of this (offline) battle.
+		SprkSkillPriority.BattleCreated(isOnlineMode);
 		ResetBattle();
 		PrepareBeforeStartThread();
 		_threadInstance = new ThreadInstance();

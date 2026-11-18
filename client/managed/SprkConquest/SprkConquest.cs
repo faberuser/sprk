@@ -696,10 +696,8 @@ public sealed class SprkConquest : MonoBehaviour
 				{
 					throw new InvalidOperationException("Dispatch heroes must use native simulation AI");
 				}
-				if (run.dispatch && data.Contains("SkillRules"))
-				{
-					SprkSkillPriority.MarkFromPayload(data["SkillRules"], account.UserInfo.AccountId, battleCreatureCreateInfo);
-				}
+				// SPRK: auto skill rules the server stored for this account (dispatch: frozen on the job).
+				SprkSkillPriority.MarkFromPayload(SprkSkillPriority.PayloadRules(data, account.UserInfo.AccountId, run.dispatch), account.UserInfo.AccountId, battleCreatureCreateInfo);
 				if (flag)
 				{
 					array[flag2 ? 1u : 0u].Add(battleCreatureCreateInfo);

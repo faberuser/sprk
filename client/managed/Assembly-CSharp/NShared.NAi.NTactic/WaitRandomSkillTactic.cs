@@ -53,7 +53,7 @@ public class WaitRandomSkillTactic : SnapshotObject, IAiTactic, ISnapshotObject
 				return;
 			}
 			List<int> list = new List<int>();
-			// SPRK: auto rules chosen in Hero Info (only set for the player's own dispatch heroes).
+			// SPRK: auto rules chosen in Hero Info, for the player's own AI-driven heroes (offline battles, simulations, dispatch).
 			int priorityRules = SprkSkillPriority.Rules(creature);
 			int bestSkill = 0;
 			int bestRank = int.MaxValue;

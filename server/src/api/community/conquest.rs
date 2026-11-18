@@ -228,7 +228,9 @@ pub(crate) async fn combat_buffs(db:&mut PgConnection,s:&AppState,a:i64)->Result
             }
         }
     }
-    Ok(json!({"GuildSkills":skills,"AccountBuffs":[],"ClassBuffDataBases":classes,"ExtraStatDatas":stats,"PetStatDataBases":conditions}))
+    // SPRK: auto-battle skill rules; the native worker applies them to this account's AI heroes.
+    let rules=crate::api::heroes::skill_rules::all(db,a).await?;
+    Ok(json!({"GuildSkills":skills,"AccountBuffs":[],"ClassBuffDataBases":classes,"ExtraStatDatas":stats,"PetStatDataBases":conditions,"SkillRules":rules}))
 }
 pub(super) async fn execute(db: &mut PgConnection, s: &AppState, a: i64, r: &Request, action: &str) -> Result<Value> {
     let (g,role)=guild::membership(db,a).await?;guild::contents_available(db,a).await?;
