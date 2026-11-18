@@ -101,7 +101,7 @@ internal static class SprkBattleKeyboardProbe
 			expectedKeys[15] = KeyCode.None;
 			Check((int)Call("FindDuplicate", 15, NewBinding(KeyCode.None, 0)) == -1, "unbound slots are not duplicates");
 			CheckCustom(expectedKeys, expectedModifiers);
-			Check((string)Call("GetBindingLabel", 0, 0) == "Unbound" &&
+			Check((string)Call("GetBindingLabel", 0, 0) == SprkText.Get("Unbound") &&
 				(string)Call("GetBindingLabel", 1, 3) == "Ctrl+Alt+Shift+Meta+F9", "unbound and combined modifier labels");
 			string serialized = SprkTestPrefs.GetString(Prefix + "Custom.v1", "");
 			Check(serialized.Split(';').Length == 16, "all custom slots persisted");
@@ -138,7 +138,7 @@ internal static class SprkBattleKeyboardProbe
 		var editor = (MonoBehaviour)panelType.GetField("Current", Static).GetValue(null);
 		Check(editor != null && editor.gameObject.activeInHierarchy, "row UIButton callback did not open editor");
 		Check((bool)Get("SettingsOpen"), "editor must suppress battle keyboard input");
-		Check(editor.GetComponentsInChildren<UILabel>(true).Any(l => l.text == "Hero Skill Keyboard Controls"), "editor title missing");
+		Check(editor.GetComponentsInChildren<UILabel>(true).Any(l => l.text == SprkText.Get("Hero Skill Keyboard Controls")), "editor title missing");
 		var bindingLabels = (UILabel[])panelType.GetField("bindingLabels", Instance).GetValue(editor);
 		Check(bindingLabels.Length == 16, "editor must have 16 binding labels");
 		for (int slot = 0; slot < 16; slot++)
@@ -360,8 +360,8 @@ internal static class SprkBattleKeyboardProbe
 		Check(row.gameObject.activeInHierarchy && row.Button != null && row.Button.gameObject.activeInHierarchy, "keyboard row/button hidden");
 		Check(row.Button.onClick.Count == 1, "keyboard row must have exactly one callback");
 		Check(row.ParentRoot != null && row.ParentRoot.Label_OptionName != null &&
-			row.ParentRoot.Label_OptionName.text == "Hero Skill Keyboard Controls", "keyboard row caption");
-		Check(row.Label_Button != null && row.Label_Button.text == ((bool)Get("ControlsEnabled") ? "Configure (On)" : "Configure (Off)"), "keyboard row enabled caption");
+			row.ParentRoot.Label_OptionName.text == SprkText.Get("Hero Skill Keyboard Controls"), "keyboard row caption");
+		Check(row.Label_Button != null && row.Label_Button.text == SprkText.Get((bool)Get("ControlsEnabled") ? "Configure (On)" : "Configure (Off)"), "keyboard row enabled caption");
 		Check(NGUITools.FindInParents<UIRoot>(window.gameObject) != null, "native settings UIRoot missing");
 		return row;
 	}

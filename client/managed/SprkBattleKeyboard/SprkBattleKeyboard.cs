@@ -27,7 +27,7 @@ public static class SprkBattleKeyboard
 			{
 				if (Key == KeyCode.None)
 				{
-					return "Unbound";
+					return SprkText.Get("Unbound");
 				}
 				return ((Modifiers & 1) != 0 ? "Ctrl+" : "")
 					+ ((Modifiers & 2) != 0 ? "Alt+" : "")
