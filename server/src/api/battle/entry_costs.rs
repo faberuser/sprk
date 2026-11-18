@@ -595,9 +595,13 @@ pub(super) async fn abandon_on_login(
         let mut entry: Value = read_json(&row.get::<String, _>("entry"))?;
         let expired =
             now() - row.get::<i64, _>("started") > settings(s, "BattleExpirySeconds", 14400);
-        if (super::campaign::is_story_entry(s,&entry) || entry["DeferredEntryCosts"] == true || entry["ShakmehStoryFinal"] == true || super::loot_booster::active(&entry) || super::karma::is_entry(s, &entry))
-            && (expired || (entry["ServiceOwned"] != true && entry["ServiceRequired"] != true))
-        {
+        let reserved = super::campaign::is_story_entry(s,&entry) || entry["DeferredEntryCosts"] == true || entry["ShakmehStoryFinal"] == true || super::loot_booster::active(&entry) || super::karma::is_entry(s, &entry);
+        let local = entry["ServiceOwned"] != true && entry["ServiceRequired"] != true;
+        // A new login cannot resume the old client's battle. Closing the window
+        // mid-fight (e.g. World Boss, which reserves nothing) otherwise left the
+        // run open and blocked Divine Punishment/Eclipse/Karma openings with
+        // AlreadyOnBattleHero. Co-op runs keep their own room recovery.
+        if (reserved && (expired || local)) || (local && entry["CoopRunId"].is_null()) {
             settle(db, s, a, &mut entry, false, &mut json!({})).await?;
             entry["AbandonedOnLogin"] = json!(true);
             crate::db::query("UPDATE battle_runs SET completed=1,entry=$1 WHERE account=$2")
