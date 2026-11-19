@@ -422,7 +422,7 @@ async fn guild_raid_damage_advances_shared_boss_and_charges_once() {
         .filter(|d| d.item_code == "GuildPoint").map(|d| d.count as i64).sum();
     assert!(base > 0);
     let multiplier = settings(&s, "GuildRaidKillGuildPointMultiplier", 1);
-    assert_eq!(multiplier, 5);
+    assert_eq!(multiplier, 10);
     for a in [n(&u["UserInfo"], "AccountId"), idle_account] {
         let saved: String=crate::db::query_scalar("SELECT reward_currencies FROM mails WHERE account_id=$1 AND title='Guild raid boss defeated'").bind(a).fetch_one(&s.db).await.unwrap();
         let saved: Value = serde_json::from_str(&saved).unwrap();
