@@ -862,7 +862,7 @@ async fn complete_match(db:&mut PgConnection,s:&AppState,a:i64,r:&Request,truste
         a,
         if kind==1 { "GloryPoint" } else { "PvpCoin" },
         if kind==1 {
-            settings(s,"HonorAttendanceMedals",10) + if win==1 {settings(s,"HonorWinBonusMedals",40)} else {0}
+            settings(s,"HonorAttendanceMedals",100) + if win==1 {settings(s,"HonorWinBonusMedals",400)} else {0}
         } else { settings(
             s,
             if win == 1 {
