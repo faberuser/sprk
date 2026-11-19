@@ -406,3 +406,26 @@ async fn eclipse_empty_ticket_gauge_tracks_campaign_spending_and_conversion() {
         assert_eq!(info["EclipseInfo"]["EclipsePointResult"]["NewValue"], 0);
     }
 }
+
+#[tokio::test]
+async fn interrupted_eclipse_run_reserves_only_its_heroes_until_it_expires() {
+    let (s, u) = setup().await;
+    super::tests::unlock_godking(&s, &u).await;
+    let a = account(&u);
+    deck(&s, &u, json!([{"DeckIndex":"1","HeroIndices":"1"}])).await;
+    let begin = call(&s, &u, "campaign/begin_campaign", ENTER).await;
+    assert_eq!(begin["Result"], "Success", "{begin}");
+    let id = n(&begin["EclipseBattleInfo"], "MatchIndex");
+    let mut db = s.db.acquire().await.unwrap();
+    // A restart leaves the run active: its heroes stay reserved, others are free.
+    assert!(dispatch::ensure_available(&mut db, a, &[1], None).await.is_err());
+    assert!(dispatch::ensure_available(&mut db, a, &[2], None).await.is_ok());
+    let mut run = get(&mut db, a, "eclipse", 0).await.unwrap();
+    run["Expires"] = json!(now() - 1);
+    put(&mut db, a, "eclipse", 0, &run).await.unwrap();
+    assert!(dispatch::ensure_available(&mut db, a, &[1], None).await.is_ok());
+    drop(db);
+    // The expired run is still claimed from the Eclipse screen (Get Reward).
+    let claimed = call(&s, &u, "eclipse/give_up_eclipse_dungeon", &format!("MatchIndex={id}")).await;
+    assert_eq!(claimed["Result"], "Success", "{claimed}");
+}
