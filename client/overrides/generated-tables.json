@@ -13,6 +13,7 @@
     "TableJit/CraftItemTable.jit",
     "TableJit/CreatureTable.jit",
     "TableJit/EquipItemTable.jit",
+    "TableJit/HairCostumeTable.jit",
     "TableJit/HeroAnimationViewTable.jit",
     "TableJit/HeroFriendlyActionTable.jit",
     "TableJit/HeroFriendlyTable.jit",
