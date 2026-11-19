@@ -288,6 +288,11 @@ Android the bootstrap sets it before any game code runs:
   in the app's private storage, and saved logins are kept per server.
 - Without it (`server:local` in the startup index, written by `dev.py test`), the app
   goes straight to Local, so unattended runs never wait for input.
+- After **Play**, the app updates the game code and platform-neutral data from that
+  server's signed release, like SprkLauncher (see
+  [docs/android.md](../docs/android.md#game-updates-and-assets-from-the-server)). An
+  added server can set its update URL; empty means `<origin>/updates/stable/manifest.json`.
+  Unattended runs skip the update, so files pushed by `dev.py hot` stay in place.
 
 **Local** is `http://127.0.0.1:8080/host.json` on the device, forwarded to this PC by
 `adb reverse` (emulator or USB). The forwarding is lost whenever adb restarts; if the
