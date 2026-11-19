@@ -69,7 +69,8 @@ public static class SprkEnchantUntil
 
 	private static string Title => SprkText.Get("Enchant Until");
 
-	public const int MaxTries = 5000;
+	// 300 tries per target, at most 3 targets: the guarantee lands by 900 (matches the server).
+	public const int MaxTries = 900;
 
 	private static readonly Color TargetColor = new Color(1f, 0.78f, 0.2f);
 
@@ -795,6 +796,11 @@ public static class SprkEnchantUntil
 			return;
 		}
 		long num = Math.Min(Math.Min((long)MaxTries, itemCount), (price > 0) ? (gold / price) : MaxTries);
+		// Tries past the guarantee can never be used: the run stops at the hit.
+		if (remaining > 0)
+		{
+			num = Math.Min(num, remaining);
+		}
 		if (num <= 0)
 		{
 			MessagePopup.Open(Title, SprkText.Format("Not enough {0} or gold.", CoreName(core.Index)));
