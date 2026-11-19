@@ -239,6 +239,30 @@ async fn relogin(s: &AppState) -> user::LoginResponse {
     .unwrap()
     .0
 }
+/// The opening skip clears 1-1 to 1-3 in one request. Its reply is the only
+/// time this session is told about those missions, so it must carry them, and
+/// they must then be claimable as after playing the battles.
+#[tokio::test]
+async fn opening_skip_reports_and_allows_claiming_its_stage_missions() {
+    use tower::ServiceExt;
+    let (s,u)=setup().await;
+    let app=axum::Router::new()
+        .route("/tutorial/skip_opening",axum::routing::post(crate::api::tutorial::skip_opening_tutorial))
+        .layer(axum::middleware::from_fn_with_state(s.clone(),notifications::notify)).with_state(s.clone());
+    let response=app.oneshot(axum::http::Request::post("/tutorial/skip_opening")
+        .header("Content-Type","application/x-www-form-urlencoded")
+        .body(axum::body::Body::from(form(&u,""))).unwrap()).await.unwrap();
+    let reply:Value=serde_json::from_slice(&axum::body::to_bytes(response.into_body(),usize::MAX).await.unwrap()).unwrap();
+    assert_eq!(reply["Result"],"Success","{reply}");
+    let updates=reply["ReservedSubQuestInfos"].as_array().unwrap();
+    for quest in [10010,10020,10030] {
+        assert!(updates.iter().any(|v|n(v,"SubQuestIndex")==quest && n(v,"LastStep")==0 && n(v,"Progress")==1),"{quest}: {updates:?}");
+    }
+    let claim=call(&s,&u,"complete_sub_quest","SubQuestIndices=[10010,10020,10030]").await;
+    assert_eq!(claim["Result"],"Success","{claim}");
+    assert_eq!(claim["SucceededSubQuestInfos"].as_array().unwrap().len(),3);
+}
+
 fn form(u: &user::LoginResponse, data: &str) -> Bytes {
     Bytes::from(format!("SessionKey={}&{data}", u.user_info.session_key))
 }
