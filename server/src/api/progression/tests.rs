@@ -121,7 +121,13 @@ async fn old_metric_days_fold_into_history_without_changing_any_snapshot() {
         crate::db::query("INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES($1,$2,$3,$4,$5,$6)")
             .bind(a).bind(d).bind(kind).bind(arg).bind(arg2).bind(value).execute(&s.db).await.unwrap();
     }
-    let snapshot=|s:AppState|async move { snapshot(&mut s.db.acquire().await.unwrap(),&s,a).await.unwrap() };
+    // Play record UpdatedTime is the observation time (the current second), not
+    // an evaluated value: under load the two snapshots can land in different seconds.
+    let snapshot=|s:AppState|async move {
+        let mut v=snapshot(&mut s.db.acquire().await.unwrap(),&s,a).await.unwrap();
+        for record in v["PlayRecordInfos"].as_array_mut().into_iter().flatten() { record.as_object_mut().unwrap().remove("UpdatedTime"); }
+        v
+    };
     let before=snapshot(s.clone()).await;
     let mut db=s.db.acquire().await.unwrap();
     assert!(fold_old_metrics(&mut db,a).await.unwrap()>0);

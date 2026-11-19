@@ -13,9 +13,12 @@ async fn setup() -> (AppState, user::LoginResponse) {
     (s,u)
 }
 
+/// Runs as the acting account, like the request middleware, so the handler's
+/// transaction takes the account lock that serializes one player's requests.
 async fn call(s: &AppState, u: &user::LoginResponse, action: &str, args: &str) -> Value {
-    extensions::handle(State(s.clone()), OriginalUri(format!("/npc/{action}").parse().unwrap()),
-        Bytes::from(format!("SessionKey={}&{args}",u.user_info.session_key)))
+    crate::database::ACTING_ACCOUNT.scope(u.user_info.account_id,
+        extensions::handle(State(s.clone()), OriginalUri(format!("/npc/{action}").parse().unwrap()),
+            Bytes::from(format!("SessionKey={}&{args}",u.user_info.session_key))))
         .await.unwrap().0
 }
 
