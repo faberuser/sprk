@@ -53,4 +53,30 @@ mod cosmetic_sale_tests {
         assert_eq!(table.rows("HairCostume")[0],rows["HairCostume"][0]);
         std::fs::remove_file(file).unwrap();std::fs::remove_dir(directory).unwrap();
     }
+
+    // Hairstyles the client adds (so a costume's hair can be worn with other
+    // costumes) must exist on the server with the same unlock rules, or
+    // equipping them fails with a missing-row error.
+    #[test]
+    fn client_hairstyle_patches_are_mirrored_by_the_server_table() {
+        let root=std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let table=ExtensionTable::load(&root.join("tables/ExtensionSupport.json")).unwrap();
+        let server=table.rows("HairCostume");
+        let mut checked=0;
+        for entry in std::fs::read_dir(root.join("../client/tables/costumes")).unwrap() {
+            let patch:serde_json::Value=serde_json::from_str(&std::fs::read_to_string(entry.unwrap().path()).unwrap()).unwrap();
+            if patch["table"]!="HairCostumeTable" { continue; }
+            for row in patch["upsert"].as_array().unwrap() {
+                let found=server.iter().find(|r| r["Index"]==row["Index"])
+                    .unwrap_or_else(|| panic!("server HairCostume row {} is missing",row["Index"]));
+                assert_eq!(found["HeroIndex"],row["HeroIndex"],"{}",row["Index"]);
+                assert_eq!(found["NeedCostume"],row["NeedCostume"],"{}",row["Index"]);
+                assert_eq!(found["Star"].as_i64().unwrap_or(0),row["Star"].as_i64().unwrap_or(0),"{}",row["Index"]);
+                assert_eq!(found["IsDefault"]==true,row["IsDefault"]==true,"{}",row["Index"]);
+                assert_eq!(found["ReqBuyGem"].as_i64().unwrap_or(0),row["ReqBuyGem"].as_i64().unwrap_or(0),"{}",row["Index"]);
+                checked+=1;
+            }
+        }
+        assert!(checked>500,"expected the shared costume hairstyles, checked {checked}");
+    }
 }
