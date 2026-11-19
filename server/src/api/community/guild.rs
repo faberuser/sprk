@@ -117,12 +117,29 @@ pub(super) fn activity_week(s: &AppState) -> String {
     let back = (day.weekday().num_days_from_sunday() as i64 - reset_dow).rem_euclid(7);
     (day - chrono::Duration::days(back)).format("%Y-%m-%d").to_string()
 }
+/// Profile fields that member() reads live from the account. They must never
+/// be persisted in guild_member state: merged over the live profile, a saved
+/// copy would freeze the member's level and avatar in the guild list.
+const PROFILE_KEYS: [&str; 9] = ["AccountId","Nick","TeamLevel","AvatarHeroIndex","LastLoginTime","MatchScore","SeasonWin","SeasonLose","IsOnline"];
+fn strip_profile(v: &mut Value) {
+    if let Some(map) = v.as_object_mut() {
+        for key in PROFILE_KEYS { map.remove(key); }
+    }
+}
+/// Persist per-member guild state without any live profile fields.
+pub(super) async fn save_member(db: &mut PgConnection, a: i64, g: i64, v: &Value) -> Result<()> {
+    let mut v = v.clone();
+    strip_profile(&mut v);
+    put(db, a, "guild_member", g, &v).await
+}
 /// Stored per-member guild state, with the weekly activity reset applied.
 pub(super) async fn member_state(db: &mut PgConnection, s: &AppState, a: i64, g: i64) -> Result<Value> {
     let mut v = get(db, a, "guild_member", g).await?;
     if v.is_null() {
         v = json!({"AccActivityPoint":0,"AccSuppressPoint":0,"AccWood":0,"AccStone":0,"AccMetal":0,"ReqGuildSkill":0,"BidRaidIndex":0,"BidRaidRewardItemIndex":0,"BidRaidRewardTime":null});
     }
+    // Rows saved by older servers carry a stale profile snapshot.
+    strip_profile(&mut v);
     let week = activity_week(s);
     if v["ActivityWeek"] != week {
         // Rows saved before weekly tracking existed keep their score once.
@@ -151,7 +168,7 @@ pub(super) async fn member(db: &mut PgConnection, s: &AppState, a: i64) -> Resul
     );
     v["RaidEnterCount"] = super::guild_ticket(db, s, a, 0).await?["NewValue"].clone();
     v["Rank"] = json!(3 - role);
-    put(db, a, "guild_member", g, &v).await?;
+    save_member(db, a, g, &v).await?;
     merge(&mut u, v);
     u["IsOnline"] = json!(super::friend::online(s, a));
     // Native guild rows call this LastLoginTime, but render it as "Today / Nd"

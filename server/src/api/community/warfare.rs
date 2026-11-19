@@ -970,7 +970,9 @@ pub(crate) async fn raid_finish(
         let mut info = guild::state(db, s, g).await?;
         info["ActivityPoint"] = json!(n(&info, "ActivityPoint") + n(def, "KillActivityPoint"));
         guild::save(db, g, &info).await?;
-        let members:Vec<i64>=crate::db::query_scalar("SELECT b.account FROM guild_battle_scores b JOIN guild_members m ON m.account_id=b.account AND m.guild_id=b.guild_id WHERE b.guild_id=$1 AND b.kind='raid' AND b.season=$2 AND b.stage=$3 AND b.score>0").bind(g).bind(season).bind(c*1000+d).fetch_all(&mut *db).await?;
+        // The kill reward belongs to the whole guild, not only members who
+        // damaged this boss.
+        let members:Vec<i64>=crate::db::query_scalar("SELECT account_id FROM guild_members WHERE guild_id=$1 ORDER BY account_id").bind(g).fetch_all(&mut *db).await?;
         for member in members {
             claim(
                 db,
@@ -980,12 +982,13 @@ pub(crate) async fn raid_finish(
                 &season.to_string(),
             )
             .await?;
-            progression::mail_reward(
+            progression::mail_reward_scaled(
                 db,
                 s,
                 member,
                 n(def, "KillRewardIndex"),
                 "Guild raid boss defeated",
+                settings(s, "GuildRaidKillGuildPointMultiplier", 1),
             )
             .await?;
         }

@@ -11,6 +11,17 @@ pub(super) async fn mail_reward(
     index: i64,
     title: &str,
 ) -> Result<()> {
+    mail_reward_scaled(db, s, a, index, title, 1).await
+}
+/// Like mail_reward, with the reward's GuildPoint scaled by `guild_point_multiplier`.
+pub(super) async fn mail_reward_scaled(
+    db: &mut PgConnection,
+    s: &AppState,
+    a: i64,
+    index: i64,
+    title: &str,
+    guild_point_multiplier: i64,
+) -> Result<()> {
     if index <= 0 {
         return Ok(());
     }
@@ -32,7 +43,8 @@ pub(super) async fn mail_reward(
                 | "WorldBossPoint"
                 | "RaidPoint"
         ) {
-            currencies.push(json!({"CurrencyType":code,"Amount":drop.count}));
+            let amount = if code == "GuildPoint" { drop.count as i64 * guild_point_multiplier.max(1) } else { drop.count as i64 };
+            currencies.push(json!({"CurrencyType":code,"Amount":amount}));
             continue;
         }
         let (id, count, star) = if let Some(id) = s.tables.get_item_index(&code) {
@@ -245,7 +257,7 @@ pub(super) async fn execute(
                 .max(0);
                 info[kind] = json!(n(&info, kind) + amount);
             }
-            put(db, a, "guild_member", g, &m).await?;
+            guild::save_member(db, a, g, &m).await?;
             crate::db::query("UPDATE guild_members SET contribution=contribution+$1 WHERE account_id=$2 AND guild_id=$3").bind(activity).bind(a).bind(g).execute(&mut *db).await?;
             out["ContributedGem"] = json!(after);
             out["GuildActivityPointResult"] = json!({"NewValue":n(&info,"ActivityPoint")});
@@ -368,7 +380,7 @@ pub(super) async fn execute(
                 return Err(rule("AlreadyGuildSkillLevelUpRequested"));
             }
             m["ReqGuildSkill"] = json!(id);
-            put(db, a, "guild_member", g, &m).await?;
+            guild::save_member(db, a, g, &m).await?;
         }
         "level_up_guild_skill" => {
             guild::admin(role)?;

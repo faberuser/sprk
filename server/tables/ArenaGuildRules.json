@@ -27,6 +27,7 @@
   "GuildArenaDailyTickets": 3,
   "GuildRaidMaxHp": 1000000000,
   "EnableLegacyGuildRaids": true,
+  "GuildRaidKillGuildPointMultiplier": 5,
   "ArenaDailyRewardCurrency": "PvpCoin",
   "ArenaSeasonRewardCurrency": "Gem",
   "GuildMaxDamagePerSecond": 1000000000
