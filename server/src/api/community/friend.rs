@@ -45,13 +45,16 @@ fn profile_with(state: &AppState, row: &sqlx::postgres::PgRow, (chapter, dungeon
         "VIPLevel":0, "IsOnline":online, "LastLoginTime":last, "LastOnlineTime":last_online, "LastLogoutTime":logout, "TierIndex":0, "MatchScore":0, "LastChapterIndex":chapter, "LastDungeonIndex":dungeon})
 }
 
-/// account -> (progression revision, battle tables, last main-story stage).
+/// account -> (revision of its stage parts, battle tables, last main-story stage).
 pub(crate) type LastStages = std::collections::HashMap<i64, (i64, usize, (i64, i64))>;
 
 /// Each player's highest cleared main-story stage ((1,1) without one). Login
 /// shows it for every friend, and deriving it parses every stored dungeon
-/// row (~200 per player, ~3 ms each): it is kept per player until that
-/// player's progression revision changes, which every clear bumps.
+/// row (~200 per player, ~3 ms each): it is kept per player until one of the
+/// two inputs changes. Their revision parts (`campaign_progress`,
+/// `battle_state:dungeon`) take the account's new progression revision on
+/// every write, so other progress (any request of an active player bumps the
+/// whole revision) keeps the entry; a player without either part keys 0.
 pub(crate) async fn last_stages(db: &mut PgConnection, state: &AppState, accounts: &[i64]) -> Result<std::collections::HashMap<i64, (i64, i64)>> {
     let mut out = std::collections::HashMap::new();
     if accounts.is_empty() { return Ok(out); }
@@ -59,7 +62,8 @@ pub(crate) async fn last_stages(db: &mut PgConnection, state: &AppState, account
     // Revisions first: a clear committed after this read can only make the
     // entry look stale, never label older stages with a newer revision.
     let revisions: std::collections::HashMap<i64, i64> = crate::db::query_as::<(i64, i64)>(
-        "SELECT account,revision FROM response_revisions WHERE scope='progression' AND account IN (SELECT sprk_json_ints($1))")
+        "SELECT account,MAX(revision) FROM response_revision_parts WHERE scope='progression' AND account IN (SELECT sprk_json_ints($1)) \
+         AND part IN ('campaign_progress','battle_state:dungeon') GROUP BY account")
         .bind(json_list(accounts)?).fetch_all(&mut *db).await?.into_iter().collect();
     let revision = |a: &i64| revisions.get(a).copied().unwrap_or(0);
     let tables = std::sync::Arc::as_ptr(&state.tables.battle) as usize;

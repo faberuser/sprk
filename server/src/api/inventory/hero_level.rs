@@ -186,9 +186,12 @@ pub(crate) async fn notify(
         return Response::from_parts(parts, Body::from(bytes));
     }
     let result = async {
+        // Serialize with the account's other writers before reading a revision
+        // that may need repair: `begin` holds it already for the acting player.
         let mut tx = crate::database::begin(&state.db).await?;
-        // Serialize with the account's other writers before reading a revision that may need repair.
-        crate::postgres::lock_account(&mut *tx, account).await?;
+        if crate::database::ACTING_ACCOUNT.try_with(|acting| *acting).ok() != Some(account) {
+            crate::postgres::lock_account(&mut *tx, account).await?;
+        }
         let revision = crate::api::system::revisions::get(&mut tx, "equipment", account).await?;
         let current = session.as_ref().and_then(|s| *s.equipment_revision.lock().unwrap_or_else(|e| e.into_inner()));
         if current == Some((revision, tables)) {

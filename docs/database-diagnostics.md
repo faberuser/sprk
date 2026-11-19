@@ -14,7 +14,8 @@ slow, failing or locking game from the database and `sprk-game.log`.
   tables per area (core, progression, battle, community, services,
   compensation audit), `0008` the gameplay triggers, `0009` the
   response-cache revision triggers, `0010` the reforge/enchant guarantees and
-  `0011` the revision parts (which part of a player's progression changed).
+  `0011` the revision parts (which part of a player's progression changed)
+  and `0012` the row estimate of `sprk_json_ints`.
 - **Roles.** `sprk_owner` owns the schema, runs migrations, backups and
   diagnostics. `sprk_app` is the game's role: data access only, not a
   superuser.
@@ -445,7 +446,7 @@ Either flag can be used alone. The report prints:
       (`verify_incremental`), and
       `incremental_snapshots_match_full_rebuilds_and_reuse_unaffected_sections`
       checks how many sections a write re-evaluates.
-    - An entry is rebuilt fully every `FULL_REBUILD_SECONDS` (10 minutes, or
+    - An entry is rebuilt fully every `FULL_REBUILD_SECONDS` (one hour, or
       at the next calendar boundary or day) and keeps that deadline across
       incremental rebuilds. Evaluation depends on time only through the day
       and calendars, and every view input is trigger-tracked, so the deadline
@@ -487,8 +488,10 @@ Either flag can be used alone. The report prints:
     - Friend profiles (login, friend list, search) show each player's last
       main-story stage, derived from every stored dungeon row (~3 ms per
       player). `friend::last_stages` keeps it per player in
-      `AppState::last_stages` until that player's progression revision
-      changes, and computes the missing ones in one statement.
+      `AppState::last_stages` until that player's `campaign_progress` or
+      `battle_state:dungeon` revision part changes (not the whole progression
+      revision, which an active player bumps on almost every request), and
+      computes the missing ones in one statement.
 - **Item grants.** `inventory::item::give` grants a plain item in one upsert:
   `ItemMaxCap` is checked in its `ON CONFLICT … WHERE` (a refused grant
   returns no row and writes nothing) and a new row records its first-grant
@@ -531,6 +534,22 @@ Either flag can be used alone. The report prints:
   replaces it. An unknown list or a removed entry sends the full list. A battle
   reply drops from ~113 KB to a few hundred bytes; a team level change still
   sends every entry (each carries `ClearTeamLevel`).
+- **Dispatch.** SprkDispatch polls `/dispatch/get_dispatch_list` every 10 s
+  while a job runs (3 s while a client-simulated version 1 job prepares), and
+  login embeds the same list. The worker's battle snapshot (~100 KB per job,
+  up to ~900 KB) is written once at start into its own `dispatch_snapshot`
+  row (naming its job), so the job row stays small for every prepared repeat
+  and revealed round; settlement deletes it. Rows saved with it inline move it
+  out on their next preparation. Neither it nor `CollectionResponse` (the
+  settlement reply) is sent to the client.
+- **Ordeal.** The node map (opponents' account snapshots, ~750 KB) lives in
+  `battle_state` kind `ordeal_nodes`, written only when it is generated,
+  refreshed or repaired; the `ordeal` row keeps the progress that every
+  action rewrites and missions read. Older rows move it out on their next
+  action.
+- **ID lists.** `x IN (SELECT sprk_json_ints($n))` is estimated at 10 rows
+  (`0012`), so it uses the indexes on `x`; at the default 1000 the planner
+  hashed whole tables.
 - **Arena ranking decks.** A completed run's formation and registration never
   change, so `community::arena::ranking_deck` finds the newest run by id and
   caches its formation per run (`AppState::registered_decks`) instead of

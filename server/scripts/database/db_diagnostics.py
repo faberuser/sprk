@@ -38,6 +38,9 @@ WATCHED_QUERIES = {
     "arena battle login (per match)": f"SELECT EXISTS(SELECT 1 FROM arena_runs WHERE +account={ARENA_ACCOUNT} AND status IN ('battle','complete') AND sprk_json_int(data,'$.OnlineMatchUid')=-1)",
     "arena match result lookup": "SELECT data FROM arena_runs WHERE id IN (SELECT id FROM arena_runs WHERE id=-1 UNION SELECT id FROM arena_runs WHERE sprk_json_int(data,'$.OnlineMatchUid')=-1) AND +account=" + ARENA_ACCOUNT + " AND status='complete' ORDER BY id DESC LIMIT 1",
     "arena ranking deck (per ranked player)": f"SELECT id,sprk_json_text(data,'$.Heroes') FROM arena_runs WHERE account={ARENA_ACCOUNT} AND kind=1 AND status='complete' AND season=(SELECT MAX(season) FROM arena_scores) AND squad=1 ORDER BY id DESC LIMIT 1",
+    # friend::last_stages for one player (friend request, profile): dungeon
+    # rows must come from the account index, not a scan of every player's.
+    "friend last stage (login, friends)": "SELECT b.account,sprk_json_int(b.data::jsonb->'MaxStar') FROM battle_state b WHERE b.account IN (SELECT sprk_json_ints('[1]')) AND b.kind='dungeon'",
 }
 
 

@@ -414,7 +414,13 @@ public sealed class SprkDispatch : MonoBehaviour
 		{
 			return 30f;
 		}
-		return 3f;
+		// Client-simulated (version 1) jobs prepare one repeat per poll. Server-simulated
+		// jobs only reveal rounds, and every poll returns the whole list from the server.
+		if (jobs.Any(NeedsPreparation))
+		{
+			return 3f;
+		}
+		return 10f;
 	}
 
 	private static void ApplyList(string body)

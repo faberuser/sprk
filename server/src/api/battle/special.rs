@@ -193,17 +193,30 @@ async fn ordeal(
     action: &str,
 ) -> Result<Value> {
     let mut info = get(db, a, "ordeal", 0).await?;
+    // The node map (opponents' whole account snapshots, ~750 KB) lives in its
+    // own row, written only when it changes: every ordeal action rewrote it
+    // with the progress, and missions re-read the progress row. Older rows
+    // hold it inline and move on their next action.
+    let mut map = info.as_object_mut().and_then(|o| o.remove("OrdealNodeInfos")).filter(|v| !v.is_null());
+    let mut map_changed = map.is_some();
+    if map.is_none() {
+        map = Some(get(db, a, "ordeal_nodes", 0).await?);
+    }
+    let mut map = map.unwrap_or(Value::Null);
     let period = seasons::season(s).0;
     if info.is_null() || n(&info, "Period") != period {
-        info = json!({"SelectedTier":0,"MatchScore":0,"OrdealNodeInfos":nodes(db,s,a).await?,"ClearNodeIndices":[1],"DeadHeroIndices":[],"RemainRefreshCount":s.tables.hero_shop.constant("OrdealArenaChangeOpponent",5),"SelectableBuffIndices":[],"SelectedBuffIndices":[],"Period":period,"Selected":false,"ActiveNode":0});
+        info = json!({"SelectedTier":0,"MatchScore":0,"ClearNodeIndices":[1],"DeadHeroIndices":[],"RemainRefreshCount":s.tables.hero_shop.constant("OrdealArenaChangeOpponent",5),"SelectableBuffIndices":[],"SelectedBuffIndices":[],"Period":period,"Selected":false,"ActiveNode":0});
+        map = Value::Array(nodes(db, s, a).await?);
+        map_changed = true;
     }
     // The client keys BattlePlayerContainer by account ID; a mirror opponent
     // must not reuse the local player's ID or its creatures never spawn.
     // Repair saved maps too, without resetting their progress or hero snapshots.
-    if let Some(nodes) = info["OrdealNodeInfos"].as_array_mut() {
+    if let Some(nodes) = map.as_array_mut() {
         for node in nodes {
             if n(&node["AccountInfo"]["UserInfo"], "AccountId") == a {
                 node["AccountInfo"]["UserInfo"]["AccountId"] = json!(-a);
+                map_changed = true;
             }
         }
     }
@@ -266,12 +279,10 @@ async fn ordeal(
             {
                 return Err(rule("NotAvailableNodeIndex"));
             }
-            let old = info["OrdealNodeInfos"]
+            let old = map
                 .as_array()
-                .unwrap()
-                .iter()
-                .find(|v| n(v, "Index") == id)
-                .unwrap();
+                .and_then(|nodes| nodes.iter().find(|v| n(v, "Index") == id))
+                .ok_or_else(|| rule("NotAvailableNodeIndex"))?;
             let replacement =
                 opponent(db, a, n(&old["AccountInfo"]["UserInfo"], "AccountId")).await?;
             if replacement == old["AccountInfo"] {
@@ -293,15 +304,14 @@ async fn ordeal(
                 }
                 info["RemainRefreshCount"] = json!(n(&info, "RemainRefreshCount") - 1);
             }
-            let node = info["OrdealNodeInfos"]
+            let node = map
                 .as_array_mut()
-                .unwrap()
-                .iter_mut()
-                .find(|v| n(v, "Index") == id)
-                .unwrap();
+                .and_then(|nodes| nodes.iter_mut().find(|v| n(v, "Index") == id))
+                .ok_or_else(|| rule("NotAvailableNodeIndex"))?;
             node["EventIndex"] = json!(0);
             node["AccountInfo"] = replacement;
             out["OrdealNodeInfos"] = node.clone();
+            map_changed = true;
         }
         "begin_ordeal_arena" => {
             let id = int(r, "NodeIndex")?;
@@ -483,6 +493,9 @@ async fn ordeal(
         _ => return Err(rule("ContentsDisabled")),
     }
     put(db, a, "ordeal", 0, &info).await?;
+    if map_changed {
+        put(db, a, "ordeal_nodes", 0, &map).await?;
+    }
     for key in [
         "SelectedTier",
         "MatchScore",
@@ -501,7 +514,7 @@ async fn ordeal(
         // The native client treats a nonempty node list as a selected tier.
         // Publishing the generated map early skips select_tier entirely.
         out["OrdealNodeInfos"] = if info["Selected"] == true {
-            info["OrdealNodeInfos"].clone()
+            map
         } else {
             json!([])
         };

@@ -82,6 +82,21 @@ pub(crate) async fn save_details(
     crate::db::query("INSERT INTO hero_details(account_id,hero_index,data) VALUES ($1,$2,$3) ON CONFLICT(account_id,hero_index) DO UPDATE SET data=excluded.data").bind(account).bind(index).bind(data.to_string()).execute(db).await?;
     Ok(())
 }
+/// `save_details` for several Heroes in one statement (a battle's party).
+/// Each Hero once: one statement cannot update a row twice.
+pub(crate) async fn save_details_many(
+    db: &mut PgConnection,
+    account: i64,
+    details: &std::collections::BTreeMap<i32, &Value>,
+) -> Result<()> {
+    if details.is_empty() {
+        return Ok(());
+    }
+    let rows: Vec<Value> = details.iter().map(|(index, data)| json!({"h":index,"d":data.to_string()})).collect();
+    crate::db::query("INSERT INTO hero_details(account_id,hero_index,data) SELECT $1,(e->>'h')::bigint,e->>'d' FROM jsonb_array_elements($2::jsonb) e ON CONFLICT(account_id,hero_index) DO UPDATE SET data=excluded.data")
+        .bind(account).bind(Value::Array(rows).to_string()).execute(db).await?;
+    Ok(())
+}
 pub(crate) async fn info(db: &mut PgConnection, account: i64, index: i32) -> Result<Value> {
     let row = crate::db::query("SELECT * FROM heroes WHERE account_id=$1 AND hero_index=$2")
         .bind(account)

@@ -865,8 +865,9 @@ pub(super) async fn start_dispatch(
     if !skill_rules.is_empty() {
         info["SkillRules"] = Value::Object(skill_rules);
     }
-    info["SimulationSnapshot"] = super::dispatch::simulation_snapshot(db, s, a, &info).await?;
     info["SimulationJobId"] = json!(uuid::Uuid::new_v4().to_string());
+    let snapshot = super::dispatch::simulation_snapshot(db, s, a, &info).await?;
+    super::dispatch::save_snapshot(db, a, slot, &info, &snapshot).await?;
     put(db, a, "dispatch", slot, &info).await?;
     let openings = if p.is_null() { json!([]) } else { json!([p]) };
     Ok(json!({"DispatchBattleInfo":info,"StaminaResult":stamina,"OpenPunishmentRaidInfos":openings,

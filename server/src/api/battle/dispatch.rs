@@ -185,6 +185,13 @@ pub(super) async fn snapshot(db: &mut PgConnection, a: i64) -> Result<Vec<Value>
             run["State"] = json!("ReadyToComplete");
             put(db, a, "dispatch", n(run, "SlotIndex"), run).await?;
         }
+        // Server-only: the worker's battle snapshot (~100 KB per job) and the
+        // settlement reply. No client reads them, and SprkDispatch polls this
+        // list every 3 s while a job runs.
+        if let Some(run) = run.as_object_mut() {
+            run.remove("SimulationSnapshot");
+            run.remove("CollectionResponse");
+        }
     }
     Ok(runs)
 }
@@ -301,8 +308,9 @@ pub(super) async fn execute(
         if !skill_rules.is_empty() {
             info["SkillRules"] = Value::Object(skill_rules);
         }
-        info["SimulationSnapshot"] = simulation_snapshot(db, s, a, &info).await?;
         info["SimulationJobId"] = json!(uuid::Uuid::new_v4().to_string());
+        let snapshot = simulation_snapshot(db, s, a, &info).await?;
+        save_snapshot(db, a, slot, &info, &snapshot).await?;
         info["State"] = json!("Simulation");
         if receipt["DeferredEntryCosts"] == true {
             info["EntryCostHold"] = receipt;
@@ -351,6 +359,7 @@ pub(super) async fn execute(
         if let Some(refund) = out.as_object_mut().and_then(|o| o.remove("StaminaResult")) {
             out["EclipseStaminaResult"] = refund;
         }
+        drop_snapshot(db, a, slot, &mut info).await?;
         put(db, a, "dispatch", slot, &info).await?;
         out["DispatchBattleInfo"] = info;
         return Ok(out);
@@ -431,6 +440,7 @@ pub(super) async fn execute(
     } else if !out["StaminaResult"].is_null() && out["EclipseStaminaResult"].is_null() {
         out["EclipseStaminaResult"] = out["StaminaResult"].clone();
     }
+    drop_snapshot(db, a, slot, &mut info).await?;
     put(db, a, "dispatch", slot, &info).await?;
     out["DispatchBattleInfo"] = info;
     Ok(out)
@@ -601,6 +611,33 @@ pub(super) fn skill_rules(raw: &str, party: &[i64]) -> serde_json::Map<String, V
         }
     }
     rules
+}
+
+/// A job's battle snapshot for the worker (~100 KB, up to ~900 KB) is written
+/// once, in its own `dispatch_snapshot` row of the job's slot: the job row is
+/// rewritten on every prepared repeat and revealed round. The row names its
+/// job, so a reused slot never sends another job's snapshot.
+pub(super) async fn save_snapshot(db: &mut PgConnection, a: i64, slot: i64, job: &Value, snapshot: &Value) -> Result<()> {
+    put(db, a, "dispatch_snapshot", slot, &json!({"SimulationJobId":job["SimulationJobId"],"Snapshot":snapshot})).await
+}
+/// The job's stored snapshot: inline in rows saved before it had its own row,
+/// else its `dispatch_snapshot` row when that belongs to this job.
+pub(super) async fn load_snapshot(db: &mut PgConnection, a: i64, slot: i64, job: &Value) -> Result<Option<Value>> {
+    if !job["SimulationSnapshot"].is_null() {
+        return Ok(Some(job["SimulationSnapshot"].clone()));
+    }
+    let mut stored = get(db, a, "dispatch_snapshot", slot).await?;
+    Ok((!stored.is_null() && stored["SimulationJobId"] == job["SimulationJobId"]).then(|| stored["Snapshot"].take()))
+}
+/// A settled job keeps its row (duplicate-request protection) without the
+/// snapshot, which only the worker needed.
+async fn drop_snapshot(db: &mut PgConnection, a: i64, slot: i64, info: &mut Value) -> Result<()> {
+    if let Some(info) = info.as_object_mut() {
+        info.remove("SimulationSnapshot");
+    }
+    crate::db::query("DELETE FROM battle_state WHERE account=$1 AND kind='dispatch_snapshot' AND idx=$2")
+        .bind(a).bind(slot).execute(db).await?;
+    Ok(())
 }
 
 pub(super) async fn simulation_snapshot(db: &mut PgConnection, s: &AppState, a: i64, info: &Value) -> Result<Value> {

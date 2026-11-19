@@ -161,8 +161,10 @@ async fn verify_incremental(tx: &mut PgConnection, state: &AppState, account: i6
 /// evaluation depends on time only through the day and the calendar
 /// boundaries (both checked), so this only bounds what an untracked change
 /// could leave stale. At 60 s it rebuilt fully on most requests of an active
-/// player (a full rebuild loads every metric row: ~45 ms on a large account).
-pub(crate) const FULL_REBUILD_SECONDS: i64 = 600;
+/// player (a full rebuild loads every metric row: ~45 ms on a large account);
+/// at 600 s every active player still paid one every ten minutes (+40 ms on
+/// that request), and the full metric read was the database's largest total.
+pub(crate) const FULL_REBUILD_SECONDS: i64 = 3600;
 
 fn expiry(state: &AppState, now: i64) -> i64 {
     let mut expires = now + FULL_REBUILD_SECONDS;

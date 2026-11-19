@@ -108,12 +108,25 @@ async fn prepare(s: &AppState, a: i64, slot: i64) -> Result<bool> {
     if karma && version < 2 {
         return Ok(false);
     }
-    if job["SimulationSnapshot"].is_null() {
-        job["SimulationSnapshot"] =
-            super::super::dispatch::simulation_snapshot(&mut tx, s, a, &job).await?;
+    // Built once (legacy jobs) or moved out of an older inline row, then only
+    // read: the job row itself stays small for every later rewrite.
+    let stored = super::super::dispatch::load_snapshot(&mut tx, a, slot, &job).await?;
+    let inline = job.as_object_mut().and_then(|o| o.remove("SimulationSnapshot")).is_some_and(|v| !v.is_null());
+    let snapshot = match stored {
+        Some(snapshot) if !inline => snapshot,
+        stored => {
+            let snapshot = match stored {
+                Some(snapshot) => snapshot,
+                None => super::super::dispatch::simulation_snapshot(&mut tx, s, a, &job).await?,
+            };
+            super::super::dispatch::save_snapshot(&mut tx, a, slot, &job, &snapshot).await?;
+            snapshot
+        }
+    };
+    if inline || job["SimulationVersion"] != 2 {
+        job["SimulationVersion"] = json!(2);
+        put(&mut tx, a, "dispatch", slot, &job).await?;
     }
-    job["SimulationVersion"] = json!(2);
-    put(&mut tx, a, "dispatch", slot, &job).await?;
     tx.commit().await?;
     let id = format!(
         "dispatch:{}:{index}",
@@ -130,7 +143,7 @@ async fn prepare(s: &AppState, a: i64, slot: i64) -> Result<bool> {
     // Independent across jobs, stable when a repeat is retried after a restart.
     let seed = id.bytes().fold(2166136261_u32, |hash, byte| (hash ^ byte as u32).wrapping_mul(16777619)) & 0x7fffffff;
     let mut payload = json!({"RunId":id,"Dispatch":true,"BossHp":0,"BossIndex":0,"Seed":seed,
-        "Simulation":job["SimulationSnapshot"],"SkillRules":job["SkillRules"]});
+        "Simulation":snapshot,"SkillRules":job["SkillRules"]});
     if karma {
         payload["Karma"] = json!({"MaxClearWaves":job["Karma"]["MaxClearWaves"]});
     }
@@ -551,15 +564,34 @@ mod tests {
         let a = account(&u);
         let slot = n(&job, "SlotIndex");
         assert_eq!(job["SimulationVersion"], 2);
-        assert!(job["SimulationSnapshot"]["AccountInfos"][0]["HeroInfos"]["1"].is_object());
+        // The worker's snapshot has its own row (the job row is rewritten on
+        // every repeat), which names its job; nothing sends it to the client.
+        assert!(job.get("SimulationSnapshot").is_none(), "{job}");
+        let snapshot = {
+            let mut db = s.db.acquire().await.unwrap();
+            assert!(get(&mut db, a, "dispatch", slot).await.unwrap().get("SimulationSnapshot").is_none());
+            let mut other = job.clone();
+            other["SimulationJobId"] = json!("another job in this slot");
+            assert_eq!(super::super::dispatch::load_snapshot(&mut db, a, slot, &other).await.unwrap(), None);
+            super::super::dispatch::load_snapshot(&mut db, a, slot, &job).await.unwrap().unwrap()
+        };
+        assert!(snapshot["AccountInfos"][0]["HeroInfos"]["1"].is_object());
+        let listed = call(&s, &u, "dispatch/get_dispatch_list", "").await;
+        let listed = listed["DispatchBattleInfos"].as_array().unwrap().iter().find(|v| v["SlotIndex"] == slot).unwrap().clone();
+        assert_eq!(listed["SimulationJobId"], job["SimulationJobId"]);
+        assert!(listed.get("SimulationSnapshot").is_none() && listed.get("CollectionResponse").is_none(), "{listed}");
         assert_ne!(call(&s,&u,"dispatch/complete_calculate_dispatch_result",&format!("SlotIndex={slot}&SimulationJobId={}&Progressive=true&Results=[1]&TimesMs=[1000]",job["SimulationJobId"].as_str().unwrap())).await["Result"],"Success");
         for outcome in [true, false] {
             if !outcome {
+                // A job saved before the snapshot had its own row holds it
+                // inline: preparing moves it out.
                 let mut db = s.db.acquire().await.unwrap();
                 let mut legacy = get(&mut db, a, "dispatch", slot).await.unwrap();
                 legacy["SimulationVersion"] = json!(1);
-                legacy.as_object_mut().unwrap().remove("SimulationSnapshot");
+                legacy["SimulationSnapshot"] = snapshot.clone();
                 put(&mut db, a, "dispatch", slot, &legacy).await.unwrap();
+                crate::db::query("DELETE FROM battle_state WHERE account=$1 AND kind='dispatch_snapshot'")
+                    .bind(a).execute(&mut *db).await.unwrap();
             }
             // New process state; only the database survives. No player session is used.
             s = AppState::new(s.db.clone(), s.tables.as_ref().clone());
@@ -577,7 +609,7 @@ mod tests {
             });
             let (name, payload) = rx.recv().await.unwrap();
             assert_eq!(name, "WorkerPrepare");
-            assert_eq!(payload["Simulation"], job["SimulationSnapshot"]);
+            assert_eq!(payload["Simulation"], snapshot);
             assert_eq!(rx.recv().await.unwrap().0, "WorkerStart");
             let body = json!({"RunId":payload["RunId"],"Win":outcome,"TimeMs":1000});
             assert!(packet(&s, "forged-worker", "WorkerResult", &body)
@@ -598,6 +630,8 @@ mod tests {
             json!([{"Outcome":1,"TimeMs":1000},{"Outcome":0,"TimeMs":1000}])
         );
         assert_eq!(saved["StartTimestamp"], job["StartTimestamp"]);
+        assert!(saved.get("SimulationSnapshot").is_none(), "moved out of the job row");
+        assert_eq!(super::super::dispatch::load_snapshot(&mut db, a, slot, &saved).await.unwrap(), Some(snapshot));
         let mut canceled = saved.clone();
         canceled["State"] = json!("Cancel");
         put(&mut db, a, "dispatch", slot, &canceled).await.unwrap();

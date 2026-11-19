@@ -54,10 +54,13 @@ pub(crate) async fn initialized(db: &mut PgConnection, state: &AppState, account
         .fetch_one(db).await?)
 }
 pub(crate) async fn init(db: &mut PgConnection, state: &AppState, account: i64) -> Result<()> {
-    // Serialize with the account's other writers before reading what to repair.
-    crate::postgres::lock_account(&mut *db, account).await?;
     // Check persisted state instead of caching initialization before its caller's
     // transaction commits. This also repairs old accounts and missing slots.
+    // Nothing removes these rows, so an initialized account needs no lock
+    // (every battle request runs this check).
+    if initialized(&mut *db, state, account).await? { return Ok(()); }
+    // Serialize with the account's other writers before repairing.
+    crate::postgres::lock_account(&mut *db, account).await?;
     if initialized(&mut *db, state, account).await? { return Ok(()); }
     let slots = state.tables.inventory.constant("CraftSlotCountMin", 2);
     crate::db::query("INSERT INTO inventory_settings(account_id) VALUES ($1) ON CONFLICT DO NOTHING")
