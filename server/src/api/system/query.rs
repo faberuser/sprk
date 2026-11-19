@@ -83,6 +83,23 @@ pub struct VersionedHost {
     pub server: Vec<AppServerInfo>,
 }
 
+/// The client's patch CDN for one platform. With `SPRK_ASSETS_CDN_URL` set
+/// (the update service's `/updates/assets/` URL), each platform gets its own
+/// asset set under it; otherwise the game's empty `/cdn/` patch is used.
+/// Windows always gets the empty patch: its launcher installs the assets.
+fn cdn_url(scheme_host: &str, platform: &str) -> String {
+    match std::env::var("SPRK_ASSETS_CDN_URL") {
+        Ok(base) if !base.trim().is_empty() && platform != "StandaloneWindows" => {
+            assets_cdn_url(base.trim(), platform)
+        }
+        _ => format!("{scheme_host}/cdn/"),
+    }
+}
+
+fn assets_cdn_url(base: &str, platform: &str) -> String {
+    format!("{}/{platform}/", base.trim_end_matches('/'))
+}
+
 /// Handle initial host query from client
 /// The client fetches this URL to get the list of available game servers
 /// Paths: /host.json (launcher) and /sprk/live/{version}/{hostfile} (QueryHost
@@ -98,6 +115,7 @@ pub async fn get_host_info() -> Json<Vec<VersionedHost>> {
     // LoginServer must end with / as client appends paths directly
     let login_server = std::env::var("LOGIN_SERVER")
         .unwrap_or_else(|_| format!("{scheme}://{host}/"));
+    let scheme_host = format!("{scheme}://{host}");
 
     Json(vec![
         VersionedHost {
@@ -110,7 +128,7 @@ pub async fn get_host_info() -> Json<Vec<VersionedHost>> {
                     min_version: "00.00.001".to_string(),  // Accept any version >= this
                     hotfix_version: None,
                     patch_version_url: None,
-                    cdn_proxy_url: Some(format!("{scheme}://{host}/cdn/")),
+                    cdn_proxy_url: Some(cdn_url(&scheme_host, "StandaloneWindows")),
                 },
                 // Also support Android just in case
                 AppVersionInfo {
@@ -118,7 +136,7 @@ pub async fn get_host_info() -> Json<Vec<VersionedHost>> {
                     min_version: "00.00.001".to_string(),
                     hotfix_version: None,
                     patch_version_url: None,
-                    cdn_proxy_url: Some(format!("{scheme}://{host}/cdn/")),
+                    cdn_proxy_url: Some(cdn_url(&scheme_host, "Android")),
                 },
                 // iOS
                 AppVersionInfo {
@@ -126,7 +144,7 @@ pub async fn get_host_info() -> Json<Vec<VersionedHost>> {
                     min_version: "00.00.001".to_string(),
                     hotfix_version: None,
                     patch_version_url: None,
-                    cdn_proxy_url: Some(format!("{scheme}://{host}/cdn/")),
+                    cdn_proxy_url: Some(cdn_url(&scheme_host, "iOS")),
                 },
             ],
             server: vec![
@@ -143,3 +161,25 @@ pub async fn get_host_info() -> Json<Vec<VersionedHost>> {
     ])
 }
 
+
+#[cfg(test)]
+mod cdn_url_tests {
+    #[test]
+    fn asset_cdn_url_is_per_platform_with_one_slash() {
+        for base in ["https://h/updates/assets", "https://h/updates/assets/"] {
+            assert_eq!(
+                super::assets_cdn_url(base, "Android"),
+                "https://h/updates/assets/Android/"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod windows_cdn_tests {
+    #[test]
+    fn windows_always_gets_the_empty_patch() {
+        // The launcher installs Windows assets; the game must download nothing.
+        assert_eq!(super::cdn_url("http://h", "StandaloneWindows"), "http://h/cdn/");
+    }
+}

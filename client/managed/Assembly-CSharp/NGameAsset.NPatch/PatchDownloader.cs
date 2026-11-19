@@ -368,16 +368,31 @@ public class PatchDownloader : GlobalAutoBehaviour<PatchDownloader>, DownloadHan
 		Vespa_System_Action_Extension_Method.fire(_onMessage, "Start Parallel Download");
 		CaptureBegin();
 		ThreadSafeDic<string, AssetInfo> assetInfoDic = new ThreadSafeDic<string, AssetInfo>((patchData.LocalPatchInfo == null) ? new Dictionary<string, AssetInfo>() : patchData.LocalPatchInfo.GetAllAssetInfoDictionary());
-		Dictionary<string, AssetInfo> allAssetInfoDictionary = patchData.PatchInfo.GetAllAssetInfoDictionary();
-		SingletonAuto<AssetFileManager>.instance.Setup(allAssetInfoDictionary);
+		// SPRK: the remote archive list is not given to AssetFileManager. Its
+		// lookups choose between plain and converted (encrypted) text assets, and
+		// the client has always run with that list empty; the server's list leaves
+		// out launcher-managed files, so filling it would change which files load.
 		EDownloadResponse downloadError = EDownloadResponse.None;
 		string errorMsg = null;
 		List<Coroutine> coroutineList = new List<Coroutine>();
 		int endedCoroutineCount = 0;
 		int maxParallelDownloadCount = ((MaxParallelDownloadCount <= 0) ? 1 : MaxParallelDownloadCount);
+		// SPRK: start the download workers. The shipped code counted every worker
+		// as ended without starting one, so nothing was ever downloaded. Each
+		// worker reports exactly once; the first error stops the queue so the
+		// others finish their current archive and end.
 		for (int j = 0; j < maxParallelDownloadCount; j++)
 		{
-			endedCoroutineCount++;
+			coroutineList.Add(VespaCoroutine.Start(this, coDownloadArchive(j, patchData.Version, patchData.RootUrl, assetInfoDic, delegate(EDownloadResponse response, string message)
+			{
+				endedCoroutineCount++;
+				if (response != EDownloadResponse.None && response != EDownloadResponse.OK && downloadError == EDownloadResponse.None)
+				{
+					downloadError = response;
+					errorMsg = message;
+					StopDownload();
+				}
+			})));
 		}
 		SceneAutoBehaviour<LocalPatchInfoWriter>.instance.BeginWrite(assetInfoDic);
 		while (endedCoroutineCount < maxParallelDownloadCount)
@@ -664,7 +679,9 @@ public class PatchDownloader : GlobalAutoBehaviour<PatchDownloader>, DownloadHan
 					ArchiveInfo = archiveInfo,
 					AssetInfoDictionary = localAssetInfoDictionary
 				};
-				bool flag = archiveInfo.Name.EndsWith(".mp4", StringComparison.InvariantCultureIgnoreCase) || archiveInfo.Name.EndsWith(".webm", StringComparison.InvariantCultureIgnoreCase);
+				// SPRK: Raw archives (one file each, as the SPRK server publishes them)
+				// stream to disk with verification instead of being parsed as a pack.
+				bool flag = archiveInfo.ArchiveType == PatchArchiveType.Raw || archiveInfo.Name.EndsWith(".mp4", StringComparison.InvariantCultureIgnoreCase) || archiveInfo.Name.EndsWith(".webm", StringComparison.InvariantCultureIgnoreCase);
 				WebRequest req;
 				try
 				{

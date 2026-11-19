@@ -16,8 +16,8 @@ import sys
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from client.scripts.release.client_update_bundle import verified_manifest
-from client.scripts.release.publish_client_update import ignored, safe_path
+from client.scripts.release.client_update_bundle import MANIFEST_LIMIT, verified_manifest
+from client.scripts.release.publish_client_update import ignored, is_asset_entry, safe_path
 
 REPO = Path(__file__).resolve().parents[3]
 DATA = "King's Raid_Data"
@@ -107,7 +107,7 @@ def extract_runtime(archive, client, sha):
 def apply_release(archive, client, public_key, tag):
     with tarfile.open(archive) as bundle:
         entries = members(bundle)
-        if entries["manifest.json"].size > 8 * 1024**2:
+        if entries["manifest.json"].size > MANIFEST_LIMIT:
             raise ValueError("Manifest too large")
         raw = bundle.extractfile(entries["manifest.json"]).read()
         manifest = verified_manifest(raw, public_key)
@@ -120,7 +120,10 @@ def apply_release(archive, client, public_key, tag):
             if path.lower() in casefolded:
                 raise ValueError("Duplicate signed path")
             casefolded.add(path.lower())
-            expected["files/" + path] = item
+            # Pinned assets (Unity data, bundles) live in the update server's
+            # object store, not in the release archive; the worker needs none.
+            if not is_asset_entry(item):
+                expected["files/" + path] = item
         if set(entries) != set(expected) | {"manifest.json"}:
             raise ValueError("Release has missing or unexpected files")
         deleted = [safe_path(p) for p in manifest["deleted_files"]]

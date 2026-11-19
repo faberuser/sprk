@@ -22,8 +22,8 @@ import time
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from client.scripts.release.publish_client_update import IDENTIFIER, find_openssl, ignored, is_unmanaged, load_unmanaged, publish, safe_path
-from client.scripts.release.client_update_bundle import package, verified_manifest
+from client.scripts.release.publish_client_update import DEFAULT_ASSET_SET, IDENTIFIER, find_openssl, ignored, is_asset_entry, is_unmanaged, load_unmanaged, publish, safe_path
+from client.scripts.release.client_update_bundle import MANIFEST_LIMIT, package, verified_manifest
 from client.scripts.release.client_baseline import BASELINE
 from client.scripts.release.client_release_inputs import fingerprint
 from client.scripts.build.build_managed_client import MANAGED, compile_managed
@@ -69,7 +69,7 @@ def extract_baseline(archive: Path, client: Path, sha256: str, public_key: Path)
         if len({member.name for member in members}) != len(members) or not all(m.isfile() for m in members):
             raise ValueError("Baseline must contain unique regular files only")
         entry = bundle.getmember("manifest.json")
-        if entry.size > 8 * 1024**2:
+        if entry.size > MANIFEST_LIMIT:
             raise ValueError("Baseline manifest too large")
         raw = bundle.extractfile(entry).read()
         manifest = verified_manifest(raw, public_key)
@@ -80,7 +80,8 @@ def extract_baseline(archive: Path, client: Path, sha256: str, public_key: Path)
             if relative.lower() in casefolded:
                 raise ValueError("Duplicate baseline file")
             casefolded.add(relative.lower())
-            expected["files/" + relative] = item
+            if not is_asset_entry(item):
+                expected["files/" + relative] = item
         if set(expected) | {"manifest.json"} != {m.name for m in members}:
             raise ValueError("Baseline has missing or unexpected files")
         for name, item in expected.items():
@@ -192,7 +193,7 @@ def build(baseline: Path, work: Path, version: str, signing_key: Path,
         raise ValueError("Client build inputs changed during the build")
     with phase("Create and sign managed snapshot"):
         manifest = publish(client, output, version, "stable", includes, signing_key,
-                           build_inputs_sha256=inputs_hash, unmanaged=unmanaged)
+                           build_inputs_sha256=inputs_hash, unmanaged=unmanaged, asset_set=DEFAULT_ASSET_SET)
     release = output / "releases" / version
     if (release / "manifest.json").read_bytes() != (output / "stable/manifest.json").read_bytes():
         raise ValueError("Published manifests do not match")

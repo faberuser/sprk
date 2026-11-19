@@ -17,6 +17,15 @@ use tokio::io::AsyncWriteExt;
 const MANIFEST_ASSET: &str = "client-update-manifest.json";
 const ARCHIVE_ASSET: &str = "client-update.tar.gz";
 const JSON_LIMIT: u64 = 4 * 1024 * 1024;
+/// Release manifests also list the pinned asset set (~33,000 files).
+const MANIFEST_LIMIT: u64 = 64 * 1024 * 1024;
+/// Asset entries point at the shared object store instead of the release.
+const ASSET_URL_PREFIX: &str = "/updates/assets/objects/";
+/// Asset versions kept per platform besides the active one, like releases.
+const KEPT_ASSET_VERSIONS: usize = 2;
+/// Objects changed this recently are never pruned: an upload or publish may
+/// still be adding the version that references them.
+const OBJECT_GRACE: Duration = Duration::from_secs(24 * 60 * 60);
 const ARCHIVE_LIMIT: u64 = 2 * 1024 * 1024 * 1024;
 
 pub(super) struct Config {
@@ -100,6 +109,12 @@ struct ManagedFile {
     size: u64,
     sha256: String,
     url: String,
+}
+
+impl ManagedFile {
+    fn is_asset(&self) -> bool {
+        self.url.starts_with(ASSET_URL_PREFIX)
+    }
 }
 
 // Removes only this attempt's staging directory; retention is handled separately.
@@ -186,6 +201,13 @@ fn verify_manifest(raw: &[u8], public_key: &str, scratch: &Path) -> Result<Manif
                     .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
             "Invalid SHA-256"
         );
+        if item.is_asset() {
+            ensure!(
+                item.url == format!("{ASSET_URL_PREFIX}{}", item.sha256),
+                "Incorrect asset object URL"
+            );
+            continue;
+        }
         let prefix = format!("/updates/releases/{}/files/", manifest.version);
         let decoded = urlencoding::decode(
             item.url
@@ -352,6 +374,7 @@ pub(super) async fn sync(root: PathBuf, config: Config) -> Result<()> {
             "Cached manifest does not match pinned tag"
         );
         verify_files(&cached, &manifest)?;
+        verify_assets(&root, &manifest)?;
         promote(&root, &work, &raw)?;
         cleanup_after_activation(&root, &manifest.version, &config.public_key, &work);
         tracing::info!(version = %manifest.version, "Verified cached pinned client release; no download needed");
@@ -388,7 +411,7 @@ pub(super) async fn sync(root: PathBuf, config: Config) -> Result<()> {
         &client,
         &routes(manifest_asset, &config.repo),
         &work.join("manifest.json"),
-        JSON_LIMIT,
+        MANIFEST_LIMIT,
         &RETRY_DELAYS,
     )
     .await?;
@@ -432,6 +455,7 @@ pub(super) async fn sync(root: PathBuf, config: Config) -> Result<()> {
         fs::create_dir_all(root.join("releases"))?;
         fs::rename(work.join("release"), &destination)?;
     }
+    verify_assets(&root, &manifest)?;
     promote(&root, &work, &raw)?;
     cleanup_after_activation(&root, &manifest.version, &config.public_key, &work);
     tracing::info!(version = %manifest.version, "Pinned client release verified and ready; starting update service");
@@ -443,6 +467,175 @@ fn cleanup_after_activation(root: &Path, active: &str, public_key: &str, scratch
     if let Err(error) = prune_releases(root, active, public_key, scratch) {
         tracing::warn!(%error, "Client release cleanup could not finish");
     }
+    match prune_assets(root, public_key, scratch, OBJECT_GRACE) {
+        Ok((versions, objects)) => {
+            tracing::info!(versions, objects, "Asset cleanup complete; retaining objects of kept releases and recent asset versions")
+        }
+        Err(error) => tracing::warn!(%error, "Asset cleanup skipped"),
+    }
+}
+
+/// Every asset object a release pins must be in the store before it is served;
+/// players would otherwise fail mid-update. Sizes are checked here (hashes were
+/// checked when publishing, and the launcher verifies every download).
+fn verify_assets(root: &Path, manifest: &Manifest) -> Result<()> {
+    let objects = root.join("assets").join("objects");
+    let mut missing = 0usize;
+    let mut first = None;
+    for item in manifest.files.iter().filter(|f| f.is_asset()) {
+        let present = fs::symlink_metadata(objects.join(&item.sha256))
+            .map(|m| m.is_file() && m.len() == item.size)
+            .unwrap_or(false);
+        if !present {
+            missing += 1;
+            first.get_or_insert_with(|| item.path.clone());
+        }
+    }
+    ensure!(
+        missing == 0,
+        "{missing} asset objects pinned by release {} are missing or incomplete in {} (first: {}). \
+         Upload the asset store before deploying a release that pins it (docs/game-assets.md)",
+        manifest.version,
+        objects.display(),
+        first.unwrap_or_default()
+    );
+    Ok(())
+}
+
+fn recently_changed(metadata: &fs::Metadata, grace: Duration) -> bool {
+    let newest = metadata.modified().ok();
+    // Copies that preserve modification times (rsync -a) still set ctime.
+    #[cfg(unix)]
+    let newest = {
+        use std::os::unix::fs::MetadataExt;
+        newest.max(Some(std::time::UNIX_EPOCH + Duration::from_secs(metadata.ctime().max(0) as u64)))
+    };
+    newest.is_none_or(|time| time.elapsed().map_or(true, |age| age < grace))
+}
+
+fn asset_hashes(value: &serde_json::Value, out: &mut HashSet<String>) -> Result<()> {
+    // set.json lists {"files": [{"sha256": ..}]}; index.json maps names to hashes.
+    match value.get("files").context("Missing file list")? {
+        serde_json::Value::Array(items) => {
+            for item in items {
+                out.insert(item.get("sha256").and_then(|v| v.as_str()).context("Missing sha256")?.to_owned());
+            }
+        }
+        serde_json::Value::Object(map) => {
+            for sha in map.values() {
+                out.insert(sha.as_str().context("Invalid sha256")?.to_owned());
+            }
+        }
+        _ => anyhow::bail!("Invalid file list"),
+    }
+    Ok(())
+}
+
+/// Keep each platform's active asset version and the two newest others, then
+/// delete objects that neither a release on disk nor a kept version uses.
+/// Anything unreadable stops object deletion: a missed reference would break
+/// a release.
+fn prune_assets(root: &Path, public_key: &str, scratch: &Path, grace: Duration) -> Result<(usize, usize)> {
+    let assets = root.join("assets");
+    if !assets.exists() {
+        return Ok((0, 0));
+    }
+    ensure!(fs::canonicalize(&assets)? == assets, "Unsafe asset directory");
+    ensure!(!assets.join(".sync-lock").exists(), "An asset upload is in progress");
+    let mut referenced = HashSet::new();
+    let releases = root.join("releases");
+    if releases.exists() {
+        for entry in fs::read_dir(&releases)? {
+            let entry = entry?;
+            if !entry.file_type()?.is_dir() {
+                continue;
+            }
+            let path = entry.path().join("manifest.json");
+            ensure!(
+                fs::canonicalize(&path)? == path && fs::metadata(&path)?.len() <= MANIFEST_LIMIT,
+                "Unreadable release {}",
+                entry.file_name().to_string_lossy()
+            );
+            let manifest = verify_manifest(&fs::read(&path)?, public_key, scratch)
+                .with_context(|| format!("Unverified release {}", entry.file_name().to_string_lossy()))?;
+            referenced.extend(manifest.files.into_iter().filter(|f| f.is_asset()).map(|f| f.sha256));
+        }
+    }
+    let mut removed_versions = 0;
+    for entry in fs::read_dir(&assets)? {
+        let entry = entry?;
+        let platform = entry.file_name().to_string_lossy().into_owned();
+        if platform == "objects" || !entry.file_type()?.is_dir() {
+            continue;
+        }
+        let platform_dir = entry.path();
+        ensure!(
+            super::valid_identifier(&platform) && fs::canonicalize(&platform_dir)? == platform_dir,
+            "Unexpected asset directory {platform}"
+        );
+        ensure!(!platform_dir.join(".publish-lock").exists(), "An asset publish is in progress");
+        let versions_dir = platform_dir.join("versions");
+        if !versions_dir.exists() {
+            continue;
+        }
+        let current: Option<u32> = fs::read_to_string(platform_dir.join("current.txt"))
+            .ok()
+            .and_then(|text| text.trim().parse().ok());
+        let mut versions = Vec::new();
+        for version in fs::read_dir(&versions_dir)? {
+            let version = version?;
+            if let Some(number) = version.file_name().to_str().and_then(|n| n.parse::<u32>().ok()) {
+                if version.file_type()?.is_dir() {
+                    versions.push((number, version.path()));
+                }
+            }
+        }
+        versions.sort_by(|a, b| b.0.cmp(&a.0));
+        let mut kept_others = 0;
+        for (number, path) in versions {
+            let keep = Some(number) == current || {
+                kept_others += 1;
+                kept_others <= KEPT_ASSET_VERSIONS
+            };
+            ensure!(fs::canonicalize(&path)? == path, "Unsafe asset version directory");
+            if keep {
+                for file in ["set.json", "index.json"] {
+                    let file = path.join(file);
+                    if file.exists() {
+                        let value: serde_json::Value = serde_json::from_slice(&fs::read(&file)?)
+                            .with_context(|| format!("Unreadable {}", file.display()))?;
+                        asset_hashes(&value, &mut referenced)?;
+                    }
+                }
+            } else {
+                fs::remove_dir_all(&path)?;
+                removed_versions += 1;
+                tracing::info!(%platform, version = number, "Removed old asset version");
+            }
+        }
+    }
+    let objects = assets.join("objects");
+    let mut removed_objects = 0;
+    if objects.exists() {
+        ensure!(fs::canonicalize(&objects)? == objects, "Unsafe object directory");
+        for entry in fs::read_dir(&objects)? {
+            let entry = entry?;
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let metadata = entry.metadata()?;
+            // Only plain, finished objects; publisher temporaries start with '.'.
+            if name.len() != 64
+                || !name.bytes().all(|c| matches!(c, b'0'..=b'9' | b'a'..=b'f'))
+                || !entry.file_type()?.is_file()
+                || referenced.contains(&name)
+                || recently_changed(&metadata, grace)
+            {
+                continue;
+            }
+            fs::remove_file(entry.path())?;
+            removed_objects += 1;
+        }
+    }
+    Ok((removed_versions, removed_objects))
 }
 
 fn prune_releases(root: &Path, active: &str, public_key: &str, scratch: &Path) -> Result<usize> {
@@ -478,7 +671,7 @@ fn prune_releases(root: &Path, active: &str, public_key: &str, scratch: &Path) -
                 "Unsafe release manifest"
             );
             ensure!(
-                fs::metadata(&manifest_path)?.len() <= JSON_LIMIT,
+                fs::metadata(&manifest_path)?.len() <= MANIFEST_LIMIT,
                 "Release manifest too large"
             );
             let manifest = verify_manifest(&fs::read(manifest_path)?, public_key, scratch)?;
@@ -514,7 +707,7 @@ fn prune_releases(root: &Path, active: &str, public_key: &str, scratch: &Path) -
 }
 
 fn verify_files(root: &Path, manifest: &Manifest) -> Result<()> {
-    for item in &manifest.files {
+    for item in manifest.files.iter().filter(|f| !f.is_asset()) {
         let path = root.join("files").join(&item.path);
         ensure!(
             fs::canonicalize(&path)? == path,
@@ -549,6 +742,7 @@ fn unpack(archive: &Path, destination: &Path, raw: &[u8], manifest: &Manifest) -
     let mut expected: HashMap<String, u64> = manifest
         .files
         .iter()
+        .filter(|f| !f.is_asset())
         .map(|f| (format!("files/{}", f.path), f.size))
         .collect();
     expected.insert("manifest.json".into(), raw.len() as u64);
@@ -762,6 +956,102 @@ mod tests {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.root);
         }
+    }
+
+    fn sign(f: &Fixture, payload: &serde_json::Value) -> Vec<u8> {
+        let bytes = serde_json::to_vec(payload).unwrap();
+        fs::write(f.root.join("asset-payload"), &bytes).unwrap();
+        let signature = Command::new(openssl())
+            .current_dir(&f.root)
+            .args(["dgst", "-sha256", "-sign", "test-private.pem", "asset-payload"])
+            .output()
+            .unwrap();
+        assert!(signature.status.success());
+        let mut outer = payload.clone();
+        outer["signature"] = json!({"algorithm":"RSA-SHA256", "payload":STANDARD.encode(bytes), "value":STANDARD.encode(signature.stdout)});
+        serde_json::to_vec(&outer).unwrap()
+    }
+
+    fn with_asset(f: &Fixture, version: &str, sha: &str, url: Option<String>) -> Vec<u8> {
+        let mut payload: serde_json::Value = serde_json::from_slice(&f.raw).unwrap();
+        payload.as_object_mut().unwrap().remove("signature");
+        payload["version"] = json!(version);
+        payload["files"][0]["url"] = json!(format!("/updates/releases/{version}/files/King%27s%20Raid_Data/Managed/sprk.dll"));
+        payload["files"].as_array_mut().unwrap().push(json!({
+            "path": "UnityPlayer.dll", "size": 6, "sha256": sha,
+            "url": url.unwrap_or_else(|| format!("{ASSET_URL_PREFIX}{sha}"))}));
+        sign(f, &payload)
+    }
+
+    #[test]
+    fn asset_entries_are_not_in_the_archive_and_must_exist_in_the_store() {
+        let f = Fixture::new();
+        let sha = hex::encode(Sha256::digest(b"player"));
+        let raw = with_asset(&f, "test-1", &sha, None);
+        let manifest = verify_manifest(&raw, &f.public, &f.root).unwrap();
+        // The archive holds only code files.
+        let archive = Fixture { raw: raw.clone(), root: f.root.clone(), public: f.public.clone() };
+        let path = archive.archive("assets.tar.gz", b"hello", None);
+        std::mem::forget(archive);
+        unpack(&path, &f.root.join("release"), &raw, &manifest).unwrap();
+
+        let error = verify_assets(&f.root, &manifest).unwrap_err().to_string();
+        assert!(error.contains("1 asset objects pinned by release test-1 are missing"), "{error}");
+        fs::create_dir_all(f.root.join("assets/objects")).unwrap();
+        fs::write(f.root.join("assets/objects").join(&sha), b"play").unwrap();
+        assert!(verify_assets(&f.root, &manifest).is_err(), "incomplete object accepted");
+        fs::write(f.root.join("assets/objects").join(&sha), b"player").unwrap();
+        verify_assets(&f.root, &manifest).unwrap();
+
+        let wrong = with_asset(&f, "test-1", &sha, Some(format!("{ASSET_URL_PREFIX}{}", "0".repeat(64))));
+        assert!(verify_manifest(&wrong, &f.public, &f.root).is_err());
+    }
+
+    #[test]
+    fn asset_cleanup_keeps_referenced_objects_and_recent_versions() {
+        let f = Fixture::new();
+        let objects = f.root.join("assets/objects");
+        fs::create_dir_all(&objects).unwrap();
+        let hash = |name: &str| hex::encode(Sha256::digest(name.as_bytes()));
+        for name in ["release", "current", "newest", "old", "orphan"] {
+            fs::write(objects.join(hash(name)), name).unwrap();
+        }
+        fs::write(objects.join(".publisher.tmp"), b"in progress").unwrap();
+        let release = f.root.join("releases/pinned");
+        fs::create_dir_all(&release).unwrap();
+        fs::write(release.join("manifest.json"), with_asset(&f, "pinned", &hash("release"), None)).unwrap();
+        let versions = f.root.join("assets/StandaloneWindows/versions");
+        for (number, object) in [(1, "old"), (2, "current"), (3, "old"), (4, "old"), (5, "newest")] {
+            fs::create_dir_all(versions.join(number.to_string())).unwrap();
+            fs::write(
+                versions.join(number.to_string()).join("set.json"),
+                json!({"files": [{"path": "x", "size": 1, "sha256": hash(object)}]}).to_string(),
+            )
+            .unwrap();
+        }
+        fs::write(versions.join("5/index.json"), json!({"files": {"x": hash("newest")}}).to_string()).unwrap();
+        fs::write(f.root.join("assets/StandaloneWindows/current.txt"), b"2").unwrap();
+
+        // Recent objects are never pruned.
+        assert_eq!(prune_assets(&f.root, &f.public, &f.root, OBJECT_GRACE).unwrap(), (2, 0));
+        let remaining: Vec<_> = fs::read_dir(&versions).unwrap().map(|e| e.unwrap().file_name().into_string().unwrap()).collect();
+        assert_eq!(remaining.len(), 3);
+        assert!(["2", "4", "5"].iter().all(|v| remaining.contains(&v.to_string())));
+
+        // Version 4 (kept) still references "old"; only the orphan goes.
+        assert_eq!(prune_assets(&f.root, &f.public, &f.root, Duration::ZERO).unwrap(), (0, 1));
+        assert!(!objects.join(hash("orphan")).exists());
+        for name in ["release", "current", "newest", "old"] {
+            assert!(objects.join(hash(name)).exists(), "{name} was pruned");
+        }
+        assert!(objects.join(".publisher.tmp").exists());
+
+        // An unreadable release or a running publish stops object deletion.
+        fs::write(release.join("manifest.json"), b"{}").unwrap();
+        assert!(prune_assets(&f.root, &f.public, &f.root, Duration::ZERO).is_err());
+        fs::write(release.join("manifest.json"), with_asset(&f, "pinned", &hash("release"), None)).unwrap();
+        fs::write(f.root.join("assets/StandaloneWindows/.publish-lock"), b"").unwrap();
+        assert!(prune_assets(&f.root, &f.public, &f.root, Duration::ZERO).is_err());
     }
 
     #[test]

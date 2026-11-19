@@ -111,6 +111,10 @@ Git and excluded from the Docker image.
 
 ## Endpoints and launcher contract
 
+A release also lists the pinned asset set (Unity player and data, asset bundles, …)
+with URLs into the update service's object store, so the launcher installs a complete
+game from one manifest. See [Game assets](game-assets.md).
+
 | Endpoint                                        | Behavior                                            |
 | ----------------------------------------------- | --------------------------------------------------- |
 | `GET /updates/stable/manifest.json`             | Current channel manifest, `Cache-Control: no-store` |

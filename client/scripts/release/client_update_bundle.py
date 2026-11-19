@@ -14,7 +14,11 @@ import sys
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from client.scripts.release.publish_client_update import IDENTIFIER, find_openssl, safe_path
+from client.scripts.release.publish_client_update import ASSET_URL_PREFIX, IDENTIFIER, find_openssl, is_asset_entry, safe_path
+
+# A release manifest also lists the pinned asset set (stored once on the
+# update server, not in the release archive); keep in step with github.rs.
+MANIFEST_LIMIT = 64 * 1024**2
 
 
 def verified_manifest(raw: bytes, public_key: Path) -> dict:
@@ -39,6 +43,9 @@ def verified_manifest(raw: bytes, public_key: Path) -> dict:
         raise ValueError("Expected schema 1 stable release")
     if not IDENTIFIER.fullmatch(signed["version"]) or not signed["files"]:
         raise ValueError("Invalid or empty release")
+    for item in signed["files"]:
+        if is_asset_entry(item) and item["url"] != ASSET_URL_PREFIX + item["sha256"]:
+            raise ValueError(f"Invalid asset URL: {item['path']}")
     return signed
 
 
@@ -58,6 +65,8 @@ def package(root: Path, version: str, public_key: Path, output: Path) -> tuple[P
         if relative.lower() in paths:
             raise ValueError("Duplicate managed path")
         paths.add(relative.lower())
+        if is_asset_entry(item):
+            continue  # served from the asset store, not the archive
         path = release / "files" / relative
         if path.resolve(strict=True) != path:
             raise ValueError(f"Symlink/junction in release: {relative}")

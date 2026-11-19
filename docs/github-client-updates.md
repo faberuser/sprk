@@ -40,6 +40,10 @@ building and validating the server image and calling Portainer.
 4. It generates a complete signed snapshot, using the previous GitHub client
    release's verified manifest for deletion history. On the first build, the
    baseline distribution supplies that history.
+   The manifest also lists the asset set pinned in
+   `client/assets/StandaloneWindows.json` (Unity player, bundles; stored on the
+   update host, not in the archive). Upload a new set's objects before merging
+   its pin; see [Game assets](game-assets.md).
 5. It publishes both `client-update-manifest.json` and `client-update.tar.gz` as
    `client-ci-<commit-prefix>-<run-id>-<attempt>`. Assets go to a draft before
    publishing. Existing releases are never replaced.
@@ -51,7 +55,8 @@ building and validating the server image and calling Portainer.
    and requires worker readiness in an isolated container before pushing to
    GHCR and calling Portainer.
 7. At startup, the update container downloads that exact release, verifies its
-   signature and every file hash, installs it, atomically replaces the stable
+   signature and every file hash, checks that every pinned asset object is
+   present, installs it, atomically replaces the stable
    manifest last, removes older local releases, and only then starts serving requests.
 
 Running servers never poll or follow GitHub's moving latest release. An old

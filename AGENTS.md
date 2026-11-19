@@ -131,6 +131,10 @@ this repository. The Unity player, assets and tables are never source.
   it contains in the same change (plus `client/overrides/README.md` notes about
   them). Do not use `unmanaged_files.txt` for this: the files stay managed,
   now supplied by the baseline.
+- `client/assets/StandaloneWindows.json` pins the asset set every release lists
+  (Unity player, bundles; [guide](docs/game-assets.md)). Change it only with
+  `publish_assets.py`, and only after its objects are uploaded to the host:
+  the update service refuses to start while a pinned object is missing.
 - `client/scripts/release/unmanaged_files.txt` keeps files out of releases
   without deleting players' copies. Add entries only when the user asks and the
   conditions in that file are met (including the native battle tests). Never

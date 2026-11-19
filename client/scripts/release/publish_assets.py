@@ -1,0 +1,296 @@
+#!/usr/bin/env python3
+"""Publish a client's non-code files as an asset set for the update server.
+
+Code releases (publish_client_update.py, CI) manage what this repository builds
+(CODE_PATHS: Managed DLLs, tables, localization, video, Unity startup files) and
+overrides. Everything else in
+the client (the Unity player and data files, asset bundles, PlainAsset, video,
+...) is an *asset*: it never changes with the code and is too large to copy into
+every release. This tool stores each asset once, by hash, and writes the asset
+set that release manifests reference:
+
+    <store>/objects/<sha256>                    file bytes, stored once
+    <store>/<platform>/versions/<n>/set.json    asset set: client path -> size, sha256
+    <store>/<platform>/versions/<n>/patch.json  game patch list (Raw archives) for the
+    <store>/<platform>/versions/<n>/index.json  patch-folder files, served to the game
+    <store>/<platform>/current.txt              game's active version, replaced last
+
+and pins the set in the repository (client/assets/<platform>.json). The next
+code release, local or CI, lists every pinned asset in its signed manifest with
+the URL /updates/assets/objects/<sha256>, so the launcher installs code and
+assets as one release and each server image pins its exact asset set.
+
+Upload the objects and version folder to the host's update storage before
+deploying a release that pins them: the update service refuses to start when
+a pinned asset object is missing (docs/game-assets.md).
+
+The game's patch.json/index.json serve platforms without the launcher (Android);
+on Windows the game downloads nothing.
+"""
+from __future__ import annotations
+
+import argparse
+from concurrent.futures import ThreadPoolExecutor
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import sys
+import zlib
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+
+from client.scripts.release.publish_client_update import DEFAULT_INCLUDES, ignored
+
+REPO = Path(__file__).resolve().parents[3]
+PIN_DIR = REPO / "client" / "assets"
+PATCH_PREFIX = "King's Raid_Data/Documents/Patch/StandaloneWindows/"
+# What every code release builds from this repository. Everything else is an
+# asset. Files a code release also carries forward (overridden bundles, older
+# Unity data) stay in the set too: the release lists its own copy instead, so
+# no file can drop out of both, whatever a release's carry-forward history.
+CODE_PATHS = tuple(DEFAULT_INCLUDES) + ("King's Raid_Data/sprk-privacy.json",)
+# The launcher's own files and local tools are never part of the game.
+EXCLUDED_CLIENT = {"sprklauncher.exe", "sprk-launcher.json", "sprk-launcher-error.log", "reset_position.ps1"}
+# Patch metadata, and data that must change together with the code (installed
+# by code releases with its integrity metadata), relative to the patch folder.
+EXCLUDED_PATCH_PREFIXES = ("PatchInfo/", "TableData/", "TableJit/", "LocalizationJit/")
+EXCLUDED_PATCH_NAMES = {"patch.json", "patch.bjs"}
+PLATFORM = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}")
+CHUNK = 1 << 20
+MAX_LENGTH = 2**31 - 1  # AssetInfo.Length is an int on the client.
+
+
+def valid_name(name: str) -> bool:
+    """The update server's path rules (updates.rs valid_file_path)."""
+    return bool(name) and all(
+        part
+        and part not in (".", "..")
+        and not part.startswith(".")
+        and not part.endswith((".", " "))
+        and not any(ord(c) < 32 or c in '\\:<>"|?*' for c in part)
+        for part in name.split("/")
+    )
+
+
+def excluded(name: str, patch_prefix: str) -> bool:
+    if name.lower() in EXCLUDED_CLIENT or name.endswith(".part"):
+        return True
+    if not name.startswith(patch_prefix):
+        return False
+    inner = name[len(patch_prefix):]
+    return (inner in EXCLUDED_PATCH_NAMES or inner.startswith(EXCLUDED_PATCH_PREFIXES)
+            or (inner.startswith("SPRK-Native") and "/" not in inner))
+
+
+def code_path(name: str) -> bool:
+    return any(name == path or name.startswith(path + "/") for path in CODE_PATHS)
+
+
+def original_metadata(path: Path | None) -> dict[str, dict]:
+    """Download category/priority/time per entry from the game's original patch.json."""
+    if path is None or not path.exists():
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    metadata = {}
+    for archive in data.get("Archives", []):
+        for asset in archive.get("AssetInfos", []):
+            metadata[asset["EntryName"]] = {
+                "Cat": str(asset.get("Cat", archive.get("Cat", "0"))),
+                "Pri": str(asset.get("Pri", archive.get("Pri", "0"))),
+                "Time": str(asset.get("Time", "0")),
+            }
+    return metadata
+
+
+def hash_file(path: Path) -> dict:
+    md5, sha256, crc, length = hashlib.md5(), hashlib.sha256(), 0, 0
+    with path.open("rb") as stream:
+        while chunk := stream.read(CHUNK):
+            md5.update(chunk)
+            sha256.update(chunk)
+            crc = zlib.crc32(chunk, crc)
+            length += len(chunk)
+    return {"md5": md5.hexdigest(), "sha256": sha256.hexdigest(), "crc": crc & 0xFFFFFFFF, "length": length}
+
+
+def store_object(source: Path, objects: Path, sha256: str) -> bool:
+    """Copy source into the object store under its hash. Returns True if added."""
+    target = objects / sha256
+    if target.exists():
+        return False
+    temporary = objects / f".{sha256}.{os.getpid()}.tmp"
+    digest = hashlib.sha256()
+    try:
+        with source.open("rb") as reader, temporary.open("wb") as writer:
+            while chunk := reader.read(CHUNK):
+                digest.update(chunk)
+                writer.write(chunk)
+        if digest.hexdigest() != sha256:
+            raise RuntimeError(f"{source} changed while publishing")
+        os.replace(temporary, target)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return True
+
+
+def collect(client: Path, patch_prefix: str, includes: list[str]) -> list[str]:
+    names, invalid = [], []
+    for path in sorted(client.rglob("*")):
+        relative = path.relative_to(client)
+        if relative.parts[0].startswith("."):
+            continue  # .sprk-launcher and other tool state
+        if path.is_symlink():
+            raise ValueError(f"Symlink/junction in client: {path}")
+        if not path.is_file() or ignored(path):
+            continue
+        name = relative.as_posix()
+        if excluded(name, patch_prefix) or code_path(name):
+            continue
+        if includes and not any(name.startswith(prefix) for prefix in includes):
+            continue
+        (names if valid_name(name) else invalid).append(name)
+    if invalid:
+        raise ValueError(f"File names the server cannot serve: {invalid[:5]}")
+    return names
+
+
+def existing_versions(platform_dir: Path) -> list[int]:
+    versions = platform_dir / "versions"
+    if not versions.is_dir():
+        return []
+    return sorted(int(p.name) for p in versions.iterdir() if p.is_dir() and p.name.isdigit())
+
+
+def replace_file(path: Path, data: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    with temporary.open("wb") as writer:
+        writer.write(data)
+        writer.flush()
+        os.fsync(writer.fileno())
+    os.replace(temporary, path)
+
+
+def encode_set(asset_set: dict) -> bytes:
+    """One file per line, so pin changes review as readable diffs."""
+    lines = [json.dumps(item, ensure_ascii=False, separators=(",", ":")) for item in asset_set["files"]]
+    header = {k: v for k, v in asset_set.items() if k != "files"}
+    head = json.dumps(header, ensure_ascii=False, separators=(",", ":"))[:-1]
+    return (head + ',"files":[\n' + ",\n".join(lines) + "\n]}\n").encode("utf-8")
+
+
+def publish(
+    client: Path,
+    store: Path,
+    platform: str,
+    *,
+    patch_prefix: str = PATCH_PREFIX,
+    version: int | None = None,
+    includes: list[str] | None = None,
+    activate: bool = True,
+    pin: Path | None = None,
+    workers: int = 4,
+    log=print,
+) -> dict:
+    if not PLATFORM.fullmatch(platform) or platform == "objects":
+        raise ValueError(f"Invalid platform: {platform}")
+    client = client.resolve(strict=True)
+    platform_dir = store / platform
+    objects = store / "objects"
+    objects.mkdir(parents=True, exist_ok=True)
+    (platform_dir / "versions").mkdir(parents=True, exist_ok=True)
+    lock = platform_dir / ".publish-lock"
+    try:
+        lock_fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        raise RuntimeError(f"Another publish is running (or crashed): {lock}") from None
+    try:
+        versions = existing_versions(platform_dir)
+        version = version if version is not None else (versions[-1] + 1 if versions else 1)
+        if version <= 0 or version in versions:
+            raise ValueError(f"Version {version} is invalid or already published")
+        names = collect(client, patch_prefix, includes or [])
+        if not names:
+            raise ValueError("No files selected")
+        metadata = original_metadata(client / patch_prefix / "patch.json")
+        log(f"Hashing {len(names)} files")
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            hashes = list(pool.map(lambda n: hash_file(client / n), names))
+        archives, index, files, added, total = [], {}, [], 0, 0
+        for name, info in zip(names, hashes):
+            if store_object(client / name, objects, info["sha256"]):
+                added += 1
+            total += info["length"]
+            files.append({"path": name, "size": info["length"], "sha256": info["sha256"]})
+            if not name.startswith(patch_prefix):
+                continue
+            # The game's patch downloader addresses files relative to its patch folder.
+            entry = name[len(patch_prefix):]
+            if info["length"] > MAX_LENGTH:
+                raise ValueError(f"{name} is larger than the game downloader supports")
+            meta = metadata.get(entry, {"Cat": "0", "Pri": "0", "Time": "0"})
+            common = {"Cat": meta["Cat"], "Pri": meta["Pri"], "Length": str(info["length"]),
+                      "Md5": info["md5"], "Crc": str(info["crc"]), "Time": meta["Time"]}
+            archives.append({
+                "Name": entry, "SrcVersion": str(version), "Zip": "False", "ArchiveType": "Raw",
+                "AssetInfos": [{"EntryName": entry, **common}], **common,
+            })
+            index[entry] = info["sha256"]
+        asset_set = {"schema_version": 1, "platform": platform, "version": f"assets-{version}", "files": files}
+        set_bytes = encode_set(asset_set)
+
+        staging = platform_dir / "versions" / f".staging-{version}-{os.getpid()}"
+        staging.mkdir()
+        try:
+            (staging / "set.json").write_bytes(set_bytes)
+            (staging / "patch.json").write_text(
+                json.dumps({"Archives": archives}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+            (staging / "index.json").write_text(
+                json.dumps({"files": index}, ensure_ascii=False, indent=0), encoding="utf-8")
+            os.replace(staging, platform_dir / "versions" / str(version))
+        except BaseException:
+            shutil.rmtree(staging, ignore_errors=True)
+            raise
+        if activate:
+            replace_file(platform_dir / "current.txt", str(version).encode("ascii"))
+            if pin is not None:
+                replace_file(pin, set_bytes)
+        log(f"Published {platform} asset set assets-{version}: {len(names)} files, "
+            f"{total / 2**30:.2f} GiB, {added} new objects"
+            + (f"; pinned in {pin}" if activate and pin else "" if activate else " (not activated)"))
+        return {"version": version, "files": len(names), "bytes": total, "new_objects": added}
+    finally:
+        os.close(lock_fd)
+        lock.unlink(missing_ok=True)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--client", type=Path, default=Path("../sprk-client"), help="Client folder")
+    parser.add_argument("--store", type=Path, default=Path("client-updates/assets"))
+    parser.add_argument("--platform", default="StandaloneWindows", help="Platform key, as in host.json")
+    parser.add_argument("--patch-prefix", default=PATCH_PREFIX,
+                        help="Client-relative patch folder for the game's patch.json ('' = whole folder)")
+    parser.add_argument("--version", type=int, help="Asset version (default: latest + 1)")
+    parser.add_argument("--include", action="append", default=[], help="Only paths with this prefix (repeatable)")
+    parser.add_argument("--no-activate", action="store_true", help="Publish without switching or pinning")
+    parser.add_argument("--no-pin", action="store_true", help="Do not update client/assets/<platform>.json")
+    args = parser.parse_args()
+    publish(
+        args.client,
+        args.store,
+        args.platform,
+        patch_prefix=args.patch_prefix,
+        version=args.version,
+        includes=args.include,
+        activate=not args.no_activate,
+        pin=None if args.no_pin else PIN_DIR / f"{args.platform}.json",
+    )
+
+
+if __name__ == "__main__":
+    main()

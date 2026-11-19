@@ -28,6 +28,11 @@ DEFAULT_INCLUDES = [
     "King's Raid_Data/Documents/Patch/StandaloneWindows/Video",
 ]
 UNMANAGED_LIST = Path(__file__).with_name("unmanaged_files.txt")
+# Asset set pinned by publish_assets.py: files stored once in the update
+# server's object store and listed, not copied, in every release.
+DEFAULT_ASSET_SET = Path(__file__).resolve().parents[2] / "assets" / "StandaloneWindows.json"
+ASSET_URL_PREFIX = "/updates/assets/objects/"
+SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\Z")
 
 
@@ -66,6 +71,27 @@ def ignored(path: Path) -> bool:
     return ".backup" in name or ".before-" in name or ".before_" in name or name.endswith(
         (".patched", ".eye-patched", ".staged", "-staged", ".log", ".tmp", ".bak")
     )
+
+
+def is_asset_entry(item: dict) -> bool:
+    return item.get("url", "").startswith(ASSET_URL_PREFIX)
+
+
+def load_asset_set(path: Path | None) -> tuple[str | None, list[dict]]:
+    """The pinned asset set's version and files ({path, size, sha256})."""
+    if path is None or not path.exists():
+        return None, []
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if data.get("schema_version") != 1 or not IDENTIFIER.fullmatch(data.get("version", "")):
+        raise ValueError(f"Unsupported asset set: {path}")
+    files, seen = [], set()
+    for item in data["files"]:
+        relative = safe_path(item["path"])
+        if relative.lower() in seen or not SHA256.fullmatch(item["sha256"]) or type(item["size"]) is not int or item["size"] < 0:
+            raise ValueError(f"Invalid asset set entry: {item['path']}")
+        seen.add(relative.lower())
+        files.append({"path": relative, "size": item["size"], "sha256": item["sha256"]})
+    return data["version"], files
 
 
 def collect_files(client: Path, includes: list[str]) -> list[Path]:
@@ -151,7 +177,7 @@ def sign_manifest(manifest: dict, private_key: Path) -> dict:
     }}
 
 
-def publish(client: Path, output: Path, version: str, channel: str, includes: list[str], signing_key: Path | None = None, deleted_files: list[str] | None = None, build_inputs_sha256: str | None = None, unmanaged: list[str] | None = None) -> dict:
+def publish(client: Path, output: Path, version: str, channel: str, includes: list[str], signing_key: Path | None = None, deleted_files: list[str] | None = None, build_inputs_sha256: str | None = None, unmanaged: list[str] | None = None, asset_set: Path | None = None) -> dict:
     if not IDENTIFIER.fullmatch(version) or not IDENTIFIER.fullmatch(channel) or channel.lower() == "releases":
         raise ValueError("Version/channel must start with a letter or digit and contain only letters, digits, '.', '_', '-' (max 128 characters); channel cannot be 'releases'")
     client = client.resolve(strict=True)
@@ -180,7 +206,10 @@ def publish(client: Path, output: Path, version: str, channel: str, includes: li
         previous_path = channel_dir / "manifest.json"
         previous = json.loads(previous_path.read_text(encoding="utf-8")) if previous_path.exists() else {}
         # Carry removals forward so clients can skip intermediate versions.
-        previous_files = {safe_path(item["path"]) for item in previous.get("files", [])}
+        previous_paths = {safe_path(item["path"]) for item in previous.get("files", [])}
+        # Only code files are carried forward as files to copy; assets come
+        # from the pinned asset set (and are deleted when it drops them).
+        previous_files = {safe_path(item["path"]) for item in previous.get("files", []) if not is_asset_entry(item)}
         removed = {safe_path(path) for path in previous.get("deleted_files", [])}
         explicit_removals = {safe_path(path) for path in (deleted_files or []) + privacy.get("deleted_files", [])}
         removed.update(explicit_removals)
@@ -213,6 +242,13 @@ def publish(client: Path, output: Path, version: str, channel: str, includes: li
                     "path": path, "size": size, "sha256": sha256,
                     "url": f"/updates/releases/{version}/files/{quote(path, safe='/')}",
                 })
+            asset_version, assets = load_asset_set(asset_set)
+            code_paths = {path.lower() for path in (item["path"] for item in files)}
+            # A file this release builds or overrides wins over the asset set.
+            for item in assets:
+                if item["path"].lower() in code_paths or item["path"] in explicit_removals or is_unmanaged(item["path"], unmanaged):
+                    continue
+                files.append({**item, "url": ASSET_URL_PREFIX + item["sha256"]})
             current_files = {item["path"] for item in files}
             if explicit_removals & current_files:
                 raise ValueError("Explicit deletion also included in release: " + ", ".join(sorted(explicit_removals & current_files)))
@@ -222,9 +258,11 @@ def publish(client: Path, output: Path, version: str, channel: str, includes: li
                 "channel": channel,
                 "published_at": datetime.now(timezone.utc).isoformat(),
                 "files": files,
-                "deleted_files": sorted(path for path in (removed | (previous_files - current_files)) - current_files
+                "deleted_files": sorted(path for path in (removed | (previous_paths - current_files)) - current_files
                                         if not is_unmanaged(path, unmanaged)),
             }
+            if asset_version is not None:
+                manifest["asset_set"] = asset_version
             if signing_key is not None:
                 if build_inputs_sha256 is not None:
                     if not re.fullmatch(r"[0-9a-f]{64}", build_inputs_sha256):
@@ -257,16 +295,27 @@ def main() -> None:
     parser.add_argument("--include", action="append", help="Client-relative file/directory; repeat to replace the default selection")
     parser.add_argument("--signing-key", type=Path, help="RSA private key PEM; use for hosted launcher updates")
     parser.add_argument("--delete", action="append", help="Client-relative obsolete file to remove, including files not previously managed; repeat as needed")
+    parser.add_argument("--asset-set", type=Path, default=DEFAULT_ASSET_SET,
+                        help="Pinned asset set listed in the release (default: client/assets/StandaloneWindows.json)")
+    parser.add_argument("--no-asset-set", action="store_true", help="Publish code files only")
     parser.add_argument("--unmanaged-list", type=Path, default=UNMANAGED_LIST,
                         help="Files releases stop managing without deleting them (default: unmanaged_files.txt next to this script)")
     args = parser.parse_args()
     try:
         manifest = publish(args.client, args.output, args.version, args.channel, args.include or DEFAULT_INCLUDES, args.signing_key, args.delete,
-                           unmanaged=load_unmanaged(args.unmanaged_list))
+                           unmanaged=load_unmanaged(args.unmanaged_list),
+                           asset_set=None if args.no_asset_set else args.asset_set)
     except (OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Publish failed: {error}\n")
-    size = sum(item["size"] for item in manifest["files"])
-    print(f"Published {args.version} to {args.channel}: {len(manifest['files'])} files, {size:,} bytes, {len(manifest['deleted_files'])} removed paths")
+    code = [item for item in manifest["files"] if not is_asset_entry(item)]
+    assets = [item for item in manifest["files"] if is_asset_entry(item)]
+    size = sum(item["size"] for item in code)
+    print(f"Published {args.version} to {args.channel}: {len(code)} files, {size:,} bytes, {len(manifest['deleted_files'])} removed paths")
+    if assets:
+        objects = args.output / "assets" / "objects"
+        missing = sum(1 for item in assets if not (objects / item["sha256"]).is_file())
+        print(f"Lists asset set {manifest.get('asset_set')}: {len(assets)} files, {sum(i['size'] for i in assets):,} bytes"
+              + (f"; WARNING: {missing} objects are missing from {objects}" if missing else ""))
     print(f"Manifest: {args.output / args.channel / 'manifest.json'}")
 
 

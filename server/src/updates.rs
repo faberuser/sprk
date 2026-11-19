@@ -13,7 +13,7 @@ use std::{
 use tower_http::services::ServeFile;
 
 #[derive(Clone)]
-struct UpdateStorage(Arc<PathBuf>);
+pub(crate) struct UpdateStorage(Arc<PathBuf>);
 
 pub async fn routes_from_env() -> anyhow::Result<Router> {
     let root = std::env::var("SPRK_UPDATES_DIR").unwrap_or_else(|_| "client-updates".into());
@@ -48,8 +48,11 @@ pub async fn routes(root: &FsPath) -> anyhow::Result<Router> {
         .route("/releases/{release}/files/{*file_path}", get(release_file))
         .route("/models/{version}/{artifact}", get(illustration_model))
         .fallback(|| async { StatusCode::NOT_FOUND })
-        .with_state(UpdateStorage(Arc::new(root))))
+        .with_state(UpdateStorage(Arc::new(root.clone())))
+        .nest("/assets", assets::routes(UpdateStorage(Arc::new(root)))))
 }
+
+mod assets;
 
 // Model provisioning is independent of launcher reconciliation and release
 // retention. Only these immutable, reproducibly prepared artifacts are served.
