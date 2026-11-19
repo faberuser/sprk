@@ -208,6 +208,7 @@ public class EventTriggerManager : SingletonAuto<EventTriggerManager>
 	{
 		if (!SingletonUpdater<TutorialManager>.instance.IsTutorialEnabled)
 		{
+			SprkSkippedQuestTutorials.Observe(eventTriggerData);
 			return RestoredPortal.OrvelTutorialAvailable(available: false, eventTriggerData);
 		}
 		if (__Extension_Method_ICollection__.COUNT(eventTriggerData.Argument) < 1)

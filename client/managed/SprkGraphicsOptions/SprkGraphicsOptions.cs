@@ -3417,7 +3417,12 @@ public sealed class SprkGraphicsOptions : MonoBehaviour
 
 	private bool LateUpdateGraphics()
 	{
-		UpdateCustomWindow();
+		// Checked here, not only inside: an interpreter (HybridCLR on Android) binds the
+		// user32 imports when it first prepares UpdateCustomWindow, before its own check runs.
+		if (Application.platform == RuntimePlatform.WindowsPlayer)
+		{
+			UpdateCustomWindow();
+		}
 		presentationFrame = -1;
 		int num = ReadIndex("PostAA");
 		int num2 = ReadIndex("SMAAQuality");

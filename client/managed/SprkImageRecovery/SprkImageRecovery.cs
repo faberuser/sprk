@@ -755,7 +755,7 @@ public static class SprkImageRecovery
 		if (!loadingProbeAssets)
 		{
 			loadingProbeAssets = true;
-			string text = Path.Combine(Application.dataPath, "Documents/Patch/StandaloneWindows");
+			string text = NVespa.UnityCache.GetDownloadedAssetPath("");
 			Dictionary<string, AssetInfo> dictionary = new Dictionary<string, AssetInfo>();
 			string[] files = Directory.GetFiles(Path.Combine(text, "Assetbundle"), "*", SearchOption.AllDirectories);
 			for (int i = 0; i < files.Length; i++)

@@ -62,6 +62,7 @@ public static class SprkOpeningSkip
 		{
 			yield break;
 		}
+		IDictionary reply = null;
 		IList responses = null;
 		object waiter = new object();
 		WaitingPopup.Open(waiter);
@@ -75,16 +76,21 @@ public static class SprkOpeningSkip
 			request.timeout = 30;
 			request.SetRequestHeader("Content-Type", "application/x-www-form-urlencoded");
 			yield return request.SendWebRequest();
-			if (!request.isNetworkError && !request.isHttpError && Json.Deserialize(request.downloadHandler.text) is IDictionary reply && Convert.ToString(reply["Result"]) == "Success")
+			if (!request.isNetworkError && !request.isHttpError && Json.Deserialize(request.downloadHandler.text) is IDictionary data && Convert.ToString(data["Result"]) == "Success")
 			{
-				responses = reply["Responses"] as IList;
+				reply = data;
+				responses = data["Responses"] as IList;
 			}
 		}
 		finally
 		{
 			WaitingPopup.Close(waiter);
 		}
-		if (responses == null || !Apply(account, responses))
+		if (responses != null && Apply(account, responses))
+		{
+			ApplyBaseResponse(requester, reply);
+		}
+		else
 		{
 			bool closed = false;
 			GlobalMessagePopup.OpenGlobal(SprkText.Get("Skip Tutorial"), SprkText.Get("The tutorial could not be skipped. It will start normally."), delegate
@@ -145,6 +151,27 @@ public static class SprkOpeningSkip
 		// No on the left, Yes on the right, matching the game's other confirmations.
 		no.transform.localPosition = center - new Vector3(offset, 0f, 0f);
 		yes.transform.localPosition = center + new Vector3(offset, 0f, 0f);
+	}
+
+	/// <summary>
+	/// This request bypasses the native requester, so its common response fields
+	/// would otherwise be dropped. The server reports the 1-1 to 1-3 mission
+	/// progress (ReservedSubQuestInfos) only once per session, so apply it here
+	/// as OnBaseResponse does for every native reply, or those missions stay
+	/// unclaimable until the next login.
+	/// </summary>
+	private static void ApplyBaseResponse(WebServiceRequester requester, IDictionary reply)
+	{
+		if (reply == null || requester == null || requester.OnBaseResponse == null)
+		{
+			return;
+		}
+		// CompleteTutorial.Response parses every NShared.Response base field.
+		NShared.Response response = JM_NShared_CompleteTutorial_Response.Parse(reply);
+		if (response != null && response.BaseResult == BaseResultType.Success)
+		{
+			requester.OnBaseResponse(response);
+		}
 	}
 
 	/// <summary>Applies each completion receipt exactly as the tutorial would have.</summary>

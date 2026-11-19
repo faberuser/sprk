@@ -169,6 +169,10 @@ public class ContentUIDispatchBattle : BaseWindow, HeroPortraitComponent.Listene
 
 	private Dictionary<int, HeroPortraitComponent> _heroIndexToComp = new Dictionary<int, HeroPortraitComponent>();
 
+	// SPRK: the karma group when this window dispatches a karma raid (Raid mode).
+	[NonSerialized]
+	private PunishmentGroupData _sprkKarma;
+
 	private RaidPartySetting.ClassEnterPermissionBanTypeData _classEnterPermissionData;
 
 	private RaidBanType _currentRaidBanType;
@@ -200,6 +204,10 @@ public class ContentUIDispatchBattle : BaseWindow, HeroPortraitComponent.Listene
 				break;
 			case DispatchHelper.ContentMode.Raid:
 			{
+				if (_sprkKarma != null)
+				{
+					return GlobalAutoBehaviour<AccountManager>.instance.DispatchBattleInfoManager.Get(_chapterIndex, _dungeonIndex, (int)_deckNumber);
+				}
 				CampaignDungeonData data = GameRoot.Instance.CampaignDungeonDataContainer.GetData(_chapterIndex, _dungeonIndex);
 				if (data == null)
 				{
@@ -345,7 +353,8 @@ public class ContentUIDispatchBattle : BaseWindow, HeroPortraitComponent.Listene
 	{
 		ClearData();
 		_multiRaidData = raidData;
-		_singleRaidData = RaidHelper.GetRaidDataSingleVersion(_multiRaidData);
+		_sprkKarma = SprkKarmaRaid.GroupForRaid(raidData);
+		_singleRaidData = ((_sprkKarma != null) ? raidData : RaidHelper.GetRaidDataSingleVersion(_multiRaidData));
 		_deckNumber = (DispatchDeckNumber)deckNumber;
 		ChangeMode(DispatchHelper.ContentMode.Raid);
 		Initialize();
@@ -429,16 +438,7 @@ public class ContentUIDispatchBattle : BaseWindow, HeroPortraitComponent.Listene
 
 	private void ChangeRepeatCount(int diff)
 	{
-		int num = _repeatCount + diff;
-		if (num < 10)
-		{
-			num = 10;
-		}
-		if (num > 200)
-		{
-			num = 200;
-		}
-		_repeatCount = num;
+		_repeatCount = SprkKarmaRaid.ClampRepeat(_sprkKarma, _repeatCount + diff);
 	}
 
 	public void OnClickRewardList()
@@ -456,7 +456,15 @@ public class ContentUIDispatchBattle : BaseWindow, HeroPortraitComponent.Listene
 			}
 			break;
 		case DispatchHelper.ContentMode.Raid:
-			if (_campaignDungeonData != null)
+			if (_sprkKarma != null)
+			{
+				RewardData karmaReward = GameRoot.Instance.RewardDataContainer.GetData(_sprkKarma.KarmaFixRewardIndex);
+				if (karmaReward != null)
+				{
+					DungeonRewardInfo.OpenGlobal(karmaReward, BattleType.KarmaRaid);
+				}
+			}
+			else if (_campaignDungeonData != null)
 			{
 				RewardData data = GameRoot.Instance.RewardDataContainer.GetData(_campaignDungeonData.GetRewardIndexOfDifficulty(NShared.DungeonDifficultyType.Easy));
 				if (data != null)
@@ -479,8 +487,12 @@ public class ContentUIDispatchBattle : BaseWindow, HeroPortraitComponent.Listene
 		int reqStamina = GetReqStamina();
 		int legendCostumeBoosterValue = GlobalAutoBehaviour<BoosterManager>.instance.GetLegendCostumeBoosterValue(EventBonusType.SaveDispatchStamina);
 		int needStamina = reqStamina * (100 - legendCostumeBoosterValue) / 100 * _repeatCount;
+		if (_sprkKarma != null)
+		{
+			needStamina = SprkKarmaRaid.DispatchCost(_sprkKarma, _repeatCount);
+		}
 		UpdateNeedStaminaLabel(needStamina);
-		UpdateNeedStaminaBeforeDisCountLabel(reqStamina * _repeatCount);
+		UpdateNeedStaminaBeforeDisCountLabel((_sprkKarma != null) ? needStamina : (reqStamina * _repeatCount));
 		if (!IsEnoughStamina(needStamina))
 		{
 			UIHelper.ResolveRecoverStamina(isNotEnough: false, null, StaminaType.Chicken, 0, delegate
@@ -509,8 +521,11 @@ public class ContentUIDispatchBattle : BaseWindow, HeroPortraitComponent.Listene
 			ShowEnterClassBanMessage();
 			return;
 		}
+		PunishmentGroupData karma = _sprkKarma;
+		SprkKarmaRaid.PrepareDispatch(karma);
 		DispatchHelper.SendRQStartDispatch(_chapterIndex, _dungeonIndex, _difficulty, (int)_deckNumber, list.ToArray(), _repeatCount, delegate(WCL_DispatchBattleInfo info)
 		{
+			SprkKarmaRaid.DispatchRequested(karma, info != null);
 			if (info != null)
 			{
 				PlayStartFx();
@@ -581,7 +596,7 @@ public class ContentUIDispatchBattle : BaseWindow, HeroPortraitComponent.Listene
 		{
 			_repeatCount = result;
 		}
-		_repeatCount = Mathf.Clamp(_repeatCount, 10, 200);
+		_repeatCount = SprkKarmaRaid.ClampRepeat(_sprkKarma, _repeatCount);
 		UpdateRepeatCountInputUI();
 	}
 
@@ -643,7 +658,7 @@ public class ContentUIDispatchBattle : BaseWindow, HeroPortraitComponent.Listene
 
 	private void Initialize()
 	{
-		_repeatCount = 10;
+		_repeatCount = SprkKarmaRaid.ClampRepeat(_sprkKarma, (_sprkKarma != null) ? 1 : 10);
 		ChangeState(GetCurrentState());
 		_dataListHeroPicked.Clear();
 		_dataListHeroUnpicked.Clear();
@@ -908,6 +923,10 @@ public class ContentUIDispatchBattle : BaseWindow, HeroPortraitComponent.Listene
 				if (data != null)
 				{
 					_maxCountHero = data.DispatchDeckCount;
+				}
+				if (_sprkKarma != null)
+				{
+					_maxCountHero = SprkKarmaRaid.PartySize(_singleRaidData);
 				}
 				if (_multiRaidData != null)
 				{
@@ -1384,8 +1403,8 @@ public class ContentUIDispatchBattle : BaseWindow, HeroPortraitComponent.Listene
 
 	private void UpdateButtonForRepeatCount()
 	{
-		bool enable = _repeatCount > 10;
-		bool enable2 = _repeatCount < 200;
+		bool enable = _repeatCount > SprkKarmaRaid.ClampRepeat(_sprkKarma, 0);
+		bool enable2 = _repeatCount < SprkKarmaRaid.ClampRepeat(_sprkKarma, int.MaxValue);
 		UIHelper.EnableButton(ButtonDecrease, enable);
 		UIHelper.EnableButton(ButtonDecrease10, enable);
 		UIHelper.EnableButton(ButtonIncrease, enable2);
@@ -1394,7 +1413,7 @@ public class ContentUIDispatchBattle : BaseWindow, HeroPortraitComponent.Listene
 
 	private void UpdateStaminaUI()
 	{
-		bool flag = HasAnyDiscount();
+		bool flag = _sprkKarma == null && HasAnyDiscount();
 		if (flag)
 		{
 			UpdateStaminaDiscountUI();
@@ -1409,7 +1428,7 @@ public class ContentUIDispatchBattle : BaseWindow, HeroPortraitComponent.Listene
 
 	private void UpdateStaminaNormalUI()
 	{
-		int needStamina = GetReqStamina() * _repeatCount;
+		int needStamina = ((_sprkKarma != null) ? SprkKarmaRaid.DispatchCost(_sprkKarma, _repeatCount) : (GetReqStamina() * _repeatCount));
 		if (IsEnoughStamina(needStamina))
 		{
 			UIHelper.SetLabelColor(LabelNeedStaminaNormal, Color.white);
@@ -1513,6 +1532,10 @@ public class ContentUIDispatchBattle : BaseWindow, HeroPortraitComponent.Listene
 
 	private bool IsPossibleDifficultyPrev()
 	{
+		if (_sprkKarma != null)
+		{
+			return false;
+		}
 		try
 		{
 			switch (_mode)
@@ -1558,6 +1581,10 @@ public class ContentUIDispatchBattle : BaseWindow, HeroPortraitComponent.Listene
 
 	private bool IsPossibleDifficultyNext()
 	{
+		if (_sprkKarma != null)
+		{
+			return false;
+		}
 		try
 		{
 			switch (_mode)

@@ -478,12 +478,13 @@ fn roll_enchant_with(state: &AppState, pool: &[i64], counts: &[(i64, i64)], targ
     Ok(lines)
 }
 
-/// Most enchants one "enchant until" request may perform.
-pub(super) const ENCHANT_UNTIL_MAX_TRIES: i64 = 5000;
-
 /// "Enchant until" guarantee per target stat: 300 accumulated tries for one
 /// target, 600 for two, 900 for three; the last of them rolls every target.
 pub(super) const ENCHANT_PITY_PER_STAT: i64 = 300;
+
+/// Most enchants one "enchant until" request may perform: the guarantee for
+/// the most targets (3) hits by then, so more tries could never be used.
+pub(super) const ENCHANT_UNTIL_MAX_TRIES: i64 = ENCHANT_PITY_PER_STAT * 3;
 
 /// SPRK "enchant until" targets: up to 3 distinct stat types, separated by `_`
 /// (the client form-escapes commas twice, so `,` arrives as a literal `%2c`).

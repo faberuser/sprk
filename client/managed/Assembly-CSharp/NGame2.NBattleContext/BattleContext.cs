@@ -104,6 +104,7 @@ public class BattleContext : SingletonAuto<BattleContext>
 
 	public void MoveSceneToLobby(Action onLoad, EBoolCheck isWin)
 	{
+		SprkKarmaRaid.StopAutoRepeat();
 		if (_lastDungeonResult != null)
 		{
 			if (isWin == EBoolCheck.DontCare)

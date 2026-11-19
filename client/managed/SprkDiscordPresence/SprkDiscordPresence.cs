@@ -221,9 +221,9 @@ public sealed class SprkDiscordPresence : MonoBehaviour
 		case BattleType.LuckyArena: return "Lucky Arena";
 		case BattleType.ArcdimRaid: return "ARCDIM Raid";
 		case BattleType.ArcdimHardRaid: return "ARCDIM X Hard";
-		case BattleType.PunishmentRaid: return "Punishment Raid";
+		case BattleType.PunishmentRaid: return "Divine Punishment Raid";
 		case BattleType.KarmaRaid: return "Karma Raid";
-		default: return "In battle";
+		default: return "In Battle";
 		}
 	}
 

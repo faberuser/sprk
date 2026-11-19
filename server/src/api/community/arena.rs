@@ -241,6 +241,11 @@ async fn stored_wait(db: &mut PgConnection, data: &Value) -> Result<Value> {
         let mut accounts = rows.iter().map(|raw| parse::<Value>(raw)).collect::<Result<Vec<_>>>()?;
         accounts[0]["TeamType"] = json!("Left");
         accounts[1]["TeamType"] = json!("Right");
+        if let Some(rules) = data["SkillRulesByAccount"].as_array().filter(|v| v.len() == 2) {
+            for (account, rules) in accounts.iter_mut().zip(rules) {
+                if !rules.is_null() { account["SkillRules"] = rules.clone(); }
+            }
+        }
         wait["MatchInfo"]["AccountInfos"] = json!(accounts);
     }
     Ok(wait)
@@ -857,7 +862,7 @@ async fn complete_match(db:&mut PgConnection,s:&AppState,a:i64,r:&Request,truste
         a,
         if kind==1 { "GloryPoint" } else { "PvpCoin" },
         if kind==1 {
-            settings(s,"HonorAttendanceMedals",10) + if win==1 {settings(s,"HonorWinBonusMedals",40)} else {0}
+            settings(s,"HonorAttendanceMedals",100) + if win==1 {settings(s,"HonorWinBonusMedals",400)} else {0}
         } else { settings(
             s,
             if win == 1 {

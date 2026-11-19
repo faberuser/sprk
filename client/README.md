@@ -18,21 +18,22 @@ file in it are built from this directory:
 
 ## Layout
 
-| Path                                    | Contents                                                                    |
-| --------------------------------------- | --------------------------------------------------------------------------- |
-| `managed/Assembly-CSharp/`              | The game's C# code                                                          |
-| `managed/Sprk*/`                        | SPRK feature assemblies, one DLL per directory                              |
-| `managed/Directory.Build.props`         | Compiler settings shared by every project                                   |
-| `managed/references.lock.json`          | SHA-256 pins of the game runtime DLLs the code compiles against             |
-| `launcher/`                             | `SprkLauncher.exe` (server profiles, signed updates) and its tests          |
-| `overrides/files/`                      | Replacement assets and tables, by client-relative path (empty until needed) |
-| `dev.py`                                | Everyday commands: build, test, install, clean                              |
-| `scripts/build/`                        | Compiler and test-copy code used by `dev.py` and CI                         |
-| `scripts/release/`                      | Build, sign, publish and pin client updates                                 |
-| `scripts/automation/`                   | Drive the real game in tests                                                |
-| `scripts/launcher/`, `scripts/android/` | Launcher installation; Android conversion                                   |
-| `tools/ManagedSource/`                  | Read-only DLL inspection and comparison                                     |
-| `global.json`                           | .NET SDK version                                                            |
+| Path                            | Contents                                                                    |
+| ------------------------------- | --------------------------------------------------------------------------- |
+| `managed/Assembly-CSharp/`      | The game's C# code                                                          |
+| `managed/Sprk*/`                | SPRK feature assemblies, one DLL per directory                              |
+| `managed/Directory.Build.props` | Compiler settings shared by every project                                   |
+| `managed/references.lock.json`  | SHA-256 pins of the game runtime DLLs the code compiles against             |
+| `launcher/`                     | `SprkLauncher.exe` (server profiles, signed updates) and its tests          |
+| `overrides/files/`              | Replacement assets and tables, by client-relative path (empty until needed) |
+| `dev.py`                        | Everyday commands: build, test, install, clean                              |
+| `scripts/build/`                | Compiler and test-copy code used by `dev.py` and CI                         |
+| `scripts/release/`              | Build, sign, publish and pin client updates                                 |
+| `scripts/automation/`           | Drive the real game in tests                                                |
+| `scripts/launcher/`             | Launcher installation                                                       |
+| `android/`                      | Android build of the same code (HybridCLR): `android/dev.py`, Unity project |
+| `tools/ManagedSource/`          | Read-only DLL inspection and comparison                                     |
+| `global.json`                   | .NET SDK version                                                            |
 
 ## Requirements
 
@@ -59,6 +60,8 @@ python client/dev.py clean      # delete the test copy
 | --------- | ----------------------- | ------------------------------- |
 | `test`    | No                      | It starts the test copy for you |
 | `install` | Yes                     | SprkLauncher, server **Local**  |
+
+For the Android build, use `python client/android/dev.py` (see [Android](#android)).
 
 ### Try a change: `test`
 
@@ -89,6 +92,9 @@ real game, because Unity keeps them per Windows user.
 SprkLauncher on the **Local** server finds nothing to replace, because the
 release matches your game. Without the project's signing key the release is
 unsigned; the command explains the one-time launcher setting this needs.
+
+Close the local server before `install`: its battle worker runs the real game and keeps
+the DLLs open, and the copy then fails with `[Errno 22] Invalid argument`.
 
 To share a change with players, commit it; CI builds the public release (see
 [Publish client updates](#publish-client-updates)).
@@ -146,7 +152,7 @@ There is no source form for assets or tables. To ship a changed file, put its
 final version under `overrides/files/` at its client-relative path, for example
 `overrides/files/King's Raid_Data/Documents/Patch/StandaloneWindows/TableJit/ItemTable.jit`,
 together with any `SPRK-Native*.json` integrity file that covers it. Server-side
-game tables are separate and live in `../tables/`.
+game tables are separate and live in `../server/tables/`.
 
 ## Launcher
 
@@ -221,11 +227,123 @@ players and the current client ZIP have them. The file explains the conditions,
 including running the native battle tests first, because the server's battle
 worker is built from the release too. Remove a line to manage a file again.
 
-### New players
+## Android
 
-New players still need a complete game folder (the client). Any recent one
-works: the launcher brings the managed files up to the current release on its
-first start. Refresh the client occasionally to shorten that first update.
+`android/` builds the same code for Android: a small Unity 6000.0.53f1 player
+(`android/HybridBootstrap/`) loads the compiled game DLLs at startup and runs them with
+[HybridCLR](https://github.com/focus-creative-games/hybridclr). The game's built-in scenes
+and Resources are repacked from the Windows client into Android bundles, and the device
+gets a patch folder with the Windows tables, localization and video plus the original
+Android asset bundles. It is a prototype; open work is listed in
+[docs/android.md](../docs/android.md).
+
+### Requirements
+
+- Unity **6000.0.53f1** with Android Build Support, installed through Unity Hub. **Hub
+  must be running and signed in** during builds; the editor gets its licence from Hub.
+- `pip install -r client/scripts/requirements-client.txt` (UnityPy, Pillow).
+- Next to the repository: `../sprk-client` (the Windows client) and `../Pre-Doomsday`
+  (the original Android client's data, `Documents/Patch/Android/Assetbundle`).
+- The original Android APK `kings-raid-4.88.8` (for `content` only).
+- A device: BlueStacks with ADB enabled (`HD-Adb.exe`, serial `emulator-5554`, the
+  default) or a phone over USB (`--adb <adb.exe> --serial <id>`, see `adb devices`).
+- The local server (`start_server.bat`).
+
+### Commands
+
+`android/dev.py` is the Android counterpart of `dev.py`:
+
+```powershell
+python client/android/dev.py content --apk <path>\kings-raid-4.88.8.apk  # once, and after Windows player-data or repacker changes
+python client/android/dev.py build          # compile the game code, build the APK
+python client/android/dev.py test           # build, install, push missing device data, start on the local server
+python client/android/dev.py test --picker  # same, but choose the server on the device
+python client/android/dev.py hot            # C# only: compile, push the DLLs, restart (no APK rebuild)
+python client/android/dev.py connect        # restore the adb forwarding to the local server
+```
+
+| Change                                       | Run                                             |
+| -------------------------------------------- | ----------------------------------------------- |
+| C# in `managed/`                             | `hot`                                           |
+| Bootstrap or Unity project (`android/...`)   | `test`                                          |
+| Repacker or the Windows client's player data | `content --apk ...`, then `test`                |
+| Tables or localization in the Windows client | `android/HybridBootstrap/push_patch.sh --force` |
+
+The first `test` on a device pushes the 8.6 GB patch folder (about 4 minutes on
+BlueStacks); later runs skip what is already there. `hot` puts the DLLs in
+`files/sprk/hot/` on the device, where the bootstrap prefers them over the APK's copies;
+`test` removes them again. `dev.py` finds Unity through Unity Hub (`--unity` or
+`SPRK_UNITY` override it) and runs the device scripts with Git Bash. Unity logs go to
+`artifacts/android-bootstrap/`, with the APK (`apk/sprk-hybrid-probe.apk`), the repacked
+content (`content/`) and the reference bundles (`templates/`).
+
+### Servers and accounts
+
+The game reads its server from `SPRK_HOST_URL`; SprkLauncher sets it on Windows, and on
+Android the bootstrap sets it before any game code runs:
+
+- With `--picker` the app opens on a server list: **Local** plus servers added on the
+  device (name and `host.json` URL), like SprkLauncher's. Remote URLs must be
+  `https://`; plain `http://` only works for 127.0.0.1, as in the game. The list is kept
+  in the app's private storage, and saved logins are kept per server.
+- Without it (`server:local` in the startup index, written by `dev.py test`), the app
+  goes straight to Local, so unattended runs never wait for input.
+
+**Local** is `http://127.0.0.1:8080/host.json` on the device, forwarded to this PC by
+`adb reverse` (emulator or USB). The forwarding is lost whenever adb restarts; if the
+title screen says _"Cannot read Host files due to bad internet connection"_, run
+`python client/android/dev.py connect`.
+
+Accounts: _Create an Account_ registers on the server you picked. New accounts start in
+the tutorial; _Skip Tutorial_ leads to the lobby. To drive the UI from the PC use
+`adb shell input tap X Y` and `adb shell input text ...`; do not send `keyevent 111`
+(Escape), which Android treats as Back (the game asks to exit).
+
+### Logs
+
+- `files/sprk-probe.txt` on the device
+  (`adb shell cat /sdcard/Android/data/com.sprk.hybridprobe/files/sprk-probe.txt`):
+  startup steps with timestamps, the first occurrence of each error with its stack, and a
+  `perf` line every 5 s (fps, frame times, frames over 50 ms, GCs, heap, target fps).
+- logcat: `adb logcat -v time Unity:V CRASH:E DEBUG:E '*:S'`; `dev.py test` saves it to
+  `artifacts/android-bootstrap/probe-logcat.txt`.
+- Switches, as lines in the device's `files/sprk/index.txt`: `debug:overlay` (log on
+  screen), `debug:probes` (startup self-tests), `server:local` (skip the server list).
+
+Normal at startup: _"… Table Cannot Load"_ before the patch step, the
+`VuplexWebViewWindows` DLL error and _"Unable to decode certificate"_.
+
+### Writing code that runs on both
+
+The same DLLs ship on Windows and Android, so platform differences are runtime checks
+(`Application.platform`), never `#if`:
+
+- Put a Windows-only native import (`[DllImport("user32.dll")]` and similar) in a method
+  Android never calls. HybridCLR binds imports when it prepares the calling method, so a
+  check inside that method comes too late (see `DeviceHelper.GetWindowsGeoName`).
+- Reach the patch folder through `UnityCache.GetDownloadedAssetPath(...)`, not
+  `Application.dataPath`; on Android the player data is the read-only APK.
+- `Application.targetFrameRate = -1` means 30 fps on mobile; desktop uses VSync.
+
+### Scripts
+
+In `android/HybridBootstrap/` (what `dev.py` runs):
+
+| Script                              | Purpose                                                                       |
+| ----------------------------------- | ----------------------------------------------------------------------------- |
+| `sync_inputs.py`                    | Game DLLs, AOT plugins from `../sprk-client`, app icon into the Unity project |
+| `content/extract_apk_data.py`       | Original APK player data → `artifacts/android-bootstrap/apk-data`             |
+| `content/repack_content.py`         | Windows player data → Android content bundles and `resources-map.json`        |
+| `content/patch_player_resources.py` | Run by the build: the player's Resources and shader-name tables               |
+| `push_patch.sh`, `push_content.sh`  | Patch folder; content bundles and startup index                               |
+| `push_hot.sh`                       | Game DLLs as overrides                                                        |
+| `connect_local.sh`                  | `adb reverse` for 8080, 9001 and 9002                                         |
+| `run_probe.sh [--install]`          | Install, forward, launch, wait, print the probe log and errors, screenshot    |
+| `measure_battle.sh <label>`         | Saved-account login, lobby and stage 1-4 frame-time sample                    |
+
+The Unity build entry points are `SprkAndroidBuild.Build` and
+`SprkContentTemplates.Build` (`android/HybridBootstrap/Assets/SprkBootstrap/Editor/`);
+the repacker's docstrings explain the asset-bundle rules it follows.
 
 ## Tests
 
@@ -244,6 +362,12 @@ dotnet run --project tools/ManagedSource -- inspect <assembly.dll> <full-type-na
 ```
 
 See [tools/README.md](tools/README.md) for comparing two builds.
+
+### New players
+
+New players still need a complete game folder (the client). Any recent one
+works: the launcher brings the managed files up to the current release on its
+first start. Refresh the client occasionally to shorten that first update.
 
 ## Compatibility
 

@@ -91,7 +91,7 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 				}
 				if (row.ParentRoot.Label_OptionName != null)
 				{
-					row.ParentRoot.Label_OptionName.text = Title;
+					row.ParentRoot.Label_OptionName.text = SprkText.Get(Title);
 				}
 				if (row.ParentRoot.ToolTipImage != null)
 				{
@@ -118,7 +118,7 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 	{
 		if (row != null && row.Label_Button != null)
 		{
-			row.Label_Button.text = SprkBattleKeyboard.ControlsEnabled ? "Configure (On)" : "Configure (Off)";
+			row.Label_Button.text = SprkText.Get(SprkBattleKeyboard.ControlsEnabled ? "Configure (On)" : "Configure (Off)");
 		}
 	}
 
@@ -219,7 +219,7 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 		UIEventListener.Get(fill.gameObject).onClick = delegate { };
 		Sprite(content, "Frame", "PayShop_Frame", FrameWidth, FrameHeight, Vector2.zero, 40);
 		Sprite(content, "Title Bar", "PayShop_Title_Name", 1280, 90, new Vector2(0f, 430f), 41);
-		Label(content, Title, 35, new Vector2(0f, 430f), 42, UIWidget.Pivot.Center, titleStyle, 1100);
+		Label(content, SprkText.Get(Title), 35, new Vector2(0f, 430f), 42, UIWidget.Pivot.Center, titleStyle, 1100);
 		UISprite close = Sprite(content, "Close", "Btn_PayShop_Close", 70, 70, new Vector2(670f, 430f), 43, false);
 		Clickable(close.gameObject, Close, 12);
 
@@ -237,7 +237,7 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 		{
 			int selected = p;
 			presetButtons[p] = Sprite(content, "Layout " + p, "Common_Button_Tab_Disable", 300, 96, new Vector2(Tabs[p], 135f), 4);
-			presetLabels[p] = Label(content, SprkBattleKeyboard.PresetNames[p], 30, new Vector2(Tabs[p], 135f), 6, UIWidget.Pivot.Center, tabStyle, 260);
+			presetLabels[p] = Label(content, SprkText.Get(SprkBattleKeyboard.PresetNames[p]), 30, new Vector2(Tabs[p], 135f), 6, UIWidget.Pivot.Center, tabStyle, 260);
 			Clickable(presetButtons[p].gameObject, delegate
 			{
 				if (captureSlot >= 0) return;
@@ -249,7 +249,7 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 
 		for (int a = 0; a < 4; a++)
 		{
-			UILabel header = Label(content, ActionNames[a], 28, new Vector2(Columns[a], 62f), 6, UIWidget.Pivot.Center, null, KeyWidth);
+			UILabel header = Label(content, SprkText.Get(ActionNames[a]), 28, new Vector2(Columns[a], 62f), 6, UIWidget.Pivot.Center, null, KeyWidth);
 			header.color = Ink;
 			header.effectStyle = UILabel.Effect.None;
 		}
@@ -259,7 +259,7 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 		{
 			float y = -86f * h;
 			Sprite(content, "Hero Row " + h, "Common_Box_3", RowWidth, 78, new Vector2(0f, y), 3);
-			Label(content, "Hero " + (h + 1), 30, new Vector2(-660f, y), 6, UIWidget.Pivot.Left, nameStyle, 240);
+			Label(content, SprkText.Format("Hero {0}", h + 1), 30, new Vector2(-660f, y), 6, UIWidget.Pivot.Left, nameStyle, 240);
 			for (int a = 0; a < 4; a++)
 			{
 				int slot = h * 4 + a;
@@ -280,16 +280,16 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 		{
 			if (captureSlot < 0) return;
 			SprkBattleKeyboard.AssignCustom(captureSlot, default(SprkBattleKeyboard.Binding));
-			EndCapture(SlotLabel(captureSlot) + " is now unbound.");
+			EndCapture(SprkText.Format("{0} is now unbound.", SlotLabel(captureSlot)));
 		}, out _);
 		cancelButton = Button("Cancel", "Common_Button6_Normal", new Vector2(-245f, -425f), 250,
-			delegate { EndCapture("Capture cancelled. No bindings changed."); }, out _);
+			delegate { EndCapture(SprkText.Get("Capture cancelled. No bindings changed.")); }, out _);
 		confirmButton = Button("Reassign", "Common_Button6_Emphasis", new Vector2(35f, -425f), 270, delegate
 		{
 			if (captureSlot < 0 || duplicateSlot < 0) return;
 			string previous = SlotLabel(duplicateSlot);
 			SprkBattleKeyboard.AssignCustom(captureSlot, pending);
-			EndCapture(pending.Label + " moved to " + SlotLabel(captureSlot) + ". " + previous + " is now unbound.");
+			EndCapture(SprkText.Format("{0} moved to {1}. {2} is now unbound.", pending.Label, SlotLabel(captureSlot), previous));
 		}, out confirmLabel);
 		copyButton = Button("Copy to Custom", "Common_Button6_Normal", new Vector2(-520f, -425f), 340, delegate
 		{
@@ -297,7 +297,7 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 			if (captureSlot >= 0 || source >= 3) return;
 			SprkBattleKeyboard.CopyPresetToCustom(source);
 			SprkBattleKeyboard.SelectedPreset = 3;
-			message = SprkBattleKeyboard.PresetNames[source] + " copied to Custom. Click a key to change it.";
+			message = SprkText.Format("{0} copied to Custom. Click a key to change it.", SprkText.Get(SprkBattleKeyboard.PresetNames[source]));
 			Sync();
 		}, out copyLabel);
 		Button("Done", "Common_Button6_Emphasis", new Vector2(560f, -425f), 260, Close, out _);
@@ -308,7 +308,7 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 	private void OptionRow(string name, float y, out UISprite on, out UISprite off, Action<bool> set)
 	{
 		Sprite(content, name + " Row", "Common_Box_3", RowWidth, 84, new Vector2(0f, y), 3);
-		Label(content, name, 32, new Vector2(-660f, y), 6, UIWidget.Pivot.Left, nameStyle, 700);
+		Label(content, SprkText.Get(name), 32, new Vector2(-660f, y), 6, UIWidget.Pivot.Left, nameStyle, 700);
 		on = Toggle("On", new Vector2(330f, y), delegate
 		{
 			if (captureSlot >= 0) return;
@@ -327,7 +327,7 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 	{
 		UISprite box = Sprite(content, "Toggle " + text, "Common_CheckBox", 60, 60, position, 7);
 		UISprite check = Sprite(box.transform, "Checked", "Common_Check", 124, 106, new Vector2(5f, 24f), 8, false);
-		Label(content, text, 30, position + new Vector2(-48f, 0f), 6, UIWidget.Pivot.Right, toggleStyle, 200);
+		Label(content, SprkText.Get(text), 30, position + new Vector2(-48f, 0f), 6, UIWidget.Pivot.Right, toggleStyle, 200);
 		// One hit area covering the caption and the box, like the native toggles.
 		UIWidget hit = Widget<UIWidget>(content, "Toggle " + text + " Input", 220, 76, position + new Vector2(-80f, 0f), 10);
 		Clickable(hit.gameObject, action);
@@ -338,15 +338,14 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 	{
 		if (SprkBattleKeyboard.SelectedPreset != 3)
 		{
-			message = "Presets are read-only. Select Custom, or use Copy to Custom to start from this preset.";
+			message = SprkText.Get("Presets are read-only. Select Custom, or use Copy to Custom to start from this preset.");
 			Sync();
 			return;
 		}
 		captureSlot = slot;
 		captureFrameCount = Time.frameCount;
 		duplicateSlot = -1;
-		message = "Press a key for " + SlotLabel(slot) + " (Ctrl / Alt / Shift optional).\n"
-			+ "Esc cancels. Backspace or Delete unbinds.";
+		message = SprkText.Format("Press a key for {0} (Ctrl / Alt / Shift optional).\nEsc cancels. Backspace or Delete unbinds.", SlotLabel(slot));
 		Sync();
 	}
 
@@ -361,20 +360,20 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 
 	private static string SlotLabel(int slot)
 	{
-		return "Hero " + (slot / 4 + 1) + " " + ActionNames[slot % 4];
+		return SprkText.Format("Hero {0} {1}", slot / 4 + 1, SprkText.Get(ActionNames[slot % 4]));
 	}
 
 	private string IdleMessage()
 	{
 		if (!SprkBattleKeyboard.ControlsEnabled)
 		{
-			return "Keyboard controls are off. Turn them on to use these keys in battle.";
+			return SprkText.Get("Keyboard controls are off. Turn them on to use these keys in battle.");
 		}
 		if (SprkBattleKeyboard.SelectedPreset != 3)
 		{
-			return "Heroes are numbered left to right as shown in battle. Use Copy to Custom to edit this layout.";
+			return SprkText.Get("Heroes are numbered left to right as shown in battle. Use Copy to Custom to edit this layout.");
 		}
-		return "Heroes are numbered left to right as shown in battle. Click a key to change it.";
+		return SprkText.Get("Heroes are numbered left to right as shown in battle. Click a key to change it.");
 	}
 
 	private void Sync()
@@ -397,7 +396,7 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 		{
 			SprkBattleKeyboard.Binding binding = SprkBattleKeyboard.GetBinding(i);
 			bool capturing = i == captureSlot;
-			bindingLabels[i].text = capturing ? "Press a key..." : binding.Label;
+			bindingLabels[i].text = capturing ? SprkText.Get("Press a key...") : binding.Label;
 			Style(bindingLabels[i], toggleStyle);
 			if (capturing)
 			{
@@ -418,9 +417,9 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 		clearButton.SetActive(captureSlot >= 0);
 		cancelButton.SetActive(captureSlot >= 0);
 		confirmButton.SetActive(duplicateSlot >= 0);
-		confirmLabel.text = "Reassign";
+		confirmLabel.text = SprkText.Get("Reassign");
 		copyButton.SetActive(captureSlot < 0 && !custom);
-		copyLabel.text = "Copy to Custom";
+		copyLabel.text = SprkText.Get("Copy to Custom");
 		RefreshRow(row);
 	}
 
@@ -439,7 +438,7 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 		if (Current == null || Current.window != owner) return false;
 		lastBackWindow = owner;
 		lastBackFrame = Time.frameCount;
-		if (Current.captureSlot >= 0) Current.EndCapture("Capture cancelled. No bindings changed.");
+		if (Current.captureSlot >= 0) Current.EndCapture(SprkText.Get("Capture cancelled. No bindings changed."));
 		else Current.Close();
 		return true;
 	}
@@ -463,7 +462,7 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 		if (Input.GetKeyDown(KeyCode.Backspace) || Input.GetKeyDown(KeyCode.Delete))
 		{
 			SprkBattleKeyboard.AssignCustom(captureSlot, default(SprkBattleKeyboard.Binding));
-			EndCapture(SlotLabel(captureSlot) + " is now unbound.");
+			EndCapture(SprkText.Format("{0} is now unbound.", SlotLabel(captureSlot)));
 			return;
 		}
 		foreach (KeyCode key in SprkBattleKeyboard.CaptureKeys)
@@ -473,14 +472,13 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 			duplicateSlot = SprkBattleKeyboard.FindDuplicate(captureSlot, pending);
 			if (duplicateSlot >= 0)
 			{
-				message = pending.Label + " is already used by " + SlotLabel(duplicateSlot) + ".\n"
-					+ "Reassign moves it here and unbinds " + SlotLabel(duplicateSlot) + ", or press another key.";
+				message = SprkText.Format("{0} is already used by {1}.\nReassign moves it here and unbinds {1}, or press another key.", pending.Label, SlotLabel(duplicateSlot));
 				Sync();
 			}
 			else
 			{
 				SprkBattleKeyboard.AssignCustom(captureSlot, pending);
-				EndCapture(SlotLabel(captureSlot) + " set to " + pending.Label + ".");
+				EndCapture(SprkText.Format("{0} set to {1}.", SlotLabel(captureSlot), pending.Label));
 			}
 			break;
 		}
@@ -614,7 +612,7 @@ public sealed class SprkBattleKeyboardPanel : MonoBehaviour
 	private GameObject Button(string text, string spriteName, Vector2 position, int width, Action action, out UILabel label)
 	{
 		UISprite sprite = Sprite(content, text, spriteName, width, 80, position, 7);
-		label = Label(sprite.transform, text, 30, Vector2.zero, 8, UIWidget.Pivot.Center, buttonStyle, width - 30);
+		label = Label(sprite.transform, SprkText.Get(text), 30, Vector2.zero, 8, UIWidget.Pivot.Center, buttonStyle, width - 30);
 		Clickable(sprite.gameObject, action);
 		return sprite.gameObject;
 	}

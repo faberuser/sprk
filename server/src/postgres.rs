@@ -81,6 +81,17 @@ pub(crate) async fn migrate(pool: &PgPool) -> Result<(), sqlx::migrate::MigrateE
 /// releases it at commit or rollback. It lives in the database, so it also
 /// works across several `game` containers. Advisory locks keyed by a single
 /// bigint are reserved for accounts; use the two-int4 form for anything else.
+/// Begin a transaction that holds `account_id`'s lock, in one round trip
+/// (`BEGIN` and the lock as one simple query) instead of two.
+pub(crate) async fn begin_locked(pool: &sqlx::PgPool, account_id: i64) -> Result<sqlx::Transaction<'static, sqlx::Postgres>, sqlx::Error> {
+    let start = std::time::Instant::now();
+    // An integer: nothing to escape.
+    let tx = pool.begin_with(sqlx::AssertSqlSafe(format!("BEGIN; SELECT pg_advisory_xact_lock({account_id})"))).await?;
+    // Includes the pool acquire, which the pool reports on its own when slow.
+    warn_slow_wait("account", account_id, start);
+    Ok(tx)
+}
+
 pub(crate) async fn lock_account(conn: &mut PgConnection, account_id: i64) -> Result<(), sqlx::Error> {
     let start = std::time::Instant::now();
     sqlx::query("SELECT pg_advisory_xact_lock($1)")

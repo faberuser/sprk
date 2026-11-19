@@ -23,7 +23,7 @@ workspace containing this package, so builds go to the shared `target/`.
 | `scripts/docker/`            | Container entrypoint, health check, image build helpers                    |
 | `scripts/performance/`       | HTTP latency measurement                                                   |
 
-The server also reads `../tables/` (game tables) and `../config/`.
+Game tables live in `tables/`; the server also reads `../config/`.
 
 ## Requirements
 
@@ -127,7 +127,7 @@ unchanged. If the database already has accounts, start over with an empty one
 docker run -d --name sprk-postgres-dev -e POSTGRES_PASSWORD=dev \
   -p 127.0.0.1:5432:5432 postgres:18 -c max_connections=300
 
-DATABASE_URL=postgres://postgres:dev@127.0.0.1:5432/postgres GAME_TABLES_PATH=tables cargo run --release
+DATABASE_URL=postgres://postgres:dev@127.0.0.1:5432/postgres GAME_TABLES_PATH=server/tables cargo run --release
 ```
 
 At startup the server applies `migrations/`, then listens on

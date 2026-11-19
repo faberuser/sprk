@@ -45,6 +45,8 @@ public class SystemButtonSpeed : BaseWindow
 		Open(delegate
 		{
 			ApplySpeedType(SystemButtonAuto.ESpeedType.Normal, force: true);
+			_speedType.Value = (SprkBattleSpeed.Restore(_speedType.Value == SystemButtonAuto.ESpeedType.Fast) ? SystemButtonAuto.ESpeedType.Fast : SystemButtonAuto.ESpeedType.Normal);
+			SprkBattleSpeed.Attach(SpeedSpriteSelector);
 		}, null);
 	}
 
@@ -61,18 +63,10 @@ public class SystemButtonSpeed : BaseWindow
 
 	public void OnClickFastSpeed()
 	{
-		if (_speedType.Value == SystemButtonAuto.ESpeedType.Normal)
+		SprkBattleSpeed.ToggleMenu(SpeedSpriteSelector, delegate(bool fast)
 		{
-			_speedType.Value = SystemButtonAuto.ESpeedType.Fast;
-		}
-		else if (_speedType.Value == SystemButtonAuto.ESpeedType.Fast)
-		{
-			_speedType.Value = SystemButtonAuto.ESpeedType.Normal;
-		}
-		else
-		{
-			_speedType.Value = SystemButtonAuto.ESpeedType.Normal;
-		}
+			_speedType.Value = (fast ? SystemButtonAuto.ESpeedType.Fast : SystemButtonAuto.ESpeedType.Normal);
+		});
 	}
 
 	private void ApplySpeedType(SystemButtonAuto.ESpeedType speedType, bool force)

@@ -16,11 +16,10 @@ tokio::task_local! {
 /// while different players run in parallel.
 /// Background work has no acting account and takes explicit locks instead.
 pub(crate) async fn begin(pool: &DbPool) -> Result<sqlx::Transaction<'static, sqlx::Postgres>, sqlx::Error> {
-    let mut tx = pool.begin().await?;
-    if let Ok(account) = ACTING_ACCOUNT.try_with(|a| *a) {
-        crate::postgres::lock_account(&mut tx, account).await?;
+    match ACTING_ACCOUNT.try_with(|a| *a) {
+        Ok(account) => crate::postgres::begin_locked(pool, account).await,
+        Err(_) => pool.begin().await,
     }
-    Ok(tx)
 }
 
 /// Spawn background work labelled `label` in logs rather than "background"

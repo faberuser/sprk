@@ -712,6 +712,8 @@ async fn complete_inner(
         .filter(|id| story_party(s, d).is_none() && !loaned.contains(id)).collect();
     // Every earning hero and its stored details (flask progress) in one read.
     let mut loaded = hero::owned_details(db, a, &earning).await?;
+    // Heroes whose flask progress changed, saved together after the party.
+    let mut filled_details = std::collections::BTreeSet::<i32>::new();
     for id in &earning {
         let (mut h, mut details) = loaded.get(id).cloned().ok_or_else(|| rule("NoHero"))?;
         let old = n(&h, "Level") as i32;
@@ -758,6 +760,7 @@ async fn complete_inner(
             {
                 flasks.push(f);
                 flask_items.extend(items);
+                filled_details.insert(*id as i32);
             }
         }
         // A repeated party slot sees this slot's level, EXP and flask.
@@ -770,6 +773,10 @@ async fn complete_inner(
         let (add_value, booster) = if old >= cap { (0, 0) } else { (new_exp - old_exp, exp - base_exp) };
         hero_exp.push(json!({"HeroIndex":id,"OldLevel":old,"NewLevel":level,"NewValue":new_exp,"AddValue":add_value,"AddBoosterValue":booster,"AddTeamLevelValue":0}));
     }
+    // A repeated party slot saves its last details, as one save per slot did.
+    let changed: std::collections::BTreeMap<i32, &Value> = filled_details.iter()
+        .filter_map(|id| loaded.get(&(*id as i64)).map(|(_, details)| (*id, details))).collect();
+    hero::save_details_many(db, a, &changed).await?;
     p["MaxStar"] = json!(n(&p, "MaxStar").max(diff * 10 + star));
     p["FirstRewardedDiff"] = json!(n(&p, "FirstRewardedDiff") | (1 << diff));
     p["LootRewardedDiff"] = json!(if grant_loot {loot_rewarded | (1 << diff)} else {loot_rewarded});

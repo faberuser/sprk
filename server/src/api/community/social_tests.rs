@@ -1167,13 +1167,24 @@ async fn current_chapter_profiles_follow_saved_main_story_progress_across_friend
     // A recent low chapter deck must not replace actual cleared progress.
     crate::api::battle::put(&mut s.db.acquire().await.unwrap(),target,"inspection_deck",1,&json!({"ChapterIndex":1,"HeroIndex1":1})).await.unwrap();
     assert_eq!(friend::profile(&s,target).await.unwrap()["LastChapterIndex"],modern_c);
-    // Unchanged players are served from the per-revision cache (a marked
-    // entry survives), and any progression write recomputes the stage.
+    // Unchanged stages are served from the cache (a marked entry survives),
+    // also across other progression writes, which bump the player's whole
+    // revision on almost every request; a campaign or dungeon write
+    // recomputes the stage.
     s.last_stages.lock().unwrap().get_mut(&target).unwrap().2=(77,7);
     assert_eq!(friend::profile(&s,target).await.unwrap()["LastChapterIndex"],77);
     let listed=friend::get_friend_list(State(s.clone()),form(&a,"")).await.unwrap().0;
     assert_eq!(listed["FriendInvitorInfos"].as_array().unwrap().iter().find(|v|v["AccountId"]==target).unwrap()["LastChapterIndex"],77);
+    let revision=|| async { crate::db::query_scalar::<i64>("SELECT revision FROM response_revisions WHERE scope='progression' AND account=$1").bind(target).fetch_one(&s.db).await.unwrap() };
+    let before=revision().await;
+    crate::db::query("UPDATE user_info SET gold=gold+1 WHERE account_id=$1").bind(target).execute(&s.db).await.unwrap();
+    crate::api::battle::put(&mut s.db.acquire().await.unwrap(),target,"key",0,&json!({"Count":1})).await.unwrap();
+    assert!(revision().await>before);
+    assert_eq!(friend::profile(&s,target).await.unwrap()["LastChapterIndex"],77);
     crate::db::query("UPDATE campaign_progress SET clear_count=clear_count+1 WHERE account_id=$1 AND chapter_id=$2").bind(target).bind(legacy_c).execute(&s.db).await.unwrap();
+    assert_eq!(friend::profile(&s,target).await.unwrap()["LastChapterIndex"],modern_c);
+    s.last_stages.lock().unwrap().get_mut(&target).unwrap().2=(77,7);
+    crate::api::battle::put(&mut s.db.acquire().await.unwrap(),target,"dungeon",(modern_c<<32)|modern_d,&json!({"FirstRewardedDiff":1,"MaxStar":3})).await.unwrap();
     assert_eq!(friend::profile(&s,target).await.unwrap()["LastChapterIndex"],modern_c);
 }
 

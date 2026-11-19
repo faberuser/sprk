@@ -56,6 +56,7 @@ public static class JM_NShared_StartDispatch_Request
 			dictionary.Add("SessionId", o.SessionId);
 		}
 		SprkSkillPriority.EncodeDispatch(dictionary, o.HeroIndices);
+		SprkKarmaRaid.EncodeStartDispatch(dictionary, o.ChapterIndex, o.DungeonIndex);
 		return dictionary;
 	}
 }

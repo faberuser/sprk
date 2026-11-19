@@ -87,6 +87,7 @@ public class AchievementList : LobbyFullWindow, AchievementComponent.Listener, H
 		HeroListGrid.Grid.sorting = UIGrid.Sorting.Custom;
 		HeroListGrid.Grid.onCustomSort = SortItem;
 		SetupListTask();
+		SprkHeroAchievementClaimAll.Attach(this);
 	}
 
 	private void RefreshMyLayer()

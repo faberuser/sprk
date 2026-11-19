@@ -302,6 +302,27 @@ async fn mission_history_arena_ignores_queue_cancel_and_other_accounts() {
 }
 
 #[tokio::test]
+async fn monthly_story_open_dates_parse_for_every_row() {
+    // The native string pool shares duplicate strings (stories 51 and 52 both
+    // open on 2019-09-12). Resolving it as five strings per row shifted every
+    // later OpenDate onto a cutscene path, so those stories always failed.
+    let (s, u) = setup().await;
+    let rows = s.tables.battle.rows("MonthlyHero");
+    assert_eq!(rows.len(), 99);
+    for row in rows {
+        let date = row["OpenDate"].as_str().unwrap_or_default();
+        assert!(
+            chrono::NaiveDateTime::parse_from_str(date, "%Y-%m-%d %H:%M:%S").is_ok(),
+            "Monthly Hero {} OpenDate {date:?}",
+            row["Index"]
+        );
+    }
+    let r = call(&s, &u, "complete_monthly_hero", "MonthlyHeroIndex=97").await;
+    assert_eq!(r["Result"], "Success");
+    assert_eq!(r["Info"]["MonthlyHeroIndex"], 97);
+}
+
+#[tokio::test]
 async fn mission_history_monthly_story_receipts_persist_and_claim_once() {
     let (mut s, u) = setup().await;
     let a = u.user_info.account_id;

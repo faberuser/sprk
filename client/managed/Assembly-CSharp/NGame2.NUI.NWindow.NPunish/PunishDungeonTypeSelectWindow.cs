@@ -146,6 +146,7 @@ public class PunishDungeonTypeSelectWindow : RenewResourceWindow
 		SetDungeon(_bossData, BossBundleLoader, BossNameLabel, BossDescLabel);
 		SetOpenDungeon(_karmaData, KarmaOpenButton, KarmaEnterButton, null, KarmaStaminaWidget, KarmaStaminaLabel, KarmaCloseWidget, KarmaExpireWidget, KarmaExpireTimeLabel);
 		SetOpenDungeon(_bossData, BossOpenButton, BossEnterButton, BossResetButton, BossStaminaWidget, BossStaminaLabel, BossCloseWidget, BossExpireWidget, BossExpireTimeLabel);
+		SprkKarmaRaid.LayoutSelectWindow(this, _karmaData);
 	}
 
 	private void SetOpenDungeon(PunishmentGroupData data, UIButton openButton, UIButton enterButton, UIWidget resetButton, UIWidget staminaWidget, UILabel staminaLabel, UIWidget closeWidget, UIWidget expireWidget, UILabel expireLabel)
@@ -253,6 +254,7 @@ public class PunishDungeonTypeSelectWindow : RenewResourceWindow
 			{
 			case EPunishmentDungeonType.Karma:
 				SetOpenDungeon(_karmaData, KarmaOpenButton, KarmaEnterButton, null, KarmaStaminaWidget, KarmaStaminaLabel, KarmaCloseWidget, KarmaExpireWidget, KarmaExpireTimeLabel);
+				SprkKarmaRaid.LayoutSelectWindow(this, _karmaData);
 				break;
 			case EPunishmentDungeonType.Boss:
 				SetOpenDungeon(_bossData, BossOpenButton, BossEnterButton, BossResetButton, BossStaminaWidget, BossStaminaLabel, BossCloseWidget, BossExpireWidget, BossExpireTimeLabel);

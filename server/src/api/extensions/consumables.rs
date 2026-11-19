@@ -495,11 +495,12 @@ pub(crate) async fn fill_flask(
     exp: i64,
 ) -> Result<Option<(Value, Vec<Value>)>> {
     let mut details = hero::details(db, account, hero_id).await?;
-    fill_flask_from_source(db,state,account,hero_id,exp,1,&mut details).await
+    fill_flask_from_source(db,state,account,hero_id,exp,1,&mut details,true).await
 }
 
-/// `fill_flask` with the hero's stored details already read (`hero::details`);
-/// `details` follows what is saved.
+/// `fill_flask` with the hero's stored details already read (`hero::details`),
+/// without saving them: the caller saves every changed Hero's `details` in
+/// one statement (`hero::save_details_many`).
 pub(crate) async fn fill_flask_with(
     db: &mut PgConnection,
     state: &AppState,
@@ -508,7 +509,7 @@ pub(crate) async fn fill_flask_with(
     exp: i64,
     details: &mut Value,
 ) -> Result<Option<(Value, Vec<Value>)>> {
-    fill_flask_from_source(db,state,account,hero_id,exp,1,details).await
+    fill_flask_from_source(db,state,account,hero_id,exp,1,details,false).await
 }
 
 #[cfg(test)]
@@ -520,7 +521,7 @@ pub(crate) async fn fill_stamina_flask(
     stamina: i64,
 ) -> Result<Option<(Value, Vec<Value>)>> {
     let mut details = hero::details(db, account, hero_id).await?;
-    fill_flask_from_source(db,state,account,hero_id,stamina,2,&mut details).await
+    fill_flask_from_source(db,state,account,hero_id,stamina,2,&mut details,true).await
 }
 
 /// `fill_stamina_flask` with the hero's stored details already read;
@@ -533,7 +534,7 @@ pub(crate) async fn fill_stamina_flask_with(
     stamina: i64,
     details: &mut Value,
 ) -> Result<Option<(Value, Vec<Value>)>> {
-    fill_flask_from_source(db,state,account,hero_id,stamina,2,details).await
+    fill_flask_from_source(db,state,account,hero_id,stamina,2,details,true).await
 }
 
 async fn fill_flask_from_source(
@@ -544,6 +545,7 @@ async fn fill_flask_from_source(
     amount: i64,
     source: i64,
     details: &mut Value,
+    save: bool,
 ) -> Result<Option<(Value, Vec<Value>)>> {
     let id = n(details, "FlaskItemIndex");
     if id == 0 || amount <= 0 {
@@ -590,7 +592,9 @@ async fn fill_flask_from_source(
     } else {
         details["FlaskExp"] = json!(after);
     }
-    hero::save_details(db, account, hero_id, details).await?;
+    if save {
+        hero::save_details(db, account, hero_id, details).await?;
+    }
     Ok(Some((
         json!({"FilledFlaskIndex":n(r,"PotionItemIndex"),"FilledFlaskCount":filled,"Info":{"HeroIndex":hero_id,"ItemIndex":n(details,"FlaskItemIndex"),"AddExp":after-before,"AddExpRatio":0,"NewExp":n(details,"FlaskExp")}}),
         rewards.items,

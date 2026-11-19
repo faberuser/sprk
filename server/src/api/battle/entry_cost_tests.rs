@@ -490,6 +490,29 @@ async fn score_modes_never_receive_refundable_cost_receipts() {
 }
 
 #[tokio::test]
+async fn world_boss_quit_by_closing_game_is_released_on_login() {
+    let (s, u) = setup().await;
+    let a = account(&u);
+    put(&mut s.db.acquire().await.unwrap(), a, "dungeon", campaign::key(11, 10),
+        &json!({"FirstRewardedDiff":1})).await.unwrap();
+    crate::db::query("UPDATE heroes SET level=100 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET stamina=500000 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
+    let begin = call(&s, &u, "campaign/begin_campaign",
+        "ChapterIndex=7001&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=[1]&WorldBossIndex=1").await;
+    assert_eq!(begin["Result"], "Success", "{begin}");
+    let open = "GroupIndex=101001&Level=1&DungeonType=2";
+    // The window was closed: no end request, and the next login has a new session.
+    let blocked = call(&s, &u, "punishment_raid/open_punishment_raid", open).await;
+    assert_ne!(blocked["Result"], "Success", "AlreadyOnBattleHero: {blocked}");
+    super::login(&s, a).await.unwrap();
+    let entry: Value = read_json(&crate::db::query_scalar::<String>("SELECT entry FROM battle_runs WHERE account=$1 AND completed=1")
+        .bind(a).fetch_one(&s.db).await.unwrap()).unwrap();
+    assert_eq!(entry["AbandonedOnLogin"], true);
+    let opened = call(&s, &u, "punishment_raid/open_punishment_raid", open).await;
+    assert_eq!(opened["Result"], "Success", "{opened}");
+}
+
+#[tokio::test]
 async fn shakmeh_losses_keep_devourer_keys_and_otherworldly_gauge() {
     let (s, u) = setup().await;
     let a = account(&u);

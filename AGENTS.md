@@ -11,14 +11,15 @@ repository root.
 
 | Path | Contents |
 | --- | --- |
-| `server/` | Rust server (`src/`), PostgreSQL `migrations/`, `tests/`, `gm.py`, `scripts/` |
+| `server/` | Rust server (`src/`), PostgreSQL `migrations/`, `tests/`, game `tables/`, `gm.py`, `scripts/` |
 | `client/managed/` | The game's C# code (`Assembly-CSharp`) and SPRK feature assemblies (`Sprk*`) |
 | `client/launcher/` | Windows launcher and its tests |
 | `client/overrides/files/` | Replacement assets/tables, by client-relative path |
 | `client/tables/` | JSON patches for game tables and text, built into overrides ([guide](docs/jit-tables.md)) |
-| `client/scripts/` | `build/`, `release/`, `automation/`, `launcher/`, `android/` |
+| `client/scripts/` | `build/`, `release/`, `automation/`, `launcher/` |
+| `client/android/` | Android build of the same C# (HybridCLR); `client/android/dev.py` ([guide](client/README.md#android), [open work](docs/android.md)) |
 | `client/tools/` | Read-only DLL inspection; `JitTables` table/localization editor |
-| `tables/`, `config/` | Server game tables; client-update public key and shared configuration |
+| `config/` | Client-update public key and shared configuration |
 | `docs/`, `.github/`, `Dockerfile*`, `docker-compose.yml` | Guides, CI and containers ([scripts inventory](docs/scripts.md)) |
 
 Folders outside the repository:

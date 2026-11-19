@@ -334,7 +334,13 @@ async fn arena_mirror_opponent_has_distinct_battle_identity() {
 async fn guild_raid_damage_advances_shared_boss_and_charges_once() {
     let s = setup().await;
     let u = login(&s, "raider").await;
-    create(&s, &u, "Raiders", 1).await;
+    let g = create(&s, &u, "Raiders", 1).await;
+    // A member who never attacks still shares the guild's kill reward.
+    let idle = login(&s, "raid-idle").await;
+    let joined = call(&s, &idle, "guild/request_join_guild", &format!("GuildId={g}")).await;
+    assert_eq!(joined["Result"], "Success", "{joined}");
+    let idle_account = n(&idle["UserInfo"], "AccountId");
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT count(*) FROM guild_members WHERE guild_id=$1 AND account_id=$2").bind(g).bind(idle_account).fetch_one(&s.db).await.unwrap(), 1);
     let initial = call(&s,&u,"guild_raid/get_guild_raid_list","").await;
     let boss=initial["GuildRaidInfos"].as_array().unwrap().iter().find(|v|n(v,"ChapterIndex")==6002).unwrap();
     assert_eq!(boss["MonsterHp0"],53_372_402_134i64);
@@ -408,10 +414,51 @@ async fn guild_raid_damage_advances_shared_boss_and_charges_once() {
             .fetch_one(&s.db)
             .await
             .unwrap();
-    assert_eq!(count, 1);
+    assert_eq!(count, 2);
+    // Kill rewards pay GuildRaidKillGuildPointMultiplier times the table's GuildPoint.
+    let def = row(&s, "GuildRaidDungeon", &[("ChapterIndex", 6002), ("DungeonIndex", 1)]).unwrap();
+    let base: i64 = s.tables.get_reward(n(def, "KillRewardIndex") as i32).unwrap()
+        .roll_items(&s.tables.reward_string_pool).into_iter()
+        .filter(|d| d.item_code == "GuildPoint").map(|d| d.count as i64).sum();
+    assert!(base > 0);
+    let multiplier = settings(&s, "GuildRaidKillGuildPointMultiplier", 1);
+    assert_eq!(multiplier, 10);
+    for a in [n(&u["UserInfo"], "AccountId"), idle_account] {
+        let saved: String=crate::db::query_scalar("SELECT reward_currencies FROM mails WHERE account_id=$1 AND title='Guild raid boss defeated'").bind(a).fetch_one(&s.db).await.unwrap();
+        let saved: Value = serde_json::from_str(&saved).unwrap();
+        let paid: i64 = saved.as_array().unwrap().iter().filter(|c| c["CurrencyType"] == "GuildPoint").map(|c| n(c, "Amount")).sum();
+        assert_eq!(paid, base * multiplier, "account {a}: {saved}");
+    }
+}
+
+#[tokio::test]
+async fn guild_member_list_shows_live_level_and_avatar_after_donating() {
+    let s = setup().await;
+    let master = login(&s, "profile-master").await;
+    let g = create(&s, &master, "Profiles", 1).await;
+    let u = login(&s, "profile-donor").await;
+    assert_eq!(call(&s, &u, "guild/request_join_guild", &format!("GuildId={g}")).await["Result"], "Success");
     let a = n(&u["UserInfo"], "AccountId");
-    let saved: String=crate::db::query_scalar("SELECT reward_currencies FROM mails WHERE account_id=$1 AND title='Guild raid boss defeated'").bind(a).fetch_one(&s.db).await.unwrap();
-    assert!(saved.contains("GuildPoint"));
+    // Donating saves member state; it must not snapshot the profile.
+    let donated = call(&s, &u, "guild/contribute_guild", "").await;
+    assert_eq!(donated["Result"], "Success", "{donated}");
+    // A row written by an older server already holds a stale snapshot.
+    {
+        let mut db = s.db.acquire().await.unwrap();
+        let mut m = get(&mut db, a, "guild_member", g).await.unwrap();
+        assert!(m.get("TeamLevel").is_none() && m.get("AvatarHeroIndex").is_none(), "{m}");
+        m["TeamLevel"] = json!(60); m["AvatarHeroIndex"] = json!(1); m["Nick"] = json!("old");
+        put(&mut db, a, "guild_member", g, &m).await.unwrap();
+    }
+    crate::db::query("UPDATE user_info SET team_level=200,avatar_hero_index=7 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
+    let list = call(&s, &master, "guild/get_all_guild_member_info", &format!("GuildId={g}")).await;
+    let row = list["MemberInfos"].as_array().unwrap().iter().find(|v| n(v, "AccountId") == a).unwrap();
+    assert_eq!(row["TeamLevel"], 200, "{row}");
+    assert_eq!(row["AvatarHeroIndex"], 7, "{row}");
+    assert_eq!(row["Nick"], u["UserInfo"]["Nick"], "{row}");
+    let mut db = s.db.acquire().await.unwrap();
+    let stored = get(&mut db, a, "guild_member", g).await.unwrap();
+    assert!(stored.get("TeamLevel").is_none(), "stale snapshot not cleaned: {stored}");
 }
 
 #[tokio::test]

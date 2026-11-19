@@ -148,7 +148,13 @@ public class WorldMapMode
 			}
 			else if (_dragDic.Count == 2)
 			{
-				ZoomWorldMap(((_dragDic.GetValueByIndex(0).Delta + _dragDic.GetValueByIndex(1).Delta) / 2f).x);
+				// Pinch: zoom by the change in finger distance (spreading zooms in). Averaging
+				// the two deltas, as before, cancels out for a real pinch.
+				DragInfo a = _dragDic.GetValueByIndex(0);
+				DragInfo b = _dragDic.GetValueByIndex(1);
+				float distance = Vector2.Distance(a.CurrentPos, b.CurrentPos);
+				float previous = Vector2.Distance(a.CurrentPos - a.Delta, b.CurrentPos - b.Delta);
+				ZoomWorldMap(previous - distance);
 			}
 			for (int i = 0; i < _dragDic.Count; i++)
 			{

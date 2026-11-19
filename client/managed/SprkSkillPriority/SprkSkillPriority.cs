@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using NGame2.NAccount;
 using NGame2.NUI.NComponent2;
 using NShared;
@@ -9,17 +8,19 @@ using UnityEngine;
 
 /// <summary>
 /// Auto-battle skill rules. In Hero Info → Skills every active skill gets a button that opens a
-/// chooser: ★1 / ★2 / ★3 (priority rank), Normal, or Never use. Automatic skill selection
-/// (manual battles on Auto and dispatch simulations) never uses "Never use" skills and casts the
-/// best-ranked ready skill before any other. Stored per account and hero.
+/// chooser: ★1 / ★2 / ★3 (priority rank), Normal, or Never use. Automatic skill selection never
+/// uses "Never use" skills and casts the best-ranked ready skill before any other. Stored per
+/// account and hero, locally and (for the server's battle worker) on the server.
+///
+/// Where the rules reach the skill choice:
+/// - heroes with on-screen skill buttons on Auto: BattleManagement reads them directly;
+/// - AI-driven heroes in offline battles: frozen in <see cref="BattleCreated"/>;
+/// - background simulations: marked on the create info (<see cref="Mark"/>);
+/// - online battles and dispatch: the server's worker marks the create infos from the stored
+///   rules, and the battle logs carry them to every client in the battle.
 /// </summary>
 public sealed class SprkSkillPriority : MonoBehaviour
 {
-	private sealed class Captured
-	{
-		public int Rules;
-	}
-
 	/// <summary>Rule value of a skill that auto battle must never use.</summary>
 	public const int Off = -1;
 
@@ -50,11 +51,18 @@ public sealed class SprkSkillPriority : MonoBehaviour
 	// Main thread only: PlayerPrefs may not be read from the battle worker threads.
 	private static readonly Dictionary<string, int> Cache = new Dictionary<string, int>();
 
-	// Read from battle worker threads; ConditionalWeakTable is thread-safe.
-	private static readonly ConditionalWeakTable<BattleCreatureCreateInfo, Captured> Marked = new ConditionalWeakTable<BattleCreatureCreateInfo, Captured>();
-
-	// Native dispatch worker only (see MarkFromPayload); keyed "accountId:heroIndex".
+	// Native battle worker only (see MarkFromPayload); keyed "accountId:heroIndex".
 	private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> WorkerRules = new System.Collections.Concurrent.ConcurrentDictionary<string, int>();
+
+	private sealed class LiveSnapshot
+	{
+		public long AccountId;
+
+		public Dictionary<int, int> Rules;
+	}
+
+	// Offline battles on this client (see BattleCreated); never modified after it is published.
+	private static volatile LiveSnapshot live;
 
 	private static readonly string TracePath = TraceFile();
 
@@ -153,22 +161,14 @@ public sealed class SprkSkillPriority : MonoBehaviour
 
 	public static int Rules(BattleCreatureCreateInfo createInfo)
 	{
-		if (createInfo != null && Marked.TryGetValue(createInfo, out var value))
-		{
-			return value.Rules;
-		}
-		return 0;
+		return createInfo?.SprkSkillRules ?? 0;
 	}
 
 	public static void Mark(BattleCreatureCreateInfo createInfo, int rules)
 	{
 		if (createInfo != null && rules != 0)
 		{
-			Marked.Remove(createInfo);
-			Marked.Add(createInfo, new Captured
-			{
-				Rules = rules
-			});
+			createInfo.SprkSkillRules = rules;
 		}
 	}
 
@@ -222,27 +222,63 @@ public sealed class SprkSkillPriority : MonoBehaviour
 	}
 
 	/// <summary>
-	/// Marks worker-side dispatch heroes with the rules the server forwarded ("SkillRules"). The
+	/// The rules the server stored for one account of a worker run: the account info's
+	/// "SkillRules" in the run's "Simulation", or for dispatch the job's frozen top-level "SkillRules".
+	/// </summary>
+	public static object PayloadRules(System.Collections.IDictionary data, long accountId, bool dispatch)
+	{
+		if (data == null)
+		{
+			return null;
+		}
+		if (dispatch && data.Contains("SkillRules"))
+		{
+			return data["SkillRules"];
+		}
+		System.Collections.IList list = ((data["Simulation"] as System.Collections.IDictionary)?["AccountInfos"]) as System.Collections.IList;
+		if (list == null)
+		{
+			return null;
+		}
+		foreach (object item in list)
+		{
+			System.Collections.IDictionary dictionary = item as System.Collections.IDictionary;
+			System.Collections.IDictionary dictionary2 = dictionary?["UserInfo"] as System.Collections.IDictionary;
+			if (dictionary2 != null && dictionary.Contains("SkillRules") && dictionary2.Contains("AccountId") && Convert.ToInt64(dictionary2["AccountId"]) == accountId)
+			{
+				return dictionary["SkillRules"];
+			}
+		}
+		return null;
+	}
+
+	/// <summary>
+	/// Marks a worker-side hero with the rules the server forwarded (see <see cref="PayloadRules"/>).
+	/// The mark is serialized with the battle logs, so every client simulates the same choices. The
 	/// rules are also kept per account and hero, in case the battle rebuilds the create info.
 	/// </summary>
 	public static void MarkFromPayload(object skillRules, long accountId, BattleCreatureCreateInfo createInfo)
 	{
-		if (skillRules == null || createInfo == null || createInfo.HeroInfo == null)
+		if (createInfo == null || createInfo.HeroInfo == null)
 		{
 			return;
 		}
+		int heroIndex = createInfo.HeroInfo.HeroIndex;
+		string text = WorkerKey(accountId, heroIndex);
 		try
 		{
-			System.Collections.IDictionary dictionary = (skillRules as System.Collections.IDictionary) ?? (MiniJSON.Json.Deserialize(skillRules.ToString()) as System.Collections.IDictionary);
-			int heroIndex = createInfo.HeroInfo.HeroIndex;
+			System.Collections.IDictionary dictionary = (skillRules == null) ? null : ((skillRules as System.Collections.IDictionary) ?? (MiniJSON.Json.Deserialize(skillRules.ToString()) as System.Collections.IDictionary));
 			string key = heroIndex.ToString();
-			if (dictionary != null && dictionary.Contains(key))
+			int num = ((dictionary != null && dictionary.Contains(key)) ? Convert.ToInt32(dictionary[key]) : 0);
+			if (num == 0)
 			{
-				int num = Convert.ToInt32(dictionary[key]);
-				Mark(createInfo, num);
-				WorkerRules[WorkerKey(accountId, heroIndex)] = num;
-				Trace("worker-mark", heroIndex, num, "", 0);
+				// The worker is long-lived: forget rules the player has since cleared.
+				WorkerRules.TryRemove(text, out var _);
+				return;
 			}
+			Mark(createInfo, num);
+			WorkerRules[text] = num;
+			Trace("worker-mark", heroIndex, num, "", 0);
 		}
 		catch (Exception ex)
 		{
@@ -250,7 +286,66 @@ public sealed class SprkSkillPriority : MonoBehaviour
 		}
 	}
 
-	/// <summary>Rules of a battle creature: its marked create info, else the worker's account/hero rules.</summary>
+	/// <summary>
+	/// Called on the main thread by BattleFacade.CreateBattle. Offline battles simulate on the battle
+	/// thread, where PlayerPrefs cannot be read, and AI-driven heroes (sub team, hero sets, any hero
+	/// without on-screen skill buttons) pick skills inside the simulation. So the logged-in account's
+	/// rules are frozen here for the whole battle, including the integrity re-run of its logs.
+	/// Online battles take their rules only from the worker's logs (create infos marked by the
+	/// server's worker): local rules there could differ from what the worker used, and the
+	/// client's simulation would diverge.
+	/// </summary>
+	public static void BattleCreated(bool isOnlineMode)
+	{
+		live = null;
+		if (isOnlineMode)
+		{
+			return;
+		}
+		try
+		{
+			if (!GlobalAutoBehaviour<AccountManager>.isValidInstance)
+			{
+				return;
+			}
+			AccountManager instance = GlobalAutoBehaviour<AccountManager>.instance;
+			UserInfo userInfo = instance.UserInfo;
+			if (userInfo == null || userInfo.AccountId <= 0 || instance.HeroManager == null)
+			{
+				return;
+			}
+			Dictionary<int, int> dictionary = new Dictionary<int, int>();
+			foreach (CachedHeroInfo value in instance.HeroManager.GetValues())
+			{
+				if (value != null)
+				{
+					int num = Rules(value.HeroIndex);
+					if (num != 0)
+					{
+						dictionary[value.HeroIndex] = num;
+					}
+				}
+			}
+			if (dictionary.Count > 0)
+			{
+				live = new LiveSnapshot
+				{
+					AccountId = userInfo.AccountId,
+					Rules = dictionary
+				};
+			}
+		}
+		catch (Exception ex)
+		{
+			Debug.LogWarning("SPRK skill priority: " + ex.Message);
+		}
+	}
+
+	/// <summary>
+	/// Rules of a battle creature: its marked create info (background simulations, and online
+	/// battles via the worker's logs), else the native worker's account/hero rules, else the
+	/// current offline battle's rules for the logged-in account's own heroes.
+	/// </summary>
 	public static int Rules(BattleCreature creature)
 	{
 		if (creature == null)
@@ -258,11 +353,21 @@ public sealed class SprkSkillPriority : MonoBehaviour
 			return 0;
 		}
 		int num = Rules(creature.CreateInfo);
-		if (num == 0 && !WorkerRules.IsEmpty && creature.CreateInfo != null && creature.CreateInfo.HeroInfo != null && WorkerRules.TryGetValue(WorkerKey(creature.PlayerId, creature.CreateInfo.HeroInfo.HeroIndex), out var value))
+		if (num != 0 || creature.CreateInfo == null || creature.CreateInfo.HeroInfo == null)
 		{
-			num = value;
+			return num;
 		}
-		return num;
+		int heroIndex = creature.CreateInfo.HeroInfo.HeroIndex;
+		if (!WorkerRules.IsEmpty && WorkerRules.TryGetValue(WorkerKey(creature.PlayerId, heroIndex), out var value))
+		{
+			return value;
+		}
+		LiveSnapshot liveSnapshot = live;
+		if (liveSnapshot != null && creature.PlayerId == liveSnapshot.AccountId && liveSnapshot.Rules.TryGetValue(heroIndex, out value))
+		{
+			return value;
+		}
+		return 0;
 	}
 
 	private static string WorkerKey(long accountId, int heroIndex)
@@ -293,7 +398,166 @@ public sealed class SprkSkillPriority : MonoBehaviour
 			Cache[text] = rules;
 			SprkTestPrefs.SetInt(text, rules);
 			PlayerPrefs.Save();
+			SyncHero(heroIndex, rules);
 		}
+	}
+
+	// ---- Server copy (online battles) -----------------------------------------------------------
+
+	// Main thread only. The account whose complete set the server has (0 = not yet, or a send failed).
+	private static long syncedAccount;
+
+	private static bool fullSyncInFlight;
+
+	private static bool resyncAfterFullSync;
+
+	private static bool syncWaiting;
+
+	private static long CurrentAccount()
+	{
+		if (!GlobalAutoBehaviour<AccountManager>.isValidInstance)
+		{
+			return 0L;
+		}
+		UserInfo userInfo = GlobalAutoBehaviour<AccountManager>.instance.UserInfo;
+		return (userInfo == null) ? 0 : userInfo.AccountId;
+	}
+
+	/// <summary>
+	/// Called when the lobby starts: once per account and session, sends the complete local set so
+	/// the server's battle worker uses the same rules in online battles. Waits for the heroes to load.
+	/// </summary>
+	public static void SyncSoon()
+	{
+		if (syncWaiting)
+		{
+			return;
+		}
+		try
+		{
+			syncWaiting = true;
+			VespaCoroutine.Start(SyncWhenReady());
+		}
+		catch (Exception ex)
+		{
+			syncWaiting = false;
+			Debug.LogWarning("SPRK skill priority sync: " + ex.Message);
+		}
+	}
+
+	private static System.Collections.IEnumerator SyncWhenReady()
+	{
+		float until = Time.realtimeSinceStartup + 60f;
+		while (!TrySyncAll() && Time.realtimeSinceStartup < until)
+		{
+			yield return null;
+		}
+		syncWaiting = false;
+	}
+
+	/// <summary>False while the account or its heroes are not loaded yet.</summary>
+	private static bool TrySyncAll()
+	{
+		try
+		{
+			long num = CurrentAccount();
+			if (num <= 0)
+			{
+				return false;
+			}
+			if (syncedAccount == num)
+			{
+				return true;
+			}
+			if (fullSyncInFlight)
+			{
+				resyncAfterFullSync = true;
+				return true;
+			}
+			AccountManager instance = GlobalAutoBehaviour<AccountManager>.instance;
+			CachedHeroInfo[] array = instance.HeroManager?.GetValues();
+			if (array == null || array.Length == 0)
+			{
+				return false;
+			}
+			Dictionary<string, object> dictionary = new Dictionary<string, object>();
+			foreach (CachedHeroInfo cachedHeroInfo in array)
+			{
+				if (cachedHeroInfo != null)
+				{
+					int num2 = Rules(cachedHeroInfo.HeroIndex);
+					if (num2 != 0)
+					{
+						dictionary[cachedHeroInfo.HeroIndex.ToString()] = num2;
+					}
+				}
+			}
+			fullSyncInFlight = true;
+			resyncAfterFullSync = false;
+			Send(dictionary, replace: true, delegate(bool ok)
+			{
+				fullSyncInFlight = false;
+				if (ok && CurrentAccount() == num)
+				{
+					syncedAccount = num;
+				}
+				// A rule changed while the full set was on its way; send the set again.
+				if (resyncAfterFullSync)
+				{
+					resyncAfterFullSync = false;
+					syncedAccount = 0L;
+					TrySyncAll();
+				}
+			});
+			return true;
+		}
+		catch (Exception ex)
+		{
+			Debug.LogWarning("SPRK skill priority sync: " + ex.Message);
+			return true;
+		}
+	}
+
+	private static void SyncHero(int heroIndex, int rules)
+	{
+		long num = CurrentAccount();
+		if (num <= 0)
+		{
+			return;
+		}
+		if (syncedAccount != num || fullSyncInFlight)
+		{
+			// The full set read from the local cache already includes this change.
+			TrySyncAll();
+			return;
+		}
+		Dictionary<string, object> dictionary = new Dictionary<string, object> { [heroIndex.ToString()] = rules };
+		Send(dictionary, replace: false, delegate(bool ok)
+		{
+			if (!ok && syncedAccount == num)
+			{
+				// Resend the complete set on the next change or lobby visit.
+				syncedAccount = 0L;
+			}
+		});
+	}
+
+	private static void Send(Dictionary<string, object> rules, bool replace, Action<bool> done)
+	{
+		NShared.SprkSetSkillRules.Request request = new NShared.SprkSetSkillRules.Request
+		{
+			SkillRules = MiniJSON.Json.Serialize(rules),
+			Replace = replace
+		};
+		NVespa.SingletonUpdater<NVespa.NWeb.WebServiceRequester>.instance.Request(request, NVespa.NWeb.WebRequestFlag.DisableRetry | NVespa.NWeb.WebRequestFlag.SilenceError, delegate(NShared.SprkSetSkillRules.Response response)
+		{
+			bool flag = response != null && response.BaseResult == BaseResultType.Success && response.Result == NShared.SprkSetSkillRules.ResultType.Success;
+			if (!flag)
+			{
+				Debug.LogWarning("SPRK skill priority sync failed: " + ((response == null) ? "no response" : (response.BaseResult + "/" + response.Result)));
+			}
+			done?.Invoke(flag);
+		});
 	}
 
 	private static string Key(int heroIndex)

@@ -1203,6 +1203,8 @@ async fn dispatch_enforces_time_party_reservation_and_single_collection() {
     )
     .await;
     assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_state WHERE account=$1 AND kind='dispatch_snapshot'")
+        .bind(account(&u)).fetch_one(&s.db).await.unwrap(), 1);
     let slot = n(&r["DispatchBattleInfo"], "SlotIndex");
     let args = format!("SlotIndex={slot}");
     assert_ne!(
@@ -1225,10 +1227,14 @@ async fn dispatch_enforces_time_party_reservation_and_single_collection() {
     let r = call(&s, &u, "dispatch/request_complete_dispatch", &args).await;
     assert_eq!(r["Result"], "Success", "{r}");
     assert_eq!(r["DispatchBattleInfo"]["WinCount"], 2);
+    assert!(r["DispatchBattleInfo"].get("SimulationSnapshot").is_none());
     assert_eq!(
         call(&s, &u, "dispatch/get_dispatch_list", "").await["DispatchBattleInfos"],
         json!([])
     );
+    // Settled: only the worker needed the snapshot.
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_state WHERE account=$1 AND kind='dispatch_snapshot'")
+        .bind(account(&u)).fetch_one(&s.db).await.unwrap(), 0);
     let gold = balance(&s, "gold").await;
     assert_ne!(
         call(&s, &u, "dispatch/request_complete_dispatch", &args).await["Result"],
@@ -2056,18 +2062,28 @@ async fn ordeal_opponents_events_and_battle_proof_follow_native_flow() {
         .unwrap()
         .is_empty());
     assert_ne!(n(&npc["AccountInfo"]["UserInfo"], "AccountId"), account(&u));
-    // A previously saved mirror deck must be repaired without resetting it.
+    // A previously saved mirror deck must be repaired without resetting it,
+    // also in a row saved before the node map had its own row (inline).
     {
         let mut db = s.db.acquire().await.unwrap();
         let mut saved = get(&mut db, account(&u), "ordeal", 0).await.unwrap();
-        for node in saved["OrdealNodeInfos"].as_array_mut().unwrap() {
+        assert!(saved.get("OrdealNodeInfos").is_none(), "the progress row holds no node map");
+        let mut map = get(&mut db, account(&u), "ordeal_nodes", 0).await.unwrap();
+        for node in map.as_array_mut().unwrap() {
             if node["NodeType"] == "Battle" {
                 node["AccountInfo"]["UserInfo"]["AccountId"] = json!(account(&u));
             }
         }
+        saved["OrdealNodeInfos"] = map;
         put(&mut db, account(&u), "ordeal", 0, &saved).await.unwrap();
+        put(&mut db, account(&u), "ordeal_nodes", 0, &json!([])).await.unwrap();
     }
     let repaired = call(&s, &u, "ordeal_arena/ordeal_info", "").await;
+    {
+        let mut db = s.db.acquire().await.unwrap();
+        assert!(get(&mut db, account(&u), "ordeal", 0).await.unwrap().get("OrdealNodeInfos").is_none());
+        assert_eq!(get(&mut db, account(&u), "ordeal_nodes", 0).await.unwrap(), repaired["OrdealNodeInfos"]);
+    }
     assert_eq!(repaired["ClearNodeIndices"], event["ClearNodeIndices"]);
     for node in repaired["OrdealNodeInfos"].as_array().unwrap() {
         if node["NodeType"] == "Battle" {
@@ -2746,7 +2762,9 @@ async fn dragon_dispatch_infers_raid_and_settles_once() {
         let partial=call(&s,&u,"dispatch/cancel_dispatch",&slot_args).await;
         assert_eq!(partial["Result"],"Success");
         assert_eq!(partial["TeamExpResult"]["AddValue"],cost*10);
-        assert_eq!(partial["StaminaResult"]["AddValue"],cost);
+        // Sent once: the native cancel popup lists both stamina fields.
+        assert_eq!(partial["EclipseStaminaResult"]["AddValue"],cost);
+        assert!(partial["StaminaResult"].is_null(),"{partial}");
         assert_ne!(call(&s,&u,"dispatch/cancel_dispatch",&slot_args).await["Result"],"Success");
         assert_eq!(call(&s,&u,"dispatch/start_dispatch",&args).await["Result"],"Success");
         prepared_dispatch(&s,&u,slot,&[1,1]).await;

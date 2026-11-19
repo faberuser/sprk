@@ -41,14 +41,25 @@ public class DeviceHelper
 	[DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
 	private static extern int GetUserDefaultGeoName([Out] char[] geoName, int geoNameCount);
 
+	private static string GetWindowsGeoName()
+	{
+		char[] array = new char[10];
+		return (GetUserDefaultGeoName(array, array.Length) > 0) ? new string(array).TrimEnd('\0') : null;
+	}
+
 	public static string GetCountryCode()
 	{
 		try
 		{
-			char[] array = new char[10];
-			if (GetUserDefaultGeoName(array, array.Length) > 0)
+			// Only Windows has kernel32. The import lives in its own method because an
+			// interpreter (HybridCLR on Android) binds it when preparing the calling method.
+			if (Application.platform == RuntimePlatform.WindowsPlayer || Application.platform == RuntimePlatform.WindowsEditor)
 			{
-				return new string(array).TrimEnd('\0');
+				string code = GetWindowsGeoName();
+				if (code != null)
+				{
+					return code;
+				}
 			}
 		}
 		catch (Exception obj)

@@ -122,13 +122,19 @@ pub(crate) async fn stamina_activity(db: &mut PgConnection, s: &AppState, a: i64
     }
     let total = n(&info, "ActivityPoint").saturating_add(gain);
     info["ActivityPoint"] = json!(total);
-    put(db, g, "guild", 0, &info).await?;
-    crate::db::query("UPDATE guilds SET exp=$1 WHERE guild_id=$2").bind(total).bind(g).execute(&mut *db).await?;
+    // Each state row with its column in one statement (`put` + UPDATE): every
+    // stamina battle of a guild member runs this.
+    let data = info.to_string();
+    crate::db::query("WITH saved AS (INSERT INTO community_state(owner,kind,idx,data) VALUES($1,'guild',0,$2) ON CONFLICT(owner,kind,idx) DO UPDATE SET data=excluded.data) \
+        UPDATE guilds SET exp=$3 WHERE guild_id=$1").bind(g).bind(&data).bind(total).execute(&mut *db).await?;
+    crate::api::system::prefetch::put(crate::api::system::prefetch::Table::Community, g, "guild", 0, data);
     let mut m = guild::member_state(db, s, a, g).await?;
     let mine = n(&m, "AccActivityPoint").saturating_add(gain);
     m["AccActivityPoint"] = json!(mine);
-    put(db, a, "guild_member", g, &m).await?;
-    crate::db::query("UPDATE guild_members SET contribution=contribution+$1 WHERE account_id=$2 AND guild_id=$3").bind(gain).bind(a).bind(g).execute(&mut *db).await?;
+    let data = m.to_string();
+    crate::db::query("WITH saved AS (INSERT INTO community_state(owner,kind,idx,data) VALUES($1,'guild_member',$2,$3) ON CONFLICT(owner,kind,idx) DO UPDATE SET data=excluded.data) \
+        UPDATE guild_members SET contribution=contribution+$4 WHERE account_id=$1 AND guild_id=$2").bind(a).bind(g).bind(&data).bind(gain).execute(&mut *db).await?;
+    crate::api::system::prefetch::put(crate::api::system::prefetch::Table::Community, a, "guild_member", g, data);
     out["GuildActivityPointResult"] = json!({"NewValue":total});
     out["GuildMemberAccActivityPointResult"] = json!({"AddValue":gain,"NewValue":mine});
     Ok(out)

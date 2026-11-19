@@ -355,6 +355,8 @@ async fn reforge_until_guarantees_the_target_on_the_100th_try_across_runs() {
     give(&s,a,2200,200).await;
     let args=format!("EquipItemSlotIndex={}&OptionSlotIndex=1",eq.slot_index);
     let keep=format!("{args}&IsNew=false&ConfirmOptionIndex=9002");
+    // One run never exceeds the guarantee.
+    assert_ne!(call(&s,&u,"renew_equip_option",&format!("{args}&SprkTargetOptionType=40&SprkMaxTries=101")).await["Result"],"Success");
     // 60 misses are remembered for the next run.
     let run=call(&s,&u,"renew_equip_option",&format!("{args}&SprkTargetOptionType=40&SprkMaxTries=60")).await;
     assert_eq!((n(&run,"SprkTries"),run["SprkHit"].clone(),n(&run,"SprkPityMisses")),(60,json!(false),60),"{run}");
@@ -400,6 +402,8 @@ async fn enchant_until_guarantees_after_300_tries_per_target_across_runs() {
     let base = format!("EquipItemSlotIndex={}&ConsumeItemIndex=990108&SprkTargetOptionTypes={tb}", eq.slot_index);
     let preview = call(&s, &u, "valance_enchant", &format!("{base}&SprkPreview=1")).await;
     assert_eq!((n(&preview, "SprkPityMisses"), n(&preview, "SprkPityLimit")), (0, 300), "{preview}");
+    // One run never exceeds the largest guarantee (3 targets × 300).
+    assert_ne!(call(&s, &u, "valance_enchant", &format!("{base}&SprkMaxTries=901")).await["Result"], "Success");
     // First enchant: applied directly, no pending choice; 299 misses are kept.
     let run = call(&s, &u, "valance_enchant", &format!("{base}&SprkMaxTries=299")).await;
     assert_eq!((n(&run, "SprkTries"), run["SprkHit"].clone(), n(&run, "SprkPityMisses")), (299, json!(false), 299), "{run}");
@@ -1476,6 +1480,47 @@ async fn reforge_same_stat_requires_a_strictly_larger_value() {
     options.get_mut(&209).unwrap()["MinValues"]=json!(vec![100;6]);
     options.get_mut(&209).unwrap()["MaxValues"]=json!(vec![101;6]);
     assert_eq!(equipment::reforge_step_range(&s,209,9002,0,5,true).unwrap(),Some((10,10)));
+}
+
+/// "Reforge until" may target a stat the item already has, but only on that
+/// stat's own line and only below its maximum: an item never holds a stat twice.
+#[tokio::test]
+async fn reforge_until_targets_an_owned_stat_only_on_its_own_unmaxed_line() {
+    let (mut s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let mut eq=give(&s,a,101001,1).await.equipment.remove(0);
+    eq.star=5;eq.option_index_1=9002;eq.option_step_1=2;eq.option_index_2=9001;
+    save_equip(&mut s.db.acquire().await.unwrap(),a,&eq).await.unwrap();
+    std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).inventory).option_groups.insert(11,vec![9001,9002,9003]);
+    give(&s,a,2200,200).await;
+    let typ=|id:i32|n(&s.tables.inventory.options[&id],"Type");
+    let (own,other)=(typ(9002),typ(9001));
+    assert_ne!(own,other);
+    let line1=format!("EquipItemSlotIndex={}&OptionSlotIndex=1",eq.slot_index);
+    let line2=format!("EquipItemSlotIndex={}&OptionSlotIndex=2",eq.slot_index);
+    // Line 2's stat cannot be rolled on line 1, nor line 1's on line 2.
+    for (args,stat) in [(&line1,other),(&line2,own)] {
+        let r=call(&s,&u,"renew_equip_option",&format!("{args}&SprkTargetOptionType={stat}&SprkPreview=1")).await;
+        assert_eq!(r["Result"],"NoAvailableOption","{r}");
+    }
+    // Line 1's own stat below its maximum: rolled again, with a higher value.
+    let preview=call(&s,&u,"renew_equip_option",&format!("{line1}&SprkTargetOptionType={own}&SprkPreview=1")).await;
+    assert_eq!(preview["Result"],"Success","{preview}");
+    assert!(n(&preview,"SprkHitWeight")>0);
+    let run=call(&s,&u,"renew_equip_option",&format!("{line1}&SprkTargetOptionType={own}&SprkMaxTries=100")).await;
+    assert_eq!((run["Result"].clone(),run["SprkHit"].clone()),(json!("Success"),json!(true)),"{run}");
+    assert_eq!(run["NewOptionIndex"],9002);
+    assert!([3,4].contains(&n(&run,"NewOptionStep")),"{run}");
+    assert_eq!(call(&s,&u,"renew_confirm_equip_option",&format!("{line1}&IsNew=false&ConfirmOptionIndex=9002")).await["Result"],"Success");
+    // At its maximum, the owned stat cannot be targeted, and nothing is charged.
+    eq=equip(&mut s.db.acquire().await.unwrap(),a,eq.slot_index as i64).await.unwrap();
+    eq.option_step_1=4;
+    save_equip(&mut s.db.acquire().await.unwrap(),a,&eq).await.unwrap();
+    let coupons=|s:AppState|async move{crate::db::query_scalar::<i32>("SELECT count FROM items WHERE account_id=$1 AND item_index=2200").bind(a).fetch_one(&s.db).await.unwrap()};
+    let before=coupons(s.clone()).await;
+    let capped=call(&s,&u,"renew_equip_option",&format!("{line1}&SprkTargetOptionType={own}&SprkMaxTries=100")).await;
+    assert_eq!(capped["Result"],"NoAvailableOption","{capped}");
+    assert_eq!(coupons(s.clone()).await,before);
 }
 
 #[tokio::test]

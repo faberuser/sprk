@@ -101,8 +101,10 @@ async fn game_router() -> anyhow::Result<Router> {
     let db = database::init_database().await?;
     
     // Load game tables
-    let tables_path = std::env::var("GAME_TABLES_PATH")
-        .unwrap_or_else(|_| "tables".to_string());
+    let tables_path = std::env::var("GAME_TABLES_PATH").unwrap_or_else(|_| {
+        // Unset: the repository layout, from the repository root or from server/.
+        if Path::new("server/tables").is_dir() { "server/tables" } else { "tables" }.to_string()
+    });
     let tables = match GameTables::load(Path::new(&tables_path)) {
         Ok(t) => {
             tracing::info!("Loaded game tables from: {}", tables_path);
@@ -256,6 +258,7 @@ pub(crate) fn game_routes(state: AppState) -> Router {
         .route("/hero/reset_hero_transcend_skill_page", post(api::heroes::reset_hero_transcend_skill_page))
         .route("/hero/hero_limit_break_level_up", post(api::heroes::hero_limit_break_level_up))
         .route("/hero/hero_limit_break_exp_up", post(api::heroes::hero_limit_break_exp_up))
+        .route("/hero/set_skill_rules", post(api::heroes::set_skill_rules))
         .route("/hero_storage_slot/buy_hero_storage_slot", post(api::heroes::buy_hero_storage_slot))
         .route("/hero_storage_slot/add_hero_storage_slot", post(api::heroes::add_hero_storage_slot))
         .route("/hero_storage_slot/set_hero_storage_slot", post(api::heroes::set_hero_storage_slot))

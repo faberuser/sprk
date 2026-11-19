@@ -196,9 +196,9 @@ def cmd_maxheroes(source_url, output_db):
         admin.execute(f'CREATE DATABASE "{output_db}" TEMPLATE "{source_name}"')
     output = Path(f'{output_db}.fixture.json').resolve()
     root = Path(__file__).resolve().parents[1]
-    shop = json.loads((root / 'tables/HeroShopSupport.json').read_text(encoding='utf-8'))
-    ext = json.loads((root / 'tables/ExtensionSupport.json').read_text(encoding='utf-8'))
-    inv = json.loads((root / 'tables/InventorySupport.json').read_text(encoding='utf-8'))
+    shop = json.loads((root / 'server/tables/HeroShopSupport.json').read_text(encoding='utf-8'))
+    ext = json.loads((root / 'server/tables/ExtensionSupport.json').read_text(encoding='utf-8'))
+    inv = json.loads((root / 'server/tables/InventorySupport.json').read_text(encoding='utf-8'))
     star = max(shop['Stars'], key=lambda r: (r['Transcended'], r['Star']))
     equipment = {r['ItemIndex']: r for r in ext['EquipItem']}
     details = {r['DetailIndex']: r for r in ext['EquipItemDetail']}

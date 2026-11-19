@@ -6,7 +6,11 @@ public class GameRegistryManager : MonoBehaviour
 {
 	private void Awake()
 	{
-		RegisterGameInstallationPath();
+		// The URL-protocol registration is a Windows registry feature.
+		if (Application.platform == RuntimePlatform.WindowsPlayer)
+		{
+			RegisterGameInstallationPath();
+		}
 	}
 
 	public static void RegisterGameInstallationPath()

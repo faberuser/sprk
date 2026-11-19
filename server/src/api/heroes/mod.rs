@@ -2,6 +2,7 @@
 use crate::models::item::ItemGrant;
 pub mod inn;
 pub mod presets;
+pub mod skill_rules;
 
 #[cfg(test)]
 mod tests;
@@ -56,7 +57,8 @@ endpoints!(
     learn_hero_transcend_skill_page,
     reset_hero_transcend_skill_page,
     hero_limit_break_level_up,
-    hero_limit_break_exp_up
+    hero_limit_break_exp_up,
+    set_skill_rules
 );
 
 pub(crate) async fn details(db: &mut PgConnection, account: i64, index: i32) -> Result<Value> {
@@ -78,6 +80,21 @@ pub(crate) async fn save_details(
     data: &Value,
 ) -> Result<()> {
     crate::db::query("INSERT INTO hero_details(account_id,hero_index,data) VALUES ($1,$2,$3) ON CONFLICT(account_id,hero_index) DO UPDATE SET data=excluded.data").bind(account).bind(index).bind(data.to_string()).execute(db).await?;
+    Ok(())
+}
+/// `save_details` for several Heroes in one statement (a battle's party).
+/// Each Hero once: one statement cannot update a row twice.
+pub(crate) async fn save_details_many(
+    db: &mut PgConnection,
+    account: i64,
+    details: &std::collections::BTreeMap<i32, &Value>,
+) -> Result<()> {
+    if details.is_empty() {
+        return Ok(());
+    }
+    let rows: Vec<Value> = details.iter().map(|(index, data)| json!({"h":index,"d":data.to_string()})).collect();
+    crate::db::query("INSERT INTO hero_details(account_id,hero_index,data) SELECT $1,(e->>'h')::bigint,e->>'d' FROM jsonb_array_elements($2::jsonb) e ON CONFLICT(account_id,hero_index) DO UPDATE SET data=excluded.data")
+        .bind(account).bind(Value::Array(rows).to_string()).execute(db).await?;
     Ok(())
 }
 pub(crate) async fn info(db: &mut PgConnection, account: i64, index: i32) -> Result<Value> {
@@ -377,6 +394,9 @@ pub(crate) async fn execute(
                 .await?;
         }
         return Ok(out);
+    }
+    if action == "set_skill_rules" {
+        return skill_rules::set(db, account, req).await;
     }
     if action.ends_with("hero_storage_slot") || action == "change_hero_storage_slot_name" {
         return crate::api::heroes::presets::execute(db, state, account, req, action).await;

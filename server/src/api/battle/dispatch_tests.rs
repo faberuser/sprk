@@ -369,8 +369,9 @@ async fn dispatch_mixed_results_charge_only_wins_and_release_unplayed_costs() {
     assert_eq!(done["DispatchBattleInfo"]["WinCount"], 1);
     assert_eq!(done["DispatchBattleInfo"]["LoseCount"], 1);
     assert_eq!(stamina(&s, &u).await, 1000 - cost);
-    assert_eq!(done["StaminaResult"]["AddValue"], -cost);
-    assert_eq!(done["EclipseStaminaResult"], done["StaminaResult"]);
+    // Sent once: the native cancel popup lists both stamina fields.
+    assert_eq!(done["EclipseStaminaResult"]["AddValue"], -cost);
+    assert!(done["StaminaResult"].is_null(), "{done}");
     assert_ne!(
         call(
             &s,
@@ -652,6 +653,42 @@ async fn dispatch_freezes_only_valid_party_skill_rules_for_the_native_worker() {
     // Plain JSON from API clients is accepted too.
     assert_eq!(dispatch::skill_rules(r#"{"1":185}"#, &[1]), dispatch::skill_rules("%7b%221%22%3a185%7d", &[1]));
     assert_eq!(dispatch::skill_rules(r#"{"1":185}"#, &[1]).get("1"), Some(&json!(185)));
+}
+
+#[tokio::test]
+async fn stored_skill_rules_reach_every_native_worker_account_info() {
+    let (s, u) = fixture(false).await;
+    let a = account(&u);
+    let set = |args: &str| {
+        let body = axum::body::Bytes::from(format!("SessionKey={}&{args}", u["UserInfo"]["SessionKey"].as_str().unwrap()));
+        let s = s.clone();
+        async move { crate::api::heroes::set_skill_rules(axum::extract::State(s), body).await.unwrap().0 }
+    };
+    let buffs = |s: AppState| async move {
+        crate::api::community::conquest::combat_buffs(&mut s.db.acquire().await.unwrap(), &s, a).await.unwrap()
+    };
+    assert_eq!(buffs(s.clone()).await["SkillRules"], json!({}));
+    // {"1":13,"999999":5} escaped twice like Unity: unowned heroes are not stored.
+    let v = set("SkillRules=%257b%25221%2522%253a13%252c%2522999999%2522%253a5%257d&Replace=1").await;
+    assert_eq!(v["Result"], "Success", "{v}");
+    assert_eq!(buffs(s.clone()).await["SkillRules"], json!({"1": 13}));
+    // A single-hero update keeps the rest; 0 clears the hero.
+    assert_eq!(set("SkillRules=%7b%221%22%3a185%7d").await["Result"], "Success");
+    assert_eq!(buffs(s.clone()).await["SkillRules"], json!({"1": 185}));
+    assert_eq!(set("SkillRules=%7b%221%22%3a0%7d").await["Result"], "Success");
+    assert_eq!(buffs(s.clone()).await["SkillRules"], json!({}));
+    // Replace makes the map the complete set; malformed or out-of-range input changes nothing.
+    set("SkillRules=%7b%221%22%3a13%7d").await;
+    assert_eq!(set("SkillRules=%7b%7d&Replace=1").await["Result"], "Success");
+    assert_eq!(buffs(s.clone()).await["SkillRules"], json!({}));
+    set("SkillRules=%7b%221%22%3a13%7d").await;
+    assert_ne!(set("SkillRules=%7b%221%22%3a32768%7d&Replace=1").await["Result"], "Success");
+    assert_ne!(set("SkillRules=nope&Replace=1").await["Result"], "Success");
+    assert_eq!(buffs(s.clone()).await["SkillRules"], json!({"1": 13}));
+    // Dispatch snapshots carry them per account as well (the job's frozen copy still wins).
+    let snapshot = dispatch::simulation_snapshot(&mut s.db.acquire().await.unwrap(), &s, a,
+        &json!({"HeroIndices":"[1]","ChapterIndex":1,"DungeonIndex":1,"Difficulty":1})).await.unwrap();
+    assert_eq!(snapshot["AccountInfos"][0]["SkillRules"], json!({"1": 13}));
 }
 
 #[tokio::test]

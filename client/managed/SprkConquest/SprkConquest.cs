@@ -47,6 +47,13 @@ public sealed class SprkConquest : MonoBehaviour
 
 		public bool dispatch;
 
+		// SPRK karma dispatch: endless waves, random card picks, capped run length.
+		public bool karma;
+
+		public int karmaMaxClearWaves;
+
+		public System.Random karmaCards;
+
 		public HashSet<long> withdrawn = new HashSet<long>();
 
 		public List<object> logs = new List<object>();
@@ -452,7 +459,7 @@ public sealed class SprkConquest : MonoBehaviour
 					},
 					{ "ArenaVersion", 1 },
 					{ "ChallengeRaidVersion", 1 },
-					{ "DispatchVersion", 1 }
+					{ "DispatchVersion", 2 }
 				});
 				link = sprkBattleLink;
 				sprkBattleLink.ReceiveLoop();
@@ -601,10 +608,18 @@ public sealed class SprkConquest : MonoBehaviour
 				{
 					return false;
 				}
+				if (run3.karma)
+				{
+					KarmaManager karmaManager = run3.updater.BattleInstance.KarmaManager;
+					if (karmaManager.SprkCardPending)
+					{
+						karmaManager.SelectSlot(run3.karmaCards.Next(karmaManager.SprkCardCount));
+					}
+				}
 				run3.updater.Update();
 				run3.updater.BattleInstance.UpdateTick(snapshotEnabled: false);
 				SnapshotObjectPoolContainer.FlushPendingRelease();
-				if (run3.updater.IsBattleEnd())
+				if (run3.updater.IsBattleEnd() || (run3.karma && (run3.updater.MaxWaveIndex >= run3.karmaMaxClearWaves || run3.updater.BattleInstance.MainTimer.GetCurrentTimeMs() >= 3600000)))
 				{
 					Finish(run3);
 				}
@@ -696,10 +711,8 @@ public sealed class SprkConquest : MonoBehaviour
 				{
 					throw new InvalidOperationException("Dispatch heroes must use native simulation AI");
 				}
-				if (run.dispatch && data.Contains("SkillRules"))
-				{
-					SprkSkillPriority.MarkFromPayload(data["SkillRules"], account.UserInfo.AccountId, battleCreatureCreateInfo);
-				}
+				// SPRK: auto skill rules the server stored for this account (dispatch: frozen on the job).
+				SprkSkillPriority.MarkFromPayload(SprkSkillPriority.PayloadRules(data, account.UserInfo.AccountId, run.dispatch), account.UserInfo.AccountId, battleCreatureCreateInfo);
 				if (flag)
 				{
 					array[flag2 ? 1u : 0u].Add(battleCreatureCreateInfo);
@@ -725,7 +738,24 @@ public sealed class SprkConquest : MonoBehaviour
 			});
 		}
 		battleInstanceBuilder.SetEnterPlayerBattleLogList(list2);
-		run.updater = battleInstanceBuilder.BuildUpdater<BattleInstance>(-1, Convert.ToInt32(data["Seed"]));
+		IDictionary karmaData = (run.dispatch && data.Contains("Karma")) ? (data["Karma"] as IDictionary) : null;
+		if (karmaData != null && data2 != null && data2.BattleType == BattleType.KarmaRaid)
+		{
+			// Native OfflinePlay drives karma with a KarmaUpdater; without a view the worker never
+			// pauses between levels, so PrepareNextKarmaLevel continues straight into the next stage.
+			int seed = Convert.ToInt32(data["Seed"]);
+			run.karma = true;
+			run.karmaMaxClearWaves = System.Math.Max(1, Convert.ToInt32(karmaData["MaxClearWaves"]));
+			run.karmaCards = new System.Random(seed);
+			run.updater = new NShared.NCampaign.Karma.KarmaUpdater(battleInstanceBuilder.Build<BattleInstance>(), info.ChapterIndex, info.DungeonIndex, (DungeonDifficultyType)info.DungeonDifficulty, scenario: false, list2, seed)
+			{
+				ForcedRandomSeed = -1
+			};
+		}
+		else
+		{
+			run.updater = battleInstanceBuilder.BuildUpdater<BattleInstance>(-1, Convert.ToInt32(data["Seed"]));
+		}
 		if (flag)
 		{
 			List<BattleCreatureCreateInfo>[] array2 = array;
@@ -822,7 +852,7 @@ public sealed class SprkConquest : MonoBehaviour
 		{
 			dictionary2[player.ToString()] = battleInstance.Snapshot.StatisticsManager.GetTotalDamageOfAccount(player);
 		}
-		Send("WorkerResult", new Dictionary<string, object>
+		Dictionary<string, object> result = new Dictionary<string, object>
 		{
 			{ "RunId", run.id },
 			{
@@ -848,7 +878,15 @@ public sealed class SprkConquest : MonoBehaviour
 				"MaxWaveIndex",
 				run.updater.MaxWaveIndex
 			}
-		});
+		};
+		if (run.karma)
+		{
+			result["ClearWave"] = run.updater.MaxWaveIndex;
+			result["EndKillCount"] = battleInstance.Snapshot.StatisticsManager.GetCurrentWaveKillMeter(TeamType.Left);
+			result["TotalKillCount"] = battleInstance.Snapshot.StatisticsManager.GetTotalKillTeamMeter(TeamType.Left);
+			result["TimeMs"] = System.Math.Min(battleInstance.MainTimer.GetCurrentTimeMs(), 3600000L);
+		}
+		Send("WorkerResult", result);
 		runs.Remove(run.id);
 	}
 

@@ -185,6 +185,13 @@ pub(super) async fn snapshot(db: &mut PgConnection, a: i64) -> Result<Vec<Value>
             run["State"] = json!("ReadyToComplete");
             put(db, a, "dispatch", n(run, "SlotIndex"), run).await?;
         }
+        // Server-only: the worker's battle snapshot (~100 KB per job) and the
+        // settlement reply. No client reads them, and SprkDispatch polls this
+        // list every 3 s while a job runs.
+        if let Some(run) = run.as_object_mut() {
+            run.remove("SimulationSnapshot");
+            run.remove("CollectionResponse");
+        }
     }
     Ok(runs)
 }
@@ -216,6 +223,9 @@ pub(super) async fn execute(
         );
         let mut request = Request(parameters);
         let d = campaign::dungeon(s, &request)?;
+        if let Some(group) = super::karma::dispatch_group(s, d) {
+            return super::karma::start_dispatch(db, s, a, r, group).await;
+        }
         // Native dispatch requests identify the dungeon, but omit raid fields.
         // Derive them from the solo raid table instead of trusting caller extras.
         if let Some(raid) = dispatch_raid(s, d)? {
@@ -268,15 +278,7 @@ pub(super) async fn execute(
         if count < 1 || count > settings(s, "DispatchMaxRepeat", 200) {
             return Err(rule("InvalidCount"));
         }
-        let existing = list(db, a, "dispatch").await?;
-        let slot = (1..=settings(s, "DispatchMaxSlots", 5))
-            .find(|slot| {
-                !existing.iter().any(|v| {
-                    n(v, "SlotIndex") == *slot
-                        && !matches!(v["State"].as_str(), Some("Complete" | "Cancel"))
-                })
-            })
-            .ok_or_else(|| rule("AlreadyOnBattleHero"))?;
+        let slot = free_slot(db, s, a).await?;
         // Legend costumes discount each run, rounded down like the native window.
         let discount = bonuses::dispatch_stamina_discount(db, s, a).await?;
         let cost = campaign::stamina_cost(d, diff) * (100 - discount) / 100 * count;
@@ -306,8 +308,9 @@ pub(super) async fn execute(
         if !skill_rules.is_empty() {
             info["SkillRules"] = Value::Object(skill_rules);
         }
-        info["SimulationSnapshot"] = simulation_snapshot(db, s, a, &info).await?;
         info["SimulationJobId"] = json!(uuid::Uuid::new_v4().to_string());
+        let snapshot = simulation_snapshot(db, s, a, &info).await?;
+        save_snapshot(db, a, slot, &info, &snapshot).await?;
         info["State"] = json!("Simulation");
         if receipt["DeferredEntryCosts"] == true {
             info["EntryCostHold"] = receipt;
@@ -345,6 +348,22 @@ pub(super) async fn execute(
         count
     };
     let losses = count - wins;
+    if super::karma::is_dispatch(&info) {
+        let mut out = super::karma::settle_dispatch(db, s, a, &mut info, count.max(0) as usize).await?;
+        out["TeamExpResult"] = out["ExpResult"].clone();
+        info["State"] = json!(if cancel { "Cancel" } else { "Complete" });
+        info["CompleteTime"] = json!(time(now()));
+        info["CollectionResponse"] = out.clone();
+        // The native result popup lists StaminaResult and EclipseStaminaResult on
+        // cancel, and only EclipseStaminaResult on collection: send the refund once.
+        if let Some(refund) = out.as_object_mut().and_then(|o| o.remove("StaminaResult")) {
+            out["EclipseStaminaResult"] = refund;
+        }
+        drop_snapshot(db, a, slot, &mut info).await?;
+        put(db, a, "dispatch", slot, &info).await?;
+        out["DispatchBattleInfo"] = info;
+        return Ok(out);
+    }
     let req = request(&info);
     let heroes: Vec<i64> = read_json(info["HeroIndices"].as_str().unwrap_or("[]"))?;
     let mut out = if wins > 0 {
@@ -411,14 +430,31 @@ pub(super) async fn execute(
         info["ServerResult"] = json!(vec!["1"; count as usize].join(","));
     }
     info["CollectionResponse"] = out.clone();
-    // CancelDispatch applies only EclipseStaminaResult, so it carries the
-    // stamina refund there. Completion applies both and keeps any key award.
-    if !out["StaminaResult"].is_null() && (cancel || out["EclipseStaminaResult"].is_null()) {
+    // The native cancel popup lists StaminaResult and EclipseStaminaResult (both
+    // also applied), so a cancel sends the refund once, as EclipseStaminaResult.
+    // Collection lists and applies only EclipseStaminaResult; keep any key award.
+    if cancel {
+        if let Some(refund) = out.as_object_mut().and_then(|o| o.remove("StaminaResult")).filter(|v| !v.is_null()) {
+            out["EclipseStaminaResult"] = refund;
+        }
+    } else if !out["StaminaResult"].is_null() && out["EclipseStaminaResult"].is_null() {
         out["EclipseStaminaResult"] = out["StaminaResult"].clone();
     }
+    drop_snapshot(db, a, slot, &mut info).await?;
     put(db, a, "dispatch", slot, &info).await?;
     out["DispatchBattleInfo"] = info;
     Ok(out)
+}
+pub(super) async fn free_slot(db: &mut PgConnection, s: &AppState, a: i64) -> Result<i64> {
+    let existing = list(db, a, "dispatch").await?;
+    (1..=settings(s, "DispatchMaxSlots", 5))
+        .find(|slot| {
+            !existing.iter().any(|v| {
+                n(v, "SlotIndex") == *slot
+                    && !matches!(v["State"].as_str(), Some("Complete" | "Cancel"))
+            })
+        })
+        .ok_or_else(|| rule("AlreadyOnBattleHero"))
 }
 pub(super) async fn sweep(
     db: &mut PgConnection,
@@ -575,6 +611,33 @@ pub(super) fn skill_rules(raw: &str, party: &[i64]) -> serde_json::Map<String, V
         }
     }
     rules
+}
+
+/// A job's battle snapshot for the worker (~100 KB, up to ~900 KB) is written
+/// once, in its own `dispatch_snapshot` row of the job's slot: the job row is
+/// rewritten on every prepared repeat and revealed round. The row names its
+/// job, so a reused slot never sends another job's snapshot.
+pub(super) async fn save_snapshot(db: &mut PgConnection, a: i64, slot: i64, job: &Value, snapshot: &Value) -> Result<()> {
+    put(db, a, "dispatch_snapshot", slot, &json!({"SimulationJobId":job["SimulationJobId"],"Snapshot":snapshot})).await
+}
+/// The job's stored snapshot: inline in rows saved before it had its own row,
+/// else its `dispatch_snapshot` row when that belongs to this job.
+pub(super) async fn load_snapshot(db: &mut PgConnection, a: i64, slot: i64, job: &Value) -> Result<Option<Value>> {
+    if !job["SimulationSnapshot"].is_null() {
+        return Ok(Some(job["SimulationSnapshot"].clone()));
+    }
+    let mut stored = get(db, a, "dispatch_snapshot", slot).await?;
+    Ok((!stored.is_null() && stored["SimulationJobId"] == job["SimulationJobId"]).then(|| stored["Snapshot"].take()))
+}
+/// A settled job keeps its row (duplicate-request protection) without the
+/// snapshot, which only the worker needed.
+async fn drop_snapshot(db: &mut PgConnection, a: i64, slot: i64, info: &mut Value) -> Result<()> {
+    if let Some(info) = info.as_object_mut() {
+        info.remove("SimulationSnapshot");
+    }
+    crate::db::query("DELETE FROM battle_state WHERE account=$1 AND kind='dispatch_snapshot' AND idx=$2")
+        .bind(a).bind(slot).execute(db).await?;
+    Ok(())
 }
 
 pub(super) async fn simulation_snapshot(db: &mut PgConnection, s: &AppState, a: i64, info: &Value) -> Result<Value> {

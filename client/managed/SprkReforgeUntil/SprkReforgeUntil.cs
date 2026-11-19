@@ -233,7 +233,8 @@ public static class SprkReforgeUntil
 
 	private static string Title => SprkText.Get("Reforge Until");
 
-	public const int MaxTries = 1000;
+	// The guarantee lands by the 100th try, so a run never needs more (matches the server).
+	public const int MaxTries = 100;
 
 	private static readonly ConditionalWeakTable<NShared.RenewEquipOption.Request, Ask> Asks = new ConditionalWeakTable<NShared.RenewEquipOption.Request, Ask>();
 
@@ -246,6 +247,8 @@ public static class SprkReforgeUntil
 	private static OperationType target;
 
 	private static bool explained;
+
+	private static bool explainedOwned;
 
 	private static bool busy;
 
@@ -464,7 +467,12 @@ public static class SprkReforgeUntil
 		target = type;
 		targetEquipSlot = window.SelectedEquipItemInfo.SlotIndex;
 		Paint();
-		if (!explained)
+		if (!explainedOwned && HasStat(window.SelectedEquipItemInfo, type))
+		{
+			explainedOwned = true;
+			MessagePopup.Open(Title, SprkText.Format("Target: {0}\n\nThis item already has {0}. Tap Change Option on its {0} line to reforge until {0} rolls a higher value (up to its maximum).\nOther lines cannot roll {0}: an item cannot have the same stat twice.", StatName(type)));
+		}
+		else if (!explained)
 		{
 			explained = true;
 			MessagePopup.Open(Title, SprkText.Format("Target: {0}\n\nTap Change Option on a stat line to reforge it until this stat appears.\nTo reforge normally again, open the target button and tap {0} again.", StatName(target)));
@@ -648,6 +656,12 @@ public static class SprkReforgeUntil
 			return true;
 		}
 		OperationType wanted = target;
+		string blocked = BlockedReason((window != null && window.SelectedEquipItemInfo != null && window.SelectedEquipItemInfo.SlotIndex == equipSlot) ? window.SelectedEquipItemInfo : null, optionSlot, wanted);
+		if (blocked != null)
+		{
+			MessagePopup.Open(Title, blocked);
+			return true;
+		}
 		NShared.RenewEquipOption.Request request = new NShared.RenewEquipOption.Request
 		{
 			EquipItemSlotIndex = equipSlot,
@@ -684,6 +698,53 @@ public static class SprkReforgeUntil
 			}
 		});
 		return true;
+	}
+
+	/// An item never holds the same stat twice. A stat it already has can only
+	/// be targeted on its own line, where rolling it again raises its value, so
+	/// that line must not already be at the maximum. The server enforces the
+	/// same rules; this explains them before anything is charged.
+	private static string BlockedReason(EquipItemInfo item, int optionSlot, OperationType wanted)
+	{
+		if (item == null)
+		{
+			return null;
+		}
+		foreach (EquipItemOptionInfo info in item.GetOptionInfoList())
+		{
+			EquipOptionData data = (info == null) ? null : GameRoot.Instance.EquipOptionDataContainer.GetData(info.OptionIndex);
+			if (data == null || data.OptionType != wanted)
+			{
+				continue;
+			}
+			if (info.SlotIndex != optionSlot)
+			{
+				return SprkText.Format("{0} is already on another line, and an item cannot have the same stat twice.\nReforge that line to raise {0}, or pick another target.", StatName(wanted));
+			}
+			int step = Mathf.Min(info.OptionStep, data.OptionValueStep);
+			if (data.GetOptionValue(item.Star, step) >= data.GetOptionValueMax(item.Star))
+			{
+				return SprkText.Format("{0} on this line is already at its maximum value.", StatName(wanted));
+			}
+		}
+		return null;
+	}
+
+	private static bool HasStat(EquipItemInfo item, OperationType type)
+	{
+		if (item == null)
+		{
+			return false;
+		}
+		foreach (EquipItemOptionInfo info in item.GetOptionInfoList())
+		{
+			EquipOptionData data = (info == null) ? null : GameRoot.Instance.EquipOptionDataContainer.GetData(info.OptionIndex);
+			if (data != null && data.OptionType == type)
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private static Budget ReadBudget(EquipItemInfo item, int optionSlot)
@@ -861,6 +922,11 @@ public static class SprkReforgeUntil
 			return;
 		}
 		Budget budget = ReadBudget(equipItemInfo, optionSlot);
+		// Tries past the guarantee can never be used: the run stops at the hit.
+		if (remaining > 0 && budget.MaxTries > remaining)
+		{
+			budget.MaxTries = (int)remaining;
+		}
 		if (budget.MaxTries <= 0)
 		{
 			MessagePopup.Open(Title, SprkText.Get("Not enough reforge coupons or rubies."));

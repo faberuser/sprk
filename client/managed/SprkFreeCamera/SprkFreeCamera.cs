@@ -1050,7 +1050,7 @@ public static class SprkFreeCamera
 
 	private static int ProbeIsaiahShadowBounds()
 	{
-		AssetBundle assetBundle = AssetBundle.LoadFromFile(Path.Combine(Application.dataPath, "Documents/Patch/StandaloneWindows/Assetbundle/OriginalSpec/Creature_Hero_Isaiah_Star5.unity3d"));
+		AssetBundle assetBundle = AssetBundle.LoadFromFile(Path.Combine(NVespa.UnityCache.GetDownloadedAssetPath("Assetbundle"), "OriginalSpec/Creature_Hero_Isaiah_Star5.unity3d"));
 		if (assetBundle == null)
 		{
 			throw new Exception("Native Isaiah model bundle unavailable");

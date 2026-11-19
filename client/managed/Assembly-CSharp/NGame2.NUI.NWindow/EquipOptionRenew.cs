@@ -299,16 +299,22 @@ public class EquipOptionRenew : EquipEnhanceBase, EquipAwakenScene.IDataProvider
 			{
 				int key2 = data3.OptionIndex[j];
 				EquipOptionData data4 = GameRoot.Instance.EquipOptionDataContainer.GetData(key2);
-				if (data4 != null && !hashSet.Contains(data4.OptionType))
+				if (data4 == null)
 				{
-					int optionValueMin = data4.GetOptionValueMin(base.SelectedEquipItemInfo.Star);
-					int optionValueMax = data4.GetOptionValueMax(base.SelectedEquipItemInfo.Star);
+					continue;
+				}
+				int optionValueMin = data4.GetOptionValueMin(base.SelectedEquipItemInfo.Star);
+				int optionValueMax = data4.GetOptionValueMax(base.SelectedEquipItemInfo.Star);
+				// The item's current stats stay in the target pool: rerolling a
+				// line into its own stat raises that stat's value.
+				SprkReforgeUntil.AddPoolEntry(data4.OptionType, optionValueMin, optionValueMax);
+				if (!hashSet.Contains(data4.OptionType))
+				{
 					string optionDisplay = StatData.GetOptionDisplay(data4.OptionType, optionValueMin, optionValueMax, "~");
 					SingleStatComponent singleStatComponent = RenewableOptionGrid.AddGridItem(SingleStatComponent.PrefabAuto);
 					singleStatComponent.OpenNotAppliedEquipOption(optionDisplay);
 					singleStatComponent.SetStatColor(RenewableOptionColor);
 					_renewableOptionList.Add(singleStatComponent);
-					SprkReforgeUntil.AddPoolEntry(data4.OptionType, optionValueMin, optionValueMax);
 				}
 			}
 		}

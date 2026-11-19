@@ -12,16 +12,16 @@ is the implementation record.
 
 ## Decisions
 
-| Topic | Decision |
-| --- | --- |
-| Table delivery | Rebuilt `.jit` overrides generated from JSON patches in `client/tables/maya/` |
-| Seves | A hidden, non-playable summon creature (row 25004, model `Hero.Maya.Pet`) with 100% of Maya's live stats, buffs included, copied at each summon (S2 or soul weapon) and refreshed when she summons while he is alive; T5 Dark adds +100% ATK on top (changed from 50% sheet stats after release) |
-| Base kit | Keep the existing book IV text and make the effects match it; S1 gains Bleed; S3's strike moves to Seves; damage converted to the released `[ATK‰, flat]` format at the same % of ATK |
-| Bleed | Stays able to crit (her signature); gains `Unavoidable, IgnoreBlock` |
-| T5 Light | ATK, DEF, HP +15% / Crit DMG +20% |
-| Art | Stand-ins through `SprkAtlasAliases` (see the art page) |
-| Profile | New lore below |
-| Text | English first; translated into the other 7 shipped languages after review |
+| Topic          | Decision                                                                                                                                                                                                                                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Table delivery | Rebuilt `.jit` overrides generated from JSON patches in `client/tables/maya/`                                                                                                                                                                                                                    |
+| Seves          | A hidden, non-playable summon creature (row 25004, model `Hero.Maya.Pet`) with 100% of Maya's live stats, buffs included, copied at each summon (S2 or soul weapon) and refreshed when she summons while he is alive; T5 Dark adds +100% ATK on top (changed from 50% sheet stats after release) |
+| Base kit       | Keep the existing book IV text and make the effects match it; S1 gains Bleed; S3's strike moves to Seves; damage converted to the released `[ATK‰, flat]` format at the same % of ATK                                                                                                            |
+| Bleed          | Stays able to crit (her signature); gains `Unavoidable, IgnoreBlock`                                                                                                                                                                                                                             |
+| T5 Light       | ATK, DEF, HP +15% / Crit DMG +20%                                                                                                                                                                                                                                                                |
+| Art            | Stand-ins through `SprkAtlasAliases` (see the art page)                                                                                                                                                                                                                                          |
+| Profile        | New lore below                                                                                                                                                                                                                                                                                   |
+| Text           | English first; translated into the other 7 shipped languages after review                                                                                                                                                                                                                        |
 
 ## Status
 
@@ -31,11 +31,11 @@ is the implementation record.
 - [x] Dev loop: `client/dev.py test` gives the test copy its own data folders (only `Assetbundle`, `Video`, `LoginPresentation` stay linked) and applies `client/overrides/files`; `install` applies overrides too
 - [x] Seves: creature 25004 (`Hero.Maya.Pet`, the developers' unused skills `2500400`-`2500440`); `SpawnCreature` gives a summon without stat rows the summoner's stats (ATK/DEF/HP x ratio). Verified in game: spawns with exactly 50% of Maya's ATK/HP/DEF and fights on AI
 - [x] Base kit: S1 Bleed and book IV crit; S2 summon/heal through Seves; S3 Seves strike, CC immunity, cooldown reset on kill; S4 condition fixed (`Blooding` -> `Bleeding`); damage format; text. Verified: tooltips show computed damage, battles complete
-- [x] Perks T3/T5, unique weapon (per-star text), unique treasures, voice list, profile, `OpenType` Opened (client and server `tables/HeroShopSupport.json`)
+- [x] Perks T3/T5, unique weapon (per-star text), unique treasures, voice list, profile, `OpenType` Opened (client and `server/tables/HeroShopSupport.json`)
 - [x] Hero list, hero info, skills, gear and transcend tabs show correctly (perk icons through aliases)
 - [x] Seves and perks verified in the native combat simulation: Seves spawns at 50% stats and fights; S2 book IV +30%, S2 Light +30%, T5 Dark +100% ATK reach him; Light and Dark builds finish without errors
-- [ ] Seves's model in a UI battle not yet confirmed by screenshot (mechanics confirmed)
-- [ ] Decide how Seves reaches the field in auto battle (see "Testing notes")
+- [x] Seves's model in a UI battle confirmed
+- [x] Decide how Seves reaches the field in auto battle (see "Testing notes")
 - [x] Soul weapon: skills `93001400`-`93001412`, `SoulWeaponSkillTable` (Time, 20 sec, 7 uses), soulstone 111014 (client item, icon alias, server catalogue, shop row, break reward, code map), upgrade prices, `IsOpenSoulWeapon`. Verified: the server liberates and advances it (test `maya_soul_weapon_liberates_and_advances_with_her_soulstone`); the Manage Soul Weapon screen shows name, skill, requirement, cooldown and uses; in the combat simulation it charges, fires (uses 7 -> 6), adds +40% base ATK and advancement 2 summons Seves with his buffs. Placeholders: Selene's bow model and node tree (see the art page)
 - [x] Obtaining her: removed from `INN_RECRUITMENT_EXCLUDED_HEROES` (test `inn_offers_and_recruits_maya`); inn friendship rows and dialogue; 73 hero selectors and the 4 archer/all soulstone selectors (client and server); Special Shop (`Buyable`, 3 stars, 6,000 rubies). Verified in game: she visits the inn with her lines, Greet works, the shop sells her and the purchase adds her
 - [x] Translations (Korean, Japanese, ChineseSimplified, ChineseTraditional, French, German, Russian): `client/tables/maya/91-97-text-*.json`, same keys as English; names follow each language's native strings
@@ -58,14 +58,14 @@ from star and transcendence) and costume rows.
 
 Made while implementing, where the game has no matching mechanic:
 
-| Item | Approved | Implemented |
-| --- | --- | --- |
-| UW second line | Maya deals +X% DMG to bleeding enemies | Enemies inflicted with Bleed take +X% DMG (no attacker-side modifier exists) |
-| S2 Light | Shield = 20% of Seves's Max HP | No shield; Maya and Seves get +15% DMG to Non-Hero enemies instead |
-| S4 Light | Bleed stacks to 5, +20% per stack | +20% per stack; Bleed keeps the game-wide cap of 3 |
-| T5 Dark | Seves inherits 100% ATK and Crit; extra hit when Seves also attacks the target | Seves's ATK +100% (crit stats are already inherited); extra hit on any bleeding target, 1 sec cooldown |
-| UT4 | Mana on extra DMG; Seves takes 20% less DMG | +X% DMG to S4; Seves takes 20% less DMG |
-| S3 Dark mana | When the target is killed | When it is killed by Maya's S3 hit (Seves's kills are his own) |
+| Item           | Approved                                                                       | Implemented                                                                                            |
+| -------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| UW second line | Maya deals +X% DMG to bleeding enemies                                         | Enemies inflicted with Bleed take +X% DMG (no attacker-side modifier exists)                           |
+| S2 Light       | Shield = 20% of Seves's Max HP                                                 | No shield; Maya and Seves get +15% DMG to Non-Hero enemies instead                                     |
+| S4 Light       | Bleed stacks to 5, +20% per stack                                              | +20% per stack; Bleed keeps the game-wide cap of 3                                                     |
+| T5 Dark        | Seves inherits 100% ATK and Crit; extra hit when Seves also attacks the target | Seves's ATK +100% (crit stats are already inherited); extra hit on any bleeding target, 1 sec cooldown |
+| UT4            | Mana on extra DMG; Seves takes 20% less DMG                                    | +X% DMG to S4; Seves takes 20% less DMG                                                                |
+| S3 Dark mana   | When the target is killed                                                      | When it is killed by Maya's S3 hit (Seves's kills are his own)                                         |
 
 ## Testing notes
 
@@ -90,40 +90,40 @@ Made while implementing, where the game has no matching mechanic:
   `target/release/sprk-server.exe`: rebuild it (`cargo build --release`) after
   server changes.
 - Two engine rules found while testing:
-  - Damage from a passive triggered by attacks (`OnAttack` with no skill
-    filter) re-triggers it. Such damage needs `IgnoreAttackersTrigger` (or a
-    cooldown), otherwise several hits recurse until the game freezes. This was
-    latent in Maya's original S4 and Seves's `2500440`.
-  - `UseSommoneeSkill` only works for skills the summon owns; Seves lists his
-    heal and buff skills in `ExtraSkill` with `TriggerDisabled`.
+    - Damage from a passive triggered by attacks (`OnAttack` with no skill
+      filter) re-triggers it. Such damage needs `IgnoreAttackersTrigger` (or a
+      cooldown), otherwise several hits recurse until the game freezes. This was
+      latent in Maya's original S4 and Seves's `2500440`.
+    - `UseSommoneeSkill` only works for skills the summon owns; Seves lists his
+      heal and buff skills in `ExtraSkill` with `TriggerDisabled`.
 
 ## Data map
 
-| What | IDs |
-| --- | --- |
-| Hero row | `CreatureTable` 14 (`OpenType` is `CommingSoon` in the baseline) |
-| Skills | base 1400, S1 1410 (+1411-1413), S2 1420 (+1421-1423), S3 1430 (+1431-1433), S4 1440 (+1441-1443) |
-| S2 summon | `SpawnCreature` 25004 (row missing); Ordeal-boss Seves rows 25504/25604 have no skills |
-| Perks | T1 shared `60000001-04, 33`; T2 archer `60000017-20, 37`; T3 `60001410/11, 20/21, 30/31, 40/41`; T5 `60001450/51` |
-| Unique weapon | item 1014 "Serrated Claws, Satis", option 11014 -> skills 90000140-145 (Bleed 20% ATK/s, 10 s, no flags) |
-| Unique treasures | options 14014/13014/12014/15014 -> skills 91001410-15 / 20-25 / 30-35 / 40-45 (all empty) |
-| Soul weapon | `SoulWeaponSkillTable` `WEAPON_UNIQUE_MAYA_1`: base 93001400 (pounce 93001411, Bleed 93001412), advancements 93001401/02, condition 93001410 (state `SoulWeapon14`, `MaxStack` 20); soulstone 111014 `SOULSTONE_MAYA_1`; display models 901014/911014 |
-| Obtaining | Inn: `HeroFriendlyTable`/`HeroFriendlyActionTable` 14, server `tables/HeroInnRecruitment.json`; selectors: `HeroSelectItemTable` (73), `SelectItemTable` (4), server `tables/InventorySupport.json`; shop: server `tables/HeroShopSupport.json` `Heroes.14.Buyable` |
-| Transcendence | `HeroAwakeTable` hero 14 (present); items `DARKNESS_MAYA_3-5`, `LIGHTNESS_MAYA_1-5` |
-| Text | `CREATURE_NAME_14` "Maya", `CREATURE_TITLE_14` "Valiant Beastmaster Maya", skill names/descriptions for 1410-1443 |
-| Voice | `Sound_VOICE_Hero_Maya.unity3d`: 14 clips (attacks, skills 1-4, damage, death, victory, 5 Seves sounds) |
+| What             | IDs                                                                                                                                                                                                                                                                 |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Hero row         | `CreatureTable` 14 (`OpenType` is `CommingSoon` in the baseline)                                                                                                                                                                                                    |
+| Skills           | base 1400, S1 1410 (+1411-1413), S2 1420 (+1421-1423), S3 1430 (+1431-1433), S4 1440 (+1441-1443)                                                                                                                                                                   |
+| S2 summon        | `SpawnCreature` 25004 (row missing); Ordeal-boss Seves rows 25504/25604 have no skills                                                                                                                                                                              |
+| Perks            | T1 shared `60000001-04, 33`; T2 archer `60000017-20, 37`; T3 `60001410/11, 20/21, 30/31, 40/41`; T5 `60001450/51`                                                                                                                                                   |
+| Unique weapon    | item 1014 "Serrated Claws, Satis", option 11014 -> skills 90000140-145 (Bleed 20% ATK/s, 10 s, no flags)                                                                                                                                                            |
+| Unique treasures | options 14014/13014/12014/15014 -> skills 91001410-15 / 20-25 / 30-35 / 40-45 (all empty)                                                                                                                                                                           |
+| Soul weapon      | `SoulWeaponSkillTable` `WEAPON_UNIQUE_MAYA_1`: base 93001400 (pounce 93001411, Bleed 93001412), advancements 93001401/02, condition 93001410 (state `SoulWeapon14`, `MaxStack` 20); soulstone 111014 `SOULSTONE_MAYA_1`; display models 901014/911014               |
+| Obtaining        | Inn: `HeroFriendlyTable`/`HeroFriendlyActionTable` 14, `server/tables/HeroInnRecruitment.json`; selectors: `HeroSelectItemTable` (73), `SelectItemTable` (4), server `tables/InventorySupport.json`; shop: server `tables/HeroShopSupport.json` `Heroes.14.Buyable` |
+| Transcendence    | `HeroAwakeTable` hero 14 (present); items `DARKNESS_MAYA_3-5`, `LIGHTNESS_MAYA_1-5`                                                                                                                                                                                 |
+| Text             | `CREATURE_NAME_14` "Maya", `CREATURE_TITLE_14` "Valiant Beastmaster Maya", skill names/descriptions for 1410-1443                                                                                                                                                   |
+| Voice            | `Sound_VOICE_Hero_Maya.unity3d`: 14 clips (attacks, skills 1-4, damage, death, victory, 5 Seves sounds)                                                                                                                                                             |
 
 ## Profile and lore (draft)
 
-| Field | Value |
-| --- | --- |
-| Gender | Female |
-| Race | Human |
-| Age | 24 |
-| Height | 168 cm |
-| Birthday | Month 5, day 12 (constellation of month 5) |
-| Likes | Seves's warm mane, the first snowfall in the deep forest, roasted boar, a boomerang that comes back true |
-| Dislikes | Poachers, cages and leashes, the noise of big cities, being called a "tamer" |
+| Field    | Value                                                                                                    |
+| -------- | -------------------------------------------------------------------------------------------------------- |
+| Gender   | Female                                                                                                   |
+| Race     | Human                                                                                                    |
+| Age      | 24                                                                                                       |
+| Height   | 168 cm                                                                                                   |
+| Birthday | Month 5, day 12 (constellation of month 5)                                                               |
+| Likes    | Seves's warm mane, the first snowfall in the deep forest, roasted boar, a boomerang that comes back true |
+| Dislikes | Poachers, cages and leashes, the noise of big cities, being called a "tamer"                             |
 
 **Story (`CREATURE_STORY_14`):**
 
@@ -159,14 +159,14 @@ calls Seves family.
 
 ## English text (draft)
 
-Keys marked *new* do not exist in the game yet.
+Keys marked _new_ do not exist in the game yet.
 
 ### Base kit corrections
 
-| Key | Text |
-| --- | --- |
+| Key               | Text                                                                                                                                            |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SKILL_DESC_1410` | Throw a boomerang that travels back and forth in a straight line to deal a max of [ffc800]{1}[-] P.DMG and inflict Bleed for [64ffff]10[-] sec. |
-| `SKILL_DESC_1443` | Seves recovers HP equal to [64ff64]{1}[-]% of the DMG he deals. |
+| `SKILL_DESC_1443` | Seves recovers HP equal to [64ff64]{1}[-]% of the DMG he deals.                                                                                 |
 
 S1 said "M.DMG" for a physical skill. S4 IV said "heals 50% of DMG taken"; the
 new wording says what the effect will do. Other book texts stay as they are and
@@ -174,37 +174,37 @@ their effects change to match them.
 
 ### Perks
 
-| Key | Text |
-| --- | --- |
-| `SKILL_DESC_60001410` *new* | DMG is increased by 40%. Bleed inflicted by this skill lasts 5 sec longer. |
-| `SKILL_DESC_60001411` *new* | Reduces Mana Cost by 1. |
-| `SKILL_DESC_60001420` *new* | When Seves is summoned or healed by this skill, Maya and Seves's DMG to Non-Hero enemies is increased by 15% for 15 sec. |
-| `SKILL_DESC_60001421` *new* | If Seves is already summoned, also dispels all negative effects from Seves and makes him immune to CC for 5 sec. |
-| `SKILL_DESC_60001430` *new* | DMG is increased by 40%. Against enemies inflicted with Bleed, DMG is increased by 80% instead. |
-| `SKILL_DESC_60001431` *new* | Seves targets the enemy with the lowest HP %. When the target is killed, Maya also recovers 1000 Mana. |
-| `SKILL_DESC_60001440` *new* | Bleed can be stacked up to 5 times. Extra DMG from this skill is increased by 20% per Bleed stack on the target. |
-| `SKILL_DESC_60001441` *new* | Enemies inflicted with Bleed take 15% increased P.DMG and have their Heal Rate reduced by 30%. |
-| `SKILL_DESC_60001450` *new* | ATK, DEF, HP +15% / Crit DMG +20% |
-| `SKILL_DESC_60001451` *new* | [Pack Tactics] Seves inherits 100% of Maya's ATK and Crit stats. When Maya's auto attack hits an enemy inflicted with Bleed that Seves is also attacking, deals additional P.DMG equal to 200% of ATK that ignores DEF. |
+| Key                         | Text                                                                                                                                                                                                                    |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SKILL_DESC_60001410` _new_ | DMG is increased by 40%. Bleed inflicted by this skill lasts 5 sec longer.                                                                                                                                              |
+| `SKILL_DESC_60001411` _new_ | Reduces Mana Cost by 1.                                                                                                                                                                                                 |
+| `SKILL_DESC_60001420` _new_ | When Seves is summoned or healed by this skill, Maya and Seves's DMG to Non-Hero enemies is increased by 15% for 15 sec.                                                                                                |
+| `SKILL_DESC_60001421` _new_ | If Seves is already summoned, also dispels all negative effects from Seves and makes him immune to CC for 5 sec.                                                                                                        |
+| `SKILL_DESC_60001430` _new_ | DMG is increased by 40%. Against enemies inflicted with Bleed, DMG is increased by 80% instead.                                                                                                                         |
+| `SKILL_DESC_60001431` _new_ | Seves targets the enemy with the lowest HP %. When the target is killed, Maya also recovers 1000 Mana.                                                                                                                  |
+| `SKILL_DESC_60001440` _new_ | Bleed can be stacked up to 5 times. Extra DMG from this skill is increased by 20% per Bleed stack on the target.                                                                                                        |
+| `SKILL_DESC_60001441` _new_ | Enemies inflicted with Bleed take 15% increased P.DMG and have their Heal Rate reduced by 30%.                                                                                                                          |
+| `SKILL_DESC_60001450` _new_ | ATK, DEF, HP +15% / Crit DMG +20%                                                                                                                                                                                       |
+| `SKILL_DESC_60001451` _new_ | [Pack Tactics] Seves inherits 100% of Maya's ATK and Crit stats. When Maya's auto attack hits an enemy inflicted with Bleed that Seves is also attacking, deals additional P.DMG equal to 200% of ATK that ignores DEF. |
 
 ### Unique weapon: Serrated Claws, Satis
 
-| Key | Text |
-| --- | --- |
+| Key                         | Text                                                                                                                                                                                                                            |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SKILL_DESC_90000140`-`145` | Each auto attack inflicts Bleed on the enemy for 10 sec, dealing P.DMG equal to [64ff64]{0}[-]% of ATK every sec. Bleed can be stacked up to 3 times. Maya deals [64ff64]{1}[-]% increased DMG to enemies inflicted with Bleed. |
-| values by star 0-5 | {0}: 20, 24, 29, 35, 42, 50 · {1}: 10, 12, 14, 17, 21, 25 |
-| `ITEM_STORY_1014` *new* | A pair of hooked boomerangs carved from the claws of Seves's mother. They always return to Maya's hand, and the wounds they leave never close cleanly. |
+| values by star 0-5          | {0}: 20, 24, 29, 35, 42, 50 · {1}: 10, 12, 14, 17, 21, 25                                                                                                                                                                       |
+| `ITEM_STORY_1014` _new_     | A pair of hooked boomerangs carved from the claws of Seves's mother. They always return to Maya's hand, and the wounds they leave never close cleanly.                                                                          |
 
 ### Unique treasures
 
-| UT | Name *new* | Description *new* | {0} by star 0-5 |
-| --- | --- | --- | --- |
-| 1 | Hunter's Whetstone | [Penetrating Boomerang] Increases DMG by {0}%, and the boomerang inflicts 2 stacks of Bleed. | 20, 24, 29, 35, 42, 50 |
-| 2 | Beast-Calling Whistle | [Start Hunting] Reduces Cooldown by 30%. When Seves is summoned or healed, his ATK is increased by {0}% for 15 sec. | 10, 12, 14, 17, 21, 25 |
-| 3 | Fang Charm | [Seves] Increases DMG by {0}%. If the target is inflicted with Bleed, reduces its P.DEF by 15% for 10 sec. | 20, 24, 29, 35, 42, 50 |
-| 4 | Pack Leader's Collar | [Bouncing Boomerang] Upon dealing extra DMG to an enemy inflicted with Bleed, recovers {0} Mana (0.5 sec cooldown). Seves takes 20% reduced DMG. | 100, 120, 140, 170, 210, 250 |
+| UT  | Name _new_            | Description _new_                                                                                                                                | {0} by star 0-5              |
+| --- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- |
+| 1   | Hunter's Whetstone    | [Penetrating Boomerang] Increases DMG by {0}%, and the boomerang inflicts 2 stacks of Bleed.                                                     | 20, 24, 29, 35, 42, 50       |
+| 2   | Beast-Calling Whistle | [Start Hunting] Reduces Cooldown by 30%. When Seves is summoned or healed, his ATK is increased by {0}% for 15 sec.                              | 10, 12, 14, 17, 21, 25       |
+| 3   | Fang Charm            | [Seves] Increases DMG by {0}%. If the target is inflicted with Bleed, reduces its P.DEF by 15% for 10 sec.                                       | 20, 24, 29, 35, 42, 50       |
+| 4   | Pack Leader's Collar  | [Bouncing Boomerang] Upon dealing extra DMG to an enemy inflicted with Bleed, recovers {0} Mana (0.5 sec cooldown). Seves takes 20% reduced DMG. | 100, 120, 140, 170, 210, 250 |
 
-Treasure stories *new*:
+Treasure stories _new_:
 
 1. **Hunter's Whetstone.** A flat river stone worn smooth by years of sharpening. Maya never throws a boomerang she has not honed on it herself.
 2. **Beast-Calling Whistle.** Carved from a hollow antler. Its note is too low for human ears, but Seves hears it from the far side of a mountain.
@@ -214,20 +214,21 @@ Treasure stories *new*:
 ### Soul weapon
 
 | Key | Text |
-| --- | --- |
+| --- | ---- |
+
 As shipped (`client/tables/maya/90-text-english.json`). The soul is Fenra, the
 soul of Serrated Claws, Satis; the weapon name follows the native "Unleashed
 <weapon>" pattern.
 
-| Key | Text |
-| --- | --- |
-| Name (`SOULWEAPON_NAME_1014`) | Unleashed Serrated Claws, Satis |
-| Requirement (`SKILL_DESC_93001410`) | Charges up over 20 sec. 7 uses. |
-| Description | Summons Fenra, the soul of Serrated Claws, Satis, for 12 sec. Increases the ATK of Maya and Seves by 40%, and Maya's attacks inflict Bleed. Every 3 sec, Fenra pounces on the enemy with the lowest HP %, dealing P.DMG equal to 250% of ATK that ignores DEF. For the duration, enemies inflicted with Bleed take 20% increased P.DMG. |
-| Advancement 1 | Increases the duration by 4 sec. Each pounce recovers 500 Mana for Maya. |
-| Advancement 2 | If Seves is not summoned, summons Seves. Seves becomes immune to CC for the duration of the Skill. |
-| Soulstone story | Fenra, the first beast that ever hunted, sleeps within this stone. It answers only those who hunt beside a partner they would die for. |
-| Soul weapon story (`SOULWEAPON_STORY_14`) | Fenra wakes in the claws the night a poacher's arrow strikes Seves down, and has run a step ahead of the pair ever since. |
+| Key                                       | Text                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Name (`SOULWEAPON_NAME_1014`)             | Unleashed Serrated Claws, Satis                                                                                                                                                                                                                                                                                                         |
+| Requirement (`SKILL_DESC_93001410`)       | Charges up over 20 sec. 7 uses.                                                                                                                                                                                                                                                                                                         |
+| Description                               | Summons Fenra, the soul of Serrated Claws, Satis, for 12 sec. Increases the ATK of Maya and Seves by 40%, and Maya's attacks inflict Bleed. Every 3 sec, Fenra pounces on the enemy with the lowest HP %, dealing P.DMG equal to 250% of ATK that ignores DEF. For the duration, enemies inflicted with Bleed take 20% increased P.DMG. |
+| Advancement 1                             | Increases the duration by 4 sec. Each pounce recovers 500 Mana for Maya.                                                                                                                                                                                                                                                                |
+| Advancement 2                             | If Seves is not summoned, summons Seves. Seves becomes immune to CC for the duration of the Skill.                                                                                                                                                                                                                                      |
+| Soulstone story                           | Fenra, the first beast that ever hunted, sleeps within this stone. It answers only those who hunt beside a partner they would die for.                                                                                                                                                                                                  |
+| Soul weapon story (`SOULWEAPON_STORY_14`) | Fenra wakes in the claws the night a poacher's arrow strikes Seves down, and has run a step ahead of the pair ever since.                                                                                                                                                                                                               |
 
 ## Risks found so far
 

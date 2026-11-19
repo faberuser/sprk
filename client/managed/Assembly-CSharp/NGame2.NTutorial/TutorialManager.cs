@@ -274,6 +274,7 @@ public class TutorialManager : SingletonUpdater<TutorialManager>, TutorialWindow
 		}
 		if (!IsTutorialEnabled)
 		{
+			SprkSkippedQuestTutorials.Observe(tutorialIndex);
 			Vespa_System_Action_Extension_Method.fire(onCompleteLoad);
 			Vespa_System_Action_Extension_Method.fire(onComplete);
 			return false;

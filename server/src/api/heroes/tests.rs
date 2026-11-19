@@ -2209,7 +2209,7 @@ async fn honor_costumes_sell_for_legend_rubies_without_replacing_honor_shop() {
         let duplicate=hero::buy_costume(State(s.clone()),form(&u,&buy(h,id,10000))).await.unwrap().0;
         assert_eq!(duplicate["Result"],"AlreadyHaveCostume");assert_eq!(balance(&s,&u,"gem").await,1000000-spent);
     }
-    let archived:Value=serde_json::from_str(include_str!("../../../../tables/ArenaShopCatalog.json")).unwrap();
+    let archived:Value=serde_json::from_str(include_str!("../../../tables/ArenaShopCatalog.json")).unwrap();
     for row in archived["ShopItems"].as_array().unwrap().iter().filter(|r|r["ShopIndex"]==15) {
         assert!(s.tables.hero_shop.shop_items.iter().any(|r|r["ShopIndex"]==15 && r["Index"]==row["Index"] && r["ItemIndex"]==row["ItemIndex"] && r["BuyCostTypeForItem"]==row["BuyCostTypeForItem"]));
     }

@@ -303,7 +303,7 @@ mod tests {
             assert_eq!(out["MatchResult"]["ArenaType"],"BanPick");
             assert_eq!(out["BattleBanPickInfo"]["MatchScore"],if i==0{1020}else{990});
             assert_eq!(out["MatchResult"]["SwordResult"]["Type"],"Sword2");
-            let medals=if i==0 {50} else {10};
+            let medals=if i==0 {500} else {100};
             assert_eq!(out["MatchResult"]["CurrencyResults"][0]["CurrencyType"],"GloryPoint");
             assert_eq!(out["MatchResult"]["CurrencyResults"][0]["AddValue"],medals);
             assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM community_state WHERE owner=$1 AND kind='honor_week'")
@@ -412,7 +412,7 @@ mod tests {
         let out=call(&s,&users[0],"match/get_match_result",&format!("MatchUid={uid}")).await;
         assert_eq!(out["MatchResult"]["GiveUp"],true);assert_eq!(out["MatchResult"]["NewMatchScore"],990);
         assert_eq!(out["MatchResult"]["CurrencyResults"][0]["CurrencyType"],"GloryPoint");
-        assert_eq!(out["MatchResult"]["CurrencyResults"][0]["AddValue"],10);
+        assert_eq!(out["MatchResult"]["CurrencyResults"][0]["AddValue"],100);
         assert_eq!(balance(&s,&users[0]).await,(before.0,before.1-1));
     }
     #[tokio::test]
@@ -509,7 +509,7 @@ mod tests {
             let out=call(&s,u,"match/get_match_result",&format!("MatchUid={uid}")).await;
             assert_eq!(out["MatchResult"]["Win"],i==0);
             assert_eq!(out["MatchResult"]["CurrencyResults"][0]["CurrencyType"],"GloryPoint");
-            assert_eq!(out["MatchResult"]["CurrencyResults"][0]["AddValue"],if i==0 {50}else{10});
+            assert_eq!(out["MatchResult"]["CurrencyResults"][0]["AddValue"],if i==0 {500}else{100});
             assert_eq!(out["BattleBanPickInfo"]["SeasonWin"],if i==0{1}else{0});
             receipts.push(out["MatchResult"].clone());
         }

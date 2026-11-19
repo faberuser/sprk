@@ -643,11 +643,12 @@ fn reforge_pool(state: &AppState, candidates: &[i64], current: i64, current_step
     Ok(pool)
 }
 
-/// Most reforges one "reforge until" request may perform.
-pub(super) const RENEW_UNTIL_MAX_TRIES: i64 = 1000;
-
 /// "Reforge until" guarantee: the 100th accumulated try on a line rolls the target.
 pub(super) const REFORGE_PITY: i64 = 100;
+
+/// Most reforges one "reforge until" request may perform: the guarantee hits
+/// by then, so more tries could never be used.
+pub(super) const RENEW_UNTIL_MAX_TRIES: i64 = REFORGE_PITY;
 
 /// Misses so far toward a guarantee for `target` on this item; 0 when the saved
 /// misses were for another target.

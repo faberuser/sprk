@@ -174,6 +174,7 @@ pub(super) async fn opening(
         out["StaminaResult"] = dungeons::charge_reserved(db, s, a, 1, n(group, "OpenStaminaCount")).await?;
         p = json!({"GroupIndex":n(group,"GroupIndex"),"DungeonType":1,"IsOpen":1,"OpenedTime":time(now()),"ExpireTime":time((now()/86400+1)*86400),"OpenLevel":1,"ClearLevel":0,"ClearCount":0,"Day":day()});
         p["PendingClearTeamExp"] = json!(punishment::opening_team_exp(s, n(group,"OpenStaminaCount"))?);
+        p["PendingClearStamina"] = json!(n(group,"OpenStaminaCount"));
         put(db, a, "punishment_open", key, &p).await?;
     } else if action == "reset_punishment_raid" {
         if p.is_null() {
@@ -391,6 +392,67 @@ mod reward_tests {
     }
 
     #[tokio::test]
+    async fn karma_dispatch_charges_extra_openings_and_returns_unfilled_ones() {
+        let (s, u) = setup().await;
+        let a = account(&u);
+        crate::db::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE user_info SET stamina=500000").execute(&s.db).await.unwrap();
+        let stamina = || async {
+            crate::db::query_scalar::<i64>("SELECT stamina FROM user_info WHERE account_id=$1")
+                .bind(a).fetch_one(&s.db).await.unwrap()
+        };
+        let opened = || async {
+            n(&get(&mut s.db.acquire().await.unwrap(), a, "punishment_open", state_key(101001)).await.unwrap(), "IsOpen")
+        };
+        let start = "ChapterIndex=70101&DungeonIndex=1&Difficulty=0&DeckIndex=1&HeroIndices=[1]&FlaskItemIndex=0";
+        // (open the raid first, runs, cleared waves per run, refunded stamina, open afterwards)
+        for (open_first, runs, waves, refund, open) in [
+            // Without an opening every run pays; unfilled runs are refunded in stamina.
+            (false, 2, vec![100, 0], 3000, 0),
+            (false, 1, vec![0], 3000, 0),
+            // Today's opening covers the first run and is the first one given back.
+            (true, 3, vec![100, 0, 100], 0, 1),
+            (true, 2, vec![0, 0], 3000, 1),
+            (true, 2, vec![100, 100], 0, 0),
+        ] {
+            if open_first && opened().await == 0 {
+                let out = call(&s, &u, "punishment_raid/open_punishment_raid", "GroupIndex=101001&DungeonType=1").await;
+                assert_eq!(out["Result"], "Success", "{out}");
+            }
+            let before = stamina().await;
+            assert_ne!(call(&s, &u, "dispatch/start_dispatch", &format!("{start}&RepeatCount=11")).await["Result"], "Success");
+            let out = call(&s, &u, "dispatch/start_dispatch", &format!("{start}&RepeatCount={runs}")).await;
+            assert_eq!(out["Result"], "Success", "{out}");
+            let paid = if open_first { runs - 1 } else { runs };
+            assert_eq!(before - stamina().await, 3000 * paid, "paid runs");
+            assert_eq!(opened().await, 0, "a used opening is held by the dispatch");
+            let slot = n(&out["DispatchBattleInfo"], "SlotIndex");
+            let mut db = s.db.acquire().await.unwrap();
+            let mut job = get(&mut db, a, "dispatch", slot).await.unwrap();
+            let results: Vec<Value> = waves.iter().map(|w| {
+                dispatch_result(&s, &job, &json!({"ClearWave":w,"EndKillCount":0,"TimeMs":5000})).unwrap()
+            }).collect();
+            assert_eq!(results.iter().map(|v| n(v, "Outcome")).collect::<Vec<_>>(),
+                waves.iter().map(|w| if *w > 0 { 1 } else { 0 }).collect::<Vec<_>>());
+            job["SimulationResults"] = json!(results);
+            job["State"] = json!("Battle");
+            job["StartTimestamp"] = json!(now() - 1000);
+            job["FinishTimestamp"] = json!(now() - 1);
+            put(&mut db, a, "dispatch", slot, &job).await.unwrap();
+            drop(db);
+            let before = stamina().await;
+            let done = call(&s, &u, "dispatch/request_complete_dispatch", &format!("SlotIndex={slot}")).await;
+            assert_eq!(done["Result"], "Success", "{done}");
+            let filled = waves.iter().filter(|w| **w > 0).count() as i64;
+            assert_eq!(done["DispatchBattleInfo"]["WinCount"], filled);
+            assert_eq!(stamina().await - before, refund);
+            assert_eq!(opened().await, open);
+            assert_eq!(added(&done, 45121), waves.iter().map(|w| if *w > 0 { 400 } else { 0 }).sum::<i64>(), "{done}");
+            assert_ne!(call(&s, &u, "dispatch/request_complete_dispatch", &format!("SlotIndex={slot}")).await["Result"], "Success");
+        }
+    }
+
+    #[tokio::test]
     async fn karma_fills_every_selected_flask_and_retains_rewards() {
         let (s,u)=setup().await;let a=account(&u);
         for (group,chapter) in [(101001,70101),(101002,70201)] {
@@ -411,10 +473,12 @@ pub(super) async fn validate(
     s: &AppState,
     a: i64,
     r: &Request,
+    dispatch: bool,
 ) -> Result<()> {
     let group = group_data(s, r)?;
     let p = get(db, a, "punishment_open", state_key(n(group, "GroupIndex"))).await?;
-    if int(r, "DungeonType")? != 1 || n(&p, "IsOpen") != 1 || p["Day"] != day() {
+    // Dispatch pays its own openings (karma::start_dispatch); play needs today's.
+    if int(r, "DungeonType")? != 1 || (!dispatch && (n(&p, "IsOpen") != 1 || p["Day"] != day())) {
         return Err(rule("RaidNotStarted"));
     }
     if int(r, "ChapterIndex")? != n(group, "ChapterIndex")
@@ -473,7 +537,7 @@ pub(super) async fn execute(
             .0
             .insert("FlaskItemIndex".into(), n(default, "Index").to_string());
     }
-    validate(db, s, a, &request).await?;
+    validate(db, s, a, &request, false).await?;
     // Retries cannot swap the selected flask while retaining the old entry snapshot.
     if let Some((entry,)) = crate::db::query_as::<(String,)>(
         "SELECT entry FROM battle_runs WHERE account=$1 AND completed=0 AND started>=$2",
@@ -586,6 +650,305 @@ fn gauge(s: &AppState, group: i64, clear: i64, end_kills: i64) -> Result<(f32, i
     }
     Ok((total, kills))
 }
+fn default_flask<'a>(s: &'a AppState, group: &Value) -> Result<&'a Value> {
+    s.tables
+        .battle
+        .rows("ShardFlaskItem")
+        .iter()
+        .find(|v| n(v, "GroupIndex") == n(group, "GroupIndex") && v["IsDefault"] == true)
+        .ok_or_else(|| rule("ContentsDisabled"))
+}
+
+struct Settled {
+    filled: bool,
+    kills: i64,
+}
+
+/// Grants one finished run: the selected flasks it fills (up to `stock`), the
+/// default shards from the remaining gauge, and the wave-scaled bundles.
+#[allow(clippy::too_many_arguments)]
+async fn settle_run(
+    db: &mut PgConnection,
+    s: &AppState,
+    a: i64,
+    group: &Value,
+    flask: &Value,
+    stock: &mut i64,
+    clear: i64,
+    end_kills: i64,
+    policy: &RewardPolicy,
+    grant: &mut Rewards,
+) -> Result<Settled> {
+    let (mut points, kills) = gauge(s, n(group, "GroupIndex"), clear, end_kills)?;
+    let mut filled = false;
+    if flask["IsDefault"] != true {
+        let count = ((points / n(flask, "FlaskGauge") as f32).floor() as i64).min(*stock);
+        if count > 0 {
+            filled = true;
+            *stock -= count;
+            grant
+                .items
+                .push(item::consume(db, a, n(flask, "Index") as i32, count as i32).await?);
+            tutorial::grant_item(
+                db,
+                s,
+                a,
+                ItemGrant {
+                    index: n(flask, "ShardItemIndex") as i32,
+                    count: count as i32,
+                    star: 0,
+                    custom: 0,
+                },
+                grant,
+            )
+            .await?;
+            points -= count as f32 * n(flask, "FlaskGauge") as f32;
+        }
+    }
+    let default = default_flask(s, group)?;
+    let count = (points / n(default, "FlaskGauge") as f32).floor() as i64;
+    if count > settings(s, "KarmaMaxShardsPerRun", 100000) {
+        return Err(rule("ModulatedData"));
+    }
+    if count > 0 {
+        filled = true;
+        tutorial::grant_item(
+            db,
+            s,
+            a,
+            ItemGrant {
+                index: n(default, "ShardItemIndex") as i32,
+                count: count as i32,
+                star: 0,
+                custom: 0,
+            },
+            grant,
+        )
+        .await?;
+    }
+    let (fragments, bonus_bundles) = policy.amounts(clear)?;
+    grant_scaled_bundle(db, s, a, n(group, "KarmaFixRewardIndex"), fragments, grant).await?;
+    grant_scaled_bundle(db, s, a, n(group, "KarmaBonusRewardIndex"), bonus_bundles, grant).await?;
+    Ok(Settled { filled, kills })
+}
+
+/// The karma group a dispatch request targets, when the dungeon is a karma raid.
+pub(super) fn dispatch_group<'a>(s: &'a AppState, d: &Value) -> Option<&'a Value> {
+    if n(d, "BattleType") != 48 || n(d, "DungeonIndex") != 1 {
+        return None;
+    }
+    s.tables.battle.rows("PunishmentGroup").iter().find(|g| {
+        n(g, "PunishmentDungeonType") == 1 && n(g, "ChapterIndex") == n(d, "ChapterIndex")
+    })
+}
+
+pub(super) fn is_dispatch(info: &Value) -> bool {
+    info["Karma"].is_object()
+}
+
+/// Normalizes a native worker answer for a karma run into a stored result.
+/// The outcome predicts whether the run fills a shard; settlement recomputes
+/// it against the flasks actually owned at collection.
+pub(super) fn dispatch_result(s: &AppState, job: &Value, answer: &Value) -> Result<Value> {
+    let k = &job["Karma"];
+    let group = n(k, "GroupIndex");
+    let mut clear = n(answer, "ClearWave").clamp(0, n(k, "MaxClearWaves").max(0));
+    let mut end_kills = n(answer, "EndKillCount").max(0);
+    if clear < n(answer, "ClearWave") || gauge(s, group, clear, end_kills).is_err() {
+        end_kills = 0;
+    }
+    let (points, _) = gauge(s, group, clear, end_kills).or_else(|_| {
+        clear = 0;
+        end_kills = 0;
+        gauge(s, group, 0, 0)
+    })?;
+    let def = row(s, "PunishmentGroup", &[("GroupIndex", group), ("PunishmentDungeonType", 1)])?;
+    let mut need = n(default_flask(s, def)?, "FlaskGauge");
+    let flask = row(s, "ShardFlaskItem", &[("Index", n(k, "FlaskItemIndex"))])?;
+    if flask["IsDefault"] != true {
+        need = need.min(n(flask, "FlaskGauge"));
+    }
+    let filled = need > 0 && points >= need as f32;
+    Ok(json!({"Outcome":if filled {1} else {0},"TimeMs":n(answer,"TimeMs").clamp(1000,3600000),
+        "ClearWave":clear,"EndKillCount":end_kills}))
+}
+
+/// Starts a karma dispatch, which needs no opening of its own: every run pays the
+/// opening cost up front, except that today's paid, unused opening covers the
+/// first run. Runs that fill no shard return their opening at collection.
+pub(super) async fn start_dispatch(
+    db: &mut PgConnection,
+    s: &AppState,
+    a: i64,
+    r: &Request,
+    group: &Value,
+) -> Result<Value> {
+    let index = n(group, "GroupIndex");
+    let party = ids(r, "HeroIndices", 32)?;
+    let count = int(r, "RepeatCount")?;
+    if count < 1 || count > settings(s, "KarmaDispatchMaxRepeat", 10) {
+        return Err(rule("InvalidCount"));
+    }
+    let raid = row(s, "Raid", &[("Index", n(group, "KarmaRaidIndex")), ("Level", 1)])?;
+    if raid["IsOpen"] != true || n(raid, "ChapterIndex") != n(group, "ChapterIndex") {
+        return Err(rule("ContentsDisabled"));
+    }
+    let mut unique = party.clone();
+    unique.sort_unstable();
+    unique.dedup();
+    if party.is_empty()
+        || unique.len() != party.len()
+        || party.len() as i64 > n(raid, "MainPartyCount").max(1)
+    {
+        return Err(rule("NotMatchHeroIndices"));
+    }
+    let active: bool = crate::db::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM battle_runs WHERE account=$1 AND completed=0 AND started>=$2)",
+    )
+    .bind(a)
+    .bind(now() - settings(s, "BattleExpirySeconds", 14400))
+    .fetch_one(&mut *db)
+    .await?;
+    if active {
+        return Err(rule("AlreadyOnBattleHero"));
+    }
+    let flask_index = match r.number("FlaskItemIndex", 0)? {
+        0 => n(default_flask(s, group)?, "Index"),
+        v => v,
+    };
+    let mut request = Request(r.0.clone());
+    for (key, value) in [
+        ("GroupIndex", index.to_string()),
+        ("DungeonType", "1".into()),
+        ("ChapterIndex", n(group, "ChapterIndex").to_string()),
+        ("DungeonIndex", "1".into()),
+        ("DungeonDifficulty", "0".into()),
+        ("RaidIndex", n(group, "KarmaRaidIndex").to_string()),
+        ("RaidLevel", "1".into()),
+        ("FlaskItemIndex", flask_index.to_string()),
+        ("AffixIndices", String::new()),
+        ("AiHeroIndices", String::new()),
+        ("GroupHeroIndices", String::new()),
+    ] {
+        request.0.insert(key.into(), value);
+    }
+    request.0.remove("SessionKey");
+    // Ownership, hero availability, the open state and the flask choice.
+    campaign::validate_dispatch(db, s, a, &request, &party).await?;
+    let key = state_key(index);
+    let mut p = get(db, a, "punishment_open", key).await?;
+    let cost = n(group, "OpenStaminaCount");
+    let used_opening = n(&p, "IsOpen") == 1 && p["Day"] == day();
+    let paid = count - if used_opening { 1 } else { 0 };
+    let stamina = if paid > 0 {
+        dungeons::charge_reserved(db, s, a, 1, cost * paid).await?
+    } else {
+        dungeons::charge(db, s, a, 1, 0).await?
+    };
+    let opening = if used_opening { p.clone() } else { Value::Null };
+    if used_opening {
+        p["IsOpen"] = json!(0);
+        put(db, a, "punishment_open", key, &p).await?;
+    }
+    let slot = super::dispatch::free_slot(db, s, a).await?;
+    let policy = RewardPolicy::parse(&s.tables.battle.rules["KarmaRewardPolicy"])?;
+    let finish = now() + settings(s, "DispatchSecondsPerBattle", 60).max(1) * count;
+    let mut info = json!({"SlotIndex":slot,"ChapterIndex":n(group,"ChapterIndex"),"DungeonIndex":1,"Difficulty":0,
+        "DeckIndex":r.number("DeckIndex",1)?,"RepeatCount":count,"HeroIndices":json!(party).to_string(),
+        "BeginTime":time(now()),"CompleteTime":time(finish),"ClientResult":null,"ClientResultTimeMs":0,
+        "ServerResult":null,"State":"Simulation","WinCount":0,"LoseCount":0,"StaminaDiscountRate":0,
+        "FinishTimestamp":finish,"StartTimestamp":now(),"Cost":cost*paid,"CostType":1,"Request":request.0,
+        "Karma":{"GroupIndex":index,"FlaskItemIndex":flask_index,"OpenCost":cost,"Opening":opening,
+            "RewardPolicy":policy,"MaxClearWaves":settings(s,"KarmaMaxClearWaves",100)}});
+    info["SimulationVersion"] = json!(2);
+    let skill_rules = super::dispatch::skill_rules(r.text("SkillRules"), &party);
+    if !skill_rules.is_empty() {
+        info["SkillRules"] = Value::Object(skill_rules);
+    }
+    info["SimulationJobId"] = json!(uuid::Uuid::new_v4().to_string());
+    let snapshot = super::dispatch::simulation_snapshot(db, s, a, &info).await?;
+    super::dispatch::save_snapshot(db, a, slot, &info, &snapshot).await?;
+    put(db, a, "dispatch", slot, &info).await?;
+    let openings = if p.is_null() { json!([]) } else { json!([p]) };
+    Ok(json!({"DispatchBattleInfo":info,"StaminaResult":stamina,"OpenPunishmentRaidInfos":openings,
+        "PunishmentRaidInfos":list(db, a, "punishment_raid").await?}))
+}
+
+/// Collects (or cancels) a karma dispatch: settles the `count` runs that
+/// finished in order, then returns one opening per run that filled no shard
+/// or never ran: today's opening first, when the dispatch used it, and
+/// stamina for the rest.
+pub(super) async fn settle_dispatch(
+    db: &mut PgConnection,
+    s: &AppState,
+    a: i64,
+    info: &mut Value,
+    count: usize,
+) -> Result<Value> {
+    let k = info["Karma"].clone();
+    let index = n(&k, "GroupIndex");
+    let group = row(s, "PunishmentGroup", &[("GroupIndex", index), ("PunishmentDungeonType", 1)])?;
+    let flask = row(s, "ShardFlaskItem", &[("Index", n(&k, "FlaskItemIndex"))])?;
+    let policy = RewardPolicy::parse(&k["RewardPolicy"])?;
+    let cost = n(&k, "OpenCost");
+    let mut stock: i64 = crate::db::query_scalar("SELECT COALESCE((SELECT count FROM items WHERE account_id=$1 AND item_index=$2 AND locked=0),0)")
+        .bind(a).bind(n(flask, "Index")).fetch_one(&mut *db).await?;
+    let results = info["SimulationResults"].as_array().cloned().unwrap_or_default();
+    let mut grant = Rewards::default();
+    let (mut filled, mut kills, mut last) = (0, 0, None);
+    let mut awards = Vec::new();
+    for run in results.iter().take(count) {
+        let clear = n(run, "ClearWave");
+        let settled = settle_run(db, s, a, group, flask, &mut stock, clear, n(run, "EndKillCount"), &policy, &mut grant).await?;
+        kills += settled.kills;
+        last = Some(clear);
+        if settled.filled {
+            filled += 1;
+            let mut gate = json!({"PendingClearStamina":cost,"PendingClearTeamExp":punishment::opening_team_exp(s,cost)?});
+            awards.push(punishment::grant_clear_team_exp(db, s, a, &mut gate, &mut grant).await?);
+        }
+    }
+    let ran = results.len().min(count) as i64;
+    let mut returned = n(info, "RepeatCount") - filled;
+    let key = state_key(index);
+    let mut p = get(db, a, "punishment_open", key).await?;
+    let opening = &k["Opening"];
+    if returned > 0 && n(opening, "IsOpen") == 1 && opening["Day"] == day() && p["Day"] == day() && n(&p, "IsOpen") == 0 {
+        for field in ["IsOpen", "OpenedTime", "ExpireTime", "PendingClearTeamExp", "PendingClearStamina"] {
+            p[field] = opening[field].clone();
+        }
+        returned -= 1;
+    }
+    if !p.is_null() {
+        if let Some(clear) = last {
+            p["ClearLevel"] = json!(clear);
+        }
+        p["ClearCount"] = json!(n(&p, "ClearCount") + ran);
+        put(db, a, "punishment_open", key, &p).await?;
+    }
+    crate::api::progression::record(db, a, "KillMonster", 0, 0, kills).await?;
+    let mut out = rewards(db, s, a, grant).await?;
+    for award in &awards {
+        dungeons::attach_eclipse_points(&mut out, award);
+    }
+    let refund = returned.max(0) * cost;
+    if refund > 0 {
+        let value: i64 = crate::db::query_scalar(
+            "UPDATE user_info SET stamina=stamina+$1 WHERE account_id=$2 RETURNING stamina",
+        )
+        .bind(refund)
+        .bind(a)
+        .fetch_one(&mut *db)
+        .await?;
+        out["StaminaResult"] = json!({"Type":"Chicken","AddValue":refund,"NewValue":value});
+    }
+    info["WinCount"] = json!(filled);
+    info["LoseCount"] = json!(ran - filled);
+    out["OpenPunishmentRaidInfos"] = if p.is_null() { json!([]) } else { json!([p]) };
+    out["PunishmentRaidInfos"] = json!(list(db, a, "punishment_raid").await?);
+    Ok(out)
+}
+
 pub(super) async fn end(
     db: &mut PgConnection,
     s: &AppState,
@@ -633,7 +996,7 @@ pub(super) async fn end(
         return Err(rule("ModulatedData"));
     }
     let group = group_data(s, &request)?;
-    let (mut points, kills) = gauge(s, n(group, "GroupIndex"), clear, int(r, "EndKillCount")?)?;
+    let (_, kills) = gauge(s, n(group, "GroupIndex"), clear, int(r, "EndKillCount")?)?;
     if int(r, "TotalKillCount")? != kills {
         return Err(rule("ModulatedData"));
     }
@@ -647,63 +1010,6 @@ pub(super) async fn end(
         "ShardFlaskItem",
         &[("Index", int(&request, "FlaskItemIndex")?)],
     )?;
-    let mut grant = Rewards::default();
-    let mut filled_flask = false;
-    if flask["IsDefault"] != true {
-        let count = ((points / n(flask, "FlaskGauge") as f32).floor() as i64)
-            .min(n(&entry, "KarmaFlaskCount"));
-        if count > 0 {
-            filled_flask = true;
-            grant
-                .items
-                .push(item::consume(db, a, n(flask, "Index") as i32, count as i32).await?);
-            tutorial::grant_item(
-                db,
-                s,
-                a,
-                ItemGrant {
-                    index: n(flask, "ShardItemIndex") as i32,
-                    count: count as i32,
-                    star: 0,
-                    custom: 0,
-                },
-                &mut grant,
-            )
-            .await?;
-            points -= count as f32 * n(flask, "FlaskGauge") as f32;
-        }
-    }
-    let default = s
-        .tables
-        .battle
-        .rows("ShardFlaskItem")
-        .iter()
-        .find(|v| n(v, "GroupIndex") == n(group, "GroupIndex") && v["IsDefault"] == true)
-        .ok_or_else(|| rule("ContentsDisabled"))?;
-    let count = (points / n(default, "FlaskGauge") as f32).floor() as i64;
-    // Native PunishmentRaidContext.EndKarma treats a finished run as successful
-    // when AnyFlaskCollected finds a selected or default filled flask.
-    if completed && !filled_flask && count == 0 {
-        return Err(rule("NotCompletedBattle"));
-    }
-    if count > settings(s, "KarmaMaxShardsPerRun", 100000) {
-        return Err(rule("ModulatedData"));
-    }
-    if count > 0 {
-        tutorial::grant_item(
-            db,
-            s,
-            a,
-            ItemGrant {
-                index: n(default, "ShardItemIndex") as i32,
-                count: count as i32,
-                star: 0,
-                custom: 0,
-            },
-            &mut grant,
-        )
-        .await?;
-    }
     // Explicit local balance policy. An old active run without a snapshot uses
     // the configured policy; new runs retain the version selected at entry.
     let policy = RewardPolicy::parse(
@@ -711,30 +1017,32 @@ pub(super) async fn end(
             .get("KarmaRewardPolicy")
             .unwrap_or(&s.tables.battle.rules["KarmaRewardPolicy"]),
     )?;
-    let (fragments, bonus_bundles) = policy.amounts(clear)?;
-    grant_scaled_bundle(
+    let mut grant = Rewards::default();
+    let mut stock = n(&entry, "KarmaFlaskCount");
+    let settled = settle_run(
         db,
         s,
         a,
-        n(group, "KarmaFixRewardIndex"),
-        fragments,
+        group,
+        flask,
+        &mut stock,
+        clear,
+        int(r, "EndKillCount")?,
+        &policy,
         &mut grant,
     )
     .await?;
-    grant_scaled_bundle(
-        db,
-        s,
-        a,
-        n(group, "KarmaBonusRewardIndex"),
-        bonus_bundles,
-        &mut grant,
-    )
-    .await?;
+    // Native PunishmentRaidContext.EndKarma treats a finished run as successful
+    // when AnyFlaskCollected finds a selected or default filled flask.
+    if completed && !settled.filled {
+        return Err(rule("NotCompletedBattle"));
+    }
     let mut p = get(db, a, "punishment_open", state_key(n(group, "GroupIndex"))).await?;
     // A defeat settles this attempt and its earned rewards, but keeps the paid
     // opening available for another attempt until reset or a completed clear.
+    let mut award = Value::Null;
     if completed {
-        punishment::grant_clear_team_exp(db, s, a, &mut p, &mut grant).await?;
+        award = punishment::grant_clear_team_exp(db, s, a, &mut p, &mut grant).await?;
         p["IsOpen"] = json!(0);
     }
     p["ClearLevel"] = json!(clear);
@@ -753,6 +1061,7 @@ pub(super) async fn end(
         .await?;
     crate::api::progression::record(db,a,"KillMonster",0,0,kills).await?;
     let mut out = rewards(db, s, a, grant).await?;
+    dungeons::attach_eclipse_points(&mut out, &award);
     super::treasure::record_time(db, s, a, r, saved.get("started"), 48, &mut out).await?;
     out["OpenPunishmentRaidInfos"] = json!([p]);
     out["PunishmentRaidInfos"] = json!(list(db, a, "punishment_raid").await?);

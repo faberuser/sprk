@@ -200,7 +200,7 @@ public sealed class SprkAccounts : MonoBehaviour
 		{
 			if (store == null)
 			{
-				string path = Application.persistentDataPath;
+				string path = SprkAccountProtection.StoreDirectory(Application.persistentDataPath);
 				string environmentVariable = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
 				if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_DIR")) && !string.IsNullOrEmpty(environmentVariable) && Regex.IsMatch(environmentVariable, "\\A[A-Za-z0-9_-]{1,64}\\z"))
 				{

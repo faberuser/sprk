@@ -125,7 +125,9 @@ public static class UnityCache
 	{
 		_mainThreadId = Thread.CurrentThread.ManagedThreadId;
 		temporaryCachePath = Application.temporaryCachePath;
-		persistentDataPath = Application.dataPath;
+		// Windows keeps the patch next to the player data; on Android the player data is the
+		// read-only APK, so the patch lives in the app's external files directory.
+		persistentDataPath = ((Application.platform == RuntimePlatform.Android) ? Application.persistentDataPath : Application.dataPath);
 		identifier = Application.identifier;
 		streamingAssetsPath = Application.streamingAssetsPath;
 		dataPath = Application.dataPath;

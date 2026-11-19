@@ -1,0 +1,18 @@
+{
+  "table": "HairCostumeTable",
+  "upsert": [
+    {
+      "Index": 2009312,
+      "HeroIndex": 93,
+      "Group": "",
+      "NameKey": "COSTUME_NAME_HAIR_DEFAULT",
+      "DescKey": "COSTUME_DESC_HAIR_DEFAULT_SINGLE",
+      "HairPrefix": "Cos20Halloween",
+      "NeedCostume": [
+        9312
+      ],
+      "IsOpen": true,
+      "PortraitPath": "Battle/Portrait/Costume/Hero/Loman_Loman_Cos20Halloween"
+    }
+  ]
+}

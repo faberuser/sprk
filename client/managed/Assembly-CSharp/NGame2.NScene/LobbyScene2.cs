@@ -115,6 +115,8 @@ public class LobbyScene2 : BaseScene, IInspectorGuiDrawer
 	private void Start()
 	{
 		SceneAutoBehaviour<NVespa.NScene.GuiManager>.instance.Add("LobbyScene", this, DrawGui);
+		// SPRK: give the server the auto skill rules for online battles (once per account and session).
+		SprkSkillPriority.SyncSoon();
 		if (!GlobalAutoBehaviour<AccountManager>.isValidInstance || GlobalAutoBehaviour<AccountManager>.instance.UserManager == null)
 		{
 			GlobalAutoBehaviour<NVespa.NGlobal.GuiManager>.instance.FoldoutGui = false;

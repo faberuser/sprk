@@ -306,6 +306,7 @@ public class PunishEndContentManagement : BaseManagement<PunishEndContentManagem
 					}
 					GlobalAutoBehaviour<AccountManager>.instance.ApplyEndContentResponse(response);
 					GetInstance<EndBattleWin>().OnEndCampaignResponse(_endCampaignProxy);
+					SprkKarmaRaid.ContentEnded(request, success: true);
 					if (!wasCompleted)
 					{
 						_ = (object)null;
@@ -320,6 +321,7 @@ public class PunishEndContentManagement : BaseManagement<PunishEndContentManagem
 				AutoBattle.Stop();
 				GlobalAutoBehaviour<AccountManager>.instance.ApplyEndContentResponse(response);
 			}
+			SprkKarmaRaid.ContentEnded(request, success: false);
 			string title = LocalizationManager.GetString(NShared.NLocalization.Common.ERROR);
 			string resultString = LocalizationManager.GetResultString(response);
 			MessagePopup.Open(title, resultString, delegate

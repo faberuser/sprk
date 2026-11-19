@@ -2237,6 +2237,8 @@ public class JsonMarshaler
 		_parser.Add(typeof(NShared.SetHeroStorageSlot.Response), (IDictionary d) => JM_NShared_SetHeroStorageSlot_Response.Parse(d));
 		_parser.Add(typeof(NShared.SetHideHeroUniqueWeapon.Request), (IDictionary d) => JM_NShared_SetHideHeroUniqueWeapon_Request.Parse(d));
 		_parser.Add(typeof(NShared.SetHideHeroUniqueWeapon.Response), (IDictionary d) => JM_NShared_SetHideHeroUniqueWeapon_Response.Parse(d));
+		_parser.Add(typeof(NShared.SprkSetSkillRules.Request), (IDictionary d) => JM_NShared_SprkSetSkillRules_Request.Parse(d));
+		_parser.Add(typeof(NShared.SprkSetSkillRules.Response), (IDictionary d) => JM_NShared_SprkSetSkillRules_Response.Parse(d));
 		_parser.Add(typeof(NShared.SetLockEquipItem.Request), (IDictionary d) => JM_NShared_SetLockEquipItem_Request.Parse(d));
 		_parser.Add(typeof(NShared.SetLockEquipItem.Response), (IDictionary d) => JM_NShared_SetLockEquipItem_Response.Parse(d));
 		_parser.Add(typeof(NShared.SetLockRuneItem.Request), (IDictionary d) => JM_NShared_SetLockRuneItem_Request.Parse(d));
@@ -3704,6 +3706,7 @@ public class JsonMarshaler
 		_encoder.Add(typeof(NShared.SetGuildAttendance.Request), (object o) => JM_NShared_SetGuildAttendance_Request.EncodeJsonObject((NShared.SetGuildAttendance.Request)o));
 		_encoder.Add(typeof(NShared.SetHeroStorageSlot.Request), (object o) => JM_NShared_SetHeroStorageSlot_Request.EncodeJsonObject((NShared.SetHeroStorageSlot.Request)o));
 		_encoder.Add(typeof(NShared.SetHideHeroUniqueWeapon.Request), (object o) => JM_NShared_SetHideHeroUniqueWeapon_Request.EncodeJsonObject((NShared.SetHideHeroUniqueWeapon.Request)o));
+		_encoder.Add(typeof(NShared.SprkSetSkillRules.Request), (object o) => JM_NShared_SprkSetSkillRules_Request.EncodeJsonObject((NShared.SprkSetSkillRules.Request)o));
 		_encoder.Add(typeof(NShared.SetLockEquipItem.Request), (object o) => JM_NShared_SetLockEquipItem_Request.EncodeJsonObject((NShared.SetLockEquipItem.Request)o));
 		_encoder.Add(typeof(NShared.SetLockRuneItem.Request), (object o) => JM_NShared_SetLockRuneItem_Request.EncodeJsonObject((NShared.SetLockRuneItem.Request)o));
 		_encoder.Add(typeof(SetManualMoveReq), (object o) => JM_NShared_SetManualMoveReq.EncodeJsonObject((SetManualMoveReq)o));

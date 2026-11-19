@@ -25,6 +25,9 @@ public sealed class SprkDispatch : MonoBehaviour
 	private sealed class RewardDelivery
 	{
 		public EquipItemInfo[] Equipment;
+
+		// SPRK karma dispatch: the raid opening a start/collect/cancel consumed or returned.
+		public OpenPunishmentRaidInfo[] Openings;
 	}
 
 	[Serializable]
@@ -90,17 +93,34 @@ public sealed class SprkDispatch : MonoBehaviour
 	{
 		NShared.RequestCompleteDispatch.Response response2 = response as NShared.RequestCompleteDispatch.Response;
 		NShared.CancelDispatch.Response response3 = response as NShared.CancelDispatch.Response;
-		if ((response2 != null && response2.BaseResult == BaseResultType.Success && response2.Result == NShared.RequestCompleteDispatch.ResultType.Success) || (response3 != null && response3.BaseResult == BaseResultType.Success && response3.Result == NShared.CancelDispatch.ResultType.Success))
+		NShared.StartDispatch.Response response4 = response as NShared.StartDispatch.Response;
+		bool flag = (response2 != null && response2.BaseResult == BaseResultType.Success && response2.Result == NShared.RequestCompleteDispatch.ResultType.Success) || (response3 != null && response3.BaseResult == BaseResultType.Success && response3.Result == NShared.CancelDispatch.ResultType.Success);
+		bool flag2 = response4 != null && response4.BaseResult == BaseResultType.Success && response4.Result == NShared.StartDispatch.ResultType.Success;
+		if (!flag && !flag2)
+		{
+			return;
+		}
+		RewardDelivery rewardDelivery = new RewardDelivery();
+		if (flag)
 		{
 			RewardResultInfo rewardResultInfo = JsonMarshaler.Parse<RewardResultInfo>(body);
 			if (rewardResultInfo != null && rewardResultInfo.EquipItemResults != null && rewardResultInfo.EquipItemResults.Length != 0)
 			{
-				rewardDeliveries.Remove(response);
-				rewardDeliveries.Add(response, new RewardDelivery
-				{
-					Equipment = rewardResultInfo.EquipItemResults
-				});
+				rewardDelivery.Equipment = rewardResultInfo.EquipItemResults;
 			}
+		}
+		if (body != null && body.Contains("\"OpenPunishmentRaidInfos\""))
+		{
+			NShared.EndContent.Response response5 = JsonMarshaler.Parse<NShared.EndContent.Response>(body);
+			if (response5 != null && response5.OpenPunishmentRaidInfos != null && response5.OpenPunishmentRaidInfos.Length != 0)
+			{
+				rewardDelivery.Openings = response5.OpenPunishmentRaidInfos;
+			}
+		}
+		if (rewardDelivery.Equipment != null || rewardDelivery.Openings != null)
+		{
+			rewardDeliveries.Remove(response);
+			rewardDeliveries.Add(response, rewardDelivery);
 		}
 	}
 
@@ -108,7 +128,19 @@ public sealed class SprkDispatch : MonoBehaviour
 	{
 		if (response != null && rewardDeliveries.TryGetValue(response, out var value))
 		{
-			Account().EquipItemManager.Apply(value.Equipment);
+			if (value.Equipment != null)
+			{
+				Account().EquipItemManager.Apply(value.Equipment);
+			}
+			if (value.Openings != null && Account().OpenPunishmentRaidManager != null)
+			{
+				Account().OpenPunishmentRaidManager.Apply(value.Openings);
+				NGame2.NUI.NWindow.NPunish.PunishDungeonTypeSelectWindow punishDungeonTypeSelectWindow = UnityEngine.Object.FindObjectOfType<NGame2.NUI.NWindow.NPunish.PunishDungeonTypeSelectWindow>();
+				if (punishDungeonTypeSelectWindow != null && punishDungeonTypeSelectWindow.IsOpen())
+				{
+					punishDungeonTypeSelectWindow.Refresh();
+				}
+			}
 			rewardDeliveries.Remove(response);
 		}
 	}
@@ -382,7 +414,13 @@ public sealed class SprkDispatch : MonoBehaviour
 		{
 			return 30f;
 		}
-		return 3f;
+		// Client-simulated (version 1) jobs prepare one repeat per poll. Server-simulated
+		// jobs only reveal rounds, and every poll returns the whole list from the server.
+		if (jobs.Any(NeedsPreparation))
+		{
+			return 3f;
+		}
+		return 10f;
 	}
 
 	private static void ApplyList(string body)

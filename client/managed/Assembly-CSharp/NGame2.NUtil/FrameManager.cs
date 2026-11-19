@@ -250,7 +250,9 @@ public class FrameManager : GlobalAutoBehaviour<FrameManager>
 		switch (SystemOptionData.Graphic_FrameControl)
 		{
 		case EFrameControl.Auto:
-			Application.targetFrameRate = -1;
+			// "Auto" means the display rate. Desktop gets it from VSync; mobile ignores VSync
+			// and treats -1 as 30 fps, so ask for the display's refresh rate there.
+			Application.targetFrameRate = Application.isMobilePlatform ? Mathf.Max(30, (int)System.Math.Round(Screen.currentResolution.refreshRateRatio.value)) : (-1);
 			QualitySettings.vSyncCount = 1;
 			break;
 		case EFrameControl.AutoPlus:
