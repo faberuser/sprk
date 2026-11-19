@@ -47,6 +47,7 @@ class PublishAssetsTest(unittest.TestCase):
         (self.client / PATCH_PREFIX / "patch.json").write_text(json.dumps({"Archives": [{
             "AssetInfos": [{"EntryName": "PlainAsset/text.txt", "Cat": "3", "Pri": "7", "Time": "99"}],
         }]}))
+        self.files[PATCH_PREFIX + "patch.json"] = (self.client / PATCH_PREFIX / "patch.json").read_bytes()
 
     def run_publish(self, **kwargs):
         return publish(self.client, self.store, "StandaloneWindows", pin=self.pin, log=lambda _: None, **kwargs)
@@ -63,6 +64,8 @@ class PublishAssetsTest(unittest.TestCase):
             "King's Raid.exe", "MonoBleedingEdge/mono.dll", "King's Raid_Data/level0",
             PATCH_PREFIX + "Assetbundle/[English]/A b.unity3d", PATCH_PREFIX + "Assetbundle/Copy.unity3d",
             PATCH_PREFIX + "Assetbundle/Shared.unity3d", PATCH_PREFIX + "PlainAsset/text.txt",
+            # The bundle loader needs the game's patch lists; patch.bjs is game state.
+            PATCH_PREFIX + "PatchInfo/patch.json", PATCH_PREFIX + "patch.json",
         ]))
         for item in files:
             data = self.files[item["path"]]
@@ -70,7 +73,7 @@ class PublishAssetsTest(unittest.TestCase):
             self.assertEqual((self.store / "objects" / item["sha256"]).read_bytes(), data)
         self.assertEqual((self.version_dir(1) / "set.json").read_bytes(), self.pin.read_bytes())
         # Identical files share one object.
-        self.assertEqual(result["new_objects"], 6)
+        self.assertEqual(result["new_objects"], 8)
 
     def test_game_patch_list_has_patch_folder_files_with_original_metadata(self):
         self.run_publish()
@@ -113,7 +116,7 @@ class PublishAssetsTest(unittest.TestCase):
         self.run_publish()
         dest = self.root / "host" / "assets"
         first = sync(self.store, dest, log=lambda _: None)
-        self.assertEqual(first, {"objects": 6, "versions": 1})
+        self.assertEqual(first, {"objects": 8, "versions": 1})
         self.assertEqual((dest / "StandaloneWindows/current.txt").read_text(), "1")
         self.assertEqual((dest / "StandaloneWindows/versions/1/set.json").read_bytes(), self.pin.read_bytes())
         for item in load_asset_set(self.pin)[1]:

@@ -368,10 +368,9 @@ public class PatchDownloader : GlobalAutoBehaviour<PatchDownloader>, DownloadHan
 		Vespa_System_Action_Extension_Method.fire(_onMessage, "Start Parallel Download");
 		CaptureBegin();
 		ThreadSafeDic<string, AssetInfo> assetInfoDic = new ThreadSafeDic<string, AssetInfo>((patchData.LocalPatchInfo == null) ? new Dictionary<string, AssetInfo>() : patchData.LocalPatchInfo.GetAllAssetInfoDictionary());
-		// SPRK: the remote archive list is not given to AssetFileManager. Its
-		// lookups choose between plain and converted (encrypted) text assets, and
-		// the client has always run with that list empty; the server's list leaves
-		// out launcher-managed files, so filling it would change which files load.
+		// The bundle loader only loads files this list names (AssetFileManager.DownloadedExist).
+		Dictionary<string, AssetInfo> allAssetInfoDictionary = patchData.PatchInfo.GetAllAssetInfoDictionary();
+		SingletonAuto<AssetFileManager>.instance.Setup(allAssetInfoDictionary);
 		EDownloadResponse downloadError = EDownloadResponse.None;
 		string errorMsg = null;
 		List<Coroutine> coroutineList = new List<Coroutine>();

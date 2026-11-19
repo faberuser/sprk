@@ -1,4 +1,4 @@
-{"schema_version":1,"platform":"StandaloneWindows","version":"assets-2","files":[
+{"schema_version":1,"platform":"StandaloneWindows","version":"assets-3","files":[
 {"path":"D3D12/D3D12Core.dll","size":5908408,"sha256":"31f364f2b3aa1753e7ba9ff912d0721c8f424be5fa14503efddafbb30c635d3b"},
 {"path":"King's Raid.exe","size":672256,"sha256":"6bb422417486c143bb09e6d7307450d3b48f05b0f2c4c9b5af90985f079e724f"},
 {"path":"King's Raid_Data/Documents/Patch/StandaloneWindows/AiScript/DefaultAi.xml","size":636,"sha256":"c58d7bd6093c05083fc459f32c144d66082d8320302eb6c636c523c1d76b7844"},
@@ -29157,6 +29157,9 @@
 {"path":"King's Raid_Data/Documents/Patch/StandaloneWindows/LoginPresentation/x-the-final-kasel-and-frey/assets/f7dce7278d45f738c1f0114d.png","size":28362,"sha256":"93cd39570f0c3125779afb3df0f834707f241e77a422f9df80c746e3563d1fe6"},
 {"path":"King's Raid_Data/Documents/Patch/StandaloneWindows/LoginPresentation/x-the-final-kasel-and-frey/assets/fc73aafe1cc6c75b2b4a86e2.png","size":1329051,"sha256":"830171399a2736ab881a8e9848a9c12caf9c0c639f4fcd726c3379fdb63ee1f9"},
 {"path":"King's Raid_Data/Documents/Patch/StandaloneWindows/LoginPresentation/x-the-final-kasel-and-frey/scene.json","size":574884,"sha256":"13a38d3f9c222af33c5324940eb701055284af80d3ed9b62de14b7836f00c4a9"},
+{"path":"King's Raid_Data/Documents/Patch/StandaloneWindows/patch.json","size":19977622,"sha256":"e301c18e5a88765da66a5949f4822ef04dd73e6507996f3f29ee93575a771ebb"},
+{"path":"King's Raid_Data/Documents/Patch/StandaloneWindows/PatchInfo/LastBuildVersion.txt","size":1,"sha256":"6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"},
+{"path":"King's Raid_Data/Documents/Patch/StandaloneWindows/PatchInfo/patch.json","size":7199001,"sha256":"919c11958eb58a37d0a5b614aa7462e6664cfc193bc4b33bf6626170e9b28587"},
 {"path":"King's Raid_Data/Documents/Patch/StandaloneWindows/PlainAsset/Text/CutScene/Calendar/E_C19_Apr_Annette01.bjs","size":137624,"sha256":"6b906df7a6fe64dd863f7652790e993fc74041e7565cdeda352633f7b6ae3769"},
 {"path":"King's Raid_Data/Documents/Patch/StandaloneWindows/PlainAsset/Text/CutScene/Calendar/E_C19_Apr_Jane01.bjs","size":244498,"sha256":"e1439737618e573930ce387fc5e1c12e09cd961698a03dae415ed202ffc3b84d"},
 {"path":"King's Raid_Data/Documents/Patch/StandaloneWindows/PlainAsset/Text/CutScene/Calendar/E_C19_Apr_Mediana_01.bjs","size":124038,"sha256":"cff7595b5750accc1d791bff0105c104e24dccd77702533094c719e6bb8796b0"},

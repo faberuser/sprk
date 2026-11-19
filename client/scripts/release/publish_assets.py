@@ -55,10 +55,15 @@ PATCH_PREFIX = "King's Raid_Data/Documents/Patch/StandaloneWindows/"
 CODE_PATHS = tuple(DEFAULT_INCLUDES) + ("King's Raid_Data/sprk-privacy.json",)
 # The launcher's own files and local tools are never part of the game.
 EXCLUDED_CLIENT = {"sprklauncher.exe", "sprk-launcher.json", "sprk-launcher-error.log", "reset_position.ps1"}
-# Patch metadata, and data that must change together with the code (installed
-# by code releases with its integrity metadata), relative to the patch folder.
-EXCLUDED_PATCH_PREFIXES = ("PatchInfo/", "TableData/", "TableJit/", "LocalizationJit/")
-EXCLUDED_PATCH_NAMES = {"patch.json", "patch.bjs"}
+# Relative to the patch folder: the game's own download record (rewritten by
+# the game), and data that changes together with the code (installed by code
+# releases with its integrity metadata).
+EXCLUDED_PATCH_PREFIXES = ("TableData/", "TableJit/", "LocalizationJit/")
+EXCLUDED_PATCH_NAMES = {"patch.bjs"}
+# The game's patch lists are part of an installation: the bundle loader only
+# loads files PatchInfo/patch.json lists. They are never game downloads.
+PATCH_METADATA_PREFIXES = ("PatchInfo/",)
+PATCH_METADATA_NAMES = {"patch.json"}
 PLATFORM = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}")
 CHUNK = 1 << 20
 MAX_LENGTH = 2**31 - 1  # AssetInfo.Length is an int on the client.
@@ -230,6 +235,8 @@ def publish(
                 continue
             # The game's patch downloader addresses files relative to its patch folder.
             entry = name[len(patch_prefix):]
+            if entry in PATCH_METADATA_NAMES or entry.startswith(PATCH_METADATA_PREFIXES):
+                continue
             if info["length"] > MAX_LENGTH:
                 raise ValueError(f"{name} is larger than the game downloader supports")
             meta = metadata.get(entry, {"Cat": "0", "Pri": "0", "Time": "0"})
