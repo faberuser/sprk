@@ -369,8 +369,9 @@ async fn dispatch_mixed_results_charge_only_wins_and_release_unplayed_costs() {
     assert_eq!(done["DispatchBattleInfo"]["WinCount"], 1);
     assert_eq!(done["DispatchBattleInfo"]["LoseCount"], 1);
     assert_eq!(stamina(&s, &u).await, 1000 - cost);
-    assert_eq!(done["StaminaResult"]["AddValue"], -cost);
-    assert_eq!(done["EclipseStaminaResult"], done["StaminaResult"]);
+    // Sent once: the native cancel popup lists both stamina fields.
+    assert_eq!(done["EclipseStaminaResult"]["AddValue"], -cost);
+    assert!(done["StaminaResult"].is_null(), "{done}");
     assert_ne!(
         call(
             &s,

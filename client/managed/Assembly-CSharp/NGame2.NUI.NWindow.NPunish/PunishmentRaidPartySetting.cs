@@ -123,6 +123,50 @@ public class PunishmentRaidPartySetting : RaidSinglePartySetting, ShardSelectWid
 		}
 		UpdateBanHeroPortrait();
 		RestoredPortal.RestorePunishmentPartyFrames(this);
+		SprkKarmaRaid.SetupPartyScreen(this, SprkIsKarma);
+		UpdateBattleRepeatToggle();
+	}
+
+	// SPRK: karma runs may auto repeat; boss runs keep the native behaviour.
+	public bool SprkIsKarma
+	{
+		get
+		{
+			if (base.RaidData != null)
+			{
+				return base.RaidData.Type == RaidType.KarmaRaid;
+			}
+			return false;
+		}
+	}
+
+	public override void ToggleBattleRepeat()
+	{
+		if (!SprkIsKarma)
+		{
+			return;
+		}
+		if (!RepeatBattle)
+		{
+			SprkKarmaRaid.ConfirmAutoRepeat(_dataProvider?.GetPunishmentGroupData(), delegate
+			{
+				RepeatBattle = true;
+				UpdateBattleRepeatToggle();
+			});
+		}
+		else
+		{
+			RepeatBattle = false;
+			UpdateBattleRepeatToggle();
+		}
+	}
+
+	protected override void UpdateBattleRepeatToggle()
+	{
+		if (SprkIsKarma)
+		{
+			base.UpdateBattleRepeatToggle();
+		}
 	}
 
 	private void PunishmentInit()
@@ -375,6 +419,7 @@ public class PunishmentRaidPartySetting : RaidSinglePartySetting, ShardSelectWid
 				extraOption.IsEndCampaign = false;
 			}
 			extraOption.AutoRepeat = false;
+			SprkKarmaRaid.ArmAutoRepeat(SprkIsKarma && RepeatBattle);
 			PunishmentGroupData punishmentGroupData = _dataProvider.GetPunishmentGroupData();
 			ShardPlaskInfo shardPlaskInfo = new ShardPlaskInfo();
 			shardPlaskInfo.shardItemIndex = _dataProvider.GetShardItemIndex();

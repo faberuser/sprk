@@ -659,7 +659,7 @@ pub(super) async fn validate_inner(
     let battle_type = n(d, "BattleType");
     require_late_raid_unlock(db, s, a, battle_type).await?;
     if battle_type == 48 {
-        karma::validate(db,s,a,r).await?;
+        karma::validate(db,s,a,r,dispatch).await?;
     }
     if battle_type == 47 && int(r, "RaidIndex")? <= 0 {
         return Err(rule("DungeonNotFound"));

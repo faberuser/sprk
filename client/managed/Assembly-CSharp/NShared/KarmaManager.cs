@@ -447,4 +447,9 @@ public class KarmaManager
 	{
 		selectSlot = slot;
 	}
+
+	// SPRK: a shuffled hand awaits its pick (headless dispatch runs choose a slot).
+	public bool SprkCardPending => Enabled && selectableState && selectedCardList.Count > 0;
+
+	public int SprkCardCount => selectedCardList.Count;
 }

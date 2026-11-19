@@ -2746,7 +2746,9 @@ async fn dragon_dispatch_infers_raid_and_settles_once() {
         let partial=call(&s,&u,"dispatch/cancel_dispatch",&slot_args).await;
         assert_eq!(partial["Result"],"Success");
         assert_eq!(partial["TeamExpResult"]["AddValue"],cost*10);
-        assert_eq!(partial["StaminaResult"]["AddValue"],cost);
+        // Sent once: the native cancel popup lists both stamina fields.
+        assert_eq!(partial["EclipseStaminaResult"]["AddValue"],cost);
+        assert!(partial["StaminaResult"].is_null(),"{partial}");
         assert_ne!(call(&s,&u,"dispatch/cancel_dispatch",&slot_args).await["Result"],"Success");
         assert_eq!(call(&s,&u,"dispatch/start_dispatch",&args).await["Result"],"Success");
         prepared_dispatch(&s,&u,slot,&[1,1]).await;

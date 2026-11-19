@@ -216,6 +216,9 @@ pub(super) async fn execute(
         );
         let mut request = Request(parameters);
         let d = campaign::dungeon(s, &request)?;
+        if let Some(group) = super::karma::dispatch_group(s, d) {
+            return super::karma::start_dispatch(db, s, a, r, group).await;
+        }
         // Native dispatch requests identify the dungeon, but omit raid fields.
         // Derive them from the solo raid table instead of trusting caller extras.
         if let Some(raid) = dispatch_raid(s, d)? {
@@ -268,15 +271,7 @@ pub(super) async fn execute(
         if count < 1 || count > settings(s, "DispatchMaxRepeat", 200) {
             return Err(rule("InvalidCount"));
         }
-        let existing = list(db, a, "dispatch").await?;
-        let slot = (1..=settings(s, "DispatchMaxSlots", 5))
-            .find(|slot| {
-                !existing.iter().any(|v| {
-                    n(v, "SlotIndex") == *slot
-                        && !matches!(v["State"].as_str(), Some("Complete" | "Cancel"))
-                })
-            })
-            .ok_or_else(|| rule("AlreadyOnBattleHero"))?;
+        let slot = free_slot(db, s, a).await?;
         // Legend costumes discount each run, rounded down like the native window.
         let discount = bonuses::dispatch_stamina_discount(db, s, a).await?;
         let cost = campaign::stamina_cost(d, diff) * (100 - discount) / 100 * count;
@@ -345,6 +340,21 @@ pub(super) async fn execute(
         count
     };
     let losses = count - wins;
+    if super::karma::is_dispatch(&info) {
+        let mut out = super::karma::settle_dispatch(db, s, a, &mut info, count.max(0) as usize).await?;
+        out["TeamExpResult"] = out["ExpResult"].clone();
+        info["State"] = json!(if cancel { "Cancel" } else { "Complete" });
+        info["CompleteTime"] = json!(time(now()));
+        info["CollectionResponse"] = out.clone();
+        // The native result popup lists StaminaResult and EclipseStaminaResult on
+        // cancel, and only EclipseStaminaResult on collection: send the refund once.
+        if let Some(refund) = out.as_object_mut().and_then(|o| o.remove("StaminaResult")) {
+            out["EclipseStaminaResult"] = refund;
+        }
+        put(db, a, "dispatch", slot, &info).await?;
+        out["DispatchBattleInfo"] = info;
+        return Ok(out);
+    }
     let req = request(&info);
     let heroes: Vec<i64> = read_json(info["HeroIndices"].as_str().unwrap_or("[]"))?;
     let mut out = if wins > 0 {
@@ -411,14 +421,30 @@ pub(super) async fn execute(
         info["ServerResult"] = json!(vec!["1"; count as usize].join(","));
     }
     info["CollectionResponse"] = out.clone();
-    // CancelDispatch applies only EclipseStaminaResult, so it carries the
-    // stamina refund there. Completion applies both and keeps any key award.
-    if !out["StaminaResult"].is_null() && (cancel || out["EclipseStaminaResult"].is_null()) {
+    // The native cancel popup lists StaminaResult and EclipseStaminaResult (both
+    // also applied), so a cancel sends the refund once, as EclipseStaminaResult.
+    // Collection lists and applies only EclipseStaminaResult; keep any key award.
+    if cancel {
+        if let Some(refund) = out.as_object_mut().and_then(|o| o.remove("StaminaResult")).filter(|v| !v.is_null()) {
+            out["EclipseStaminaResult"] = refund;
+        }
+    } else if !out["StaminaResult"].is_null() && out["EclipseStaminaResult"].is_null() {
         out["EclipseStaminaResult"] = out["StaminaResult"].clone();
     }
     put(db, a, "dispatch", slot, &info).await?;
     out["DispatchBattleInfo"] = info;
     Ok(out)
+}
+pub(super) async fn free_slot(db: &mut PgConnection, s: &AppState, a: i64) -> Result<i64> {
+    let existing = list(db, a, "dispatch").await?;
+    (1..=settings(s, "DispatchMaxSlots", 5))
+        .find(|slot| {
+            !existing.iter().any(|v| {
+                n(v, "SlotIndex") == *slot
+                    && !matches!(v["State"].as_str(), Some("Complete" | "Cancel"))
+            })
+        })
+        .ok_or_else(|| rule("AlreadyOnBattleHero"))
 }
 pub(super) async fn sweep(
     db: &mut PgConnection,

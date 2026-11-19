@@ -1521,12 +1521,19 @@ async fn divine_punishment_artifacts_craft_several_at_once_instantly() {
         materials(&state,&u,&recipe,3).await;
         crate::db::query("UPDATE user_info SET gold=1000000000 WHERE account_id=$1").bind(u.user_info.account_id).execute(&state.db).await.unwrap();
         let output=item::n(&recipe,"ItemIndex") as i32;
+        let equips=|| async {crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM equip_items WHERE account_id=$1 AND item_index=$2").bind(u.user_info.account_id).bind(output).fetch_one(&state.db).await.unwrap()};
         let before=count(&state,&u,output).await;
+        let equip_before=equips().await;
         let result=craft::craft_item(State(state.clone()),craft_form(&u,&recipe,3)).await.unwrap().0;
         assert_eq!(result["Result"],"Success","recipe {id}: {result}");
         assert_eq!(result["CurrencyResult"]["AddValue"],-3*item::n(&recipe,"ReqGold"),"recipe {id}");
         assert_eq!(result["CraftSlotResult"]["ItemIndex"],0,"recipe {id}: the slot stays free");
-        assert_eq!(count(&state,&u,output).await,before+3*item::n(&recipe,"ResultItemCount") as i32,"recipe {id}");
+        // Some artifacts are equipment (one gear row per copy), others stack as items.
+        if state.tables.items.reward_item(output).unwrap().kind=="Equip" {
+            assert_eq!(equips().await,equip_before+3*item::n(&recipe,"ResultItemCount"),"recipe {id}");
+        } else {
+            assert_eq!(count(&state,&u,output).await,before+3*item::n(&recipe,"ResultItemCount") as i32,"recipe {id}");
+        }
         let material=item::n(&recipe["Materials"][0],"ItemIndex") as i32;
         assert_eq!(count(&state,&u,material).await,0,"recipe {id}");
     }

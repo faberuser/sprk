@@ -71,7 +71,11 @@ pub(crate) async fn pair(
             // Honor's MatchInfo repeats both ~600 KB registrations; store it
             // without them (re-polls rebuild them from arena_snapshots).
             data["Wait"] = wait.clone();
-            if kind==1 { data["Wait"]["MatchInfo"]["AccountInfos"] = json!([]); }
+            if kind==1 {
+                data["Wait"]["MatchInfo"]["AccountInfos"] = json!([]);
+                // Keep the match-time skill rules; re-polls rebuild the accounts from snapshots.
+                data["SkillRulesByAccount"] = json!(info["AccountInfos"].as_array().map(|v| v.iter().map(|a| a["SkillRules"].clone()).collect::<Vec<_>>()));
+            }
             data["Opponent"] = json!(enemy);
             data["OnlineMatchUid"] = json!(uid);
             data["ServiceOwned"] = json!(true);

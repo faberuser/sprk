@@ -83,7 +83,7 @@ impl Scheduler {
 
 /// Prepare one repeat. Returns whether a result was saved.
 async fn prepare(s: &AppState, a: i64, slot: i64) -> Result<bool> {
-    let (worker, sender) = {
+    let (worker, sender, version) = {
         let guard = s.conquest.worker.read().await;
         let Some(w) = guard
             .as_ref()
@@ -91,7 +91,7 @@ async fn prepare(s: &AppState, a: i64, slot: i64) -> Result<bool> {
         else {
             return Ok(false);
         };
-        (w.id.clone(), w.sender.clone())
+        (w.id.clone(), w.sender.clone(), w.dispatch_version)
     };
     let mut tx = crate::database::begin(&s.db).await?;
     crate::postgres::lock_account(&mut *tx, a).await?;
@@ -101,6 +101,11 @@ async fn prepare(s: &AppState, a: i64, slot: i64) -> Result<bool> {
     }
     let index = job["SimulationResults"].as_array().map_or(0, Vec::len);
     if index >= n(&job, "RepeatCount") as usize {
+        return Ok(false);
+    }
+    // Karma runs need a worker that drives karma levels and card picks.
+    let karma = super::super::karma::is_dispatch(&job);
+    if karma && version < 2 {
         return Ok(false);
     }
     if job["SimulationSnapshot"].is_null() {
@@ -124,14 +129,17 @@ async fn prepare(s: &AppState, a: i64, slot: i64) -> Result<bool> {
     });
     // Independent across jobs, stable when a repeat is retried after a restart.
     let seed = id.bytes().fold(2166136261_u32, |hash, byte| (hash ^ byte as u32).wrapping_mul(16777619)) & 0x7fffffff;
-    let payload = json!({"RunId":id,"Dispatch":true,"BossHp":0,"BossIndex":0,"Seed":seed,
+    let mut payload = json!({"RunId":id,"Dispatch":true,"BossHp":0,"BossIndex":0,"Seed":seed,
         "Simulation":job["SimulationSnapshot"],"SkillRules":job["SkillRules"]});
+    if karma {
+        payload["Karma"] = json!({"MaxClearWaves":job["Karma"]["MaxClearWaves"]});
+    }
     let sent = sender.try_send(("WorkerPrepare".into(), payload)).is_ok();
     if sent {
         let _ = sender.try_send(("WorkerStart".into(), json!({"RunId":id})));
     }
     let answer = if sent {
-        tokio::time::timeout(std::time::Duration::from_secs(900),async {
+        tokio::time::timeout(std::time::Duration::from_secs(if karma {3600} else {900}),async {
         loop {
             tokio::select! {
                 result=&mut rx => return result.ok(),
@@ -150,8 +158,17 @@ async fn prepare(s: &AppState, a: i64, slot: i64) -> Result<bool> {
     s.conquest.dispatch.lock().await.remove(&id);
     let _ = sender.try_send(("WorkerCancel".into(), json!({"RunId":id})));
     let Some(answer) = answer else { return Ok(false); };
-    save(s, a, slot, &job, index, &answer).await?;
+    let result = if karma {
+        super::super::karma::dispatch_result(s, &job, &answer)?
+    } else {
+        native_result(&answer)
+    };
+    save(s, a, slot, &job, index, result).await?;
     Ok(true)
+}
+
+fn native_result(answer: &Value) -> Value {
+    json!({"Outcome":if answer["Win"]==true {1}else{0},"TimeMs":number(answer,"TimeMs").clamp(1000,3600000)})
 }
 
 async fn save(
@@ -160,7 +177,7 @@ async fn save(
     slot: i64,
     original: &Value,
     index: usize,
-    answer: &Value,
+    result: Value,
 ) -> Result<()> {
     let mut tx = crate::database::begin(&s.db).await?;
     crate::postgres::lock_account(&mut *tx, a).await?;
@@ -175,7 +192,7 @@ async fn save(
         .as_array()
         .cloned()
         .unwrap_or_default();
-    results.push(json!({"Outcome":if answer["Win"]==true {1}else{0},"TimeMs":number(answer,"TimeMs").clamp(1000,3600000)}));
+    results.push(result);
     let repeats = n(&job, "RepeatCount").max(0) as usize;
     if results.len() >= SAMPLE_FIGHTS && results.len() < repeats {
         let seed = job["SimulationJobId"].as_str().unwrap_or_default().to_owned();
@@ -212,7 +229,7 @@ fn extrapolate(mut results: Vec<Value>, repeats: usize, seed: &str) -> Vec<Value
         z = (z ^ (z >> 27)).wrapping_mul(0x94d049bb133111eb);
         z ^= z >> 31;
         let pick = &results[(z % samples as u64) as usize];
-        results.push(json!({"Outcome":n(pick,"Outcome"),"TimeMs":n(pick,"TimeMs")}));
+        results.push(pick.clone());
     }
     results
 }
@@ -500,7 +517,7 @@ mod tests {
         }
         let fight = |i: usize| json!({"Win": i % 4 != 0, "TimeMs": 1000 + i as i64 * 100});
         for i in 0..SAMPLE_FIGHTS {
-            for slot in 1..=2 { save(&s, a, slot, &jobs[slot as usize - 1], i, &fight(i)).await.unwrap(); }
+            for slot in 1..=2 { save(&s, a, slot, &jobs[slot as usize - 1], i, native_result(&fight(i))).await.unwrap(); }
         }
         let saved = get(&mut s.db.acquire().await.unwrap(), a, "dispatch", 1).await.unwrap();
         let results = saved["SimulationResults"].as_array().unwrap();
@@ -522,7 +539,7 @@ mod tests {
         legacy["SimulationResults"] = json!((0..25).map(|_| json!({"Outcome":1,"TimeMs":2000})).collect::<Vec<_>>());
         put(&mut s.db.acquire().await.unwrap(), a, "dispatch", 3, &legacy).await.unwrap();
         assert_eq!(pending(s.clone()).await, 1, "only the in-flight legacy job still needs the worker");
-        save(&s, a, 3, &legacy, 25, &json!({"Win":false,"TimeMs":3000})).await.unwrap();
+        save(&s, a, 3, &legacy, 25, native_result(&json!({"Win":false,"TimeMs":3000}))).await.unwrap();
         let filled = get(&mut s.db.acquire().await.unwrap(), a, "dispatch", 3).await.unwrap();
         assert_eq!((filled["SimulationResults"].as_array().unwrap().len(), filled["SampledFights"].clone()), (50, json!(26)));
         assert_eq!(pending(s.clone()).await, 0, "filled dispatches leave the preparation queue");
@@ -585,7 +602,7 @@ mod tests {
         canceled["State"] = json!("Cancel");
         put(&mut db, a, "dispatch", slot, &canceled).await.unwrap();
         drop(db);
-        save(&s, a, slot, &job, 2, &json!({"Win":true,"TimeMs":1000}))
+        save(&s, a, slot, &job, 2, native_result(&json!({"Win":true,"TimeMs":1000})))
             .await
             .unwrap();
         assert_eq!(
