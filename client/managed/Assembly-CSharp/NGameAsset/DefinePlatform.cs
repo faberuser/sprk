@@ -23,6 +23,27 @@ public static class DefinePlatform
 
 	public static string StandalonePlatformName;
 
+	/// <summary>
+	/// SPRK: the platform this player runs on, for choosing the host.json entry (and with
+	/// it the patch CDN). PlatformName stays "StandaloneWindows" on every platform because
+	/// it names the patch folder; matching host.json on it gave Android the Windows entry.
+	/// </summary>
+	public static string HostPlatformName
+	{
+		get
+		{
+			switch (Application.platform)
+			{
+			case RuntimePlatform.Android:
+				return "Android";
+			case RuntimePlatform.IPhonePlayer:
+				return "iOS";
+			default:
+				return PlatformName;
+			}
+		}
+	}
+
 	static DefinePlatform()
 	{
 		StandalonePlatformName = "StandaloneWindows";

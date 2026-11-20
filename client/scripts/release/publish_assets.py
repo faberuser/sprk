@@ -198,6 +198,7 @@ def publish(
     includes: list[str] | None = None,
     activate: bool = True,
     pin: Path | None = None,
+    metadata_path: Path | None = None,
     workers: int = 4,
     log=print,
 ) -> dict:
@@ -221,7 +222,7 @@ def publish(
         names = collect(client, patch_prefix, includes or [])
         if not names:
             raise ValueError("No files selected")
-        metadata = original_metadata(client / patch_prefix / "patch.json")
+        metadata = original_metadata(metadata_path or client / patch_prefix / "patch.json")
         log(f"Hashing {len(names)} files")
         with ThreadPoolExecutor(max_workers=workers) as pool:
             hashes = list(pool.map(lambda n: hash_file(client / n), names))
@@ -286,6 +287,9 @@ def main() -> None:
     parser.add_argument("--include", action="append", default=[], help="Only paths with this prefix (repeatable)")
     parser.add_argument("--no-activate", action="store_true", help="Publish without switching or pinning")
     parser.add_argument("--no-pin", action="store_true", help="Do not update client/assets/<platform>.json")
+    parser.add_argument("--metadata", type=Path,
+                        help="Original patch list for download categories (default: the patch folder's patch.json); "
+                             "the Android set uses the Windows client's")
     args = parser.parse_args()
     publish(
         args.client,
@@ -296,6 +300,7 @@ def main() -> None:
         includes=args.include,
         activate=not args.no_activate,
         pin=None if args.no_pin else PIN_DIR / f"{args.platform}.json",
+        metadata_path=args.metadata,
     )
 
 

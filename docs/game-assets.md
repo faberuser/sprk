@@ -114,8 +114,18 @@ empty `/cdn/` (Windows) it downloads nothing, as the shipped game did. Publish A
 versions above 1, the version of that carried list. The client reads
 `LastBuildVersion.txt`, downloads `<n>/patch.json` when the version changed, and downloads every archive whose MD5 or length differs from its local record,
 filtered by quality tier and language. Each Raw archive is written to `<file>.part`,
-checked, then moved into place. Publish an Android folder with
-`--platform Android --client <folder> --patch-prefix ""`.
+checked, then moved into place. Publish the Android set (`../sprk-android`, built by
+`client/android/dev.py assets`) after rebuilding it:
+
+```powershell
+python client/scripts/release/publish_assets.py --client ../sprk-android --platform Android --patch-prefix "" --no-pin --metadata "../sprk-client/King's Raid_Data/Documents/Patch/StandaloneWindows/patch.json"
+```
+
+`--metadata` copies the download categories (needed before the lobby, or in the
+background) from the Windows client's original list, which names the same bundles.
+`--no-pin`: code releases do not list Android bundles; the game's downloader reads
+`Android/versions/<n>/patch.json`. Upload with `sync_assets.py` as for Windows, then set
+`SPRK_ASSETS_CDN_URL` for the game service (`https://<host>/updates/assets/`).
 
 This path has not been run in the game. Downloads restart a file instead of resuming it,
 and `patch.json` is not signed.

@@ -102,13 +102,13 @@ public static class Helper
 					if (versionedHost != null && __Extension_Method_ICollection__.COUNT(versionedHost.Server) != 0 && versionedHost.Server.Any((AppServerInfo e) => string.Equals(e.Name, forcedServerName, StringComparison.InvariantCultureIgnoreCase)))
 					{
 						foundHostInfo = versionedHost;
-						foundAppVersionInfo = versionedHost.AppVersion.FirstOrDefault((AppVersionInfo e) => string.Equals(e.Platform, DefinePlatform.PlatformName, StringComparison.InvariantCultureIgnoreCase));
+						foundAppVersionInfo = versionedHost.AppVersion.FirstOrDefault((AppVersionInfo e) => string.Equals(e.Platform, DefinePlatform.HostPlatformName, StringComparison.InvariantCultureIgnoreCase));
 						if (foundAppVersionInfo != null)
 						{
 							Vespa_System_Action_Extension_Method.fire(i_action, foundHostInfo);
 							return true;
 						}
-						VespaDebug.LogError("Forced host exist but no app : server=" + forcedServerName + " platform=" + DefinePlatform.PlatformName);
+						VespaDebug.LogError("Forced host exist but no app : server=" + forcedServerName + " platform=" + DefinePlatform.HostPlatformName);
 					}
 				}
 			}
@@ -123,7 +123,7 @@ public static class Helper
 				for (int num3 = 0; num3 < __Extension_Method_ICollection__.COUNT(versionedHost2.AppVersion); num3++)
 				{
 					AppVersionInfo appVersionInfo = versionedHost2.AppVersion[num3];
-					if (appVersionInfo != null && string.Equals(appVersionInfo.Platform, DefinePlatform.PlatformName, StringComparison.InvariantCultureIgnoreCase) && CheckCdnTextureFormat(appVersionInfo.IsETC1TextureCdn))
+					if (appVersionInfo != null && string.Equals(appVersionInfo.Platform, DefinePlatform.HostPlatformName, StringComparison.InvariantCultureIgnoreCase) && CheckCdnTextureFormat(appVersionInfo.IsETC1TextureCdn))
 					{
 						long num4 = (string.IsNullOrEmpty(appVersionInfo.HotfixVersion) ? 0 : ClientConfig.GetNormalizedVersion(appVersionInfo.HotfixVersion));
 						if (num4 != 0L && normalizedVersion == num4)

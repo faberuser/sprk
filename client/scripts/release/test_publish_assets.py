@@ -88,6 +88,20 @@ class PublishAssetsTest(unittest.TestCase):
         self.assertEqual(index["PlainAsset/text.txt"], hashlib.sha256(b"plain").hexdigest())
         self.assertEqual((self.store / "StandaloneWindows/current.txt").read_text(), "1")
 
+    def test_android_folder_takes_categories_from_another_list(self):
+        android = self.root / "android"
+        (android / "Assetbundle").mkdir(parents=True)
+        (android / "Assetbundle/A.unity3d").write_bytes(b"etc2 bundle")
+        windows_list = self.root / "windows-patch.json"
+        windows_list.write_text(json.dumps({"Archives": [{"AssetInfos": [
+            {"EntryName": "Assetbundle/A.unity3d", "Cat": "1", "Pri": "4", "Time": "7"}]}]}))
+        publish(android, self.store, "Android", patch_prefix="", version=2, metadata_path=windows_list,
+                log=lambda _: None)
+        patch = json.loads((self.store / "Android/versions/2/patch.json").read_text(encoding="utf-8"))
+        [archive] = patch["Archives"]
+        self.assertEqual((archive["Name"], archive["Cat"], archive["Pri"]), ("Assetbundle/A.unity3d", "1", "4"))
+        self.assertEqual((self.store / "Android/current.txt").read_text(), "2")
+
     def test_next_version_adds_only_changed_objects_and_keeps_old_version(self):
         self.run_publish()
         (self.client / PATCH_PREFIX / "Assetbundle/Shared.unity3d").write_bytes(b"changed")
