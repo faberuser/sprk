@@ -110,8 +110,17 @@ try {
     $env:SPRK_WEBSOCKET_ORIGIN = 'ws://127.0.0.1:8080'
     $env:SPRK_GM_BIND = '127.0.0.1:8082'
     if (-not $env:RUST_LOG) { $env:RUST_LOG = 'info,tower_http=debug' }
+    # Clients download game assets from the local asset store (docs/game-assets.md).
+    # Android needs it: without a patch CDN it has no asset list and stops at
+    # "Ready AssetBundle". Set SPRK_ASSETS_CDN_URL=off to serve the empty /cdn/ patch.
+    if ($env:SPRK_ASSETS_CDN_URL -eq 'off') {
+        Remove-Item Env:SPRK_ASSETS_CDN_URL
+    } elseif (-not $env:SPRK_ASSETS_CDN_URL -and (Test-Path -LiteralPath (Join-Path $updates 'assets'))) {
+        $env:SPRK_ASSETS_CDN_URL = 'http://127.0.0.1:8081/updates/assets/'
+    }
     Write-Host 'Game:    http://127.0.0.1:8080'
     Write-Host 'Updates: http://127.0.0.1:8081/updates/stable/manifest.json'
+    if ($env:SPRK_ASSETS_CDN_URL) { Write-Host "Assets:  $env:SPRK_ASSETS_CDN_URL" }
     if ($env:SPRK_GM_KEY) {
         Write-Host 'GM:      http://127.0.0.1:8082 (administrator key required)'
     } else {
