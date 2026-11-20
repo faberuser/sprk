@@ -81,7 +81,8 @@ impl AppState {
         self.sessions.get(session_key).map(|s| s.clone())
     }
 
-    /// Create a new session
+    /// Create a session without a device (tests; game logins use create_device_session).
+    #[cfg(test)]
     pub fn create_session(&self, session_key: String, account_id: i64, aes_key: String) {
         self.create_device_session(session_key, account_id, aes_key, String::new());
     }
