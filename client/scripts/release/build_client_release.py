@@ -2,7 +2,9 @@
 """Build a signed client release in an isolated workspace from tracked inputs.
 
 Pinned published release (assets and runtime DLLs) + client/overrides/files
-+ assemblies compiled from client/managed = a complete signed update.
++ assemblies compiled from client/managed = a complete signed update, plus its
+signed asset overlay (asset_overlay.py) that the update service applies to the
+asset store.
 """
 import argparse
 from contextlib import contextmanager
@@ -22,10 +24,11 @@ import time
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from client.scripts.release.publish_client_update import IDENTIFIER, find_openssl, ignored, is_unmanaged, load_unmanaged, publish, safe_path
-from client.scripts.release.client_update_bundle import package, verified_manifest
+from client.scripts.release.publish_client_update import IDENTIFIER, find_openssl, ignored, is_asset_entry, is_unmanaged, load_unmanaged, publish, safe_path
+from client.scripts.release.client_update_bundle import MANIFEST_LIMIT, package, verified_manifest
 from client.scripts.release.client_baseline import BASELINE
 from client.scripts.release.client_release_inputs import fingerprint
+from client.scripts.release import asset_overlay
 from client.scripts.build.build_managed_client import MANAGED, compile_managed
 
 REPO = Path(__file__).resolve().parents[3]
@@ -69,7 +72,7 @@ def extract_baseline(archive: Path, client: Path, sha256: str, public_key: Path)
         if len({member.name for member in members}) != len(members) or not all(m.isfile() for m in members):
             raise ValueError("Baseline must contain unique regular files only")
         entry = bundle.getmember("manifest.json")
-        if entry.size > 8 * 1024**2:
+        if entry.size > MANIFEST_LIMIT:
             raise ValueError("Baseline manifest too large")
         raw = bundle.extractfile(entry).read()
         manifest = verified_manifest(raw, public_key)
@@ -80,7 +83,8 @@ def extract_baseline(archive: Path, client: Path, sha256: str, public_key: Path)
             if relative.lower() in casefolded:
                 raise ValueError("Duplicate baseline file")
             casefolded.add(relative.lower())
-            expected["files/" + relative] = item
+            if not is_asset_entry(item):
+                expected["files/" + relative] = item
         if set(expected) | {"manifest.json"} != {m.name for m in members}:
             raise ValueError("Baseline has missing or unexpected files")
         for name, item in expected.items():
@@ -160,7 +164,7 @@ def throwaway_key(folder: Path) -> tuple[Path, Path]:
 
 def build(baseline: Path, work: Path, version: str, signing_key: Path,
           public_key: Path, previous: bytes | None = None,
-          output_public_key: Path | None = None) -> tuple[Path, Path]:
+          output_public_key: Path | None = None) -> list[Path]:
     # public_key authenticates the baseline and previous release;
     # output_public_key (default: the same key) matches signing_key.
     if not IDENTIFIER.fullmatch(version) or not IDENTIFIER.fullmatch("client-" + version):
@@ -198,7 +202,10 @@ def build(baseline: Path, work: Path, version: str, signing_key: Path,
         raise ValueError("Published manifests do not match")
     print(f"Verified new managed snapshot: {len(manifest['files'])} files; {len(manifest['deleted_files'])} deletion paths")
     with phase("Verify and compress release bundle"):
-        return package(output, version, output_public_key or public_key, work / "assets")
+        files = list(package(output, version, output_public_key or public_key, work / "assets"))
+    with phase("Build asset overlay (Android conversion)"):
+        files += asset_overlay.build(client, manifest, work / "assets", signing_key)
+    return files
 
 
 def main():
@@ -237,13 +244,13 @@ def main():
                                 "--pattern", pin["asset"], "--dir", str(temporary)], check=True)
             baseline = temporary / pin["asset"]
         previous = previous_release(args.repo, temporary / "previous", args.public_key) if args.publish else None
-        archive, manifest = build(baseline.resolve(strict=True), args.work.resolve(), args.version,
+        files = build(baseline.resolve(strict=True), args.work.resolve(), args.version,
                                   key.resolve(strict=True), args.public_key.resolve(strict=True), previous,
                                   output_public_key)
         tag = "client-" + args.version
         if args.publish:
             with phase("Upload and publish release"):
-                subprocess.run(["gh", "release", "create", tag, str(archive), str(manifest), "--repo", args.repo,
+                subprocess.run(["gh", "release", "create", tag, *map(str, files), "--repo", args.repo,
                                 "--target", os.environ["GITHUB_SHA"], "--draft", "--title", f"Client {args.version}",
                                 "--notes", f"Built from commit {os.environ['GITHUB_SHA']}."], check=True)
                 subprocess.run(["gh", "release", "edit", tag, "--repo", args.repo, "--draft=false", "--latest=false"], check=True)

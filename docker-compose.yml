@@ -18,6 +18,9 @@ services:
       SERVER_HOST: ${SPRK_GAME_HOST:-127.0.0.1:8080}
       SERVER_HTTPS: ${SPRK_GAME_HTTPS:-false}
       SERVER_NAME: ${SPRK_SERVER_NAME:-SPRK}
+      # Android asset downloads (docs/game-assets.md): the update service's public
+      # /updates/assets/ URL, e.g. https://<host>/updates/assets/. Empty: off.
+      SPRK_ASSETS_CDN_URL: ${SPRK_ASSETS_CDN_URL:-}
       SPRK_GM_KEY: ${SPRK_GM_KEY:-}
       SPRK_GM_BIND: 0.0.0.0:8082
       # Player chat/battle use /ws/chat and /ws/battle on this HTTP service.

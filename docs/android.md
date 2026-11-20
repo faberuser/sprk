@@ -28,13 +28,12 @@ server added in the in-app list), reaches the lobby at the display's refresh rat
 
 - Some UI panels render as solid black boxes (the attendance reward banner, a shop
   panel); probably render textures or effect shaders.
-- About 474 bundles exist only in the Windows set (skill effects, pets, scenario voice,
-  `NguiAtlas_Icon_Item_Item9`, …). They need Android builds or a conversion; until then
-  that content fails to load. (The four Windows-only "heroes" `Ybb`, `lisa`, `capy` and
-  `testtest` are Mixamo-rigged test models that nothing references, not released heroes.)
-- The Android data has only the High/Mid quality tiers and the English, Portuguese and
-  Spanish language bundles; the in-game **Low** graphics setting and the other languages
-  look for bundles that are not on the device.
+- Bundles that exist only in the Windows set (skill effects, pets, scenario voice,
+  `NguiAtlas_Icon_Item_Item9`, …), the Low tier, the languages other than English,
+  Portuguese and Spanish, and SPRK's changed bundles are converted from Windows
+  (`dev.py assets`, below). Converted bundles are not yet checked on a device.
+  (The four Windows-only "heroes" `Ybb`, `lisa`, `capy` and `testtest` are Mixamo-rigged
+  test models that nothing references, not released heroes.)
 - 6 of the 245 GLES shaders report as unsupported. The Vuplex web-view shaders have no
   Android build (web views are Windows-only).
 - `resources.assets` keeps the Windows texture formats (DXT/BC). BlueStacks shows them;
@@ -66,54 +65,61 @@ server added in the in-app list), reaches the lobby at the display's refresh rat
 - Saved logins and the server list are stored unencrypted in the app's private storage;
   the Android Keystore would be the next hardening step.
 
-## Planned: game assets downloaded from the server
+## Game updates and assets from the server
 
-Goal: the APK installs on its own and downloads the game patch (asset bundles, tables,
-localization, video) from the server it connects to, instead of `adb push`. Later the
-Windows client can use the same path instead of shipping the patch with each install.
+Goal: the APK installs on its own and gets everything else from the server it connects
+to, instead of `adb push`. Windows does this through SprkLauncher
+([game assets](game-assets.md)).
 
-What already exists:
+**Done: code and platform-neutral data.** After the server picker, the bootstrap
+(`SprkUpdater`, rules in `SprkUpdate.cs`) installs from the server's signed release
+manifest, the same one SprkLauncher uses:
 
-- **The game's own downloader** (`NGameAsset.NPatch.PatchDownloader`, driven by
-  `StateBase_PatchDownload` at login). It reads `<cdn>/LastBuildVersion.txt`, then
-  `<cdn>/<version>/patch.json`, compares it with the local
-  `Documents/Patch/<platform>/PatchInfo/patch.json`, and downloads the missing
-  archives from `<cdn>/<version>/<archive>`. `patch.json` lists archives (`.cb` files),
-  each with its entries (path under the patch folder, length, MD5, CRC, download
-  category and priority); categories allow background and on-demand downloads, and
-  archives are grouped by quality tier (`NoSpec`, …).
-- **The CDN URL** comes from the server (`CdnProxyUrl` = `<server>/cdn/`). The server
-  currently answers `LastBuildVersion.txt` with `1` and `patch.json` with no archives
-  (`server/src/api/system/cdn.rs`), so the client downloads nothing and uses what is
-  installed.
-- **The launcher's signed update system** (`client-updates/`, release manifests with
-  SHA-256 per file) keeps the Windows install's managed files in sync. It is separate
-  from the game's patch downloader.
+- game assemblies (`Assembly-CSharp`, every `Sprk*.dll`) into `sprk/hot/`, so new
+  features (for example a new `Sprk*` assembly) need no new APK;
+- tables, localization, `PlainAsset`, `LoginPresentation`, video and the other
+  platform-neutral patch files into `Documents/Patch/StandaloneWindows/` (about 750 MB);
+- not Windows asset bundles, and not the game's patch records (`PatchInfo/`,
+  `patch.json`, `patch.bjs`), which the game's downloader owns on Android.
 
-Work to do:
+The manifest is verified with `config/client-update-public.pem`, built into the APK
+(unsigned manifests only from 127.0.0.1). A server's update URL defaults to
+`<its origin>/updates/stable/manifest.json` (Local: port 8081); an added server can set
+another. Downloads resume, run four at a time and are hash-checked before they replace a
+file; unchanged files are not re-hashed (size and write time). If the server cannot be
+reached, the player can retry or play the installed version. Unattended dev runs
+(`server:local`) skip the update, so `dev.py hot` and `push_patch.sh` keep working.
+`dotnet run --project client/android/UpdateTests` checks the rules against the local
+release. Not run on a device yet: the APK build needs the repacked content first.
 
-1. **Per-platform asset sets.** The client uses the folder name `StandaloneWindows` on
-   both platforms (`DefinePlatform.PlatformName`), but the bundles differ: Android needs
-   the Android bundles (ETC/ASTC textures, GLES shaders), Windows the Windows ones.
-   The client has to tell the server its platform (CDN path or request field), and the
-   server serves a matching `patch.json` and archive set.
-2. **Building the archives.** A tool that packs the patch folder (Android bundle set or
-   Windows bundle set, plus the shared tables, localization, PlainAsset and video) into
-   `.cb` archives and writes `patch.json`, with `LastBuildVersion` bumped per release.
-   Split by quality tier and language so a device downloads only its tier and language,
-   and mark the minimum needed to reach the lobby as the first category.
-3. **Serving them.** Host the archives on the server (`/cdn/<version>/...`) or on
-   external storage it redirects to. The Android set is about 8.6 GB and the Windows set
-   about 19 GB, so downloads must be resumable and verified (the entries carry MD5/CRC;
-   consider signing `patch.json` as the launcher manifests are).
-4. **Repacked built-in content.** The ~420 MB of repacked scenes, Resources and
-   shaders (`sprk/content/` on the device) either ships inside the APK or becomes part of
-   the downloaded set.
-5. **Windows.** Point the Windows client at the same mechanism, then decide how it
-   coexists with the launcher's updates (for example, the launcher keeps managing code
-   and tables while the game downloads asset bundles).
-6. **Docker deployment.** Storage for the archives in the server image or a volume, and
-   the version pinning that already ties each server release to its client release.
+**Android asset bundles: a maintained set converted from Windows.** The Windows client
+(`../sprk-client`) is the source of truth for assets; `python client/android/dev.py assets`
+builds `../sprk-android` from it (`content/build_android_assets.py`):
+
+- a bundle unchanged from the original game, which the original Android set
+  (`../sprk-apk/Assetbundle`) has, is used as it is (hard link);
+- a bundle SPRK changed, or that Android lacks (Windows-only content and the whole Low
+  tier, about 9,000 bundles), is converted (`content/convert_bundles.py`): Android target
+  platform, DXT/BC textures transcoded to ETC2, shader references kept (the Android
+  `CAB-Shader` has the same shaders under the same path IDs), and Unity built-in shaders
+  that a bundle embeds as D3D builds redirected to GLES builds (`Standard` and
+  `Particles/Standard Unlit` in `sprk-shaders.unity3d`, the legacy transparent shaders
+  in the player's built-in resources);
+- `BundlePack.bin` (the bundle index, platform-neutral: names and flags only) comes from
+  Windows; the original Android index predates content the tables use. The shader bundle
+  the game loads (`Unity_2018/Shader.unity3d`) is the original Android one.
+
+Run `assets` again after changing Windows assets; only changed bundles are converted again
+(state in `../sprk-android/.sprk-android.json`). It needs `content/shader-map.json` (tracked; `content` rewrites it, and CI uses it to convert edited bundles).
+`push_patch.sh` pushes `../sprk-android` once it exists.
+
+Published for the game's patch downloader as the `Android` asset set (see
+[game assets](game-assets.md#publish)): with `SPRK_ASSETS_CDN_URL` set on the game server,
+the game downloads its quality tier and language from the update service. Tested on
+BlueStacks: 11,308 Low-tier English bundles downloaded and verified, then the lobby. The
+original Android set had no Low tier (8,014 files missing); the converted one has it.
+The repacked built-in content (`sprk/content/`, ~420 MB) still comes with
+`push_content.sh`.
 
 ## Distribution
 

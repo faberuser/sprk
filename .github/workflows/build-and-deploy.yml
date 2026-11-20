@@ -27,7 +27,7 @@ jobs:
     name: Build and publish client update
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     environment: client-release
     permissions:
       contents: write
@@ -72,6 +72,10 @@ jobs:
           path: ~/.nuget/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('client/global.json', 'client/managed/Directory.Build.props') }}
           restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Install the Android bundle converter
+        if: steps.reuse.outputs.tag == ''
+        run: python -m pip install -r client/scripts/requirements-client.txt
 
       - name: Build, verify, sign and publish client release
         id: build

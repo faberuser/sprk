@@ -105,6 +105,10 @@ jobs:
           key: ${{ runner.os }}-nuget-${{ hashFiles('client/global.json', 'client/managed/Directory.Build.props') }}
           restore-keys: ${{ runner.os }}-nuget-
 
+      - name: Install the Android bundle converter
+        if: steps.reuse.outputs.tag == ''
+        run: python -m pip install -r client/scripts/requirements-client.txt
+
       - name: Build and verify client release (throwaway signature, no publish)
         if: steps.reuse.outputs.tag == ''
         env:

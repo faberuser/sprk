@@ -368,6 +368,7 @@ public class PatchDownloader : GlobalAutoBehaviour<PatchDownloader>, DownloadHan
 		Vespa_System_Action_Extension_Method.fire(_onMessage, "Start Parallel Download");
 		CaptureBegin();
 		ThreadSafeDic<string, AssetInfo> assetInfoDic = new ThreadSafeDic<string, AssetInfo>((patchData.LocalPatchInfo == null) ? new Dictionary<string, AssetInfo>() : patchData.LocalPatchInfo.GetAllAssetInfoDictionary());
+		// The bundle loader only loads files this list names (AssetFileManager.DownloadedExist).
 		Dictionary<string, AssetInfo> allAssetInfoDictionary = patchData.PatchInfo.GetAllAssetInfoDictionary();
 		SingletonAuto<AssetFileManager>.instance.Setup(allAssetInfoDictionary);
 		EDownloadResponse downloadError = EDownloadResponse.None;
@@ -375,9 +376,33 @@ public class PatchDownloader : GlobalAutoBehaviour<PatchDownloader>, DownloadHan
 		List<Coroutine> coroutineList = new List<Coroutine>();
 		int endedCoroutineCount = 0;
 		int maxParallelDownloadCount = ((MaxParallelDownloadCount <= 0) ? 1 : MaxParallelDownloadCount);
+		// SPRK: start the download workers, but only for SPRK's asset service
+		// (/updates/assets/<platform>/, see docs/game-assets.md). The shipped code
+		// counted every worker as ended without starting one. Installations carry
+		// the old live game's PatchInfo/patch.json, which the game reuses as the
+		// remote list while its version matches the server's, so with the legacy
+		// empty /cdn/ (Windows, whose launcher installs the assets) it would try
+		// to download archives that no server has; there it still downloads
+		// nothing. Each worker reports exactly once; the first error stops the
+		// queue so the others finish their current archive and end.
+		bool sprkAssets = patchData.RootUrl.IndexOf("/updates/assets/", StringComparison.Ordinal) >= 0;
 		for (int j = 0; j < maxParallelDownloadCount; j++)
 		{
-			endedCoroutineCount++;
+			if (!sprkAssets)
+			{
+				endedCoroutineCount++;
+				continue;
+			}
+			coroutineList.Add(VespaCoroutine.Start(this, coDownloadArchive(j, patchData.Version, patchData.RootUrl, assetInfoDic, delegate(EDownloadResponse response, string message)
+			{
+				endedCoroutineCount++;
+				if (response != EDownloadResponse.None && response != EDownloadResponse.OK && downloadError == EDownloadResponse.None)
+				{
+					downloadError = response;
+					errorMsg = message;
+					StopDownload();
+				}
+			})));
 		}
 		SceneAutoBehaviour<LocalPatchInfoWriter>.instance.BeginWrite(assetInfoDic);
 		while (endedCoroutineCount < maxParallelDownloadCount)
@@ -664,7 +689,9 @@ public class PatchDownloader : GlobalAutoBehaviour<PatchDownloader>, DownloadHan
 					ArchiveInfo = archiveInfo,
 					AssetInfoDictionary = localAssetInfoDictionary
 				};
-				bool flag = archiveInfo.Name.EndsWith(".mp4", StringComparison.InvariantCultureIgnoreCase) || archiveInfo.Name.EndsWith(".webm", StringComparison.InvariantCultureIgnoreCase);
+				// SPRK: Raw archives (one file each, as the SPRK server publishes them)
+				// stream to disk with verification instead of being parsed as a pack.
+				bool flag = archiveInfo.ArchiveType == PatchArchiveType.Raw || archiveInfo.Name.EndsWith(".mp4", StringComparison.InvariantCultureIgnoreCase) || archiveInfo.Name.EndsWith(".webm", StringComparison.InvariantCultureIgnoreCase);
 				WebRequest req;
 				try
 				{
@@ -1064,7 +1091,100 @@ public class PatchDownloader : GlobalAutoBehaviour<PatchDownloader>, DownloadHan
 		}
 		PatchInfo localPatchInfo = SceneAutoBehaviour<LocalPatchInfoWriter>.instance.GetLocalPatchInfo();
 		patchData.LocalPatchInfo = new PatchInfoData(localPatchInfo);
+		// SPRK: installations carry a download record (patch.bjs) from the old live
+		// game, which does not match files installed since. Before anything decides
+		// what to download, files already installed with the listed length and MD5
+		// are recorded instead of downloaded again.
+		if (patchData.RootUrl.IndexOf("/updates/assets/", StringComparison.Ordinal) >= 0)
+		{
+			bool checkedFiles = false;
+			int adopted = 0;
+			PatchInfoData remote = patchData.PatchInfo;
+			PatchInfoData local = patchData.LocalPatchInfo;
+			SingletonUpdater<ThreadManager>.instance.Enqueue((Action)delegate
+			{
+				adopted = AdoptInstalledFiles(remote, local);
+			}, (Action)delegate
+			{
+				checkedFiles = true;
+			});
+			while (!checkedFiles)
+			{
+				yield return null;
+			}
+			if (adopted > 0)
+			{
+				Debug.Log($"[PatchDownloader] {adopted} installed files already match the patch list; not downloading them");
+			}
+		}
 		Vespa_System_Action_Extension_Method.fire(onComplete, patchData, EDownloadResponse.OK);
+	}
+
+	/// <summary>
+	/// Records listed single-file archives whose installed file already has the listed
+	/// length and MD5 although the local record differs. Returns how many were recorded.
+	/// The record is saved with the next download pass (LocalPatchInfoWriter).
+	/// </summary>
+	private static int AdoptInstalledFiles(PatchInfoData remote, PatchInfoData local)
+	{
+		if (remote == null || remote.Archives == null || local == null)
+		{
+			return 0;
+		}
+		if (local.Archives == null)
+		{
+			local.Archives = new List<ArchiveInfo>();
+		}
+		Dictionary<string, AssetInfo> records = local.GetAllAssetInfoDictionary() ?? new Dictionary<string, AssetInfo>();
+		ArchiveInfo adoptedRecords = null;
+		int adopted = 0;
+		foreach (ArchiveInfo archive in remote.Archives)
+		{
+			if (archive == null || archive.ArchiveType != PatchArchiveType.Raw || archive.AssetInfos == null || archive.AssetInfos.Count != 1)
+			{
+				continue;
+			}
+			AssetInfo expected = archive.AssetInfos[0];
+			if (expected == null || string.IsNullOrEmpty(expected.EntryName))
+			{
+				continue;
+			}
+			if (records.TryGetValue(expected.EntryName, out AssetInfo record) && record != null && record.Length == expected.Length && string.Equals(record.Md5, expected.Md5, StringComparison.OrdinalIgnoreCase))
+			{
+				continue;
+			}
+			string path = GetDownloadedAssetPath(UnityCache.persistentDataPath, expected.EntryName);
+			try
+			{
+				FileInfo info = new FileInfo(path);
+				if (!info.Exists || info.Length != expected.Length || !string.Equals(FileUtility.GetFileMd5Hash(path), expected.Md5, StringComparison.OrdinalIgnoreCase))
+				{
+					continue;
+				}
+			}
+			catch (Exception)
+			{
+				continue;
+			}
+			if (adoptedRecords == null)
+			{
+				// Added last: a later record of the same entry wins.
+				adoptedRecords = new ArchiveInfo { AssetInfos = new List<AssetInfo>() };
+				local.Archives.Add(adoptedRecords);
+			}
+			adoptedRecords.AssetInfos.Add(new AssetInfo
+			{
+				EntryName = expected.EntryName,
+				Length = expected.Length,
+				Md5 = expected.Md5,
+				Time = expected.Time,
+				Cat = expected.Cat,
+				Pri = expected.Pri,
+				AssetName = expected.AssetName ?? string.Empty
+			});
+			adopted++;
+		}
+		return adopted;
 	}
 
 	public static void SetAppVersionInfo(AppVersionInfo versionInfo)

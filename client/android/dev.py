@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 """Everyday Android commands (the HybridCLR build in client/android/HybridBootstrap).
 
-    python client/android/dev.py content --apk <kings-raid-4.88.8.apk>
+    python client/android/dev.py content    (original APK: ../sprk-apk/kings-raid-4.88.8.apk, or --apk)
                             one-time / after a Windows player-data or repacker change:
                             reference bundles, original APK data, content repack
+    python client/android/dev.py assets     build ../sprk-android: original Android bundles plus
+                                            bundles converted from ../sprk-client (needs content)
     python client/android/dev.py build      compile the game code and build the APK
     python client/android/dev.py test       build, install on the device, push missing device
-                                            data, forward the local server, start the game
+                                            data, publish new asset versions when the assets or
+                                            client/overrides/files changed (client/dev.py assets;
+                                            --no-assets to skip), forward the local server, start the game
                                             (--picker: choose the server on the device, as
                                             SprkLauncher does on Windows)
-    python client/android/dev.py hot        C# only: compile, push the game DLLs, restart the game
-                                            (no APK rebuild; the fast loop)
+    python client/android/dev.py hot        compile, push the game DLLs, publish new asset versions
+                                            as test does, restart the game (no APK rebuild; the fast loop)
     python client/android/dev.py connect    restore adb port forwarding to the local server
 
 By default the game plays on the local server (start_server.bat) through `adb reverse`.
@@ -30,6 +34,8 @@ import sys
 REPO = Path(__file__).resolve().parents[2]
 PROJECT = REPO / "client/android/HybridBootstrap"
 ARTIFACTS = REPO / "artifacts/android-bootstrap"
+# Pinned original Android inputs, next to the repository (game content; never committed).
+ORIGINAL_APK = REPO.parent / "sprk-apk" / "kings-raid-4.88.8.apk"
 APK = ARTIFACTS / "apk/sprk-hybrid-probe.apk"
 UNITY_VERSION = "6000.0.53f1"
 DEFAULT_ADB = "C:/Program Files/BlueStacks_nxt/HD-Adb.exe"
@@ -75,20 +81,36 @@ def unity(args, method: str, log: str):
         raise SystemExit(f"Unity {method} failed (exit {result.returncode}); see {log_path}")
 
 
+def publish_assets(args):
+    # The game downloads the local asset store's versions at start (docs/game-assets.md),
+    # so edited bundles and overrides reach the device through a new version.
+    if not args.no_assets:
+        run([sys.executable, REPO / "client/dev.py", "assets"])
+
+
 def compile_code():
     run([sys.executable, REPO / "client/dev.py", "build"])
     run([sys.executable, PROJECT / "sync_inputs.py"])
 
 
 def cmd_content(args):
-    if not args.apk:
-        raise SystemExit("content needs --apk <original kings-raid-4.88.8 APK>")
+    args.apk = args.apk or ORIGINAL_APK
+    if not Path(args.apk).is_file():
+        raise SystemExit(f"content needs the original kings-raid-4.88.8 APK ({ORIGINAL_APK}, or --apk)")
     run([sys.executable, REPO / "client/dev.py", "build"])
     run([sys.executable, PROJECT / "sync_inputs.py"])
     unity(args, "SprkContentTemplates.Build", "templates.log")
     run([sys.executable, PROJECT / "content/extract_apk_data.py", args.apk])
     run([sys.executable, PROJECT / "content/repack_content.py"])
     print("Content repacked. Run `build` (the APK embeds the new Resources map) and `test`.")
+
+
+def cmd_assets(args):
+    # ../sprk-android: original Android bundles plus bundles converted from ../sprk-client.
+    cmd = [sys.executable, PROJECT / "content/build_android_assets.py"]
+    if args.only:
+        cmd += ["--only", args.only]
+    run(cmd)
 
 
 def cmd_build(args):
@@ -108,6 +130,7 @@ def cmd_test(args):
     # The APK carries the current DLLs; drop overrides left by `hot`.
     run([args.adb, "-s", args.serial, "shell", "rm", "-rf", "/sdcard/Android/data/com.sprk.hybridprobe/files/sprk/hot"])
     script(args, "push_patch.sh")
+    publish_assets(args)
     # Unattended runs skip the server picker and use Local; --picker shows it on launch.
     env = {**os.environ, "SPRK_SERVER_PICKER": "1" if args.picker else "0"}
     run([find_bash(), "--noprofile", "--norc", PROJECT / "push_content.sh", "Login", args.adb, args.serial], env=env)
@@ -117,6 +140,7 @@ def cmd_test(args):
 def cmd_hot(args):
     run([sys.executable, REPO / "client/dev.py", "build"])
     script(args, "push_hot.sh")
+    publish_assets(args)
     script(args, "run_probe.sh")
 
 
@@ -126,17 +150,20 @@ def cmd_connect(args):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["content", "build", "test", "hot", "connect"])
-    ap.add_argument("--apk", help="original Android APK (content)")
+    ap.add_argument("command", choices=["content", "assets", "build", "test", "hot", "connect"])
+    ap.add_argument("--only", help="assets: only bundles whose path starts with this (testing)")
+    ap.add_argument("--apk", help=f"original Android APK (content; default {ORIGINAL_APK})")
     ap.add_argument("--unity", help=f"Unity {UNITY_VERSION} Unity.exe (default: from Unity Hub)")
     ap.add_argument("--adb", default=DEFAULT_ADB)
     ap.add_argument("--serial", default="emulator-5554")
     ap.add_argument("--no-build", action="store_true", help="test: install the existing APK")
     ap.add_argument("--picker", action="store_true", help="test: show the server picker at launch instead of using Local")
+    ap.add_argument("--no-assets", action="store_true", help="test, hot: do not publish asset versions")
     args = ap.parse_args()
     if not shutil.which(args.adb) and not Path(args.adb).is_file():
         raise SystemExit(f"adb not found: {args.adb}")
-    {"content": cmd_content, "build": cmd_build, "test": cmd_test, "hot": cmd_hot, "connect": cmd_connect}[args.command](args)
+    {"content": cmd_content, "assets": cmd_assets, "build": cmd_build, "test": cmd_test, "hot": cmd_hot,
+     "connect": cmd_connect}[args.command](args)
 
 
 if __name__ == "__main__":

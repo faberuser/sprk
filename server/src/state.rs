@@ -19,6 +19,8 @@ pub struct SessionInfo {
     pub(crate) delivered_achievements: Arc<std::sync::Mutex<crate::api::progression::notifications::DeliveredAchievements>>,
     #[allow(dead_code)]
     pub session_key: String,
+    /// The DeviceId the game sent at login (empty for sessions made without one).
+    pub(crate) device_id: String,
     #[allow(dead_code)]
     pub aes_key: String,
     #[allow(dead_code)]
@@ -81,6 +83,15 @@ impl AppState {
 
     /// Create a new session
     pub fn create_session(&self, session_key: String, account_id: i64, aes_key: String) {
+        self.create_device_session(session_key, account_id, aes_key, String::new());
+    }
+
+    /// A game login: one device per account. Sessions of the account on other
+    /// devices end; their next request gets SessionExpired and their chat and
+    /// battle sockets close. A new login on the same device keeps its earlier
+    /// session working until it is no longer used.
+    pub(crate) fn create_device_session(&self, session_key: String, account_id: i64, aes_key: String, device_id: String) {
+        self.sessions.retain(|_, s| s.account_id != account_id || s.device_id == device_id);
         let now = chrono::Utc::now();
         let session = SessionInfo {
             account_id,
@@ -90,6 +101,7 @@ impl AppState {
             login_sections: Arc::new(std::sync::Mutex::new(std::collections::BTreeMap::new())),
             delivered_achievements: Arc::new(std::sync::Mutex::new(Default::default())),
             session_key: session_key.clone(),
+            device_id,
             aes_key,
             login_time: now,
             last_activity: now,

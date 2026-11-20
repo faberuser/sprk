@@ -28,6 +28,8 @@ Folders outside the repository:
 | --- | --- | --- |
 | `../sprk-client` | The user's installed game (Unity player + 19 GB of assets) | Change only when a task installs client changes; then publish a release (below) |
 | `../sprk-client-test` | Test copy made by `client/dev.py test` | Use for testing; delete only with `client/dev.py clean` |
+| `../sprk-apk` | Pinned original Android inputs: `kings-raid-4.88.8.apk` and `Assetbundle/` (original Android bundles) | Read only; game content, never commit |
+| `../sprk-android` | Maintained Android asset set (original bundles plus bundles converted from `../sprk-client`) | Rebuild with the converter; never edit by hand |
 | `client-updates/` | Local update releases and the signing key | Never edit releases or manifests by hand |
 | `target/`, `artifacts/` | Generated builds and test runs (ignored) | Safe to regenerate |
 
@@ -131,6 +133,13 @@ this repository. The Unity player, assets and tables are never source.
   it contains in the same change (plus `client/overrides/README.md` notes about
   them). Do not use `unmanaged_files.txt` for this: the files stay managed,
   now supplied by the baseline.
+- Game assets (asset bundles, PlainAsset, ...) reach players through the game's own
+  patch downloader, not releases ([guide](docs/game-assets.md)). An asset in
+  `client/overrides/files/` ships with the merge: the release's asset overlay
+  (Windows files plus Android conversions) becomes new asset versions when the
+  update service starts. Other asset changes are published with `publish_assets.py`
+  and uploaded with `sync_assets.py`. Releases (SprkLauncher, Android bootstrap)
+  carry code, tables and overrides only.
 - `client/scripts/release/unmanaged_files.txt` keeps files out of releases
   without deleting players' copies. Add entries only when the user asks and the
   conditions in that file are met (including the native battle tests). Never

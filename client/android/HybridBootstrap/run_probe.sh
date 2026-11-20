@@ -21,7 +21,7 @@ fi
 adb shell am force-stop $PKG
 # The game reaches the local server on 127.0.0.1; forward it (and chat 9001 / battle 9002)
 # to the isolated local stack on this PC.
-for port in 8080 9001 9002; do adb reverse tcp:$port tcp:$port >/dev/null; done
+for port in 8080 8081 9001 9002; do adb reverse tcp:$port tcp:$port >/dev/null; done
 adb logcat -G 64M >/dev/null 2>&1
 adb logcat -c
 log="$OUT/probe-logcat.txt"

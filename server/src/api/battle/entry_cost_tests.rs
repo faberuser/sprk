@@ -1018,3 +1018,42 @@ async fn tower_currency_fee_stays_available_on_defeat_and_deducts_on_victory() {
         0
     );
 }
+
+#[tokio::test]
+async fn expired_battle_service_run_is_released() {
+    let (s, u) = setup().await;
+    let a = account(&u);
+    put(&mut s.db.acquire().await.unwrap(), a, "dungeon", campaign::key(11, 10),
+        &json!({"FirstRewardedDiff":1})).await.unwrap();
+    crate::db::query("UPDATE heroes SET level=100 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET stamina=500000 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
+    let args = "ChapterIndex=7001&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=[1]&WorldBossIndex=1";
+    let expiry = settings(&s, "BattleExpirySeconds", 14400) + 1;
+    // The battle service took each run over, then restarted with the server.
+    let orphan = || async {
+        crate::db::query("UPDATE battle_runs SET entry=sprk_json_set(entry,'$.ServiceOwned',('true')::jsonb) WHERE account=$1 AND completed=0")
+            .bind(a).execute(&s.db).await.unwrap();
+    };
+    let run_id = || async {
+        crate::db::query_scalar::<String>("SELECT run_id FROM battle_runs WHERE account=$1 AND completed=0")
+            .bind(a).fetch_optional(&s.db).await.unwrap()
+    };
+    let begin = call(&s, &u, "campaign/begin_campaign", args).await;
+    assert_eq!(begin["Result"], "Success", "{begin}");
+    orphan().await;
+    let first = run_id().await.unwrap();
+    crate::db::query("UPDATE battle_runs SET started=started-$1 WHERE account=$2").bind(expiry).bind(a).execute(&s.db).await.unwrap();
+    let again = call(&s, &u, "campaign/begin_campaign", args).await;
+    assert_eq!(again["Result"], "Success", "{again}");
+    assert_ne!(run_id().await.unwrap(), first);
+    // A live service run survives login; an expired one is released.
+    orphan().await;
+    super::login(&s, a).await.unwrap();
+    assert!(run_id().await.is_some());
+    crate::db::query("UPDATE battle_runs SET started=started-$1 WHERE account=$2").bind(expiry).bind(a).execute(&s.db).await.unwrap();
+    super::login(&s, a).await.unwrap();
+    assert!(run_id().await.is_none());
+    let entry: Value = read_json(&crate::db::query_scalar::<String>("SELECT entry FROM battle_runs WHERE account=$1")
+        .bind(a).fetch_one(&s.db).await.unwrap()).unwrap();
+    assert_eq!(entry["AbandonedOnLogin"], true);
+}

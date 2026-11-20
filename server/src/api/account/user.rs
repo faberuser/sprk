@@ -383,8 +383,8 @@ pub async fn login(
     .execute(&state.db)
     .await?;
 
-    // Store session in memory
-    state.create_session(session_key.clone(), account_id, aes_key.clone());
+    // One device per account: the newest login wins (create_device_session).
+    state.create_device_session(session_key.clone(), account_id, aes_key.clone(), device_id.clone());
 
     crate::api::tutorial::restore_clause_reward(&state, account_id).await?;
     crate::api::tutorial::restore_skipped_cave_story(&state, account_id).await?;
@@ -916,4 +916,37 @@ pub(crate) async fn test_login(state: State<AppState>, body: Bytes) -> Result<Js
         .bind(super::auth::digest(&ticket)).bind(id).bind(chrono::Utc::now().timestamp()+300)
         .execute(&state.0.db).await?;
     login(state, Bytes::from(format!("{form}&LoginVerificationInfo={ticket}"))).await
+}
+
+#[cfg(test)]
+mod single_session_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn newest_login_ends_the_accounts_other_sessions() {
+        let db = crate::database::test_pool().await;
+        let state = AppState::new(db, crate::tables::test_tables());
+        let login = |id: &'static str, device: &'static str| {
+            test_login(State(state.clone()), Bytes::from(format!("LoginId={id}&DeviceId={device}")))
+        };
+        let first = login("two-devices", "windows-pc").await.unwrap().0.user_info;
+        let other = login("someone-else", "phone").await.unwrap().0.user_info;
+        // A reconnect on the same device leaves its earlier session alone.
+        let reconnect = login("two-devices", "windows-pc").await.unwrap().0.user_info;
+        assert!(state.get_session(&first.session_key).is_some());
+        let second = login("two-devices", "phone").await.unwrap().0.user_info;
+        assert_eq!(first.account_id, second.account_id);
+        assert_ne!(first.session_key, second.session_key);
+        // The first device is logged out; the new one and other accounts are not.
+        assert!(state.get_session(&first.session_key).is_none());
+        assert!(state.get_session(&reconnect.session_key).is_none());
+        assert!(state.get_session(&second.session_key).is_some());
+        assert!(state.get_session(&other.session_key).is_some());
+        let stale = crate::api::account::lobby::first_lobby(
+            State(state.clone()),
+            axum::Form(serde_urlencoded::from_str(&format!("SessionKey={}", first.session_key)).unwrap()),
+        )
+        .await;
+        assert!(matches!(stale, Err(crate::error::ServerError::SessionExpired)));
+    }
 }

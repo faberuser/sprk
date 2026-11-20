@@ -1,5 +1,2 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <ItemGroup>
-    <EmbeddedResource Include="BattleSpeedLabels.png" LogicalName="BattleSpeedLabels.png" />
-  </ItemGroup>
 </Project>

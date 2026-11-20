@@ -28,6 +28,9 @@ DEFAULT_INCLUDES = [
     "King's Raid_Data/Documents/Patch/StandaloneWindows/Video",
 ]
 UNMANAGED_LIST = Path(__file__).with_name("unmanaged_files.txt")
+# Earlier local releases listed game assets with these URLs. The launcher only
+# installs code; the game downloads assets (docs/game-assets.md).
+ASSET_URL_PREFIX = "/updates/assets/objects/"
 IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\Z")
 
 
@@ -66,6 +69,10 @@ def ignored(path: Path) -> bool:
     return ".backup" in name or ".before-" in name or ".before_" in name or name.endswith(
         (".patched", ".eye-patched", ".staged", "-staged", ".log", ".tmp", ".bak")
     )
+
+
+def is_asset_entry(item: dict) -> bool:
+    return item.get("url", "").startswith(ASSET_URL_PREFIX)
 
 
 def collect_files(client: Path, includes: list[str]) -> list[Path]:
@@ -180,7 +187,12 @@ def publish(client: Path, output: Path, version: str, channel: str, includes: li
         previous_path = channel_dir / "manifest.json"
         previous = json.loads(previous_path.read_text(encoding="utf-8")) if previous_path.exists() else {}
         # Carry removals forward so clients can skip intermediate versions.
-        previous_files = {safe_path(item["path"]) for item in previous.get("files", [])}
+        previous_paths = {safe_path(item["path"]) for item in previous.get("files", [])}
+        # Assets an earlier local release listed are neither carried forward nor
+        # deleted: launchers stop managing them and installed copies stay.
+        assets_listed = {safe_path(item["path"]) for item in previous.get("files", []) if is_asset_entry(item)}
+        previous_paths -= assets_listed
+        previous_files = previous_paths
         removed = {safe_path(path) for path in previous.get("deleted_files", [])}
         explicit_removals = {safe_path(path) for path in (deleted_files or []) + privacy.get("deleted_files", [])}
         removed.update(explicit_removals)
@@ -222,7 +234,7 @@ def publish(client: Path, output: Path, version: str, channel: str, includes: li
                 "channel": channel,
                 "published_at": datetime.now(timezone.utc).isoformat(),
                 "files": files,
-                "deleted_files": sorted(path for path in (removed | (previous_files - current_files)) - current_files
+                "deleted_files": sorted(path for path in (removed | (previous_paths - current_files)) - current_files
                                         if not is_unmanaged(path, unmanaged)),
             }
             if signing_key is not None:

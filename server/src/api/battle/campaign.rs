@@ -342,9 +342,8 @@ async fn begin_local_inner(
     .await?;
     if let Some(old) = previous {
         let active = old.get::<i64, _>("completed") == 0;
-        if active
-            && now() - old.get::<i64, _>("started") <= settings(s, "BattleExpirySeconds", 14400)
-        {
+        let expired = now() - old.get::<i64, _>("started") > settings(s, "BattleExpirySeconds", 14400);
+        if active && !expired {
             let saved: Value = read_json(&old.get::<String, _>("entry"))?;
             if [
                 "ChapterIndex",
@@ -372,7 +371,12 @@ async fn begin_local_inner(
         }
         if active {
             let mut abandoned: Value = read_json(&old.get::<String, _>("entry"))?;
-            if abandoned["ServiceOwned"]==true || abandoned["ServiceRequired"]==true {
+            // A battle-service run can no longer report after expiry (e.g. the
+            // service restarted with the server); release it like a local run.
+            // Co-op runs are released by their room recovery instead.
+            if (abandoned["ServiceOwned"]==true || abandoned["ServiceRequired"]==true)
+                && (!expired || !abandoned["CoopRunId"].is_null())
+            {
                 return Err(rule("AlreadyOnBattleHero"));
             }
             super::entry_costs::settle(db,s,a,&mut abandoned,false,&mut json!({})).await?;

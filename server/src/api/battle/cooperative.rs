@@ -315,7 +315,7 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
         }
         let _=close_tx.send(true);
     });
-    let mut buffer=vec![];let mut chunk=[0_u8;16384];let mut account=0;let mut worker=false;let mut battle_run=None;
+    let mut buffer=vec![];let mut chunk=[0_u8;16384];let mut account=0;let mut worker=false;let mut battle_run=None;let mut session_key=String::new();
     let outcome=async {
         loop {
             let count=tokio::time::timeout(std::time::Duration::from_secs(90),reader.read(&mut chunk)).await.map_err(|_|rule("SessionExpired"))?.map_err(|_|rule("InvalidValue"))?;
@@ -336,7 +336,7 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
                         tx.send(("WorkerLoginRes".into(),json!({"Result":"Success"}))).await.map_err(|_|rule("InvalidValue"))?;
                     } else if name=="BattleLoginReq" {
                         let session=s.get_session(body["SessionKey"].as_str().unwrap_or("")).ok_or_else(||rule("SessionExpired"))?;
-                        account=session.account_id;
+                        account=session.account_id;session_key=session.session_key.clone();
                         if account<=0 || account!=number(&body,"AccountId") {return Err(rule("WrongMember"));}
                         let mut db=s.db.acquire().await?;
                         let match_uid=number(&body,"MatchUid");
@@ -378,6 +378,8 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
                     }
                 } else {
                     if !s.conquest.peers.get(&account).is_some_and(|peer|peer.id==connection_id) {return Err(rule("WrongMember"));}
+                    // A login on another device ends this session (user::login).
+                    if s.get_session(&session_key).is_none() {return Err(rule("SessionExpired"));}
                     if let Err(error) = player_packet_for_run(&s,account,battle_run.as_deref().unwrap(),&name,body,&tx).await {
                         tracing::warn!(%error, protocol=%name, account, "Battle player packet rejected"); return Err(error);
                     }
@@ -1118,6 +1120,22 @@ mod tests {
             assert_eq!(clients[index].recv().await.unwrap().0,"PingRes");
         }
         assert!(worker.try_recv().is_err(),"Finished combat must not receive replay-late commands");
+    }
+    #[tokio::test]
+    async fn websocket_battle_closes_after_the_account_logs_in_elsewhere() {
+        use crate::websocket::tests::{server,Client};
+        let (s,users,_,_worker,_clients)=fixture().await;s.conquest.peers.clear();
+        let server=server(s.clone()).await;let a=n(&users[0]["UserInfo"],"AccountId");
+        let key=users[0]["UserInfo"]["SessionKey"].as_str().unwrap().to_owned();
+        let mut battle=Client::connect(&server,"battle").await;
+        battle.send("BattleLoginReq",json!({"AccountId":a,"SessionKey":key,"MasterId":a,"RequestId":1})).await;
+        assert_eq!(battle.recv("BattleLoginRes").await["Result"],"Success");
+        battle.send("PingReq",json!({"RequestId":2,"ClientTimeMs":7})).await;
+        assert_eq!(battle.recv("PingRes").await["ClientTimeMs"],7);
+        // What user::login does for a login on another device.
+        s.sessions.retain(|_,session|session.account_id!=a);
+        battle.send("PingReq",json!({"RequestId":3})).await;
+        battle.closed().await;
     }
     #[tokio::test]
     async fn websocket_next_battle_replaces_old_peer_without_old_socket_controlling_it() {

@@ -107,7 +107,7 @@ public class SprkBootstrap : MonoBehaviour
         // Server: the game reads SPRK_HOST_URL (SprkLauncher sets it on Windows). Chosen here,
         // before any game code runs. "server:local" (written by the dev scripts) skips the
         // picker and uses the local server through adb reverse.
-        string host = ServerPicker.LocalUrl, hostName = ServerPicker.LocalName;
+        string host = ServerPicker.LocalUrl, hostName = ServerPicker.LocalName, updateUrl = null;
         if (!index.Contains("server:local"))
         {
             picker = new ServerPicker();
@@ -115,12 +115,28 @@ public class SprkBootstrap : MonoBehaviour
             while (!picker.Done) yield return null;
             host = picker.Chosen.url;
             hostName = picker.Chosen.name;
+            updateUrl = picker.Chosen.UpdateUrl;
             picker = null;
         }
         Environment.SetEnvironmentVariable("SPRK_HOST_URL", host);
         Log($"server {hostName}: {host}");
         var aotNames = index.Where(l => l.StartsWith("aot:")).Select(l => l.Substring(4)).ToList();
         var hotNames = index.Where(l => l.StartsWith("hot:")).Select(l => l.Substring(4)).ToList();
+
+        // Update code and platform-neutral data from the chosen server's signed release,
+        // as SprkLauncher does on Windows. Unattended dev runs ("server:local") skip it:
+        // they push their own files (dev.py hot, push_patch.sh).
+        if (updateUrl != null)
+        {
+            byte[] keyBytes = null;
+            yield return Read("update-public.pem", b => keyBytes = b);
+            try { updater = new SprkUpdater(updateUrl, keyBytes == null ? null : Encoding.UTF8.GetString(keyBytes), hotNames, (m, f) => Log(m, f)); }
+            catch (Exception e) { overlay = true; Log("update key: " + e.Message, true); yield break; }
+            Log($"updating from {updateUrl}");
+            yield return updater.Run();
+            hotNames.AddRange(updater.ExtraHotNames);
+            updater = null;
+        }
         var files = new Dictionary<string, byte[]>();
         var t0 = Time.realtimeSinceStartup;
         yield return ReadAll(aotNames.Select(n => $"aot/{n}.dll.bytes").Concat(hotNames.Select(n => $"hot/{n}.dll.bytes")).ToList(), files);
@@ -416,10 +432,12 @@ public class SprkBootstrap : MonoBehaviour
     readonly List<Texture2D> shownTextures = new List<Texture2D>();
 
     ServerPicker picker;
+    SprkUpdater updater;
 
     void OnGUI()
     {
         if (picker != null) { picker.OnGUI(); return; }
+        if (updater != null) { updater.OnGUI(); return; }
         if (!overlay) return;
         GUI.skin.label.fontSize = Mathf.Max(14, Screen.height / 45);
         GUILayout.BeginArea(new Rect(10, 10, Screen.width * 0.6f, Screen.height - 20));

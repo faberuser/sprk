@@ -1,5 +1,5 @@
-import os
 from pathlib import Path
+import os
 import shutil
 import subprocess
 import sys
@@ -100,11 +100,22 @@ class DataFolderTests(unittest.TestCase):
             self.assertEqual((native / "TableJit/SkillTable.jit").read_bytes(), b"patched")
             self.assertEqual((game / sandbox.NATIVE / "TableJit/SkillTable.jit").read_bytes(), b"original")
 
+            # A changed asset bundle: the linked folder becomes a real one of hard
+            # links and junctions, and only the test copy gets the override.
+            (game / sandbox.NATIVE / "Assetbundle/Other.unity3d").write_bytes(b"other")
+            (game / sandbox.NATIVE / "Assetbundle/LowSpec").mkdir()
+            (game / sandbox.NATIVE / "Assetbundle/LowSpec/Low.unity3d").write_bytes(b"low")
             (overrides / sandbox.NATIVE / "Assetbundle").mkdir()
             (overrides / sandbox.NATIVE / "Assetbundle/Bundle.unity3d").write_bytes(b"patched")
-            with self.assertRaisesRegex(SystemExit, "linked folder"):
-                sandbox.apply_overrides(overrides, test_copy)
+            changed = sandbox.apply_overrides(overrides, test_copy)
+            self.assertEqual(changed, [sandbox.NATIVE + "/Assetbundle/Bundle.unity3d"])
+            self.assertFalse(sandbox.is_link(native / "Assetbundle"))
+            self.assertEqual((native / "Assetbundle/Bundle.unity3d").read_bytes(), b"patched")
             self.assertEqual((game / sandbox.NATIVE / "Assetbundle/Bundle.unity3d").read_bytes(), b"bundle")
+            self.assertEqual((native / "Assetbundle/Other.unity3d").read_bytes(), b"other")
+            self.assertEqual(os.stat(native / "Assetbundle/Other.unity3d").st_nlink, 2)
+            self.assertTrue(sandbox.is_link(native / "Assetbundle/LowSpec"))
+            self.assertEqual(sandbox.apply_overrides(overrides, test_copy), [])
 
             # Removing an override restores the real game's file on the next refresh.
             (overrides / sandbox.NATIVE / "TableJit/SkillTable.jit").unlink()
@@ -114,6 +125,8 @@ class DataFolderTests(unittest.TestCase):
             sandbox.remove(test_copy)
             self.assertFalse(test_copy.exists())
             self.assertEqual((game / sandbox.NATIVE / "Assetbundle/Bundle.unity3d").read_bytes(), b"bundle")
+            self.assertEqual((game / sandbox.NATIVE / "Assetbundle/Other.unity3d").read_bytes(), b"other")
+            self.assertEqual((game / sandbox.NATIVE / "Assetbundle/LowSpec/Low.unity3d").read_bytes(), b"low")
 
     def test_upgrade_replaces_an_old_documents_junction(self):
         with tempfile.TemporaryDirectory() as folder:

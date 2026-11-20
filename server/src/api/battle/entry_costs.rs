@@ -600,8 +600,11 @@ pub(super) async fn abandon_on_login(
         // A new login cannot resume the old client's battle. Closing the window
         // mid-fight (e.g. World Boss, which reserves nothing) otherwise left the
         // run open and blocked Divine Punishment/Eclipse/Karma openings with
-        // AlreadyOnBattleHero. Co-op runs keep their own room recovery.
-        if (reserved && (expired || local)) || (local && entry["CoopRunId"].is_null()) {
+        // AlreadyOnBattleHero. An expired battle-service run can no longer
+        // report either. Co-op runs keep their own room recovery.
+        if (reserved && (expired || local))
+            || ((local || expired) && entry["CoopRunId"].is_null())
+        {
             settle(db, s, a, &mut entry, false, &mut json!({})).await?;
             entry["AbandonedOnLogin"] = json!(true);
             crate::db::query("UPDATE battle_runs SET completed=1,entry=$1 WHERE account=$2")

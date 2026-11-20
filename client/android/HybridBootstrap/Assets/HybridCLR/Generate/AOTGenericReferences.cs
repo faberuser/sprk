@@ -1612,6 +1612,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
     // System.Collections.Generic.Dictionary.Enumerator<object,SprkTestPrefs.IntPreference>
     // System.Collections.Generic.Dictionary.Enumerator<object,SprkTestPrefs.StringPreference>
     // System.Collections.Generic.Dictionary.Enumerator<object,SprkTicketSearch.Geometry>
+    // System.Collections.Generic.Dictionary.Enumerator<object,System.Collections.Generic.KeyValuePair<UnityEngine.Vector3,int>>
     // System.Collections.Generic.Dictionary.Enumerator<object,System.DateTime>
     // System.Collections.Generic.Dictionary.Enumerator<object,System.ValueTuple<object,UnityEngine.Vector3>>
     // System.Collections.Generic.Dictionary.Enumerator<object,System.ValueTuple<object,object>>
@@ -1798,6 +1799,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
     // System.Collections.Generic.Dictionary.KeyCollection.Enumerator<object,SprkTestPrefs.IntPreference>
     // System.Collections.Generic.Dictionary.KeyCollection.Enumerator<object,SprkTestPrefs.StringPreference>
     // System.Collections.Generic.Dictionary.KeyCollection.Enumerator<object,SprkTicketSearch.Geometry>
+    // System.Collections.Generic.Dictionary.KeyCollection.Enumerator<object,System.Collections.Generic.KeyValuePair<UnityEngine.Vector3,int>>
     // System.Collections.Generic.Dictionary.KeyCollection.Enumerator<object,System.DateTime>
     // System.Collections.Generic.Dictionary.KeyCollection.Enumerator<object,System.ValueTuple<object,UnityEngine.Vector3>>
     // System.Collections.Generic.Dictionary.KeyCollection.Enumerator<object,System.ValueTuple<object,object>>
@@ -1984,6 +1986,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
     // System.Collections.Generic.Dictionary.KeyCollection<object,SprkTestPrefs.IntPreference>
     // System.Collections.Generic.Dictionary.KeyCollection<object,SprkTestPrefs.StringPreference>
     // System.Collections.Generic.Dictionary.KeyCollection<object,SprkTicketSearch.Geometry>
+    // System.Collections.Generic.Dictionary.KeyCollection<object,System.Collections.Generic.KeyValuePair<UnityEngine.Vector3,int>>
     // System.Collections.Generic.Dictionary.KeyCollection<object,System.DateTime>
     // System.Collections.Generic.Dictionary.KeyCollection<object,System.ValueTuple<object,UnityEngine.Vector3>>
     // System.Collections.Generic.Dictionary.KeyCollection<object,System.ValueTuple<object,object>>
@@ -2170,6 +2173,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
     // System.Collections.Generic.Dictionary.ValueCollection.Enumerator<object,SprkTestPrefs.IntPreference>
     // System.Collections.Generic.Dictionary.ValueCollection.Enumerator<object,SprkTestPrefs.StringPreference>
     // System.Collections.Generic.Dictionary.ValueCollection.Enumerator<object,SprkTicketSearch.Geometry>
+    // System.Collections.Generic.Dictionary.ValueCollection.Enumerator<object,System.Collections.Generic.KeyValuePair<UnityEngine.Vector3,int>>
     // System.Collections.Generic.Dictionary.ValueCollection.Enumerator<object,System.DateTime>
     // System.Collections.Generic.Dictionary.ValueCollection.Enumerator<object,System.ValueTuple<object,UnityEngine.Vector3>>
     // System.Collections.Generic.Dictionary.ValueCollection.Enumerator<object,System.ValueTuple<object,object>>
@@ -2356,6 +2360,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
     // System.Collections.Generic.Dictionary.ValueCollection<object,SprkTestPrefs.IntPreference>
     // System.Collections.Generic.Dictionary.ValueCollection<object,SprkTestPrefs.StringPreference>
     // System.Collections.Generic.Dictionary.ValueCollection<object,SprkTicketSearch.Geometry>
+    // System.Collections.Generic.Dictionary.ValueCollection<object,System.Collections.Generic.KeyValuePair<UnityEngine.Vector3,int>>
     // System.Collections.Generic.Dictionary.ValueCollection<object,System.DateTime>
     // System.Collections.Generic.Dictionary.ValueCollection<object,System.ValueTuple<object,UnityEngine.Vector3>>
     // System.Collections.Generic.Dictionary.ValueCollection<object,System.ValueTuple<object,object>>
@@ -2542,6 +2547,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
     // System.Collections.Generic.Dictionary<object,SprkTestPrefs.IntPreference>
     // System.Collections.Generic.Dictionary<object,SprkTestPrefs.StringPreference>
     // System.Collections.Generic.Dictionary<object,SprkTicketSearch.Geometry>
+    // System.Collections.Generic.Dictionary<object,System.Collections.Generic.KeyValuePair<UnityEngine.Vector3,int>>
     // System.Collections.Generic.Dictionary<object,System.DateTime>
     // System.Collections.Generic.Dictionary<object,System.ValueTuple<object,UnityEngine.Vector3>>
     // System.Collections.Generic.Dictionary<object,System.ValueTuple<object,object>>
@@ -2704,6 +2710,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
     // System.Collections.Generic.EqualityComparer<SprkTestPrefs.IntPreference>
     // System.Collections.Generic.EqualityComparer<SprkTestPrefs.StringPreference>
     // System.Collections.Generic.EqualityComparer<SprkTicketSearch.Geometry>
+    // System.Collections.Generic.EqualityComparer<System.Collections.Generic.KeyValuePair<UnityEngine.Vector3,int>>
     // System.Collections.Generic.EqualityComparer<System.Collections.Generic.KeyValuePair<int,int>>
     // System.Collections.Generic.EqualityComparer<System.DateTime>
     // System.Collections.Generic.EqualityComparer<System.ValueTuple<byte,System.ValueTuple<byte,System.ValueTuple<byte,System.ValueTuple<byte,System.ValueTuple<byte,System.ValueTuple<byte,System.ValueTuple<byte,System.ValueTuple<byte,long>>>>>>>>>
@@ -3060,6 +3067,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
     // System.Collections.Generic.ICollection<System.Collections.Generic.KeyValuePair<object,SprkTestPrefs.IntPreference>>
     // System.Collections.Generic.ICollection<System.Collections.Generic.KeyValuePair<object,SprkTestPrefs.StringPreference>>
     // System.Collections.Generic.ICollection<System.Collections.Generic.KeyValuePair<object,SprkTicketSearch.Geometry>>
+    // System.Collections.Generic.ICollection<System.Collections.Generic.KeyValuePair<object,System.Collections.Generic.KeyValuePair<UnityEngine.Vector3,int>>>
     // System.Collections.Generic.ICollection<System.Collections.Generic.KeyValuePair<object,System.DateTime>>
     // System.Collections.Generic.ICollection<System.Collections.Generic.KeyValuePair<object,System.ValueTuple<object,UnityEngine.Vector3>>>
     // System.Collections.Generic.ICollection<System.Collections.Generic.KeyValuePair<object,System.ValueTuple<object,object>>>
@@ -3711,6 +3719,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
     // System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<object,SprkTestPrefs.IntPreference>>
     // System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<object,SprkTestPrefs.StringPreference>>
     // System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<object,SprkTicketSearch.Geometry>>
+    // System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<object,System.Collections.Generic.KeyValuePair<UnityEngine.Vector3,int>>>
     // System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<object,System.DateTime>>
     // System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<object,System.ValueTuple<object,UnityEngine.Vector3>>>
     // System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<object,System.ValueTuple<object,object>>>
@@ -4054,6 +4063,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
     // System.Collections.Generic.IEnumerator<System.Collections.Generic.KeyValuePair<object,SprkTestPrefs.IntPreference>>
     // System.Collections.Generic.IEnumerator<System.Collections.Generic.KeyValuePair<object,SprkTestPrefs.StringPreference>>
     // System.Collections.Generic.IEnumerator<System.Collections.Generic.KeyValuePair<object,SprkTicketSearch.Geometry>>
+    // System.Collections.Generic.IEnumerator<System.Collections.Generic.KeyValuePair<object,System.Collections.Generic.KeyValuePair<UnityEngine.Vector3,int>>>
     // System.Collections.Generic.IEnumerator<System.Collections.Generic.KeyValuePair<object,System.DateTime>>
     // System.Collections.Generic.IEnumerator<System.Collections.Generic.KeyValuePair<object,System.ValueTuple<object,UnityEngine.Vector3>>>
     // System.Collections.Generic.IEnumerator<System.Collections.Generic.KeyValuePair<object,System.ValueTuple<object,object>>>
@@ -4667,6 +4677,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
     // System.Collections.Generic.KeyValuePair<System.Collections.Generic.KeyValuePair<int,int>,object>
     // System.Collections.Generic.KeyValuePair<System.ValueTuple<int,int>,int>
     // System.Collections.Generic.KeyValuePair<UIWidget.WidgetKey,object>
+    // System.Collections.Generic.KeyValuePair<UnityEngine.Vector3,int>
     // System.Collections.Generic.KeyValuePair<byte,object>
     // System.Collections.Generic.KeyValuePair<float,object>
     // System.Collections.Generic.KeyValuePair<int,NGame2.NAccount.Helper.SkillBasicInfo>
@@ -4699,6 +4710,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
     // System.Collections.Generic.KeyValuePair<object,SprkTestPrefs.IntPreference>
     // System.Collections.Generic.KeyValuePair<object,SprkTestPrefs.StringPreference>
     // System.Collections.Generic.KeyValuePair<object,SprkTicketSearch.Geometry>
+    // System.Collections.Generic.KeyValuePair<object,System.Collections.Generic.KeyValuePair<UnityEngine.Vector3,int>>
     // System.Collections.Generic.KeyValuePair<object,System.DateTime>
     // System.Collections.Generic.KeyValuePair<object,System.ValueTuple<object,UnityEngine.Vector3>>
     // System.Collections.Generic.KeyValuePair<object,System.ValueTuple<object,object>>
@@ -5745,6 +5757,7 @@ public class AOTGenericReferences : UnityEngine.MonoBehaviour
     // System.Collections.Generic.ObjectEqualityComparer<SprkTestPrefs.IntPreference>
     // System.Collections.Generic.ObjectEqualityComparer<SprkTestPrefs.StringPreference>
     // System.Collections.Generic.ObjectEqualityComparer<SprkTicketSearch.Geometry>
+    // System.Collections.Generic.ObjectEqualityComparer<System.Collections.Generic.KeyValuePair<UnityEngine.Vector3,int>>
     // System.Collections.Generic.ObjectEqualityComparer<System.Collections.Generic.KeyValuePair<int,int>>
     // System.Collections.Generic.ObjectEqualityComparer<System.DateTime>
     // System.Collections.Generic.ObjectEqualityComparer<System.ValueTuple<byte,System.ValueTuple<byte,System.ValueTuple<byte,System.ValueTuple<byte,System.ValueTuple<byte,System.ValueTuple<byte,System.ValueTuple<byte,long>>>>>>>>

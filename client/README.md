@@ -51,7 +51,10 @@ One script covers the whole loop:
 
 ```powershell
 python client/dev.py test       # build, then start a separate test copy of the game
+                                #   (publishes new asset versions when assets changed)
 python client/dev.py install    # build, put it into your real game, publish a local release
+                                #   and new asset versions when assets changed
+python client/dev.py assets     # only publish new asset versions (test copy data + overrides)
 python client/dev.py build      # only compile, to check for errors
 python client/dev.py clean      # delete the test copy
 ```
@@ -92,6 +95,12 @@ real game, because Unity keeps them per Windows user.
 SprkLauncher on the **Local** server finds nothing to replace, because the
 release matches your game. Without the project's signing key the release is
 unsigned; the command explains the one-time launcher setting this needs.
+
+When an override changed the game's assets (an asset bundle), `install` also publishes
+new Windows and Android asset versions into `client-updates/assets`, so the local server
+serves them. `--no-assets` skips this. Players get the same change after the merge, with
+no upload: the update service applies the release's asset overlay
+([Game assets](../docs/game-assets.md#edited-assets-reach-players-through-ci)).
 
 Close the local server before `install`: its battle worker runs the real game and keeps
 the DLLs open, and the copy then fails with `[Errno 22] Invalid argument`.
@@ -242,9 +251,10 @@ Android asset bundles. It is a prototype; open work is listed in
 - Unity **6000.0.53f1** with Android Build Support, installed through Unity Hub. **Hub
   must be running and signed in** during builds; the editor gets its licence from Hub.
 - `pip install -r client/scripts/requirements-client.txt` (UnityPy, Pillow).
-- Next to the repository: `../sprk-client` (the Windows client) and `../Pre-Doomsday`
-  (the original Android client's data, `Documents/Patch/Android/Assetbundle`).
-- The original Android APK `kings-raid-4.88.8` (for `content` only).
+- Next to the repository: `../sprk-client` (the Windows client) and `../sprk-apk`, the
+  pinned original Android inputs: `kings-raid-4.88.8.apk` (for `content` only) and
+  `Assetbundle/` (the original Android bundles, from `Documents/Patch/Android/Assetbundle`).
+  `../sprk-android` is the maintained Android asset set built from them.
 - A device: BlueStacks with ADB enabled (`HD-Adb.exe`, serial `emulator-5554`, the
   default) or a phone over USB (`--adb <adb.exe> --serial <id>`, see `adb devices`).
 - The local server (`start_server.bat`).
@@ -258,7 +268,9 @@ python client/android/dev.py content --apk <path>\kings-raid-4.88.8.apk  # once,
 python client/android/dev.py build          # compile the game code, build the APK
 python client/android/dev.py test           # build, install, push missing device data, start on the local server
 python client/android/dev.py test --picker  # same, but choose the server on the device
-python client/android/dev.py hot            # C# only: compile, push the DLLs, restart (no APK rebuild)
+python client/android/dev.py hot            # compile, push the DLLs, restart (no APK rebuild)
+                                            # test and hot also publish new asset versions when assets
+                                            # changed (client/dev.py assets; --no-assets to skip)
 python client/android/dev.py connect        # restore the adb forwarding to the local server
 ```
 
@@ -288,6 +300,11 @@ Android the bootstrap sets it before any game code runs:
   in the app's private storage, and saved logins are kept per server.
 - Without it (`server:local` in the startup index, written by `dev.py test`), the app
   goes straight to Local, so unattended runs never wait for input.
+- After **Play**, the app updates the game code and platform-neutral data from that
+  server's signed release, like SprkLauncher (see
+  [docs/android.md](../docs/android.md#game-updates-and-assets-from-the-server)). An
+  added server can set its update URL; empty means `<origin>/updates/stable/manifest.json`.
+  Unattended runs skip the update, so files pushed by `dev.py hot` stay in place.
 
 **Local** is `http://127.0.0.1:8080/host.json` on the device, forwarded to this PC by
 `adb reverse` (emulator or USB). The forwarding is lost whenever adb restarts; if the

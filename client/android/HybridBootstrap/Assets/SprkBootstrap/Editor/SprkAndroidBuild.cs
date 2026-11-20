@@ -87,7 +87,10 @@ public static class SprkAndroidBuild
     };
 
     // Built-in shaders the game content uses that only exist in the player's builtin_extra.
-    static readonly string[] IncludedBuiltinShaders = { "Legacy Shaders/Diffuse", "Unlit/Texture", "Unlit/Transparent" };
+    // The legacy transparent shaders are referenced by asset bundles converted from Windows
+    // (client/android/HybridBootstrap/content/convert_bundles.py).
+    static readonly string[] IncludedBuiltinShaders = { "Legacy Shaders/Diffuse", "Unlit/Texture", "Unlit/Transparent",
+        "Legacy Shaders/Transparent/Diffuse", "Legacy Shaders/Transparent/VertexLit" };
 
     static void ApplyGameProjectSettings()
     {
@@ -213,6 +216,9 @@ public static class SprkAndroidBuild
         string bundles = Path.Combine(ProjectDir, HotDir, "bundles.txt");
         if (File.Exists(bundles)) index = index.Concat(File.ReadAllLines(bundles).Where(l => l.Trim().Length > 0).Select(l => "bundle:" + l.Trim()));
         File.WriteAllLines(Path.Combine(ProjectDir, Streaming, "index.txt"), index);
+        // Verifies servers' signed release manifests (SprkUpdater). Same key as SprkLauncher.
+        File.Copy(Path.Combine(ProjectDir, "../../../config/client-update-public.pem"),
+                  Path.Combine(ProjectDir, Streaming, "update-public.pem"), true);
         AssetDatabase.Refresh();
         Debug.Log($"[SprkAndroidBuild] staged {aot.Count} AOT metadata assemblies");
     }

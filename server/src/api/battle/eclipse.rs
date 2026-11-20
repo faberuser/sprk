@@ -84,8 +84,19 @@ pub(super) async fn info(
     }}))
 }
 
-pub(super) async fn ensure_available(db: &mut PgConnection, a: i64) -> Result<()> {
-    if get(db, a, "eclipse", 0).await?["IsPlayEclipse"] == true {
+/// An unfinished Eclipse run reserves its teams' heroes until it is settled or
+/// expires. It fights from its own snapshot, so other heroes stay free, and an
+/// expired run (claimed from the Eclipse screen) reserves none: a run cut off
+/// by a server restart otherwise blocked every battle with no end.
+pub(super) async fn ensure_available(db: &mut PgConnection, a: i64, party: &[i64]) -> Result<()> {
+    let run = get(db, a, "eclipse", 0).await?;
+    if run["IsPlayEclipse"] != true || n(&run, "Expires") < now() {
+        return Ok(());
+    }
+    let reserved = run["DeckList"].as_array().into_iter().flatten()
+        .flat_map(|deck| deck["HeroInfos"].as_array().into_iter().flatten())
+        .any(|hero| party.contains(&n(hero, "HeroIndex")));
+    if reserved {
         return Err(rule("AlreadyOnBattleHero"));
     }
     Ok(())

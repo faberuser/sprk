@@ -111,6 +111,9 @@ Git and excluded from the Docker image.
 
 ## Endpoints and launcher contract
 
+Releases carry code, tables and overrides. Asset bundles and other game assets come
+from the game's own patch downloader. See [Game assets](game-assets.md).
+
 | Endpoint                                        | Behavior                                            |
 | ----------------------------------------------- | --------------------------------------------------- |
 | `GET /updates/stable/manifest.json`             | Current channel manifest, `Cache-Control: no-store` |

@@ -33,7 +33,7 @@ pub(super) async fn ensure_available(
     party: &[i64],
     except: Option<i64>,
 ) -> Result<()> {
-    super::eclipse::ensure_available(db, a).await?;
+    super::eclipse::ensure_available(db, a, party).await?;
     super::super::community::ensure_available(db, a, party).await?;
     for v in list(db, a, "dispatch").await? {
         if except == Some(n(&v, "SlotIndex"))

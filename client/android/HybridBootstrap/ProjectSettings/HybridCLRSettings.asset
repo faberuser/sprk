@@ -26,6 +26,7 @@ MonoBehaviour:
   - SprkAutomation
   - SprkBatchGrind
   - SprkBattleKeyboard
+  - SprkBattleSpeed
   - SprkChatChannels
   - SprkConquest
   - SprkDiscordPresence
@@ -44,6 +45,7 @@ MonoBehaviour:
   - SprkIllustrationZoom
   - SprkImageRecovery
   - SprkInventoryTickets
+  - SprkKarmaRaid
   - SprkLobbyAvatarStability
   - SprkMailUpdates
   - SprkMissionClaimAll

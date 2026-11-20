@@ -1,3 +1,5 @@
+import hashlib
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -65,6 +67,25 @@ class CarriedFilePublishingTests(ClientFixture):
         manifest = self.publish("partial", ["King's Raid_Data/Managed"])
         self.assertEqual({f["path"] for f in manifest["files"]}, {"King's Raid_Data/Managed/fixture.dll"})
 
+
+
+class EarlierAssetListingTests(ClientFixture):
+    """Local releases once listed game assets; the next release lets go of them."""
+
+    def test_listed_assets_are_neither_copied_nor_deleted(self):
+        first = self.publish("first", DEFAULT_INCLUDES)
+        player = "UnityPlayer.dll"
+        (self.client / player).write_bytes(b"player")
+        manifest_path = self.root / "updates/stable/manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["files"].append({"path": player, "size": 6, "sha256": hashlib.sha256(b"player").hexdigest(),
+                                  "url": "/updates/assets/objects/" + hashlib.sha256(b"player").hexdigest()})
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        second = self.publish("second", DEFAULT_INCLUDES)
+        self.assertNotIn(player, {f["path"] for f in second["files"]})
+        self.assertNotIn(player, second["deleted_files"])
+        self.assertFalse(any(f["url"].startswith("/updates/assets/") for f in second["files"]))
+        self.assertEqual(len(second["files"]), len(first["files"]))
 
 
 class UnmanagedFileTests(ClientFixture):
