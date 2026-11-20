@@ -19,8 +19,6 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Server management persists additions, edits and removals and retains Local", ServerManagement),
     ("Switching profiles checks the selected endpoint and replaces shared files", ProfileUpdates),
     ("Game launches capture both URLs from the selected profile", ProfileLaunchEnvironment),
-    ("Installs pinned assets with code in one release; shared content downloads once", AssetsWithCode),
-    ("Release files must come from this release; assets from their own hash", AssetUrls),
 };
 foreach (var test in tests) { await test.Run(); Console.WriteLine($"PASS {test.Name}"); }
 Console.WriteLine($"{tests.Length} launcher checks passed.");
@@ -31,49 +29,6 @@ if (args.Length == 2 && args[0] == "--verify-client")
 }
 
 static void Require(bool value, string message) { if (!value) throw new Exception(message); }
-static async Task AssetsWithCode()
-{
-    using var fixture = new Fixture();
-    fixture.Server.Files["Managed/a.dll"] = Encoding.UTF8.GetBytes("code");
-    fixture.Server.AssetFiles["UnityPlayer.dll"] = Encoding.UTF8.GetBytes("player");
-    fixture.Server.AssetFiles["Patch/Assetbundle/one.unity3d"] = Encoding.UTF8.GetBytes("same bundle");
-    fixture.Server.AssetFiles["Patch/Assetbundle/two.unity3d"] = Encoding.UTF8.GetBytes("same bundle");
-    fixture.Server.Manifest.AssetSet = "assets-1";
-    fixture.Server.Manifest.DeletedFiles = ["Patch/PlainAsset/old.txt"];
-    fixture.Write("Patch/PlainAsset/old.txt", "retired");
-    fixture.Server.Refresh();
-    var result = await fixture.Engine.UpdateAsync();
-    Require(result.DownloadedFiles == 4 && result.AssetVersion == "assets-1", "Code and assets were not installed together");
-    Require(fixture.Server.Downloads == 3, "Identical assets downloaded twice");
-    Require(fixture.Read("Patch/Assetbundle/one.unity3d") == "same bundle" && fixture.Read("Patch/Assetbundle/two.unity3d") == "same bundle", "Shared content missing");
-    Require(fixture.Read("UnityPlayer.dll") == "player", "Unity player not installed");
-    Require(!File.Exists(fixture.Path("Patch/PlainAsset/old.txt")), "Retired asset remains");
-    Require(fixture.Engine.InstalledVersion == "1 · assets-1", "Installed version omits the asset set");
-    Require(!Directory.EnumerateFiles(fixture.Path(".sprk-launcher/downloads")).Any(), "Installed downloads were left in the cache");
-
-    var downloads = fixture.Server.Downloads;
-    Require((await fixture.Engine.UpdateAsync()).DownloadedFiles == 0 && fixture.Server.Downloads == downloads, "Unchanged files downloaded again");
-    // A changed file is detected through its write time and repaired.
-    fixture.Write("UnityPlayer.dll", "PLAYER");
-    File.SetLastWriteTimeUtc(fixture.Path("UnityPlayer.dll"), DateTime.UtcNow.AddMinutes(1));
-    Require((await fixture.Engine.UpdateAsync()).DownloadedFiles == 1 && fixture.Read("UnityPlayer.dll") == "player", "Modified file not repaired");
-}
-
-static async Task AssetUrls()
-{
-    using var fixture = new Fixture();
-    fixture.Server.Files["Managed/a.dll"] = Encoding.UTF8.GetBytes("code");
-    fixture.Server.AssetFiles["UnityPlayer.dll"] = Encoding.UTF8.GetBytes("player");
-    fixture.Server.Refresh();
-    var asset = fixture.Server.Manifest.Files.Single(f => f.Path == "UnityPlayer.dll");
-    asset.Url = "/updates/assets/objects/" + new string('0', 64);
-    await Reject(() => fixture.Engine.UpdateAsync());
-    fixture.Server.Refresh();
-    fixture.Server.Manifest.Files.Single(f => f.Path == "Managed/a.dll").Url = "/updates/releases/other/files/Managed/a.dll";
-    await Reject(() => fixture.Engine.UpdateAsync());
-    Require(!File.Exists(fixture.Path("UnityPlayer.dll")), "Rejected release installed files");
-}
-
 static async Task ProfileLaunchEnvironment()
 {
     var local = new ServerProfile { Id="local", Name="Local", HostUrl="http://localhost:9000/host.json", ManifestUrl="http://localhost:9200/custom/updates/stable/manifest.json" };
@@ -345,7 +300,6 @@ sealed class Server : HttpMessageHandler
 {
     public Dictionary<string, byte[]> Files { get; } = new(StringComparer.Ordinal);
     public UpdateManifest Manifest { get; } = new() { SchemaVersion = 1, Version = "1" };
-    public Dictionary<string, byte[]> AssetFiles { get; } = new(StringComparer.Ordinal);
     public int Downloads;
     public string? CorruptPath;
     public List<long> Ranges { get; } = [];
@@ -354,40 +308,21 @@ sealed class Server : HttpMessageHandler
     {
         Path = pair.Key, Size = pair.Value.Length, Sha256 = Convert.ToHexString(SHA256.HashData(pair.Value)).ToLowerInvariant(),
         Url = "/updates/releases/1/files/" + pair.Key
-    }).Concat(AssetFiles.Select(pair => new UpdateFile
-    {
-        Path = pair.Key, Size = pair.Value.Length, Sha256 = Sha(pair.Value), Url = "/updates/assets/objects/" + Sha(pair.Value)
-    })).ToList();
-    static string Sha(byte[] data) => Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant();
+    }).ToList();
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-    {
-        lock (this) return Task.FromResult(Respond(request));
-    }
-    HttpResponseMessage Respond(HttpRequestMessage request)
     {
         Requests.Add(request.RequestUri!.AbsoluteUri);
         if (request.RequestUri!.AbsolutePath.EndsWith("manifest.json"))
-            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(JsonSerializer.SerializeToUtf8Bytes(Manifest)) };
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(JsonSerializer.SerializeToUtf8Bytes(Manifest)) });
         Downloads++;
-        byte[] original;
-        string path;
-        if (request.RequestUri.AbsolutePath.StartsWith("/updates/assets/objects/"))
-        {
-            var sha = request.RequestUri.AbsolutePath["/updates/assets/objects/".Length..];
-            var entry = AssetFiles.First(pair => Sha(pair.Value) == sha);
-            (path, original) = (entry.Key, entry.Value);
-        }
-        else
-        {
-            path = Uri.UnescapeDataString(request.RequestUri.AbsolutePath.Split("/files/")[1]);
-            original = Files[path];
-        }
+        var path = Uri.UnescapeDataString(request.RequestUri.AbsolutePath.Split("/files/")[1]);
+        var original = Files[path];
         var data = path == CorruptPath ? Enumerable.Repeat((byte)'?', original.Length).ToArray() : original;
         var from = request.Headers.Range?.Ranges.First().From ?? 0;
         Ranges.Add(from);
         var response = new HttpResponseMessage(from > 0 ? HttpStatusCode.PartialContent : HttpStatusCode.OK)
         { Content = new ByteArrayContent(data[(int)from..]) };
         if (from > 0) response.Content.Headers.ContentRange = new ContentRangeHeaderValue(from, data.Length - 1, data.Length);
-        return response;
+        return Task.FromResult(response);
     }
 }

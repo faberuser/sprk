@@ -12,9 +12,8 @@ on the Docker host, or a network share mounted on the publishing machine).
 4. Each platform's current.txt is replaced.
 5. The lock is removed.
 
-Existing objects and versions are never overwritten. Run it, then deploy the
-release that pins the asset set: the update service refuses to start while a
-pinned object is missing. For a remote host without a mounted path, rsync in the
+Existing objects and versions are never overwritten. Players get the new
+version at their next login. For a remote host without a mounted path, rsync in the
 same order: objects/ first, then */versions/, then */current.txt.
 """
 from __future__ import annotations

@@ -9,7 +9,6 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from client.scripts.release.publish_assets import PATCH_PREFIX, publish
-from client.scripts.release.publish_client_update import load_asset_set
 
 
 class PublishAssetsTest(unittest.TestCase):
@@ -19,7 +18,6 @@ class PublishAssetsTest(unittest.TestCase):
         self.root = Path(temporary.name)
         self.client = self.root / "client"
         self.store = self.root / "store"
-        self.pin = self.root / "pin" / "StandaloneWindows.json"
         self.files = {
             "King's Raid.exe": b"player",
             "MonoBleedingEdge/mono.dll": b"mono",
@@ -50,30 +48,29 @@ class PublishAssetsTest(unittest.TestCase):
         self.files[PATCH_PREFIX + "patch.json"] = (self.client / PATCH_PREFIX / "patch.json").read_bytes()
 
     def run_publish(self, **kwargs):
-        return publish(self.client, self.store, "StandaloneWindows", pin=self.pin, log=lambda _: None, **kwargs)
+        return publish(self.client, self.store, "StandaloneWindows", log=lambda _: None, **kwargs)
+
+    def set_files(self, version):
+        return json.loads((self.version_dir(version) / "set.json").read_text(encoding="utf-8"))["files"]
 
     def version_dir(self, version):
         return self.store / "StandaloneWindows" / "versions" / str(version)
 
-    def test_set_covers_the_client_except_code_launcher_and_patch_metadata(self):
+    def test_set_is_the_patch_folder_without_code_data_or_patch_records(self):
         result = self.run_publish()
         self.assertEqual(result["version"], 1)
-        version, files = load_asset_set(self.pin)
-        self.assertEqual(version, "assets-1")
+        files = self.set_files(1)
+        # The game downloads only patch-folder files; code releases install the rest.
         self.assertEqual(sorted(f["path"] for f in files), sorted([
-            "King's Raid.exe", "MonoBleedingEdge/mono.dll", "King's Raid_Data/level0",
             PATCH_PREFIX + "Assetbundle/[English]/A b.unity3d", PATCH_PREFIX + "Assetbundle/Copy.unity3d",
             PATCH_PREFIX + "Assetbundle/Shared.unity3d", PATCH_PREFIX + "PlainAsset/text.txt",
-            # The bundle loader needs the game's patch lists; patch.bjs is game state.
-            PATCH_PREFIX + "PatchInfo/patch.json", PATCH_PREFIX + "patch.json",
         ]))
         for item in files:
             data = self.files[item["path"]]
             self.assertEqual((item["size"], item["sha256"]), (len(data), hashlib.sha256(data).hexdigest()))
             self.assertEqual((self.store / "objects" / item["sha256"]).read_bytes(), data)
-        self.assertEqual((self.version_dir(1) / "set.json").read_bytes(), self.pin.read_bytes())
         # Identical files share one object.
-        self.assertEqual(result["new_objects"], 8)
+        self.assertEqual(result["new_objects"], 3)
 
     def test_game_patch_list_has_patch_folder_files_with_original_metadata(self):
         self.run_publish()
@@ -108,18 +105,17 @@ class PublishAssetsTest(unittest.TestCase):
         result = self.run_publish()
         self.assertEqual((result["version"], result["new_objects"]), (2, 1))
         self.assertTrue((self.version_dir(1) / "set.json").exists())
-        self.assertEqual(load_asset_set(self.pin)[0], "assets-2")
+        self.assertEqual((self.store / "StandaloneWindows/current.txt").read_text(), "2")
         with self.assertRaises(ValueError):
             self.run_publish(version=2)
 
-    def test_not_activated_does_not_pin(self):
-        self.run_publish(includes=["MonoBleedingEdge/"], activate=False)
-        self.assertFalse(self.pin.exists())
+    def test_not_activated_keeps_the_current_version(self):
+        self.run_publish(includes=[PATCH_PREFIX + "PlainAsset/"], activate=False)
         self.assertFalse((self.store / "StandaloneWindows/current.txt").exists())
         self.assertTrue((self.version_dir(1) / "set.json").exists())
 
     def test_rejects_names_the_server_cannot_serve(self):
-        (self.client / "MonoBleedingEdge/.hidden").write_bytes(b"x")
+        (self.client / PATCH_PREFIX / "PlainAsset/.hidden").write_bytes(b"x")
         with self.assertRaises(ValueError):
             self.run_publish()
         self.assertFalse((self.store / "StandaloneWindows/.publish-lock").exists())
@@ -130,17 +126,18 @@ class PublishAssetsTest(unittest.TestCase):
         self.run_publish()
         dest = self.root / "host" / "assets"
         first = sync(self.store, dest, log=lambda _: None)
-        self.assertEqual(first, {"objects": 8, "versions": 1})
+        self.assertEqual(first, {"objects": 3, "versions": 1})
         self.assertEqual((dest / "StandaloneWindows/current.txt").read_text(), "1")
-        self.assertEqual((dest / "StandaloneWindows/versions/1/set.json").read_bytes(), self.pin.read_bytes())
-        for item in load_asset_set(self.pin)[1]:
+        self.assertEqual((dest / "StandaloneWindows/versions/1/set.json").read_bytes(),
+                         (self.version_dir(1) / "set.json").read_bytes())
+        for item in self.set_files(1):
             self.assertEqual((dest / "objects" / item["sha256"]).read_bytes(), self.files[item["path"]])
         self.assertFalse((dest / ".sync-lock").exists())
         self.assertEqual(sync(self.store, dest, log=lambda _: None), {"objects": 0, "versions": 0})
         # A corrupt local object is refused, not uploaded.
-        (self.client / "King's Raid.exe").write_bytes(b"player v2")
+        (self.client / PATCH_PREFIX / "PlainAsset/text.txt").write_bytes(b"plain v2")
         self.run_publish()
-        sha = hashlib.sha256(b"player v2").hexdigest()
+        sha = hashlib.sha256(b"plain v2").hexdigest()
         (self.store / "objects" / sha).write_bytes(b"tampered")
         with self.assertRaises(ValueError):
             sync(self.store, dest, log=lambda _: None)

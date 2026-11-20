@@ -92,7 +92,7 @@ def test(args) -> None:
 
 
 def install_real(args) -> None:
-    from client.scripts.release.publish_client_update import DEFAULT_ASSET_SET, DEFAULT_INCLUDES, publish
+    from client.scripts.release.publish_client_update import DEFAULT_INCLUDES, publish
     sandbox.require_closed(args.game)
     if TEST_GAME.exists():
         sandbox.require_closed(TEST_GAME)
@@ -102,17 +102,15 @@ def install_real(args) -> None:
     previous = json.loads(previous_path.read_text(encoding="utf-8")) if previous_path.is_file() else {"files": []}
     version = datetime.now().strftime("local-%Y%m%d-%H%M%S")
     key = SIGNING_KEY if SIGNING_KEY.is_file() else None
-    # The release lists the pinned asset set too; without it every asset would
-    # become a deletion and launchers would remove the Unity player and bundles.
     # Overrides outside the default selection (a changed asset bundle) are code
-    # files of the release, as in CI; otherwise the asset set's original would win.
+    # files of the release, as in CI.
     overrides = [p.relative_to(OVERRIDES).as_posix() for p in sorted(OVERRIDES.rglob("*")) if p.is_file()]
-    manifest = publish(args.game, UPDATES, version, "stable", DEFAULT_INCLUDES + overrides, key,
-                       asset_set=DEFAULT_ASSET_SET)
+    manifest = publish(args.game, UPDATES, version, "stable", DEFAULT_INCLUDES + overrides, key)
     before = {f["path"]: f["sha256"] for f in previous["files"]}
     after = {f["path"]: f["sha256"] for f in manifest["files"]}
     changed = sorted(p for p in after if before.get(p) != after[p])
-    removed = sorted(set(before) - set(after))
+    # Files the launcher will delete; paths merely no longer listed stay installed.
+    removed = sorted(set(manifest["deleted_files"]) - set(previous.get("deleted_files", [])))
     print(f"Published local release {version}: {len(changed)} changed or new files, {len(removed)} removed.")
     for path in (changed + removed)[:15]:
         print("  " + path)

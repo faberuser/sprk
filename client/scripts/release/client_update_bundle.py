@@ -16,8 +16,8 @@ if __package__ in (None, ""):
 
 from client.scripts.release.publish_client_update import ASSET_URL_PREFIX, IDENTIFIER, find_openssl, is_asset_entry, safe_path
 
-# A release manifest also lists the pinned asset set (stored once on the
-# update server, not in the release archive); keep in step with github.rs.
+# Earlier local releases also listed game assets (stored on the update server,
+# not in the release archive); keep in step with github.rs.
 MANIFEST_LIMIT = 64 * 1024**2
 
 

@@ -26,7 +26,7 @@ python client/scripts/build/build_managed_client.py --help          # compiler u
 python client/scripts/build/build_tables.py --help                  # table/text patches -> overrides (docs/jit-tables.md)
 python client/scripts/release/build_client_release.py --help        # complete signed release (CI)
 python client/scripts/release/publish_client_update.py --help       # local release from the installed client
-python client/scripts/release/publish_assets.py --help              # publish and pin the asset set
+python client/scripts/release/publish_assets.py --help              # publish game assets for the patch downloader
 python client/scripts/release/sync_assets.py --help                 # upload the asset store to the host
 python client/scripts/automation/client_automation.py --help        # real-client tests
 python server/scripts/worker/linux_worker.py --help

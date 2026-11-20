@@ -85,13 +85,12 @@ pub struct VersionedHost {
 
 /// The client's patch CDN for one platform. With `SPRK_ASSETS_CDN_URL` set
 /// (the update service's `/updates/assets/` URL), each platform gets its own
-/// asset set under it; otherwise the game's empty `/cdn/` patch is used.
-/// Windows always gets the empty patch: its launcher installs the assets.
+/// assets under it; otherwise the game's empty `/cdn/` patch is used.
+/// The launcher (Windows) and the Android bootstrap install code; the game
+/// downloads its assets from here on every platform.
 fn cdn_url(scheme_host: &str, platform: &str) -> String {
     match std::env::var("SPRK_ASSETS_CDN_URL") {
-        Ok(base) if !base.trim().is_empty() && platform != "StandaloneWindows" => {
-            assets_cdn_url(base.trim(), platform)
-        }
+        Ok(base) if !base.trim().is_empty() => assets_cdn_url(base.trim(), platform),
         _ => format!("{scheme_host}/cdn/"),
     }
 }
@@ -176,10 +175,12 @@ mod cdn_url_tests {
 }
 
 #[cfg(test)]
-mod windows_cdn_tests {
+mod default_cdn_tests {
     #[test]
-    fn windows_always_gets_the_empty_patch() {
-        // The launcher installs Windows assets; the game must download nothing.
-        assert_eq!(super::cdn_url("http://h", "StandaloneWindows"), "http://h/cdn/");
+    fn without_an_asset_service_every_platform_gets_the_empty_patch() {
+        if std::env::var_os("SPRK_ASSETS_CDN_URL").is_none() {
+            assert_eq!(super::cdn_url("http://h", "StandaloneWindows"), "http://h/cdn/");
+            assert_eq!(super::cdn_url("http://h", "Android"), "http://h/cdn/");
+        }
     }
 }

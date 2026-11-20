@@ -113,11 +113,11 @@ Run `assets` again after changing Windows assets; only changed bundles are conve
 (state in `../sprk-android/.sprk-android.json`). It needs `shader-map.json` from `content`.
 `push_patch.sh` pushes `../sprk-android` once it exists.
 
-Next: publish `../sprk-android` as the `Android` asset set
-(`publish_assets.py --client ../sprk-android --platform Android --patch-prefix ""`) for
-the game's patch downloader (quality tier and language filters, background download)
-when the game server sets `SPRK_ASSETS_CDN_URL`. The original Android set had no Low tier
-(8,014 files missing); the converted one has it. Language bundles are about 30 MB each.
+Published for the game's patch downloader as the `Android` asset set (see
+[game assets](game-assets.md#publish)): with `SPRK_ASSETS_CDN_URL` set on the game server,
+the game downloads its quality tier and language from the update service. Tested on
+BlueStacks: 11,308 Low-tier English bundles downloaded and verified, then the lobby. The
+original Android set had no Low tier (8,014 files missing); the converted one has it.
 The repacked built-in content (`sprk/content/`, ~420 MB) still comes with
 `push_content.sh`.
 

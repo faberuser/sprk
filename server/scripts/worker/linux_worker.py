@@ -120,8 +120,8 @@ def apply_release(archive, client, public_key, tag):
             if path.lower() in casefolded:
                 raise ValueError("Duplicate signed path")
             casefolded.add(path.lower())
-            # Pinned assets (Unity data, bundles) live in the update server's
-            # object store, not in the release archive; the worker needs none.
+            # Game assets an earlier local release listed live in the update
+            # server's object store, not in the release archive; the worker needs none.
             if not is_asset_entry(item):
                 expected["files/" + path] = item
         if set(entries) != set(expected) | {"manifest.json"}:

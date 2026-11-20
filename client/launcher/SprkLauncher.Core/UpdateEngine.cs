@@ -8,14 +8,7 @@ namespace SprkLauncher.Core;
 
 public sealed class UpdateEngine
 {
-    // A signed asset manifest lists ~33,000 files.
-    const int ManifestLimit = 64 * 1024 * 1024;
-    const string ReleasePrefix = "/updates/releases/";
-    // Pinned game assets (Unity player and data, asset bundles, ...) are stored
-    // once in the update server's object store and listed in every release.
-    const string AssetPrefix = "/updates/assets/objects/";
-    const int DownloadParallelism = 4;
-    static readonly int CheckParallelism = Math.Clamp(Environment.ProcessorCount, 1, 4);
+    const int ManifestLimit = 16 * 1024 * 1024;
     readonly string root;
     readonly string work;
     readonly LauncherConfig config;
@@ -23,9 +16,6 @@ public sealed class UpdateEngine
     readonly Action ensureGameClosed;
     readonly IProgress<UpdateProgress>? progress;
     readonly Uri manifestUri;
-    readonly object reportLock = new();
-    readonly System.Diagnostics.Stopwatch reportClock = System.Diagnostics.Stopwatch.StartNew();
-    long lastReport = long.MinValue / 2;
     readonly JsonSerializerOptions json = new() { WriteIndented = true };
 
     public UpdateEngine(string clientRoot, LauncherConfig config, HttpClient http,
@@ -72,9 +62,7 @@ public sealed class UpdateEngine
             var path = System.IO.Path.Combine(work, "installed.json");
             if (!File.Exists(path)) return "Not checked yet";
             CheckLinks(path);
-            var installed = JsonSerializer.Deserialize<UpdateResult>(File.ReadAllText(path));
-            if (installed is null) return "Unknown";
-            return installed.AssetVersion is { Length: > 0 } assets ? $"{installed.Version} · {assets}" : installed.Version;
+            return JsonSerializer.Deserialize<UpdateResult>(File.ReadAllText(path))?.Version ?? "Unknown";
         }
     }
 
@@ -82,85 +70,48 @@ public sealed class UpdateEngine
     {
         ensureGameClosed();
         Recover();
-        Report("Checking for updates…", force: true);
-        var manifest = await FetchManifestAsync(manifestUri, token);
+        Report("Checking for updates…");
+        using var response = await http.GetAsync(manifestUri, HttpCompletionOption.ResponseHeadersRead, token);
+        response.EnsureSuccessStatusCode();
+        var bytes = await ReadLimitedAsync(response.Content, ManifestLimit, token);
+        var manifest = ParseManifest(bytes);
         ValidateManifest(manifest);
-        var files = manifest.Files;
-        var hashes = LoadHashCache();
-        // Checked in parallel: a first launch on an existing installation
-        // hashes every file once (later launches use the hash cache).
-        var matches = new bool[files.Count];
-        var checkedCount = 0;
-        await Parallel.ForEachAsync(Enumerable.Range(0, files.Count),
-            new ParallelOptions { MaxDegreeOfParallelism = CheckParallelism, CancellationToken = token },
-            async (i, cancel) =>
-            {
-                matches[i] = await MatchesInstalledAsync(files[i], hashes, cancel);
-                var done = Interlocked.Increment(ref checkedCount);
-                Report($"Checking files {done}/{files.Count}", done * 100 / files.Count);
-            });
-        var changed = files.Where((_, i) => !matches[i]).ToList();
-        SaveHashCache(hashes);
+        var changed = new List<UpdateFile>();
+        for (var i = 0; i < manifest.Files.Count; i++)
+        {
+            token.ThrowIfCancellationRequested();
+            var file = manifest.Files[i];
+            Report($"Checking files {i + 1}/{manifest.Files.Count}", (i + 1) * 100 / manifest.Files.Count);
+            if (!await MatchesAsync(LocalPath(file.Path), file, token)) changed.Add(file);
+        }
         var removals = manifest.DeletedFiles.Where(path => File.Exists(LocalPath(path))).ToList();
-        // Identical files share one download.
-        var unique = changed.GroupBy(f => f.Sha256.ToLowerInvariant()).Select(g => g.First()).ToList();
         long total = 0;
-        foreach (var file in unique) total = checked(total + file.Size);
-        long downloaded = 0;
-        var finished = 0;
-        await Parallel.ForEachAsync(unique, new ParallelOptions { MaxDegreeOfParallelism = DownloadParallelism, CancellationToken = token },
-            async (file, cancel) =>
-            {
-                await DownloadAsync(file, delta =>
-                {
-                    var now = Interlocked.Add(ref downloaded, delta);
-                    Report($"Downloading {Math.Min(unique.Count, Volatile.Read(ref finished) + 1)}/{unique.Count} files",
-                        total == 0 ? 100 : (int)Math.Min(100, now * 100.0 / total), now, total);
-                }, cancel);
-                Interlocked.Increment(ref finished);
-            });
+        foreach (var file in changed) total = checked(total + file.Size);
+        long completed = 0;
+        foreach (var file in changed)
+        {
+            await DownloadAsync(file, completed, total, token);
+            completed += file.Size;
+        }
         token.ThrowIfCancellationRequested();
         ensureGameClosed();
-        var result = new UpdateResult(manifest.Version, changed.Count, total, manifest.AssetSet);
+        var result = new UpdateResult(manifest.Version, changed.Count, total);
         if (changed.Count > 0 || removals.Count > 0)
         {
-            Report("Installing update…", force: true);
-            Apply(manifest.Version, manifest.AssetSet, changed, removals);
-            foreach (var file in changed)
-            {
-                var info = new FileInfo(LocalPath(file.Path));
-                hashes.Files[file.Path] = new(info.Length, info.LastWriteTimeUtc.Ticks, file.Sha256.ToLowerInvariant());
-            }
-            foreach (var path in removals) hashes.Files.Remove(path);
-            SaveHashCache(hashes);
+            Report("Installing update…");
+            Apply(manifest.Version, changed, removals);
         }
         WriteJson(System.IO.Path.Combine(work, "installed.json"), result);
         // Verified cache entries are no longer needed after a complete install.
         foreach (var file in changed) File.Delete(CachePath(file));
-        Report(manifest.AssetSet is null ? $"Ready · version {manifest.Version}" : $"Ready · version {manifest.Version} · {manifest.AssetSet}",
-            100, total, total, force: true);
+        Report($"Ready · version {manifest.Version}", 100, total, total);
         return result;
-    }
-
-    async Task<UpdateManifest> FetchManifestAsync(Uri uri, CancellationToken token)
-    {
-        using var response = await http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, token);
-        response.EnsureSuccessStatusCode();
-        return ParseManifest(await ReadLimitedAsync(response.Content, ManifestLimit, token));
     }
 
     public UpdateManifest ParseManifest(byte[] bytes)
     {
         using var document = JsonDocument.Parse(bytes);
-        if (string.IsNullOrWhiteSpace(config.ManifestPublicKeyPem))
-        {
-            // Localhost without a key: nothing is verified; read the payload
-            // so signed and unsigned manifests behave the same.
-            if (document.RootElement.TryGetProperty("signature", out var unverified)
-                && unverified.TryGetProperty("payload", out var payloadText))
-                bytes = Convert.FromBase64String(payloadText.GetString()!);
-        }
-        else
+        if (!string.IsNullOrWhiteSpace(config.ManifestPublicKeyPem))
         {
             if (!document.RootElement.TryGetProperty("signature", out var signature)
                 || signature.GetProperty("algorithm").GetString() != "RSA-SHA256")
@@ -194,11 +145,6 @@ public sealed class UpdateEngine
                 throw new InvalidDataException("Invalid update file size or SHA-256 hash.");
             LocalPath(file.Path);
             if (!paths.Add(file.Path)) throw new InvalidDataException("Duplicate update path.");
-            // Code files come from this release; asset files from the object
-            // store, addressed by the hash they are verified against.
-            if (file.Url is null || !(file.Url.StartsWith(ReleasePrefix + manifest.Version + "/files/", StringComparison.Ordinal)
-                || file.Url.Equals(AssetPrefix + file.Sha256!.ToLowerInvariant(), StringComparison.Ordinal)))
-                throw new InvalidDataException("Invalid download URL for this release.");
             DownloadUri(file.Url);
         }
         foreach (var path in manifest.DeletedFiles)
@@ -258,14 +204,12 @@ public sealed class UpdateEngine
 
     Uri DownloadUri(string path)
     {
-        static bool Allowed(string value) => value.StartsWith(ReleasePrefix, StringComparison.Ordinal)
-            || value.StartsWith(AssetPrefix, StringComparison.Ordinal);
-        if (string.IsNullOrWhiteSpace(path) || !Allowed(path)
+        if (string.IsNullOrWhiteSpace(path) || !path.StartsWith("/updates/releases/", StringComparison.Ordinal)
             || path.StartsWith("//") || path.Contains('\\') || path.Contains('?') || path.Contains('#'))
             throw new InvalidDataException("Invalid release download URL.");
         var uri = new Uri(manifestUri, path);
         if (uri.GetLeftPart(UriPartial.Authority) != manifestUri.GetLeftPart(UriPartial.Authority)
-            || !Allowed(uri.AbsolutePath))
+            || !uri.AbsolutePath.StartsWith("/updates/releases/", StringComparison.Ordinal))
             throw new InvalidDataException("Downloads must come from the configured update server.");
         return uri;
     }
@@ -280,39 +224,6 @@ public sealed class UpdateEngine
         return path;
     }
 
-    // Installed files are re-hashed only when their size or write time changed,
-    // so a launch does not read the whole 19 GB installation.
-    async Task<bool> MatchesInstalledAsync(UpdateFile file, FileHashCache hashes, CancellationToken token)
-    {
-        var info = new FileInfo(LocalPath(file.Path));
-        if (!info.Exists || info.Length != file.Size) { lock (hashes) hashes.Files.Remove(file.Path); return false; }
-        var ticks = info.LastWriteTimeUtc.Ticks;
-        CachedFileHash? known;
-        lock (hashes) hashes.Files.TryGetValue(file.Path, out known);
-        if (known is null || known.Size != info.Length || known.WriteTimeUtcTicks != ticks)
-        {
-            await using var input = new FileStream(info.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, 128 * 1024, true);
-            known = new(info.Length, ticks, Convert.ToHexString(await SHA256.HashDataAsync(input, token)).ToLowerInvariant());
-            lock (hashes) hashes.Files[file.Path] = known;
-        }
-        return known.Sha256.Equals(file.Sha256, StringComparison.OrdinalIgnoreCase);
-    }
-
-    FileHashCache LoadHashCache()
-    {
-        var path = System.IO.Path.Combine(work, "file-hashes.json");
-        CheckLinks(path);
-        try
-        {
-            if (File.Exists(path) && JsonSerializer.Deserialize<FileHashCache>(File.ReadAllBytes(path)) is { } loaded)
-                return new() { Files = new(loaded.Files, StringComparer.OrdinalIgnoreCase) };
-        }
-        catch (JsonException) { }
-        return new();
-    }
-
-    void SaveHashCache(FileHashCache hashes) => WriteJson(System.IO.Path.Combine(work, "file-hashes.json"), hashes, indented: false);
-
     static async Task<bool> MatchesAsync(string path, UpdateFile file, CancellationToken token)
     {
         if (!File.Exists(path) || new FileInfo(path).Length != file.Size) return false;
@@ -321,12 +232,10 @@ public sealed class UpdateEngine
         return Convert.ToHexString(hash).Equals(file.Sha256, StringComparison.OrdinalIgnoreCase);
     }
 
-    async Task DownloadAsync(UpdateFile file, Action<long> progressDelta, CancellationToken token)
+    async Task DownloadAsync(UpdateFile file, long completed, long total, CancellationToken token)
     {
         var cached = CachePath(file);
-        long credited = 0;
-        void Credit(long now) { progressDelta(now - credited); credited = now; }
-        if (await MatchesAsync(cached, file, token)) { Credit(file.Size); return; }
+        if (await MatchesAsync(cached, file, token)) return;
         File.Delete(cached);
         var partial = cached + ".part";
         CheckLinks(partial);
@@ -337,7 +246,6 @@ public sealed class UpdateEngine
             token.ThrowIfCancellationRequested();
             var offset = File.Exists(partial) ? new FileInfo(partial).Length : 0;
             if (offset > file.Size) { File.Delete(partial); offset = 0; }
-            Credit(offset);
             if (offset != file.Size || !File.Exists(partial))
             {
                 try
@@ -354,7 +262,7 @@ public sealed class UpdateEngine
                         if (range?.From != offset || range.Length != file.Size || range.To != file.Size - 1)
                             throw new InvalidDataException("Invalid resumed download range.");
                     }
-                    else if (response.StatusCode == HttpStatusCode.OK) { offset = 0; Credit(0); }
+                    else if (response.StatusCode == HttpStatusCode.OK) offset = 0;
                     else throw new InvalidDataException("Unexpected download response.");
                     await using var output = new FileStream(partial, offset == 0 ? FileMode.Create : FileMode.Append,
                         FileAccess.Write, FileShare.None, 128 * 1024, true);
@@ -366,7 +274,7 @@ public sealed class UpdateEngine
                         if (offset + count > file.Size) throw new InvalidDataException("Download exceeds its advertised size.");
                         await output.WriteAsync(buffer.AsMemory(0, count), token);
                         offset += count;
-                        Credit(offset);
+                        Report($"Downloading {System.IO.Path.GetFileName(file.Path)}", total == 0 ? 100 : (int)((completed + offset) * 100.0 / total), completed + offset, total);
                     }
                     await output.FlushAsync(token);
                     output.Flush(true);
@@ -377,41 +285,24 @@ public sealed class UpdateEngine
             if (await MatchesAsync(partial, file, token))
             { File.Move(partial, cached, true); return; }
             File.Delete(partial);
-            Credit(0);
             if (attempt == 2) throw new InvalidDataException($"Hash verification failed for {file.Path}.");
         }
         throw new IOException($"Unable to download {file.Path}. Retry to resume the update.");
     }
 
-    void Apply(string version, string? assetVersion, List<UpdateFile> files, List<string> removals)
+    void Apply(string version, List<UpdateFile> files, List<string> removals)
     {
         var backup = System.IO.Path.Combine(work, "backup");
         var incoming = System.IO.Path.Combine(work, "incoming");
         CheckLinks(backup); CheckLinks(incoming);
-        var transaction = new Transaction { Version = version, AssetVersion = assetVersion };
-        // Move verified downloads instead of copying them, so a first install
-        // does not need twice its size in free space. Files sharing content are
-        // copied from the cache until its last use.
-        var uses = files.GroupBy(f => f.Sha256.ToLowerInvariant()).ToDictionary(g => g.Key, g => g.Count());
-        var moved = new List<(string Staged, string Cached)>();
-        try
+        var transaction = new Transaction { Version = version };
+        foreach (var file in files)
         {
-            foreach (var file in files)
-            {
-                var target = LocalPath(file.Path);
-                var staged = InsideWork(incoming, file.Path);
-                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(staged)!);
-                var cached = CachePath(file);
-                if (--uses[file.Sha256.ToLowerInvariant()] == 0) { File.Move(cached, staged, true); moved.Add((staged, cached)); }
-                else File.Copy(cached, staged, true);
-                transaction.Entries.Add(new() { Path = file.Path, HadOriginal = File.Exists(target) });
-            }
-        }
-        catch
-        {
-            RestoreDownloads(moved);
-            DeleteWorkDirectory("incoming");
-            throw;
+            var target = LocalPath(file.Path);
+            var staged = InsideWork(incoming, file.Path);
+            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(staged)!);
+            File.Copy(CachePath(file), staged, true);
+            transaction.Entries.Add(new() { Path = file.Path, HadOriginal = File.Exists(target) });
         }
         foreach (var path in removals)
             transaction.Entries.Add(new() { Path = path, HadOriginal = File.Exists(LocalPath(path)), Delete = true });
@@ -435,20 +326,10 @@ public sealed class UpdateEngine
         }
         catch
         {
-            // Keep the downloads that were not installed yet, so a retry
-            // does not download them again.
-            RestoreDownloads(moved);
             Recover();
             throw;
         }
         Recover();
-    }
-
-    static void RestoreDownloads(List<(string Staged, string Cached)> moved)
-    {
-        foreach (var (staged, cached) in moved)
-            try { if (File.Exists(staged) && !File.Exists(cached)) File.Move(staged, cached); }
-            catch (IOException) { }
     }
 
     public void Recover()
@@ -474,7 +355,7 @@ public sealed class UpdateEngine
             else if (!entry.HadOriginal) File.Delete(target);
         }
         if (transaction.Committed)
-            WriteJson(System.IO.Path.Combine(work, "installed.json"), new UpdateResult(transaction.Version, 0, 0, transaction.AssetVersion));
+            WriteJson(System.IO.Path.Combine(work, "installed.json"), new UpdateResult(transaction.Version, 0, 0));
         // Remove the journal last, so recovery can be retried after a crash.
         DeleteWorkDirectory("incoming");
         DeleteWorkDirectory("backup");
@@ -498,29 +379,19 @@ public sealed class UpdateEngine
         Directory.Delete(directory, true);
     }
 
-    void WriteJson<T>(string path, T value, bool indented = true)
+    void WriteJson<T>(string path, T value)
     {
         CheckLinks(path); CheckLinks(path + ".tmp");
         using (var output = new FileStream(path + ".tmp", FileMode.Create, FileAccess.Write, FileShare.None))
         {
-            JsonSerializer.Serialize(output, value, indented ? json : JsonSerializerOptions.Default);
+            JsonSerializer.Serialize(output, value, json);
             output.Flush(true);
         }
         File.Move(path + ".tmp", path, true);
     }
 
-    // Progress is throttled: a 33,000-file update would otherwise flood the UI.
-    void Report(string message, int percent = -1, long downloaded = 0, long total = 0, bool force = false)
-    {
-        if (progress is null) return;
-        lock (reportLock)
-        {
-            var now = reportClock.ElapsedMilliseconds;
-            if (!force && now - lastReport < 100) return;
-            lastReport = now;
-        }
-        progress.Report(new(message, percent, downloaded, total));
-    }
+    void Report(string message, int percent = -1, long downloaded = 0, long total = 0)
+        => progress?.Report(new(message, percent, downloaded, total));
 
     static async Task<byte[]> ReadLimitedAsync(HttpContent content, int limit, CancellationToken token)
     {

@@ -69,46 +69,23 @@ class CarriedFilePublishingTests(ClientFixture):
 
 
 
-class AssetSetTests(ClientFixture):
-    """Pinned assets are listed with object-store URLs and never copied into a release."""
+class EarlierAssetListingTests(ClientFixture):
+    """Local releases once listed game assets; the next release lets go of them."""
 
-    def write_set(self, version, files):
-        path = self.root / "assets.json"
-        path.write_text(json.dumps({"schema_version": 1, "platform": "StandaloneWindows", "version": version, "files": [
-            {"path": p, "size": len(d), "sha256": hashlib.sha256(d).hexdigest()} for p, d in files.items()]}))
-        return path
-
-    def test_assets_are_listed_not_copied_and_dropped_assets_are_deleted(self):
-        bundle = "King's Raid_Data/Documents/Patch/StandaloneWindows/Assetbundle/Big.unity3d"
+    def test_listed_assets_are_neither_copied_nor_deleted(self):
+        first = self.publish("first", DEFAULT_INCLUDES)
         player = "UnityPlayer.dll"
-        assets = self.write_set("assets-1", {bundle: b"bundle", player: b"player"})
-        first = self.publish("first", DEFAULT_INCLUDES, asset_set=assets)
-        self.assertEqual(first["asset_set"], "assets-1")
-        entries = {f["path"]: f for f in first["files"]}
-        self.assertEqual(entries[player]["url"], "/updates/assets/objects/" + hashlib.sha256(b"player").hexdigest())
-        self.assertFalse((self.root / "updates/releases/first/files" / player).exists())
-
-        # Present in the client, but carried forward only through the asset set.
         (self.client / player).write_bytes(b"player")
-        second = self.publish("second", DEFAULT_INCLUDES, asset_set=self.write_set("assets-2", {bundle: b"bundle"}))
+        manifest_path = self.root / "updates/stable/manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["files"].append({"path": player, "size": 6, "sha256": hashlib.sha256(b"player").hexdigest(),
+                                  "url": "/updates/assets/objects/" + hashlib.sha256(b"player").hexdigest()})
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        second = self.publish("second", DEFAULT_INCLUDES)
         self.assertNotIn(player, {f["path"] for f in second["files"]})
-        self.assertIn(player, second["deleted_files"])
-        self.assertFalse((self.root / "updates/releases/second/files" / player).exists())
-
-    def test_dropping_a_listed_asset_set_needs_an_explicit_request(self):
-        player = "UnityPlayer.dll"
-        self.publish("first", DEFAULT_INCLUDES, asset_set=self.write_set("assets-1", {player: b"player"}))
-        with self.assertRaisesRegex(ValueError, "lists the asset set"):
-            self.publish("second", DEFAULT_INCLUDES)
-        self.assertFalse((self.root / "updates/releases/second").exists())
-        dropped = self.publish("third", DEFAULT_INCLUDES, drop_assets=True)
-        self.assertIn(player, dropped["deleted_files"])
-
-    def test_code_file_wins_over_an_asset_with_the_same_path(self):
-        code = "King's Raid_Data/Managed/fixture.dll"
-        manifest = self.publish("first", DEFAULT_INCLUDES, asset_set=self.write_set("assets-1", {code: b"stale"}))
-        [entry] = [f for f in manifest["files"] if f["path"] == code]
-        self.assertTrue(entry["url"].startswith("/updates/releases/first/files/"))
+        self.assertNotIn(player, second["deleted_files"])
+        self.assertFalse(any(f["url"].startswith("/updates/assets/") for f in second["files"]))
+        self.assertEqual(len(second["files"]), len(first["files"]))
 
 
 class UnmanagedFileTests(ClientFixture):

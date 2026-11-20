@@ -1,31 +1,21 @@
 #!/usr/bin/env python3
-"""Publish a client's non-code files as an asset set for the update server.
+"""Publish a client's game assets for the game's own patch downloader.
 
-Code releases (publish_client_update.py, CI) manage what this repository builds
-(CODE_PATHS: Managed DLLs, tables, localization, video, Unity startup files) and
-overrides. Everything else in
-the client (the Unity player and data files, asset bundles, PlainAsset, video,
-...) is an *asset*: it never changes with the code and is too large to copy into
-every release. This tool stores each asset once, by hash, and writes the asset
-set that release manifests reference:
+SprkLauncher (Windows) and the Android bootstrap update code: Managed DLLs,
+tables, localization, video and client/overrides. Everything else in the patch
+folder (asset bundles, PlainAsset, LoginPresentation, ...) is downloaded by the
+game (NGameAsset.NPatch.PatchDownloader) from the update service, filtered by
+quality tier and language. This tool stores each file once, by hash, and writes
+a version the service serves under /updates/assets/<platform>/:
 
     <store>/objects/<sha256>                    file bytes, stored once
-    <store>/<platform>/versions/<n>/set.json    asset set: client path -> size, sha256
-    <store>/<platform>/versions/<n>/patch.json  game patch list (Raw archives) for the
-    <store>/<platform>/versions/<n>/index.json  patch-folder files, served to the game
-    <store>/<platform>/current.txt              game's active version, replaced last
+    <store>/<platform>/versions/<n>/patch.json  the game's patch list (Raw archives)
+    <store>/<platform>/versions/<n>/index.json  archive name -> sha256
+    <store>/<platform>/versions/<n>/set.json    path, size, sha256 (kept objects)
+    <store>/<platform>/current.txt              active version, replaced last
 
-and pins the set in the repository (client/assets/<platform>.json). The next
-code release, local or CI, lists every pinned asset in its signed manifest with
-the URL /updates/assets/objects/<sha256>, so the launcher installs code and
-assets as one release and each server image pins its exact asset set.
-
-Upload the objects and version folder to the host's update storage before
-deploying a release that pins them: the update service refuses to start when
-a pinned asset object is missing (docs/game-assets.md).
-
-The game's patch.json/index.json serve platforms without the launcher (Android);
-on Windows the game downloads nothing.
+Upload the store with sync_assets.py. The game server points clients at it when
+SPRK_ASSETS_CDN_URL is set (docs/game-assets.md).
 """
 from __future__ import annotations
 
@@ -46,24 +36,19 @@ if __package__ in (None, ""):
 from client.scripts.release.publish_client_update import DEFAULT_INCLUDES, ignored
 
 REPO = Path(__file__).resolve().parents[3]
-PIN_DIR = REPO / "client" / "assets"
 PATCH_PREFIX = "King's Raid_Data/Documents/Patch/StandaloneWindows/"
-# What every code release builds from this repository. Everything else is an
-# asset. Files a code release also carries forward (overridden bundles, older
-# Unity data) stay in the set too: the release lists its own copy instead, so
-# no file can drop out of both, whatever a release's carry-forward history.
+# What every code release installs (the launcher or the Android bootstrap).
+# Files a code release also carries (an overridden bundle) stay in the game's
+# list with the same content: the bundle loader only loads files its patch list
+# names, and a download of one rewrites the same bytes.
 CODE_PATHS = tuple(DEFAULT_INCLUDES) + ("King's Raid_Data/sprk-privacy.json",)
 # The launcher's own files and local tools are never part of the game.
 EXCLUDED_CLIENT = {"sprklauncher.exe", "sprk-launcher.json", "sprk-launcher-error.log", "reset_position.ps1"}
-# Relative to the patch folder: the game's own download record (rewritten by
-# the game), and data that changes together with the code (installed by code
-# releases with its integrity metadata).
-EXCLUDED_PATCH_PREFIXES = ("TableData/", "TableJit/", "LocalizationJit/")
-EXCLUDED_PATCH_NAMES = {"patch.bjs"}
-# The game's patch lists are part of an installation: the bundle loader only
-# loads files PatchInfo/patch.json lists. They are never game downloads.
-PATCH_METADATA_PREFIXES = ("PatchInfo/",)
-PATCH_METADATA_NAMES = {"patch.json"}
+# Relative to the patch folder: the game's own patch records (written by the game
+# from the server's list), and data that changes together with the code
+# (installed by code releases with its integrity metadata).
+EXCLUDED_PATCH_PREFIXES = ("PatchInfo/", "TableData/", "TableJit/", "LocalizationJit/")
+EXCLUDED_PATCH_NAMES = {"patch.json", "patch.bjs"}
 PLATFORM = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}")
 CHUNK = 1 << 20
 MAX_LENGTH = 2**31 - 1  # AssetInfo.Length is an int on the client.
@@ -153,7 +138,7 @@ def collect(client: Path, patch_prefix: str, includes: list[str]) -> list[str]:
         if not path.is_file() or ignored(path):
             continue
         name = relative.as_posix()
-        if excluded(name, patch_prefix) or code_path(name):
+        if not name.startswith(patch_prefix) or excluded(name, patch_prefix) or code_path(name):
             continue
         if includes and not any(name.startswith(prefix) for prefix in includes):
             continue
@@ -181,7 +166,7 @@ def replace_file(path: Path, data: bytes) -> None:
 
 
 def encode_set(asset_set: dict) -> bytes:
-    """One file per line, so pin changes review as readable diffs."""
+    """One file per line, so versions compare as readable diffs."""
     lines = [json.dumps(item, ensure_ascii=False, separators=(",", ":")) for item in asset_set["files"]]
     header = {k: v for k, v in asset_set.items() if k != "files"}
     head = json.dumps(header, ensure_ascii=False, separators=(",", ":"))[:-1]
@@ -197,7 +182,6 @@ def publish(
     version: int | None = None,
     includes: list[str] | None = None,
     activate: bool = True,
-    pin: Path | None = None,
     metadata_path: Path | None = None,
     workers: int = 4,
     log=print,
@@ -236,8 +220,6 @@ def publish(
                 continue
             # The game's patch downloader addresses files relative to its patch folder.
             entry = name[len(patch_prefix):]
-            if entry in PATCH_METADATA_NAMES or entry.startswith(PATCH_METADATA_PREFIXES):
-                continue
             if info["length"] > MAX_LENGTH:
                 raise ValueError(f"{name} is larger than the game downloader supports")
             meta = metadata.get(entry, {"Cat": "0", "Pri": "0", "Time": "0"})
@@ -265,11 +247,9 @@ def publish(
             raise
         if activate:
             replace_file(platform_dir / "current.txt", str(version).encode("ascii"))
-            if pin is not None:
-                replace_file(pin, set_bytes)
         log(f"Published {platform} asset set assets-{version}: {len(names)} files, "
             f"{total / 2**30:.2f} GiB, {added} new objects"
-            + (f"; pinned in {pin}" if activate and pin else "" if activate else " (not activated)"))
+            + ("" if activate else " (not activated)"))
         return {"version": version, "files": len(names), "bytes": total, "new_objects": added}
     finally:
         os.close(lock_fd)
@@ -285,8 +265,7 @@ def main() -> None:
                         help="Client-relative patch folder for the game's patch.json ('' = whole folder)")
     parser.add_argument("--version", type=int, help="Asset version (default: latest + 1)")
     parser.add_argument("--include", action="append", default=[], help="Only paths with this prefix (repeatable)")
-    parser.add_argument("--no-activate", action="store_true", help="Publish without switching or pinning")
-    parser.add_argument("--no-pin", action="store_true", help="Do not update client/assets/<platform>.json")
+    parser.add_argument("--no-activate", action="store_true", help="Publish without switching current.txt")
     parser.add_argument("--metadata", type=Path,
                         help="Original patch list for download categories (default: the patch folder's patch.json); "
                              "the Android set uses the Windows client's")
@@ -299,7 +278,6 @@ def main() -> None:
         version=args.version,
         includes=args.include,
         activate=not args.no_activate,
-        pin=None if args.no_pin else PIN_DIR / f"{args.platform}.json",
         metadata_path=args.metadata,
     )
 

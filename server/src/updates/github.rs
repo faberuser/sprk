@@ -17,7 +17,7 @@ use tokio::io::AsyncWriteExt;
 const MANIFEST_ASSET: &str = "client-update-manifest.json";
 const ARCHIVE_ASSET: &str = "client-update.tar.gz";
 const JSON_LIMIT: u64 = 4 * 1024 * 1024;
-/// Release manifests also list the pinned asset set (~33,000 files).
+/// Release manifests could list game assets (~33,000 files); earlier local ones did.
 const MANIFEST_LIMIT: u64 = 64 * 1024 * 1024;
 /// Asset entries point at the shared object store instead of the release.
 const ASSET_URL_PREFIX: &str = "/updates/assets/objects/";

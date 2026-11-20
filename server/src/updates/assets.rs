@@ -16,9 +16,9 @@
 //! assets/<platform>/versions/<n>/index.json    {"files": {archive name: sha256}}
 //! ```
 //!
-//! Release manifests list pinned assets with the URL
-//! `/updates/assets/objects/<sha256>`, so the Windows launcher installs them
-//! with the code release; the game downloads nothing there.
+//! The game downloads its assets here on every platform; releases (SprkLauncher,
+//! the Android bootstrap) carry code only. `objects/<sha256>` serves objects by
+//! hash, for tools and earlier local releases.
 //!
 //! Objects and versions are immutable once written; publishing a version
 //! adds new objects and replaces `current.txt` last.

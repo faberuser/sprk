@@ -139,8 +139,6 @@ public sealed class UpdateManifest
     [JsonPropertyName("version")] public string Version { get; set; } = "";
     [JsonPropertyName("files")] public List<UpdateFile> Files { get; set; } = [];
     [JsonPropertyName("deleted_files")] public List<string> DeletedFiles { get; set; } = [];
-    // The pinned asset set this release lists (informational).
-    [JsonPropertyName("asset_set")] public string? AssetSet { get; set; }
 }
 
 public sealed class UpdateFile
@@ -152,19 +150,11 @@ public sealed class UpdateFile
 }
 
 public sealed record UpdateProgress(string Message, int Percent = -1, long Downloaded = 0, long Total = 0);
-public sealed record UpdateResult(string Version, int DownloadedFiles, long DownloadedBytes, string? AssetVersion = null);
-
-public sealed class FileHashCache
-{
-    public Dictionary<string, CachedFileHash> Files { get; set; } = new(StringComparer.OrdinalIgnoreCase);
-}
-
-public sealed record CachedFileHash(long Size, long WriteTimeUtcTicks, string Sha256);
+public sealed record UpdateResult(string Version, int DownloadedFiles, long DownloadedBytes);
 
 public sealed class Transaction
 {
     public string Version { get; set; } = "";
-    public string? AssetVersion { get; set; }
     public bool Committed { get; set; }
     public List<TransactionEntry> Entries { get; set; } = [];
 }
