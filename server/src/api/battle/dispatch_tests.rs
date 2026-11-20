@@ -697,3 +697,30 @@ async fn dispatch_without_skill_rules_stores_none() {
     let job = start(&s, &u, 1).await;
     assert!(job.get("SkillRules").is_none(), "{job}");
 }
+
+#[tokio::test]
+async fn dispatch_slots_are_limited_only_by_free_heroes() {
+    let (s, u) = fixture(false).await;
+    let start = |hero: i64| {
+        let (s, u) = (s.clone(), u.clone());
+        async move {
+            call(&s, &u, "dispatch/start_dispatch", &format!("ChapterIndex=1&DungeonIndex=1&Difficulty=1&HeroIndices=[{hero}]&RepeatCount=1&DeckIndex=1")).await
+        }
+    };
+    // More teams than the old five-slot cap, each in its own slot.
+    let heroes = [1, 2, 3, 4, 5, 6, 7];
+    for hero in heroes {
+        crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES($1,$2,$2,100,5) ON CONFLICT DO NOTHING")
+            .bind(account(&u)).bind(hero).execute(&s.db).await.unwrap();
+    }
+    let mut slots = Vec::new();
+    for hero in heroes {
+        let v = start(hero).await;
+        assert_eq!(v["Result"], "Success", "hero {hero}: {v}");
+        slots.push(n(&v["DispatchBattleInfo"], "SlotIndex"));
+    }
+    slots.sort();
+    assert_eq!(slots, (1..=heroes.len() as i64).collect::<Vec<_>>());
+    // A hero already out on a dispatch still cannot start another one.
+    assert_eq!(start(1).await["Result"], "AlreadyOnBattleHero");
+}

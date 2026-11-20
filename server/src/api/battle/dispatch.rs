@@ -447,7 +447,13 @@ pub(super) async fn execute(
 }
 pub(super) async fn free_slot(db: &mut PgConnection, s: &AppState, a: i64) -> Result<i64> {
     let existing = list(db, a, "dispatch").await?;
-    (1..=settings(s, "DispatchMaxSlots", 5))
+    // DispatchMaxSlots <= 0 means unlimited: heroes are the only real limit,
+    // since ensure_available already rejects any hero on another dispatch.
+    let max = match settings(s, "DispatchMaxSlots", 0) {
+        m if m > 0 => m,
+        _ => i64::MAX,
+    };
+    (1..=max)
         .find(|slot| {
             !existing.iter().any(|v| {
                 n(v, "SlotIndex") == *slot

@@ -45,6 +45,11 @@ python client/scripts/automation/client_automation.py launch --seed-from sprk --
 python client/scripts/automation/client_automation.py launch --external-server --profile guest --database <database URL from the host run's session.json>
 ```
 
+Test clients are muted: the bridge sets `AudioListener.volume = 0` when it
+starts, so test windows stay silent while the user works. Saved sound settings
+are not changed. Set `SPRK_AUTOMATION_SOUND=1` before `launch` only for a test
+that needs audio. Normal launches never start the bridge and are unaffected.
+
 Fresh accounts retain their normal tutorial/unlocks. Use `new-guest.json` to
 reach the guest warning/tutorial. An existing progressed account can run the
 login-to-lobby and Portal smoke scenarios.
@@ -128,6 +133,77 @@ so `key 1` during combat followed by `battle-keyboard-live` shows whether a
 real key press reached a skill. Keep profile names short: the account lock
 file path exceeds Windows MAX_PATH with long ones and login then fails with
 "This account is open in another window."
+
+## Test a UI change with prefab fixtures (no login)
+
+Most UI changes can be tested without an account, a seeded database or
+clicking through menus. A probe renders the one window you changed from its
+prefab on the Login screen, fills it with fixture data, calls the changed code
+directly and checks the result. One run takes seconds. Use this first. Then
+also check the change in the real flow when it depends on account state or
+real game data.
+
+**Write the probe** in the feature assembly, next to the feature: one
+`public static string Run(string mode)` entry point returning `PASS: ...` or
+throwing on the first failed check. `SprkTicketSearchProbe` is the reference:
+
+- `Show(name)` instantiates the window's `PrefabPath` under the `UIRoot`,
+  raises its panel depths above the Login screen and assigns atlases.
+- Fill the window with fixture data from the tables (for example every opened
+  hero from `CreatureDataContainer`), then call the feature's hooks the way the
+  game would (`AfterPartyGrid(panel)`).
+- Assert with a `Check(condition, message)` helper. Put the measured geometry
+  into failure messages and into the `PASS` text, so one run shows what the
+  layout actually is.
+- Add a `...-show:<Window>` mode that leaves the window open in an interesting
+  state, for a screenshot.
+
+**Dispatch it** from `SprkAutomation.Update` like `ticket-search-probe`: require
+the Login scene and a dedicated profile prefix (`ticket-search-*`), load the
+assembly by name and invoke `Run` with `command.text`.
+
+**Run it:**
+
+1. Close the game. If the user's local server is running, its battle worker
+   holds the real game's `Managed` DLLs open (its data folder is a junction to
+   `../sprk-client`). That blocks `install`, not the test copy.
+2. Build into the test copy without starting it:
+   `python -c "import sys; sys.path.insert(0,'.'); from client import dev; dev.prepare_test_copy(dev.GAME, code=True)"`.
+   `client/dev.py build` and `install` share `artifacts/client-build`; if
+   another `dev.py` process is running, wait for it instead of retrying.
+3. Launch: `python client/scripts/automation/client_automation.py launch --client ../sprk-client-test --profile ticket-search-x`.
+   That starts an isolated server and database and needs ports 8080/9001 free.
+   If the user's server is running, add `--external-server`; a Login-screen
+   probe sends nothing to it.
+4. Wait for `scene == "Login"` in a `snapshot`, then send the probe through the
+   Python API:
+   `client_automation.request(client_automation.session(None), "ticket-search-probe", text="party-hero-test:RaidPartySetting")`.
+   The result is in `materials`.
+5. Take a `screenshot` after a `...-show:` mode. For a control that opens
+   something (a dropdown, a popup), use the bridge's `click` on its hierarchy
+   path from a `snapshot`; that runs the real open path.
+6. Clean up: `quit`, then `stop-server`. `quit` alone leaves the isolated
+   server holding port 8080.
+
+**Lessons from earlier probes:**
+
+- The fixture account is partial (`EnsureAccount`): there is no `UserManager`,
+  for example. When a native builder needs it, build the fixture items the same
+  way without the missing part instead of calling the builder.
+- A window shown outside `BaseWindow.Open` can stay at its fade-in start
+  (alpha 0) and capture as an empty screen; set its panels' `alpha = 1` in the
+  show mode. Opening a popup from inside the probe is unreliable (selecting an
+  item closes it); click it through the bridge instead.
+- NGUI anchors can rewrite positions and clip regions later; raid hero lists
+  re-anchor every frame. After changing a rect, call `ResetAndUpdateAnchors()`
+  in the probe and check the change survives. For anchored rects, change the
+  anchor offset (`topAnchor.absolute`), not the size.
+- To compare spacing with a user's screenshot, measure pixel rows of edges in
+  both PNGs (Pillow: brightness steps down one column). This UI is about
+  1.7 NGUI units per pixel at 1280x720.
+- Run every related probe after a change, including older ones for the same
+  feature (`hero-info-test` alongside `party-hero-test:*`), to catch regressions
+  in shared code.
 
 ## Validation and restoration
 
@@ -220,3 +296,13 @@ material-ticket prefill, and both package description paths at the 1,000-open
 cap, including preserved special package limits. It uses fixture counts and
 restores modified table values; it does not consume account items. The server
 inventory regression tests separately verify redemption and rejected batches.
+
+The same command covers the hero class filter and search rows.
+`text="hero-info-test"` checks Hero Info. `text="party-hero-test:<Window>"`
+checks a party window's hero list: `BattlePartySetting`, `RaidPartySetting`,
+`RaidSinglePartySetting`, `MultiPartySetting`, `AttributeRaidPartySetting`,
+`OrdealArenaBattlePartySetting` or `ShakmehPartySetting`. It covers filtering,
+clear, rebuild, reopen, row layout and spacing, short labels in narrow lists,
+the trim surviving anchor updates and scrolling, and the class list staying on
+screen. `party-hero-show:<Window>` runs the same checks and leaves the window
+open with a class and search applied, for a screenshot.

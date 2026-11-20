@@ -181,6 +181,12 @@ public sealed class SprkAutomation : MonoBehaviour
 			instance = obj.AddComponent<SprkAutomation>();
 			instance.root = environmentVariable;
 			Application.runInBackground = true;
+			// Test clients run next to the user's work: keep them silent unless a test needs sound.
+			// Only the listener volume changes; saved sound settings are untouched.
+			if (Environment.GetEnvironmentVariable("SPRK_AUTOMATION_SOUND") != "1")
+			{
+				AudioListener.volume = 0f;
+			}
 			Application.logMessageReceived += instance.Log;
 			File.WriteAllText(Path.Combine(environmentVariable, "ready.json"), "{\"pid\":" + Process.GetCurrentProcess().Id + "}");
 		}
