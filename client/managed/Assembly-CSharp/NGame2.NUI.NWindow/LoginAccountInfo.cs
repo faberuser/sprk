@@ -158,7 +158,9 @@ public class LoginAccountInfo : BaseWindow
 			}
 		}
 		UIHelper.EnableGameObject(PatchNoteButtonRoot, enable);
-		UIHelper.EnableGameObject(GameIntroduceButtonRoot, SystemOptionData.ShowTitleGameIntroduce);
+		// SPRK: shown from the first start. The game showed it only after a completed asset
+		// download, but the introduction is built-in content (it also plays during downloads).
+		UIHelper.EnableGameObject(GameIntroduceButtonRoot, enable: true);
 		UIHelper.EnableGameObject(PatchValidationRoot, EnablePatchValidtionCheck());
 		bool enable2 = !String_Extension_Method.IsNullOrEmpty(CallManager.MarketURLPTS);
 		UIHelper.EnableGameObject(EntrancePTSRoot, enable2);
