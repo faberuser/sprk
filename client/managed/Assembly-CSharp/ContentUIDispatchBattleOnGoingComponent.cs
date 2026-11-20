@@ -67,6 +67,15 @@ public class ContentUIDispatchBattleOnGoingComponent : LinkFactoryComponent, NVe
 		case DispatchState.Simulation:
 			switch (DispatchHelper.GetDispatchType(_info))
 			{
+			case DispatchType.None:
+			{
+				PunishmentGroupData punishmentGroupData = SprkKarmaRaid.GroupForDispatch(_info);
+				if (punishmentGroupData != null)
+				{
+					SprkKarmaRaid.OpenDispatch(punishmentGroupData, _info.DeckIndex);
+				}
+				break;
+			}
 			case DispatchType.Chapter:
 				ContentUIDispatchBattle.OpenGlobalChapter(DungeonHelper.GetEnterDungeonData(_info.ChapterIndex, _info.DungeonIndex), _info.DeckIndex);
 				break;
