@@ -134,9 +134,12 @@ this repository. The Unity player, assets and tables are never source.
   them). Do not use `unmanaged_files.txt` for this: the files stay managed,
   now supplied by the baseline.
 - Game assets (asset bundles, PlainAsset, ...) reach players through the game's own
-  patch downloader, not releases: publish them with `publish_assets.py` and upload
-  them with `sync_assets.py` ([guide](docs/game-assets.md)). Releases (SprkLauncher,
-  Android bootstrap) carry code, tables and overrides only.
+  patch downloader, not releases ([guide](docs/game-assets.md)). An asset in
+  `client/overrides/files/` ships with the merge: the release's asset overlay
+  (Windows files plus Android conversions) becomes new asset versions when the
+  update service starts. Other asset changes are published with `publish_assets.py`
+  and uploaded with `sync_assets.py`. Releases (SprkLauncher, Android bootstrap)
+  carry code, tables and overrides only.
 - `client/scripts/release/unmanaged_files.txt` keeps files out of releases
   without deleting players' copies. Add entries only when the user asks and the
   conditions in that file are met (including the native battle tests). Never

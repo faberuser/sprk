@@ -28,6 +28,7 @@ python client/scripts/release/build_client_release.py --help        # complete s
 python client/scripts/release/publish_client_update.py --help       # local release from the installed client
 python client/scripts/release/publish_assets.py --help              # publish game assets for the patch downloader
 python client/scripts/release/sync_assets.py --help                 # upload the asset store to the host
+# asset_overlay.py (no CLI): the release's signed asset overlay, built by build_client_release.py
 python client/scripts/automation/client_automation.py --help        # real-client tests
 python server/scripts/worker/linux_worker.py --help
 python server/gm.py --help

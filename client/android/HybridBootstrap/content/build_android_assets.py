@@ -90,7 +90,7 @@ def main() -> None:
     ap.add_argument("--windows", type=Path, default=WINDOWS_PATCH, help="Windows patch folder")
     ap.add_argument("--original", type=Path, default=WORKSPACE / "sprk-apk" / "Assetbundle", help="original Android bundles")
     ap.add_argument("--out", type=Path, default=WORKSPACE / "sprk-android", help="Android asset set (patch-folder layout)")
-    ap.add_argument("--shader-map", type=Path, default=REPO / "artifacts/android-bootstrap/content/shader-map.json")
+    ap.add_argument("--shader-map", type=Path, default=HERE / "shader-map.json")
     ap.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) - 2))
     ap.add_argument("--only", help="limit to bundle paths starting with this (testing)")
     args = ap.parse_args()
@@ -98,7 +98,7 @@ def main() -> None:
     win_bundles = args.windows / "Assetbundle"
     out_bundles = args.out / "Assetbundle"
     if not args.shader_map.exists():
-        raise SystemExit(f"{args.shader_map} is missing: run `python client/android/dev.py content` first")
+        raise SystemExit(f"{args.shader_map} is missing: run `python client/android/dev.py content`")
     shader_map = json.loads(args.shader_map.read_text(encoding="utf-8"))
     shader_key = hashlib.sha256(json.dumps(shader_map, sort_keys=True).encode()).hexdigest()[:16]
     state_path = args.out / ".sprk-android.json"

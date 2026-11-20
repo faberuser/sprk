@@ -110,7 +110,7 @@ builds `../sprk-android` from it (`content/build_android_assets.py`):
   the game loads (`Unity_2018/Shader.unity3d`) is the original Android one.
 
 Run `assets` again after changing Windows assets; only changed bundles are converted again
-(state in `../sprk-android/.sprk-android.json`). It needs `shader-map.json` from `content`.
+(state in `../sprk-android/.sprk-android.json`). It needs `content/shader-map.json` (tracked; `content` rewrites it, and CI uses it to convert edited bundles).
 `push_patch.sh` pushes `../sprk-android` once it exists.
 
 Published for the game's patch downloader as the `Android` asset set (see

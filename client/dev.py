@@ -39,7 +39,7 @@ SIGNING_KEY = UPDATES / "update-signing/private.pem"
 ASSETS = UPDATES / "assets"
 ANDROID_GAME = REPO.parent / "sprk-android"
 ANDROID_ORIGINALS = REPO.parent / "sprk-apk" / "Assetbundle"
-SHADER_MAP = REPO / "artifacts/android-bootstrap/content/shader-map.json"
+SHADER_MAP = REPO / "client/android/HybridBootstrap/content/shader-map.json"
 LOCAL_HOST = "http://127.0.0.1:8080/host.json"
 LOCAL_MANIFEST = "http://127.0.0.1:8081/updates/stable/manifest.json"
 
@@ -149,8 +149,9 @@ def publish_asset_versions(game: Path) -> None:
         if result["version"] is not None:
             published.append(f"Android {result['version']}")
     if published:
-        print(f"Published asset versions: {', '.join(published)}. Players get them after you upload\n"
-              f"client-updates/assets to the host (docs/game-assets.md, Publish).")
+        print(f"Published local asset versions: {', '.join(published)} (the local server serves them).\n"
+              "Changes from client/overrides/files reach players with the merge (the release's asset overlay);\n"
+              "upload client-updates/assets only for other asset changes (docs/game-assets.md).")
 
 
 def main():

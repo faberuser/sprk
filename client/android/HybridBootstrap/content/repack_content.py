@@ -618,8 +618,12 @@ def main():
     android_bundles = Path(args.android_shaders).parent.parent
     rp.shader_pids = build_shader_bundle(Path(args.android_shaders), Path(args.android_data), needed | set(EMBEDDED_BUILTIN),
                                          out / "sprk-shaders.unity3d", [android_bundles / f for f in EMBEDDED_BUILTIN.values()])
-    # Shader name -> path ID in sprk-shaders.unity3d, for convert_bundles.py.
-    (out / "shader-map.json").write_text(json.dumps(rp.shader_pids, indent=0, sort_keys=True), encoding="utf-8")
+    # Shader name -> path ID in sprk-shaders.unity3d, for convert_bundles.py. The tracked
+    # copy next to this script lets CI convert bundles (asset_overlay.py); commit it
+    # when it changes, together with an APK that carries the new sprk-shaders.unity3d.
+    shader_map = json.dumps(rp.shader_pids, indent=0, sort_keys=True)
+    (out / "shader-map.json").write_text(shader_map, encoding="utf-8")
+    (Path(__file__).resolve().parent / "shader-map.json").write_text(shader_map, encoding="utf-8")
     for n in names:
         rp.convert(n)
     if rp.stats:

@@ -40,7 +40,10 @@ building and validating the server image and calling Portainer.
 4. It generates a complete signed snapshot, using the previous GitHub client
    release's verified manifest for deletion history. On the first build, the
    baseline distribution supplies that history.
-5. It publishes both `client-update-manifest.json` and `client-update.tar.gz` as
+5. It builds the signed asset overlay (the release's game assets, and its bundles
+   converted for Android; see [Game assets](game-assets.md#edited-assets-reach-players-through-ci)),
+   then publishes `client-update-manifest.json`, `client-update.tar.gz`,
+   `client-asset-overlay.json` and `client-asset-overlay.tar.gz` as
    `client-ci-<commit-prefix>-<run-id>-<attempt>`. Assets go to a draft before
    publishing. Existing releases are never replaced.
 6. Ubuntu assembles the [Linux battle worker](linux-battle-worker.md) from the
@@ -52,7 +55,9 @@ building and validating the server image and calling Portainer.
    GHCR and calling Portainer.
 7. At startup, the update container downloads that exact release, verifies its
    signature and every file hash, installs it, atomically replaces the stable
-   manifest last, removes older local releases, and only then starts serving requests.
+   manifest last, applies its asset overlay to the asset store, removes older local
+   releases, and only then starts serving requests. An overlay failure is logged and
+   keeps the active asset versions.
 
 Running servers never poll or follow GitHub's moving latest release. An old
 image retains its old client tag. A cached release is verified and reused without

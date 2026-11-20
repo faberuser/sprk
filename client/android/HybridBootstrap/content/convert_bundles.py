@@ -19,7 +19,7 @@ objects are reused unchanged except for what is platform-specific:
   removed.
 
 usage: python client/android/HybridBootstrap/content/convert_bundles.py <windows.unity3d> <android.unity3d>
-       [--shader-map artifacts/android-bootstrap/content/shader-map.json]
+       [--shader-map client/android/HybridBootstrap/content/shader-map.json]
 """
 from __future__ import annotations
 
@@ -191,7 +191,7 @@ def main() -> None:
     ap.add_argument("source", type=Path)
     ap.add_argument("out", type=Path)
     ap.add_argument("--shader-map", type=Path,
-                    default=here.parents[4] / "artifacts/android-bootstrap/content/shader-map.json")
+                    default=here.parent / "shader-map.json")
     args = ap.parse_args()
     shader_map = json.loads(args.shader_map.read_text(encoding="utf-8")) if args.shader_map.exists() else {}
     data, stats = convert(args.source.read_bytes(), shader_map)

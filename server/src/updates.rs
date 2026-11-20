@@ -28,6 +28,7 @@ pub async fn routes_from_env() -> anyhow::Result<Router> {
 }
 
 mod github;
+mod overlay;
 
 pub async fn routes(root: &FsPath) -> anyhow::Result<Router> {
     use anyhow::Context;

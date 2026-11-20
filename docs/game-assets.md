@@ -66,6 +66,29 @@ and the two newest others, then deletes objects that no kept version uses. Objec
 changed in the last 24 hours are never deleted, and cleanup is skipped while
 `.sync-lock` or a `.publish-lock` exists or when any version cannot be read.
 
+## Edited assets reach players through CI
+
+An asset changed in the repository (a file in `client/overrides/files/`, such as an
+edited bundle) needs no upload. Each client release CI builds carries a signed asset
+overlay (`client-asset-overlay.json` and `.tar.gz`, from
+`client/scripts/release/asset_overlay.py`): the release's patch-folder assets for
+Windows, and those bundles converted for Android (with the tracked
+`client/android/HybridBootstrap/content/shader-map.json`).
+
+When the update service starts with its pinned release, it compares the overlay with
+each platform's active version. Files that differ are written as the next version (the
+active one with those files replaced, download categories kept), then `current.txt`
+switches; players get them at their next login. An Android file is applied only when
+its Windows source changed, so the conversions published from `../sprk-android` are
+never replaced by equivalent ones. Applying the same overlay again changes nothing.
+A failure (no GitHub access, `.sync-lock` present, a corrupt download) is logged and
+leaves the active versions; the next start retries. Redeploying an older image applies
+its overlay, which restores its files as a new version.
+
+The overlay builds on the store on the host: upload the store once (below), and again
+only for changes that do not come from the repository (a new baseline client, bulk
+changes to original bundles).
+
 ## Publish
 
 Windows assets come from the installed client, Android assets from `../sprk-android`

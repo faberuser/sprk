@@ -95,8 +95,10 @@ release matches your game. Without the project's signing key the release is
 unsigned; the command explains the one-time launcher setting this needs.
 
 When an override changed the game's assets (an asset bundle), `install` also publishes
-new Windows and Android asset versions into `client-updates/assets`; upload them to the
-host as described in [Game assets](../docs/game-assets.md#publish). `--no-assets` skips this.
+new Windows and Android asset versions into `client-updates/assets`, so the local server
+serves them. `--no-assets` skips this. Players get the same change after the merge, with
+no upload: the update service applies the release's asset overlay
+([Game assets](../docs/game-assets.md#edited-assets-reach-players-through-ci)).
 
 Close the local server before `install`: its battle worker runs the real game and keeps
 the DLLs open, and the copy then fails with `[Errno 22] Invalid argument`.

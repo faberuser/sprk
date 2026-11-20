@@ -16,7 +16,7 @@ use tokio::io::AsyncWriteExt;
 
 const MANIFEST_ASSET: &str = "client-update-manifest.json";
 const ARCHIVE_ASSET: &str = "client-update.tar.gz";
-const JSON_LIMIT: u64 = 4 * 1024 * 1024;
+pub(super) const JSON_LIMIT: u64 = 4 * 1024 * 1024;
 /// Release manifests could list game assets (~33,000 files); earlier local ones did.
 const MANIFEST_LIMIT: u64 = 64 * 1024 * 1024;
 /// Asset entries point at the shared object store instead of the release.
@@ -26,7 +26,7 @@ const KEPT_ASSET_VERSIONS: usize = 2;
 /// Objects changed this recently are never pruned: an upload or publish may
 /// still be adding the version that references them.
 const OBJECT_GRACE: Duration = Duration::from_secs(24 * 60 * 60);
-const ARCHIVE_LIMIT: u64 = 2 * 1024 * 1024 * 1024;
+pub(super) const ARCHIVE_LIMIT: u64 = 2 * 1024 * 1024 * 1024;
 
 pub(super) struct Config {
     repo: String,
@@ -77,19 +77,19 @@ impl Config {
 }
 
 #[derive(Deserialize)]
-struct Release {
+pub(super) struct Release {
     tag_name: String,
     draft: bool,
     prerelease: bool,
-    assets: Vec<Asset>,
+    pub(super) assets: Vec<Asset>,
 }
 
 #[derive(Deserialize)]
-struct Asset {
+pub(super) struct Asset {
     id: u64,
-    name: String,
+    pub(super) name: String,
     browser_download_url: String,
-    size: u64,
+    pub(super) size: u64,
     state: String,
 }
 
@@ -134,7 +134,9 @@ fn openssl() -> PathBuf {
     }
 }
 
-fn verify_manifest(raw: &[u8], public_key: &str, scratch: &Path) -> Result<Manifest> {
+/// The signed payload of a release manifest or asset overlay, after checking its
+/// RSA-SHA256 signature and that the readable fields equal the payload.
+pub(super) fn verify_signed(raw: &[u8], public_key: &str, scratch: &Path) -> Result<serde_json::Value> {
     let outer: serde_json::Value = serde_json::from_slice(raw)?;
     let signature = &outer["signature"];
     ensure!(
@@ -177,7 +179,11 @@ fn verify_manifest(raw: &[u8], public_key: &str, scratch: &Path) -> Result<Manif
         signed == convenience,
         "Manifest fields differ from the signed payload"
     );
-    let manifest: Manifest = serde_json::from_value(signed)?;
+    Ok(signed)
+}
+
+fn verify_manifest(raw: &[u8], public_key: &str, scratch: &Path) -> Result<Manifest> {
+    let manifest: Manifest = serde_json::from_value(verify_signed(raw, public_key, scratch)?)?;
     ensure!(
         manifest.schema_version == 1 && manifest.channel == "stable",
         "Expected schema 1 stable manifest"
@@ -228,7 +234,7 @@ fn verify_manifest(raw: &[u8], public_key: &str, scratch: &Path) -> Result<Manif
 /// Pause before each further round over an asset's routes. GitHub's
 /// `releases/download` route has returned 504 for hours while the REST asset
 /// route still served the same bytes.
-const RETRY_DELAYS: [Duration; 4] = [
+pub(super) const RETRY_DELAYS: [Duration; 4] = [
     Duration::from_secs(2),
     Duration::from_secs(5),
     Duration::from_secs(15),
@@ -236,12 +242,12 @@ const RETRY_DELAYS: [Duration; 4] = [
 ];
 
 /// A download route: URL and optional `Accept` header.
-type Route = (String, Option<&'static str>);
+pub(super) type Route = (String, Option<&'static str>);
 
 /// The asset's browser URL, then the same asset through the REST API. Both are
 /// verified against the signed manifest afterwards, so the route cannot admit
 /// other content.
-fn routes(asset: &Asset, repo: &str) -> Vec<Route> {
+pub(super) fn routes(asset: &Asset, repo: &str) -> Vec<Route> {
     vec![
         (asset.browser_download_url.clone(), None),
         (
@@ -260,7 +266,7 @@ fn transient(error: &anyhow::Error) -> bool {
 }
 
 /// Try every route each round; retry rounds only while some failure was transient.
-async fn fetch(
+pub(super) async fn fetch(
     client: &reqwest::Client,
     routes: &[Route],
     path: &Path,
@@ -313,7 +319,7 @@ async fn download(client: &reqwest::Client, url: &str, accept: Option<&str>, pat
     Ok(())
 }
 
-fn asset<'a>(release: &'a Release, name: &str, repo: &str, tag: &str) -> Result<&'a Asset> {
+pub(super) fn asset<'a>(release: &'a Release, name: &str, repo: &str, tag: &str) -> Result<&'a Asset> {
     let found: Vec<_> = release
         .assets
         .iter()
@@ -376,35 +382,18 @@ pub(super) async fn sync(root: PathBuf, config: Config) -> Result<()> {
         verify_files(&cached, &manifest)?;
         verify_assets(&root, &manifest)?;
         promote(&root, &work, &raw)?;
-        cleanup_after_activation(&root, &manifest.version, &config.public_key, &work);
         tracing::info!(version = %manifest.version, "Verified cached pinned client release; no download needed");
+        // The overlay needs GitHub; the cached release keeps serving without it.
+        let client = http_client()?;
+        match release_info(&client, &config, &work).await {
+            Ok(release) => apply_overlay(&root, &config, &manifest, &work, &client, &release).await,
+            Err(error) => tracing::warn!(error = %format!("{error:#}"), "Asset overlay not checked; GitHub unavailable"),
+        }
+        cleanup_after_activation(&root, &manifest.version, &config.public_key, &work);
         return Ok(());
     }
-    let client = reqwest::Client::builder()
-        .user_agent("sprk-client-update-sync")
-        .https_only(true)
-        .connect_timeout(Duration::from_secs(15))
-        .timeout(Duration::from_secs(900))
-        .build()?;
-    fetch(
-        &client,
-        &[(
-            format!(
-                "https://api.github.com/repos/{}/releases/tags/{}",
-                config.repo, config.tag
-            ),
-            None,
-        )],
-        &work.join("github.json"),
-        JSON_LIMIT,
-        &RETRY_DELAYS,
-    )
-    .await?;
-    let release: Release = serde_json::from_slice(&fs::read(work.join("github.json"))?)?;
-    ensure!(
-        !release.draft && !release.prerelease && release.tag_name == config.tag,
-        "Expected published stable GitHub release"
-    );
+    let client = http_client()?;
+    let release = release_info(&client, &config, &work).await?;
     let manifest_asset = asset(&release, MANIFEST_ASSET, &config.repo, &config.tag)?;
     let archive_asset = asset(&release, ARCHIVE_ASSET, &config.repo, &config.tag)?;
     fetch(
@@ -457,9 +446,75 @@ pub(super) async fn sync(root: PathBuf, config: Config) -> Result<()> {
     }
     verify_assets(&root, &manifest)?;
     promote(&root, &work, &raw)?;
+    apply_overlay(&root, &config, &manifest, &work, &client, &release).await;
     cleanup_after_activation(&root, &manifest.version, &config.public_key, &work);
     tracing::info!(version = %manifest.version, "Pinned client release verified and ready; starting update service");
     Ok(())
+}
+
+fn http_client() -> Result<reqwest::Client> {
+    Ok(reqwest::Client::builder()
+        .user_agent("sprk-client-update-sync")
+        .https_only(true)
+        .connect_timeout(Duration::from_secs(15))
+        .timeout(Duration::from_secs(900))
+        .build()?)
+}
+
+async fn release_info(client: &reqwest::Client, config: &Config, work: &Path) -> Result<Release> {
+    fetch(
+        client,
+        &[(
+            format!(
+                "https://api.github.com/repos/{}/releases/tags/{}",
+                config.repo, config.tag
+            ),
+            None,
+        )],
+        &work.join("github.json"),
+        JSON_LIMIT,
+        &RETRY_DELAYS,
+    )
+    .await?;
+    let release: Release = serde_json::from_slice(&fs::read(work.join("github.json"))?)?;
+    ensure!(
+        !release.draft && !release.prerelease && release.tag_name == config.tag,
+        "Expected published stable GitHub release"
+    );
+    Ok(release)
+}
+
+/// New asset versions for the assets the release changed (overlay.rs). A failure
+/// keeps the active asset versions and never stops the update service.
+async fn apply_overlay(
+    root: &Path,
+    config: &Config,
+    manifest: &Manifest,
+    work: &Path,
+    client: &reqwest::Client,
+    release: &Release,
+) {
+    let files: HashMap<String, (u64, String)> = manifest
+        .files
+        .iter()
+        .filter(|f| !f.is_asset())
+        .map(|f| (f.path.clone(), (f.size, f.sha256.clone())))
+        .collect();
+    let result = super::overlay::sync(
+        root,
+        client,
+        release,
+        &config.repo,
+        &config.tag,
+        &config.public_key,
+        &manifest.version,
+        &files,
+        work,
+    )
+    .await;
+    if let Err(error) = result {
+        tracing::warn!(error = %format!("{error:#}"), "Asset overlay not applied; active asset versions unchanged");
+    }
 }
 
 fn cleanup_after_activation(root: &Path, active: &str, public_key: &str, scratch: &Path) {
