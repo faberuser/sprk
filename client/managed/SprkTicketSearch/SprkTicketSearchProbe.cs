@@ -942,6 +942,25 @@ public static class SprkTicketSearchProbe
 		float scrolledTop = NGUIMath.CalculateRelativeWidgetBounds(frame, grid.Grid.transform).max.y;
 		Check(scrolledTop <= PanelRect(clipPanel, frame).yMax + 1f, "after scrolling back up the first row starts below the filter row (" + scrolledTop.ToString("0") + " vs clip top " + PanelRect(clipPanel, frame).yMax.ToString("0") + "); " + geometry);
 		grid.ScrollView.ResetPosition();
+		UIPopupRoot popup = state.classes.RootWindow;
+		popup.ShowPopup();
+		Camera camera = NGUITools.FindCameraForLayer(state.classes.gameObject.layer);
+		Transform comboSpace = state.classes.transform;
+		Bounds listBounds = NGUIMath.CalculateRelativeWidgetBounds(comboSpace, popup.RootWidget.transform, considerInactive: true);
+		UISprite comboFace = (from s in state.classes.GetComponentsInChildren<UISprite>(includeInactive: true)
+			where s.GetComponentInParent<UIPopupRoot>() == null
+			orderby s.width descending
+			select s).First();
+		Bounds faceBounds = NGUIMath.CalculateRelativeWidgetBounds(comboSpace, comboFace.transform, considerInactive: true);
+		float listBottom = camera.WorldToViewportPoint(comboSpace.TransformPoint(new Vector3(0f, listBounds.min.y, 0f))).y;
+		float listTop = camera.WorldToViewportPoint(comboSpace.TransformPoint(new Vector3(0f, listBounds.max.y, 0f))).y;
+		bool opensUp = listBounds.min.y >= faceBounds.center.y;
+		geometry = geometry + " list " + (opensUp ? "up" : "down") + " viewport " + listBottom.ToString("0.00") + ".." + listTop.ToString("0.00");
+		Check(listBottom >= -0.01f && listTop <= 1.01f, "class list stays on screen; " + geometry);
+		if (!keep)
+		{
+			popup.HidePopup(immediate: true);
+		}
 		int tag = (int)list[0].TagType;
 		int tagCount = list.Count((CreatureData h) => h.TagType == (CreatureTagType)tag);
 		state.classes.SelectItem(tag);
@@ -971,6 +990,10 @@ public static class SprkTicketSearchProbe
 			state.classes.SelectItem(tag);
 			box.input.value = "a";
 			box.OnSubmitted();
+			if (!popup.IsShow)
+			{
+				popup.ShowPopup();
+			}
 		}
 		return "PASS: " + windowName + " class/name filter, zero results, clear, rebuild, reopen; heroes=" + heroes.Count + "; " + geometry;
 	}

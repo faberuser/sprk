@@ -1278,7 +1278,53 @@ public static class SprkTicketSearch
 		{
 			changed();
 		};
+		UIPopupRoot popup = uIComboBox.RootWindow;
+		if (popup != null && popup.RootWidget != null)
+		{
+			Vector3 home = popup.RootWidget.transform.localPosition;
+			EventDelegate.Add(popup.onShow, delegate
+			{
+				PlaceClassList(uIComboBox, home);
+			});
+		}
 		return uIComboBox;
+	}
+
+	// Opens the class list above its box when it would run past the bottom of the screen
+	// (raid rooms sit low) and there is more room above.
+	public static void PlaceClassList(UIComboBox combo, Vector3 home)
+	{
+		try
+		{
+			Transform list = combo.RootWindow.RootWidget.transform;
+			list.localPosition = home;
+			UISprite face = ComboFace(combo);
+			Camera camera = NGUITools.FindCameraForLayer(combo.gameObject.layer);
+			if (face == null || camera == null)
+			{
+				return;
+			}
+			Transform space = combo.transform;
+			Bounds items = NGUIMath.CalculateRelativeWidgetBounds(space, list, considerInactive: true);
+			Bounds box = NGUIMath.CalculateRelativeWidgetBounds(space, face.transform, considerInactive: true);
+			float below = camera.WorldToViewportPoint(space.TransformPoint(new Vector3(0f, items.min.y, 0f))).y;
+			if (below >= 0f)
+			{
+				return;
+			}
+			float gap = box.min.y - items.max.y;
+			float shift = box.max.y + gap - items.min.y;
+			float above = camera.WorldToViewportPoint(space.TransformPoint(new Vector3(0f, items.max.y + shift, 0f))).y;
+			if (above - 1f > -below)
+			{
+				return;
+			}
+			list.position += space.TransformVector(new Vector3(0f, shift, 0f));
+		}
+		catch (Exception exception)
+		{
+			Debug.LogException(exception);
+		}
 	}
 
 	public static void BeforeHeroGrid(HeroPortraitList window)
