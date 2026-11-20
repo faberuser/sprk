@@ -799,6 +799,12 @@ public static class SystemOptionData
 
 	private static void ApplyResoultionSetting()
 	{
+		// SPRK: phones have one screen size. Window and resolution presets (made for
+		// Windows) would stretch the picture, e.g. 1920x1080 on a 2340x1080 display.
+		if (Application.isMobilePlatform)
+		{
+			return;
+		}
 		if (!SprkGraphicsOptions.ApplyCustomResolution())
 		{
 			switch (Graphic_ResolutionControl)
@@ -821,6 +827,12 @@ public static class SystemOptionData
 
 	private static void ApplyWindowSetting()
 	{
+		// SPRK: phones have one screen size. Window and resolution presets (made for
+		// Windows) would stretch the picture, e.g. 1920x1080 on a 2340x1080 display.
+		if (Application.isMobilePlatform)
+		{
+			return;
+		}
 		if (Graphic_WindowControl)
 		{
 			_IsWindow.Value = false;
@@ -944,6 +956,12 @@ public static class SystemOptionData
 
 	public static void SyncWindowOptionFromSystem()
 	{
+		// SPRK: phones have one screen size. Window and resolution presets (made for
+		// Windows) would stretch the picture, e.g. 1920x1080 on a 2340x1080 display.
+		if (Application.isMobilePlatform)
+		{
+			return;
+		}
 		bool flag = !Screen.fullScreen;
 		if (_graphicWindowContorl.Value != flag)
 		{

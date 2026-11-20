@@ -1531,6 +1531,10 @@ public sealed class SprkGraphicsOptions : MonoBehaviour
 
 	public static bool ApplyCustomResolution()
 	{
+		if (Application.isMobilePlatform)
+		{
+			return true; // phones keep the display's size (SystemOptionData.ApplyWindowSetting)
+		}
 		if (Application.platform == RuntimePlatform.WindowsPlayer && !SystemOptionData.Graphic_WindowControl)
 		{
 			return true;
@@ -1649,7 +1653,10 @@ public sealed class SprkGraphicsOptions : MonoBehaviour
 	private static void PlaceBelowScreen(GameOptionWindow.TabUIInfo tab)
 	{
 		GameOptionBaseComponent[] componentsInChildren = tab.GameOptionGrid.GetComponentsInChildren<GameOptionBaseComponent>(includeInactive: true);
-		GameOptionBaseComponent gameOptionBaseComponent = componentsInChildren.FirstOrDefault((GameOptionBaseComponent r) => r.gameOptionData != null && r.gameOptionData.FieldName == "Graphic_WindowControl");
+		// Below Screen and Resolution; on Android those (and V-Sync) are hidden
+		// (GameOptionWindow.SprkHiddenOnMobile), so below Max Frame, where they were.
+		GameOptionBaseComponent gameOptionBaseComponent = componentsInChildren.FirstOrDefault((GameOptionBaseComponent r) => r.gameOptionData != null && r.gameOptionData.FieldName == "Graphic_WindowControl")
+			?? componentsInChildren.FirstOrDefault((GameOptionBaseComponent r) => r.gameOptionData != null && r.gameOptionData.FieldName == "Graphic_FrameControl");
 		GameOptionBaseComponent gameOptionBaseComponent2 = componentsInChildren.FirstOrDefault((GameOptionBaseComponent r) => r.gameOptionData != null && r.gameOptionData.OptionName == "OPTION_GAME_RESOULUTION");
 		GameOptionBaseComponent gameOptionBaseComponent3 = componentsInChildren.FirstOrDefault((GameOptionBaseComponent r) => r.name == "SPRK Anti-Aliasing");
 		GameOptionBaseComponent gameOptionBaseComponent4 = componentsInChildren.FirstOrDefault((GameOptionBaseComponent r) => r.name == "SPRK Render Scale");
