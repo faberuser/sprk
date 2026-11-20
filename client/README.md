@@ -52,6 +52,7 @@ One script covers the whole loop:
 ```powershell
 python client/dev.py test       # build, then start a separate test copy of the game
 python client/dev.py install    # build, put it into your real game, publish a local release
+                                #   and new asset versions when assets changed
 python client/dev.py build      # only compile, to check for errors
 python client/dev.py clean      # delete the test copy
 ```
@@ -92,6 +93,10 @@ real game, because Unity keeps them per Windows user.
 SprkLauncher on the **Local** server finds nothing to replace, because the
 release matches your game. Without the project's signing key the release is
 unsigned; the command explains the one-time launcher setting this needs.
+
+When an override changed the game's assets (an asset bundle), `install` also publishes
+new Windows and Android asset versions into `client-updates/assets`; upload them to the
+host as described in [Game assets](../docs/game-assets.md#publish). `--no-assets` skips this.
 
 Close the local server before `install`: its battle worker runs the real game and keeps
 the DLLs open, and the copy then fails with `[Errno 22] Invalid argument`.

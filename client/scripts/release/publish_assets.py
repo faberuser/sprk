@@ -107,6 +107,40 @@ def hash_file(path: Path) -> dict:
     return {"md5": md5.hexdigest(), "sha256": sha256.hexdigest(), "crc": crc & 0xFFFFFFFF, "length": length}
 
 
+def hash_files(client: Path, names: list[str], cache_path: Path | None, workers: int) -> list[dict]:
+    """hash_file for each name, reusing results for files whose size and mtime are unchanged.
+
+    The cache only saves rereading 19 GB; a new object is still verified against its
+    SHA-256 when it is copied into the store.
+    """
+    cache = {}
+    if cache_path is not None and cache_path.is_file():
+        try:
+            data = json.loads(cache_path.read_text(encoding="utf-8"))
+            cache = data["files"] if data.get("client") == str(client) else {}
+        except (ValueError, KeyError, TypeError):
+            cache = {}
+
+    def one(name: str) -> tuple[list, dict]:
+        stat = (client / name).stat()
+        key = [stat.st_size, stat.st_mtime_ns]
+        cached = cache.get(name)
+        if cached and cached[:2] == key:
+            return key, {"md5": cached[2], "sha256": cached[3], "crc": cached[4], "length": key[0]}
+        return key, hash_file(client / name)
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        results = list(pool.map(one, names))
+    if cache_path is not None:
+        files = {name: key + [info["md5"], info["sha256"], info["crc"]] for name, (key, info) in zip(names, results)}
+        replace_file(cache_path, json.dumps({"client": str(client), "files": files}).encode("utf-8"))
+    return [info for _, info in results]
+
+
+def without_version(archives: list[dict]) -> list[dict]:
+    return [{k: v for k, v in archive.items() if k != "SrcVersion"} for archive in archives]
+
+
 def store_object(source: Path, objects: Path, sha256: str) -> bool:
     """Copy source into the object store under its hash. Returns True if added."""
     target = objects / sha256
@@ -184,8 +218,12 @@ def publish(
     activate: bool = True,
     metadata_path: Path | None = None,
     workers: int = 4,
+    if_changed: bool = False,
+    hash_cache: bool = True,
     log=print,
 ) -> dict:
+    """Publish the next version. With if_changed, publish nothing (returns version None)
+    when the files and the patch list equal the active version's."""
     if not PLATFORM.fullmatch(platform) or platform == "objects":
         raise ValueError(f"Invalid platform: {platform}")
     client = client.resolve(strict=True)
@@ -208,12 +246,10 @@ def publish(
             raise ValueError("No files selected")
         metadata = original_metadata(metadata_path or client / patch_prefix / "patch.json")
         log(f"Hashing {len(names)} files")
-        with ThreadPoolExecutor(max_workers=workers) as pool:
-            hashes = list(pool.map(lambda n: hash_file(client / n), names))
-        archives, index, files, added, total = [], {}, [], 0, 0
+        # Local tool state, like .publish-lock: never synced, ignored by the server.
+        hashes = hash_files(client, names, platform_dir / ".hash-cache.json" if hash_cache else None, workers)
+        archives, index, files, total = [], {}, [], 0
         for name, info in zip(names, hashes):
-            if store_object(client / name, objects, info["sha256"]):
-                added += 1
             total += info["length"]
             files.append({"path": name, "size": info["length"], "sha256": info["sha256"]})
             if not name.startswith(patch_prefix):
@@ -230,6 +266,16 @@ def publish(
                 "AssetInfos": [{"EntryName": entry, **common}], **common,
             })
             index[entry] = info["sha256"]
+        current_path = platform_dir / "current.txt"
+        current = current_path.read_text(encoding="ascii").strip() if current_path.is_file() else ""
+        if if_changed and current.isdigit() and (platform_dir / "versions" / current).is_dir():
+            active = platform_dir / "versions" / current
+            same_files = json.loads((active / "set.json").read_text(encoding="utf-8"))["files"] == files
+            if same_files and without_version(json.loads(
+                    (active / "patch.json").read_text(encoding="utf-8"))["Archives"]) == without_version(archives):
+                log(f"{platform} assets unchanged; version {current} stays active")
+                return {"version": None, "files": len(names), "bytes": total, "new_objects": 0}
+        added = sum(store_object(client / item["path"], objects, item["sha256"]) for item in files)
         asset_set = {"schema_version": 1, "platform": platform, "version": f"assets-{version}", "files": files}
         set_bytes = encode_set(asset_set)
 
@@ -265,6 +311,9 @@ def main() -> None:
                         help="Client-relative patch folder for the game's patch.json ('' = whole folder)")
     parser.add_argument("--version", type=int, help="Asset version (default: latest + 1)")
     parser.add_argument("--include", action="append", default=[], help="Only paths with this prefix (repeatable)")
+    parser.add_argument("--if-changed", action="store_true",
+                        help="Publish nothing when the files equal the active version's")
+    parser.add_argument("--rehash", action="store_true", help="Hash every file again instead of using the cache")
     parser.add_argument("--no-activate", action="store_true", help="Publish without switching current.txt")
     parser.add_argument("--metadata", type=Path,
                         help="Original patch list for download categories (default: the patch folder's patch.json); "
@@ -279,6 +328,8 @@ def main() -> None:
         includes=args.include,
         activate=not args.no_activate,
         metadata_path=args.metadata,
+        if_changed=args.if_changed,
+        hash_cache=not args.rehash,
     )
 
 

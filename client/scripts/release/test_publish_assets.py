@@ -109,6 +109,28 @@ class PublishAssetsTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.run_publish(version=2)
 
+    def test_if_changed_publishes_only_a_different_set(self):
+        self.run_publish()
+        self.assertIsNone(self.run_publish(if_changed=True)["version"])
+        self.assertFalse(self.version_dir(2).exists())
+        # A changed category alone is a change too.
+        (self.client / PATCH_PREFIX / "patch.json").write_text(json.dumps({"Archives": [{
+            "AssetInfos": [{"EntryName": "PlainAsset/text.txt", "Cat": "1", "Pri": "7", "Time": "99"}],
+        }]}))
+        self.assertEqual(self.run_publish(if_changed=True)["version"], 2)
+        (self.client / PATCH_PREFIX / "Assetbundle/Shared.unity3d").write_bytes(b"changed")
+        self.assertEqual(self.run_publish(if_changed=True)["version"], 3)
+
+    def test_hash_cache_rehashes_files_whose_size_or_time_changed(self):
+        self.run_publish()
+        cache = json.loads((self.store / "StandaloneWindows/.hash-cache.json").read_text(encoding="utf-8"))
+        self.assertIn(PATCH_PREFIX + "PlainAsset/text.txt", cache["files"])
+        path = self.client / PATCH_PREFIX / "PlainAsset/text.txt"
+        path.write_bytes(b"plain, changed")
+        self.run_publish()
+        item = next(f for f in self.set_files(2) if f["path"] == PATCH_PREFIX + "PlainAsset/text.txt")
+        self.assertEqual(item["sha256"], hashlib.sha256(b"plain, changed").hexdigest())
+
     def test_not_activated_keeps_the_current_version(self):
         self.run_publish(includes=[PATCH_PREFIX + "PlainAsset/"], activate=False)
         self.assertFalse((self.store / "StandaloneWindows/current.txt").exists())

@@ -5,7 +5,8 @@
     python client/dev.py test       build, install code and client/overrides/files into a separate
                                     test copy of the game, start it
     python client/dev.py install    build, install code and overrides into your real game,
-                                    publish a local release
+                                    publish a local release and, when the assets changed, new
+                                    Windows and Android asset versions (--no-assets to skip)
     python client/dev.py clean      delete the test copy
 
 `test` never touches your real game and always plays on the local server
@@ -35,6 +36,10 @@ WORK = REPO / "artifacts/client-build"
 OVERRIDES = REPO / "client/overrides/files"
 UPDATES = REPO / "client-updates"
 SIGNING_KEY = UPDATES / "update-signing/private.pem"
+ASSETS = UPDATES / "assets"
+ANDROID_GAME = REPO.parent / "sprk-android"
+ANDROID_ORIGINALS = REPO.parent / "sprk-apk" / "Assetbundle"
+SHADER_MAP = REPO / "artifacts/android-bootstrap/content/shader-map.json"
 LOCAL_HOST = "http://127.0.0.1:8080/host.json"
 LOCAL_MANIFEST = "http://127.0.0.1:8081/updates/stable/manifest.json"
 
@@ -119,7 +124,33 @@ def install_real(args) -> None:
     if key is None:
         print("This release is unsigned (no signing key). In SprkLauncher > Manage Servers, edit Local and untick\n"
               "'Use the launcher's default public key' once, or the launcher will refuse it.")
+    if not args.no_assets:
+        publish_asset_versions(args.game)
     print("Start the game with SprkLauncher on the Local server (start_server.bat running).")
+
+
+def publish_asset_versions(game: Path) -> None:
+    """New asset versions in client-updates/assets for whatever changed (docs/game-assets.md)."""
+    from client.scripts.release.publish_assets import PATCH_PREFIX, publish as publish_assets
+    published = []
+    result = publish_assets(game, ASSETS, "StandaloneWindows", if_changed=True)
+    if result["version"] is not None:
+        published.append(f"StandaloneWindows {result['version']}")
+    # Android: convert the changed Windows bundles into ../sprk-android, then publish it.
+    missing = [str(p) for p in (ANDROID_GAME, ANDROID_ORIGINALS, SHADER_MAP) if not p.exists()]
+    if missing:
+        print("Android assets not published; missing " + ", ".join(missing)
+              + " (python client/android/dev.py content, then assets, once).")
+    else:
+        subprocess.run([sys.executable, str(REPO / "client/android/HybridBootstrap/content/build_android_assets.py"),
+                        "--windows", str(game / PATCH_PREFIX)], check=True, cwd=REPO)
+        result = publish_assets(ANDROID_GAME, ASSETS, "Android", patch_prefix="",
+                                metadata_path=game / PATCH_PREFIX / "patch.json", if_changed=True)
+        if result["version"] is not None:
+            published.append(f"Android {result['version']}")
+    if published:
+        print(f"Published asset versions: {', '.join(published)}. Players get them after you upload\n"
+              f"client-updates/assets to the host (docs/game-assets.md, Publish).")
 
 
 def main():
@@ -129,7 +160,9 @@ def main():
     commands.add_parser("build", help="Compile the game code into artifacts/client-build")
     tester = commands.add_parser("test", help="Build and start a separate test copy of the game on the local server")
     tester.add_argument("--no-build", action="store_true", help="Start the test copy without rebuilding")
-    commands.add_parser("install", help="Build, install into your real game and publish a local release")
+    installer = commands.add_parser("install", help="Build, install into your real game, publish a local release "
+                                                    "and new asset versions")
+    installer.add_argument("--no-assets", action="store_true", help="Do not publish asset versions")
     commands.add_parser("clean", help="Delete the test copy")
     args = parser.parse_args()
     args.game = args.game.resolve()

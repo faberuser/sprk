@@ -82,7 +82,14 @@ leaves out what releases install (`TableData`, `TableJit`, `LocalizationJit`, `V
 `PatchInfo/`). Files a release also carries, such as an overridden bundle, stay in the
 list with the same content: the bundle loader only loads files its list names.
 Download categories come from the original patch list (`--metadata` for Android, whose
-bundles have the same names). Only changed files add objects.
+bundles have the same names). Only changed files add objects. `--if-changed` publishes
+nothing when the files equal the active version's. Hashes are cached by size and
+modification time (`<platform>/.hash-cache.json`, never uploaded; `--rehash` ignores it).
+
+`python client/dev.py install` does all of this after its local release: it publishes
+Windows, rebuilds `../sprk-android` and publishes Android, each only when something
+changed (`--no-assets` skips it). Android is skipped with a message until
+`client/android/dev.py content` and `assets` have run once.
 
 Upload to the host's update storage:
 
