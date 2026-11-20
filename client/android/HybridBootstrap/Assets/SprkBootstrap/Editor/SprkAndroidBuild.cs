@@ -215,12 +215,63 @@ public static class SprkAndroidBuild
         var index = aot.Select(n => "aot:" + n).Concat(HotNames().Select(n => "hot:" + n));
         string bundles = Path.Combine(ProjectDir, HotDir, "bundles.txt");
         if (File.Exists(bundles)) index = index.Concat(File.ReadAllLines(bundles).Where(l => l.Trim().Length > 0).Select(l => "bundle:" + l.Trim()));
+        // The repacked built-in content goes into the APK, so an installed APK starts the game
+        // on its own (a device-pushed copy still takes precedence; SprkBootstrap.LoadContent).
+        index = index.Concat(StageContent().Select(f => "content:" + f)).Concat(new[] { "start:Login" });
+        StageLoginAtlas();
         File.WriteAllLines(Path.Combine(ProjectDir, Streaming, "index.txt"), index);
         // Verifies servers' signed release manifests (SprkUpdater). Same key as SprkLauncher.
         File.Copy(Path.Combine(ProjectDir, "../../../config/client-update-public.pem"),
                   Path.Combine(ProjectDir, Streaming, "update-public.pem"), true);
         AssetDatabase.Refresh();
         Debug.Log($"[SprkAndroidBuild] staged {aot.Count} AOT metadata assemblies");
+    }
+
+    // Mount order: shaders before anything that references them, scenes last.
+    static readonly string[] ContentFiles = { "sprk-shaders.unity3d", "sprk-ggm.unity3d", "sprk-resources.unity3d", "sprk-scenes.unity3d" };
+
+    // content/repack_content.py output -> StreamingAssets/sprk/content (game data: the
+    // StreamingAssets folder is ignored by git). Unchanged files are not copied again.
+    static List<string> StageContent()
+    {
+        string src = Path.Combine(ArtifactsDir, "content");
+        string dst = Path.Combine(ProjectDir, Streaming, "content");
+        Directory.CreateDirectory(dst);
+        foreach (var f in ContentFiles)
+        {
+            var from = new FileInfo(Path.Combine(src, f));
+            if (!from.Exists) throw new Exception($"{from.FullName} missing; run client/android/dev.py content");
+            var to = new FileInfo(Path.Combine(dst, f));
+            if (!to.Exists || to.Length != from.Length || to.LastWriteTimeUtc != from.LastWriteTimeUtc)
+            {
+                from.CopyTo(to.FullName, true);
+                File.SetLastWriteTimeUtc(to.FullName, from.LastWriteTimeUtc);
+            }
+        }
+        foreach (var stale in Directory.GetFiles(dst).Where(p => !ContentFiles.Contains(Path.GetFileName(p)) && !p.EndsWith(".meta")))
+        {
+            File.Delete(stale);
+        }
+        return ContentFiles.ToList();
+    }
+
+    // The title logo's atlas (with the "X: The Final" subtitle) from the maintained Android
+    // asset set, so the title is complete before the first asset download
+    // (SprkLoginPresentation.RestoreLogoSubtitle falls back to this copy).
+    static void StageLoginAtlas()
+    {
+        const string name = "NguiAtlas_UI_Prefab_Login.unity3d";
+        foreach (var spec in new[] { "HighAndMidSpec", "LowLargeSpec" })
+        {
+            string src = Path.GetFullPath(Path.Combine(ProjectDir, "..", "..", "..", "..", "sprk-android", "Assetbundle", spec, name));
+            if (!File.Exists(src))
+            {
+                throw new Exception($"{src} missing; run client/android/dev.py assets");
+            }
+            string dst = Path.Combine(ProjectDir, Streaming, "login", spec, name);
+            Directory.CreateDirectory(Path.GetDirectoryName(dst));
+            File.Copy(src, dst, true);
+        }
     }
 
     static List<string> AOTGenericReferencesList()

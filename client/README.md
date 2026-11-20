@@ -352,7 +352,7 @@ In `android/HybridBootstrap/` (what `dev.py` runs):
 | `content/extract_apk_data.py`       | Original APK player data → `artifacts/android-bootstrap/apk-data`             |
 | `content/repack_content.py`         | Windows player data → Android content bundles and `resources-map.json`        |
 | `content/patch_player_resources.py` | Run by the build: the player's Resources and shader-name tables               |
-| `push_patch.sh`, `push_content.sh`  | Patch folder; content bundles and startup index                               |
+| `push_patch.sh`, `push_content.sh`  | Patch folder; dev startup index (the content bundles are in the APK)          |
 | `push_hot.sh`                       | Game DLLs as overrides                                                        |
 | `connect_local.sh`                  | `adb reverse` for 8080, 9001 and 9002                                         |
 | `run_probe.sh [--install]`          | Install, forward, launch, wait, print the probe log and errors, screenshot    |

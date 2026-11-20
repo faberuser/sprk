@@ -228,11 +228,16 @@ public class SprkBootstrap : MonoBehaviour
 
     IEnumerator LoadContent(List<string> files)
     {
-        string root = Path.Combine(Application.persistentDataPath, "sprk", "content");
+        // Built into the APK (StreamingAssets/sprk/content); a copy pushed to the device
+        // (persistentDataPath/sprk/content) takes precedence. AssetBundle.LoadFromFile reads
+        // bundles inside the APK directly (Unity stores them uncompressed).
+        string pushed = Path.Combine(Application.persistentDataPath, "sprk", "content");
+        string packaged = Path.Combine(Application.streamingAssetsPath, "sprk", "content");
         foreach (var f in files)
         {
             var t = Time.realtimeSinceStartup;
-            var req = AssetBundle.LoadFromFileAsync(Path.Combine(root, f));
+            string path = File.Exists(Path.Combine(pushed, f)) ? Path.Combine(pushed, f) : Path.Combine(packaged, f);
+            var req = AssetBundle.LoadFromFileAsync(path);
             yield return req;
             if (req.assetBundle == null) { Log($"content {f}: failed to load", true); continue; }
             contentBundles.Add(req.assetBundle);
@@ -253,7 +258,7 @@ public class SprkBootstrap : MonoBehaviour
                 keepAlive.AddRange(all.allAssets);
                 extra = $" shaders={all.allAssets.Length} unsupported={all.allAssets.Cast<Shader>().Count(s => !s.isSupported)}";
             }
-            Log($"content {f}: mounted in {(Time.realtimeSinceStartup - t):F2}s{extra}");
+            Log($"content {f}: mounted in {(Time.realtimeSinceStartup - t):F2}s{extra} ({(path.StartsWith(pushed) ? "device copy" : "APK")})");
         }
 
         if (!probes) yield break;
