@@ -28,6 +28,8 @@ Folders outside the repository:
 | --- | --- | --- |
 | `../sprk-client` | The user's installed game (Unity player + 19 GB of assets) | Change only when a task installs client changes; then publish a release (below) |
 | `../sprk-client-test` | Test copy made by `client/dev.py test` | Use for testing; delete only with `client/dev.py clean` |
+| `../sprk-apk` | Pinned original Android inputs: `kings-raid-4.88.8.apk` and `Assetbundle/` (original Android bundles) | Read only; game content, never commit |
+| `../sprk-android` | Maintained Android asset set (original bundles plus bundles converted from `../sprk-client`) | Rebuild with the converter; never edit by hand |
 | `client-updates/` | Local update releases and the signing key | Never edit releases or manifests by hand |
 | `target/`, `artifacts/` | Generated builds and test runs (ignored) | Safe to regenerate |
 

@@ -58,6 +58,13 @@ RES_CAB = "CAB-sprkres"
 BUILTIN_EXTRA = "Resources/unity_builtin_extra"
 BUILTIN_SHADER_IDS = {"Unlit/Texture": 10752, "Unlit/Transparent": 10750}
 DROPPED_SHADERS = {"Vuplex/Android Web Shader", "Vuplex/Default Web Shader"}
+# Unity built-in shaders that Windows asset bundles embed (D3D builds). Their GLES 2018
+# builds come from original Android bundles that embed them too, and go into the shared
+# shader bundle; convert_bundles.py redirects converted bundles to them (shader-map.json).
+EMBEDDED_BUILTIN = {
+    "Standard": "Creature_Boss_DarkElfCrescent_Facial.unity3d",
+    "Particles/Standard Unlit": "Effect_Skill_Hero_Cleo_Re_Skill4_Debuff.unity3d",
+}
 
 
 def arc(cab: str, node: str | None = None) -> str:
@@ -261,7 +268,8 @@ def shader_name(obj) -> str:
         return obj.read().m_Name
 
 
-def build_shader_bundle(android_bundle: Path, android_player: Path, needed: set[str], out: Path) -> dict[str, int]:
+def build_shader_bundle(android_bundle: Path, android_player: Path, needed: set[str], out: Path,
+                        embedded_sources: list[Path] = ()) -> dict[str, int]:
     env = UnityPy.load(str(android_bundle))
     bundle = next(iter(env.files.values()))
     cab_name, sf = next((k, v) for k, v in bundle.files.items() if hasattr(v, "objects"))
@@ -282,6 +290,15 @@ def build_shader_bundle(android_bundle: Path, android_player: Path, needed: set[
             except Exception:
                 continue
             for psf in penv.files.values():
+                if not hasattr(psf, "objects"):
+                    continue
+                for pid, o in psf.objects.items():
+                    if o.type.name == "Shader":
+                        player_index.setdefault(shader_name(o), (f, pid, o, psf))
+    # Built-in shaders embedded in original Android bundles (same 2018.4 Shader layout).
+    for f in embedded_sources:
+        for bf in UnityPy.load(str(f)).files.values():
+            for psf in getattr(bf, "files", {}).values():
                 if not hasattr(psf, "objects"):
                     continue
                 for pid, o in psf.objects.items():
@@ -562,7 +579,7 @@ def main():
     ap.add_argument("--windows-data", default=str(WORKSPACE / "sprk-client" / "King's Raid_Data"))
     ap.add_argument("--android-data", default=str(REPO / "artifacts" / "android-bootstrap" / "apk-data"),
                     help="assets/bin/Data extracted from the original 4.88.8 APK")
-    ap.add_argument("--android-shaders", default=str(WORKSPACE / "Pre-Doomsday" / "com.vespainteractive.KingsRaid" / "files" / "Documents" / "Patch" / "Android" / "Assetbundle" / "Unity_2018" / "Shader.unity3d"))
+    ap.add_argument("--android-shaders", default=str(WORKSPACE / "sprk-apk" / "Assetbundle" / "Unity_2018" / "Shader.unity3d"))
     ap.add_argument("--templates", default=str(REPO / "artifacts" / "android-bootstrap" / "templates"))
     ap.add_argument("--out", default=str(REPO / "artifacts" / "android-bootstrap" / "content"))
     args = ap.parse_args()
@@ -598,7 +615,11 @@ def main():
     rp.reserve("resources.assets", 1)
     rp.reserve("sharedassets0.assets", 2)  # 1 is the scene's PreloadData, as in Unity's layout
     needed = set(rp.win_shaders.values()) - set(BUILTIN_SHADER_IDS) - DROPPED_SHADERS
-    rp.shader_pids = build_shader_bundle(Path(args.android_shaders), Path(args.android_data), needed, out / "sprk-shaders.unity3d")
+    android_bundles = Path(args.android_shaders).parent.parent
+    rp.shader_pids = build_shader_bundle(Path(args.android_shaders), Path(args.android_data), needed | set(EMBEDDED_BUILTIN),
+                                         out / "sprk-shaders.unity3d", [android_bundles / f for f in EMBEDDED_BUILTIN.values()])
+    # Shader name -> path ID in sprk-shaders.unity3d, for convert_bundles.py.
+    (out / "shader-map.json").write_text(json.dumps(rp.shader_pids, indent=0, sort_keys=True), encoding="utf-8")
     for n in names:
         rp.convert(n)
     if rp.stats:

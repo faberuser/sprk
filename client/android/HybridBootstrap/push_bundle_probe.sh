@@ -12,7 +12,10 @@ SERIAL="${3:-emulator-5554}"
 PLATFORMS=(android windows); [ "$WHICH" != both ] && PLATFORMS=("$WHICH")
 PKG=com.sprk.hybridprobe
 ROOT="$(cd "$HERE/../../../.." && pwd)"
-ANDROID="$ROOT/Pre-Doomsday/com.vespainteractive.KingsRaid/files/Documents/Patch/Android/Assetbundle"
+# The maintained Android bundle set (client/android/dev.py assets); before it is built,
+# the original Android bundles pinned in ../sprk-apk.
+ANDROID="$ROOT/sprk-android/Assetbundle"
+[ -d "$ANDROID" ] || ANDROID="$ROOT/sprk-apk/Assetbundle"
 WINDOWS="$ROOT/sprk-client/King's Raid_Data/Documents/Patch/StandaloneWindows/Assetbundle"
 DEST="/sdcard/Android/data/$PKG/files/sprk"
 

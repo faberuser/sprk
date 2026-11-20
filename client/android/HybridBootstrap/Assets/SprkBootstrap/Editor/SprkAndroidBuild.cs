@@ -87,7 +87,10 @@ public static class SprkAndroidBuild
     };
 
     // Built-in shaders the game content uses that only exist in the player's builtin_extra.
-    static readonly string[] IncludedBuiltinShaders = { "Legacy Shaders/Diffuse", "Unlit/Texture", "Unlit/Transparent" };
+    // The legacy transparent shaders are referenced by asset bundles converted from Windows
+    // (client/android/HybridBootstrap/content/convert_bundles.py).
+    static readonly string[] IncludedBuiltinShaders = { "Legacy Shaders/Diffuse", "Unlit/Texture", "Unlit/Transparent",
+        "Legacy Shaders/Transparent/Diffuse", "Legacy Shaders/Transparent/VertexLit" };
 
     static void ApplyGameProjectSettings()
     {

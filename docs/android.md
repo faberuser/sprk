@@ -28,13 +28,12 @@ server added in the in-app list), reaches the lobby at the display's refresh rat
 
 - Some UI panels render as solid black boxes (the attendance reward banner, a shop
   panel); probably render textures or effect shaders.
-- About 474 bundles exist only in the Windows set (skill effects, pets, scenario voice,
-  `NguiAtlas_Icon_Item_Item9`, …). They need Android builds or a conversion; until then
-  that content fails to load. (The four Windows-only "heroes" `Ybb`, `lisa`, `capy` and
-  `testtest` are Mixamo-rigged test models that nothing references, not released heroes.)
-- The Android data has only the High/Mid quality tiers and the English, Portuguese and
-  Spanish language bundles; the in-game **Low** graphics setting and the other languages
-  look for bundles that are not on the device.
+- Bundles that exist only in the Windows set (skill effects, pets, scenario voice,
+  `NguiAtlas_Icon_Item_Item9`, …), the Low tier, the languages other than English,
+  Portuguese and Spanish, and SPRK's changed bundles are converted from Windows
+  (`dev.py assets`, below). Converted bundles are not yet checked on a device.
+  (The four Windows-only "heroes" `Ybb`, `lisa`, `capy` and `testtest` are Mixamo-rigged
+  test models that nothing references, not released heroes.)
 - 6 of the 245 GLES shaders report as unsupported. The Vuplex web-view shaders have no
   Android build (web views are Windows-only).
 - `resources.assets` keeps the Windows texture formats (DXT/BC). BlueStacks shows them;
@@ -93,22 +92,34 @@ reached, the player can retry or play the installed version. Unattended dev runs
 `dotnet run --project client/android/UpdateTests` checks the rules against the local
 release. Not run on a device yet: the APK build needs the repacked content first.
 
-**Next: Android asset bundles** through the game's own patch downloader
-(`PatchDownloader`, fixed to download and verify Raw archives), published as an
-`Android` asset set (`publish_assets.py --platform Android --patch-prefix ""`) and served
-when the game server sets `SPRK_ASSETS_CDN_URL`. The downloader filters by quality tier
-and language and can fetch most content in the background. The original Android set
-(`Pre-Doomsday/.../Patch/Android/Assetbundle`, 7.8 GiB) needs per tier, English:
+**Android asset bundles: a maintained set converted from Windows.** The Windows client
+(`../sprk-client`) is the source of truth for assets; `python client/android/dev.py assets`
+builds `../sprk-android` from it (`content/build_android_assets.py`):
 
-| Tier     | Download | Coverage                                             |
-| -------- | -------- | ---------------------------------------------------- |
-| Original | 6.25 GiB | complete except the ~285 Windows-only bundles        |
-| Mid      | 4.38 GiB | complete except the ~300 Windows-only bundles        |
-| Low      | (2.1 GiB)| no `LowSpec`/`LowLargeSpec` folders: 8,014 files missing |
+- a bundle unchanged from the original game, which the original Android set
+  (`../sprk-apk/Assetbundle`) has, is used as it is (hard link);
+- a bundle SPRK changed, or that Android lacks (Windows-only content and the whole Low
+  tier, about 9,000 bundles), is converted (`content/convert_bundles.py`): Android target
+  platform, DXT/BC textures transcoded to ETC2, shader references kept (the Android
+  `CAB-Shader` has the same shaders under the same path IDs), and Unity built-in shaders
+  that a bundle embeds as D3D builds redirected to GLES builds (`Standard` and
+  `Particles/Standard Unlit` in `sprk-shaders.unity3d`, the legacy transparent shaders
+  in the player's built-in resources);
+- `BundlePack.bin` (the bundle index, platform-neutral: names and flags only) comes from
+  Windows; the original Android index predates content the tables use. The shader bundle
+  the game loads (`Unity_2018/Shader.unity3d`) is the original Android one.
 
-Language bundles are about 30 MB each. Until a Low set exists, map Low to Mid (the game
-recommends Low below 2.2 GB RAM and on devices without ASTC). The repacked built-in
-content (`sprk/content/`, ~420 MB) still comes with `push_content.sh`.
+Run `assets` again after changing Windows assets; only changed bundles are converted again
+(state in `../sprk-android/.sprk-android.json`). It needs `shader-map.json` from `content`.
+`push_patch.sh` pushes `../sprk-android` once it exists.
+
+Next: publish `../sprk-android` as the `Android` asset set
+(`publish_assets.py --client ../sprk-android --platform Android --patch-prefix ""`) for
+the game's patch downloader (quality tier and language filters, background download)
+when the game server sets `SPRK_ASSETS_CDN_URL`. The original Android set had no Low tier
+(8,014 files missing); the converted one has it. Language bundles are about 30 MB each.
+The repacked built-in content (`sprk/content/`, ~420 MB) still comes with
+`push_content.sh`.
 
 ## Distribution
 

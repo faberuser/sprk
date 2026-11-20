@@ -242,9 +242,10 @@ Android asset bundles. It is a prototype; open work is listed in
 - Unity **6000.0.53f1** with Android Build Support, installed through Unity Hub. **Hub
   must be running and signed in** during builds; the editor gets its licence from Hub.
 - `pip install -r client/scripts/requirements-client.txt` (UnityPy, Pillow).
-- Next to the repository: `../sprk-client` (the Windows client) and `../Pre-Doomsday`
-  (the original Android client's data, `Documents/Patch/Android/Assetbundle`).
-- The original Android APK `kings-raid-4.88.8` (for `content` only).
+- Next to the repository: `../sprk-client` (the Windows client) and `../sprk-apk`, the
+  pinned original Android inputs: `kings-raid-4.88.8.apk` (for `content` only) and
+  `Assetbundle/` (the original Android bundles, from `Documents/Patch/Android/Assetbundle`).
+  `../sprk-android` is the maintained Android asset set built from them.
 - A device: BlueStacks with ADB enabled (`HD-Adb.exe`, serial `emulator-5554`, the
   default) or a phone over USB (`--adb <adb.exe> --serial <id>`, see `adb devices`).
 - The local server (`start_server.bat`).
