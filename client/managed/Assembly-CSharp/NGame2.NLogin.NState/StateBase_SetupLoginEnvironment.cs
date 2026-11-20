@@ -57,7 +57,9 @@ public class StateBase_SetupLoginEnvironment : StateBase
 	private IEnumerator coRunBackground(LoginBackground loginBackgroundWindow)
 	{
 		yield return new WaitUntil(() => LogoScene.IsLogoPlayed);
-		if (!SceneAutoBehaviour<LoginManagement>.instance.IsBIOncePlayed())
+		// SPRK: the pause follows the logo intro on Windows. Android starts at the login
+		// scene without that intro, so the pause was only a second of black screen.
+		if (!SceneAutoBehaviour<LoginManagement>.instance.IsBIOncePlayed() && Application.platform != RuntimePlatform.Android)
 		{
 			yield return new WaitForSeconds(1f);
 		}
