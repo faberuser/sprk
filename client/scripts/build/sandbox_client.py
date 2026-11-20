@@ -143,21 +143,43 @@ def refresh_data(client: Path, sandbox: Path) -> int:
     return copied
 
 
+def detach(link: Path) -> None:
+    """Turn a linked folder of the test copy into a real one without copying the assets.
+
+    Its subfolders become junctions and its files hard links to the real game's
+    files (same volume). An override then replaces one name in the test copy:
+    the hard link is removed first, so the real game's file is never written.
+    """
+    real = Path(os.path.realpath(link))
+    entries = list(os.scandir(real))
+    os.rmdir(link)  # removes the junction only, never the linked assets
+    link.mkdir()
+    try:
+        for entry in entries:
+            if entry.is_dir(follow_symlinks=False):
+                junction(Path(entry.path), link / entry.name)
+            else:
+                os.link(entry.path, link / entry.name)
+    except OSError as error:
+        raise SystemExit(f"Cannot share {real} with the test copy through hard links ({error}); "
+                         "the test copy and the game must be on the same drive.") from error
+
+
 def apply_overrides(overrides: Path, game: Path) -> list[str]:
-    """Copy client/overrides/files into a game folder; refuse to write through a link."""
+    """Copy client/overrides/files into a game folder without ever writing through a link.
+
+    An override inside a linked asset folder (a changed asset bundle) first turns
+    that folder into a real one (see detach)."""
     files = sorted(p for p in overrides.rglob("*") if p.is_file())
-    targets = []
+    changed = []
     for source in files:
         target = game / source.relative_to(overrides)
-        link = linked_part(game, target)
-        if link is not None:
-            raise SystemExit(f"Override {source.relative_to(overrides)} lies inside the linked folder {link}; "
-                             "it cannot be tested in the test copy without changing the real game.")
-        targets.append((source, target))
-    changed = []
-    for source, target in targets:
+        while (link := linked_part(game, target)) is not None:
+            detach(link)
         if not target.exists() or not filecmp.cmp(source, target, shallow=False):
             target.parent.mkdir(parents=True, exist_ok=True)
+            # Remove the name first: it may be a hard link to the real game's file.
+            target.unlink(missing_ok=True)
             shutil.copyfile(source, target)
             changed.append(source.relative_to(overrides).as_posix())
     return changed

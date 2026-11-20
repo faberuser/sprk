@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using NNguiExtension;
 using NVespa;
@@ -10,8 +9,9 @@ using UnityEngine;
 /// <summary>
 /// Selectable battle speed for the native x1.5 buttons (SystemButtonAuto and
 /// SystemButtonSpeed). The native buttons keep their Normal/Fast state, which
-/// still drives the sprite, glow effect and BattleManagement's fast-speed gate;
-/// this class remembers which multiplier "Fast" means and draws the button text.
+/// still drives the glow effect and BattleManagement's fast-speed gate; this
+/// class remembers which multiplier "Fast" means and shows it with the speed
+/// sprites of the battle UI atlas, as the native AUTO and x1.5 buttons do.
 /// </summary>
 public static class SprkBattleSpeed
 {
@@ -70,19 +70,25 @@ public static class SprkBattleSpeed
 		return "x" + (percent / 100f).ToString("0.##", CultureInfo.InvariantCulture);
 	}
 
-	/// <summary>Index into the label sheet (0 = "Off", then <see cref="Percents"/> in order).</summary>
-	public static int LabelIndex(int percent)
+	/// <summary>
+	/// Sprite of the battle UI atlas (NguiAtlas_UI_Prefab_Battle4) showing a speed:
+	/// btn_sprk_speed_{off|x0.25|...|x2}_{on|off}, baked once from the native x1.5 art
+	/// (see client/overrides/README.md).
+	/// <paramref name="percent"/> 0 is the "Off" label.
+	/// </summary>
+	public static string SpriteName(int percent, bool on)
 	{
-		return Array.IndexOf(Percents, percent) + 1;
+		return "btn_sprk_speed_" + (percent == 0 ? "off" : Multiplier(percent)) + (on ? "_on" : "_off");
 	}
 
-	public static int ButtonLabel(bool on)
+	/// <summary>What the main button shows: the selected speed while Fast is on, otherwise "Off".</summary>
+	public static string ButtonSprite(bool on)
 	{
 		int percent = Percent;
-		return on && percent != NormalPercent ? LabelIndex(percent) : 0;
+		return SpriteName(on && percent != NormalPercent ? percent : 0, on);
 	}
 
-	/// <summary>Adds the text overlay to a native speed button. Safe to call on every Open.</summary>
+	/// <summary>Shows the selected speed on a native speed button. Safe to call on every Open.</summary>
 	public static SprkBattleSpeedButton Attach(UISpriteSelector selector)
 	{
 		if (selector == null)
@@ -119,191 +125,24 @@ public static class SprkBattleSpeed
 }
 
 /// <summary>
-/// Draws a text-free copy of the native x1.5 art with the selected speed's label,
-/// and owns the drop-down list of speeds. The art bakes "x1.5" into the sprite, so
-/// the text is covered with tiles cut from the plain interior of the same sprite,
-/// then a pre-rendered label in the original lettering is laid on top
+/// Shows the selected speed on the native x1.5 button and owns the drop-down list
+/// of speeds. The native state machine keeps switching the button between its
+/// btn_x1.5_on/off sprites; each frame this swaps in the matching speed sprite.
+/// An atlas without speed sprites (older assets) keeps the native x1.5 art.
 /// </summary>
 public sealed class SprkBattleSpeedButton : MonoBehaviour
 {
-	private sealed class Face
-	{
-		// Measured on the 250x129 btn_x1.5_on/off art: plain fill at x 28..44,
-		// text and glow inside x 45..205, y 22..107.
-		private const float StripLeft = 28f / 250f;
-
-		private const float StripWidth = 16f / 250f;
-
-		private const float CoverLeft = 45f / 250f;
-
-		private const float CoverRight = 205f / 250f;
-
-		private const float CoverTop = 22f / 129f;
-
-		private const float CoverBottom = 107f / 129f;
-
-		private readonly GameObject root;
-
-		private readonly List<UISprite> tiles = new List<UISprite>();
-
-		private readonly UITexture label;
-
-		public Face(Transform parent, int layer)
-		{
-			root = new GameObject("SprkSpeedFace");
-			root.layer = layer;
-			root.transform.SetParent(parent, worldPositionStays: false);
-			GameObject text = new GameObject("Label_Speed");
-			text.layer = layer;
-			text.transform.SetParent(root.transform, worldPositionStays: false);
-			label = text.AddComponent<UITexture>();
-			label.pivot = UIWidget.Pivot.TopLeft;
-			root.SetActive(value: false);
-		}
-
-		public void Destroy()
-		{
-			if (root != null)
-			{
-				UnityEngine.Object.Destroy(root);
-			}
-		}
-
-		/// <summary>Lays the face over <paramref name="host"/>, which shows <paramref name="spriteName"/>.</summary>
-		public bool Paint(UISprite host, string spriteName, bool on, int labelIndex)
-		{
-			UIAtlas atlas = host.atlas;
-			UISpriteData data = atlas != null && !string.IsNullOrEmpty(spriteName) ? atlas.GetSprite(spriteName) : null;
-			string fill = data != null ? FillSprite(atlas, data) : null;
-			Texture2D sheet = LabelSheet();
-			if (fill == null || sheet == null)
-			{
-				if (root.activeSelf)
-				{
-					root.SetActive(value: false);
-				}
-				return false;
-			}
-			float w = data.fWidth;
-			float h = data.fHeight;
-			Vector4 drawn = host.drawingDimensions;
-			root.transform.localPosition = new Vector3(drawn.x, drawn.w, 0f);
-			root.transform.localScale = new Vector3((drawn.z - drawn.x) / w, (drawn.w - drawn.y) / h, 1f);
-			int stripWidth = Mathf.Max(1, Mathf.RoundToInt(StripWidth * w));
-			int left = Mathf.RoundToInt(CoverLeft * w);
-			int top = Mathf.RoundToInt(CoverTop * h);
-			int height = Mathf.RoundToInt((CoverBottom - CoverTop) * h);
-			int count = Mathf.CeilToInt((Mathf.RoundToInt(CoverRight * w) - left) / (float)stripWidth);
-			while (tiles.Count < count)
-			{
-				GameObject tile = new GameObject("Fill");
-				tile.layer = root.layer;
-				tile.transform.SetParent(root.transform, worldPositionStays: false);
-				UISprite sprite = tile.AddComponent<UISprite>();
-				sprite.pivot = UIWidget.Pivot.TopLeft;
-				tiles.Add(sprite);
-			}
-			for (int i = 0; i < tiles.Count; i++)
-			{
-				UISprite tile = tiles[i];
-				bool used = i < count;
-				if (tile.gameObject.activeSelf != used)
-				{
-					tile.gameObject.SetActive(used);
-				}
-				if (used)
-				{
-					if (tile.atlas != atlas)
-					{
-						tile.atlas = atlas;
-					}
-					tile.spriteName = fill;
-					tile.type = UIBasicSprite.Type.Simple;
-					tile.width = stripWidth;
-					tile.height = height;
-					tile.depth = host.depth + 1;
-					tile.transform.localPosition = new Vector3(left + i * stripWidth, -top, 0f);
-				}
-			}
-			// Each sheet cell covers the whole button art, so it lays over it 1:1.
-			if (label.mainTexture != sheet)
-			{
-				label.mainTexture = sheet;
-			}
-			label.uvRect = LabelCell(sheet, on, labelIndex);
-			label.depth = host.depth + 2;
-			label.width = Mathf.Max(2, Mathf.RoundToInt(w));
-			label.height = Mathf.Max(2, Mathf.RoundToInt(h));
-			label.transform.localPosition = Vector3.zero;
-			label.name = "Label_" + (labelIndex == 0 ? "Off" : SprkBattleSpeed.Multiplier(SprkBattleSpeed.Percents[labelIndex - 1])) + (on ? "_On" : "_Off");
-			if (!root.activeSelf)
-			{
-				root.SetActive(value: true);
-			}
-			return true;
-		}
-
-		private static string FillSprite(UIAtlas atlas, UISpriteData source)
-		{
-			string name = source.name + "#sprk-speed-fill";
-			if (atlas.GetSprite(name) != null)
-			{
-				return name;
-			}
-			// SetRect takes unscaled atlas pixels; the f* accessors include atlasScale.
-			float scale = source.atlasScale > 0f ? source.atlasScale : 1f;
-			float x = source.fX / scale;
-			float y = source.fY / scale;
-			float width = source.fWidth / scale;
-			float height = source.fHeight / scale;
-			if (width < 40f || height < 20f)
-			{
-				return null;
-			}
-			UISpriteData fill = new UISpriteData();
-			fill.CopyFrom(source);
-			fill.name = name;
-			fill.SetRect(Mathf.RoundToInt(x + StripLeft * width), Mathf.RoundToInt(y + CoverTop * height), Mathf.Max(1, Mathf.RoundToInt(StripWidth * width)), Mathf.RoundToInt((CoverBottom - CoverTop) * height));
-			fill.SetBorder(0, 0, 0, 0);
-			fill.SetPadding(0, 0, 0, 0);
-			atlas.AddSprite(fill);
-			atlas.MarkSpriteListAsChanged();
-			return atlas.GetSprite(name) != null ? name : null;
-		}
-	}
-
 	private const float ItemScale = 0.8f;
 
 	private const int ItemGap = 4;
-
-	// 250x129 button art, PAD apart, COLUMNS per row.
-	private const string LabelResource = "BattleSpeedLabels.png";
-
-	private const int LabelCount = 9;
-
-	private const int CellWidth = 250;
-
-	private const int CellHeight = 129;
-
-	private const int CellPad = 8;
-
-	private const int CellColumns = 3;
-
-	private static Texture2D labelSheet;
-
-	private static bool labelSheetFailed;
 
 	private UISprite target;
 
 	private UISpriteSelector selector;
 
-	private Face face;
-
 	private GameObject menu;
 
-	private readonly List<KeyValuePair<int, Face>> items = new List<KeyValuePair<int, Face>>();
-
-	private readonly List<UISprite> itemBacks = new List<UISprite>();
+	private readonly List<KeyValuePair<int, UISprite>> items = new List<KeyValuePair<int, UISprite>>();
 
 	private Action<int> onSelect;
 
@@ -313,10 +152,6 @@ public sealed class SprkBattleSpeedButton : MonoBehaviour
 	{
 		target = sprite;
 		selector = spriteSelector;
-		if (face == null)
-		{
-			face = new Face(target.transform, target.gameObject.layer);
-		}
 	}
 
 	private string StateSprite(bool on)
@@ -332,36 +167,34 @@ public sealed class SprkBattleSpeedButton : MonoBehaviour
 				}
 			}
 		}
-		string current = target != null ? target.spriteName : null;
-		if (string.IsNullOrEmpty(current))
-		{
-			return null;
-		}
-		if (on)
-		{
-			return current.EndsWith("_off", StringComparison.Ordinal) ? current.Substring(0, current.Length - 4) + "_on" : current;
-		}
-		return current.EndsWith("_on", StringComparison.Ordinal) ? current.Substring(0, current.Length - 3) + "_off" : current;
+		return on ? "btn_x1.5_on" : "btn_x1.5_off";
 	}
 
 	private bool IsOnSprite(string spriteName)
 	{
-		string on = StateSprite(on: true);
-		if (on != null && spriteName == on)
+		return spriteName != null && (spriteName == StateSprite(on: true) || spriteName.EndsWith("_on", StringComparison.Ordinal));
+	}
+
+	private static bool Show(UISprite sprite, string name)
+	{
+		if (sprite == null || sprite.atlas == null || sprite.atlas.GetSprite(name) == null)
 		{
-			return true;
+			return false;
 		}
-		return spriteName != null && spriteName.EndsWith("_on", StringComparison.Ordinal);
+		if (sprite.spriteName != name)
+		{
+			sprite.spriteName = name;
+		}
+		return true;
 	}
 
 	private void LateUpdate()
 	{
-		if (target == null || face == null)
+		if (target == null)
 		{
 			return;
 		}
-		bool on = IsOnSprite(target.spriteName);
-		face.Paint(target, target.spriteName, on, SprkBattleSpeed.ButtonLabel(on));
+		Show(target, SprkBattleSpeed.ButtonSprite(IsOnSprite(target.spriteName)));
 		if (menu != null)
 		{
 			PaintMenu();
@@ -397,7 +230,6 @@ public sealed class SprkBattleSpeedButton : MonoBehaviour
 		}
 		menu = null;
 		items.Clear();
-		itemBacks.Clear();
 		onSelect = null;
 	}
 
@@ -460,13 +292,13 @@ public sealed class SprkBattleSpeedButton : MonoBehaviour
 			item.layer = layer;
 			item.transform.SetParent(menu.transform, worldPositionStays: false);
 			item.transform.localPosition = new Vector3(0f, listTop - itemHeight * 0.5f - i * (itemHeight + ItemGap), 0f);
-			UISprite back = item.AddComponent<UISprite>();
-			back.atlas = atlas;
-			back.type = UIBasicSprite.Type.Simple;
-			back.pivot = UIWidget.Pivot.Center;
-			back.width = itemWidth;
-			back.height = itemHeight;
-			back.depth = 10 + i * 4;
+			UISprite sprite = item.AddComponent<UISprite>();
+			sprite.atlas = atlas;
+			sprite.type = UIBasicSprite.Type.Simple;
+			sprite.pivot = UIWidget.Pivot.Center;
+			sprite.width = itemWidth;
+			sprite.height = itemHeight;
+			sprite.depth = 10 + i;
 			NGUITools.AddWidgetCollider(item);
 			UIButton button = item.AddComponent<UIButton>();
 			button.tweenTarget = item;
@@ -476,8 +308,7 @@ public sealed class SprkBattleSpeedButton : MonoBehaviour
 			{
 				Select(percent);
 			});
-			itemBacks.Add(back);
-			items.Add(new KeyValuePair<int, Face>(percent, new Face(item.transform, layer)));
+			items.Add(new KeyValuePair<int, UISprite>(percent, sprite));
 		}
 		PaintMenu();
 	}
@@ -485,19 +316,14 @@ public sealed class SprkBattleSpeedButton : MonoBehaviour
 	private void PaintMenu()
 	{
 		int selected = SprkBattleSpeed.Percent;
-		string on = StateSprite(on: true);
-		string off = StateSprite(on: false);
-		for (int i = 0; i < items.Count; i++)
+		foreach (KeyValuePair<int, UISprite> item in items)
 		{
-			int percent = items[i].Key;
-			bool active = percent == selected;
-			UISprite back = itemBacks[i];
-			if (back == null)
+			bool active = item.Key == selected;
+			// Without speed sprites the list still works, as plain on/off buttons.
+			if (!Show(item.Value, SprkBattleSpeed.SpriteName(item.Key, active)))
 			{
-				continue;
+				Show(item.Value, StateSprite(active));
 			}
-			back.spriteName = active ? on : off;
-			items[i].Value.Paint(back, back.spriteName, active, SprkBattleSpeed.LabelIndex(percent));
 		}
 	}
 
@@ -506,47 +332,5 @@ public sealed class SprkBattleSpeedButton : MonoBehaviour
 		Action<int> select = onSelect;
 		CloseMenu();
 		select?.Invoke(percent);
-	}
-
-	private static Texture2D LabelSheet()
-	{
-		if (labelSheet != null || labelSheetFailed)
-		{
-			return labelSheet;
-		}
-		labelSheetFailed = true;
-		using (Stream stream = typeof(SprkBattleSpeedButton).Assembly.GetManifestResourceStream(LabelResource))
-		{
-			if (stream == null)
-			{
-				Debug.LogError("SprkBattleSpeed: missing " + LabelResource);
-				return null;
-			}
-			using MemoryStream memory = new MemoryStream();
-			stream.CopyTo(memory);
-			// Mipmaps keep the glow smooth at the button's ~0.45x on-screen scale.
-			Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, mipChain: true);
-			if (!texture.LoadImage(memory.ToArray(), markNonReadable: true))
-			{
-				UnityEngine.Object.Destroy(texture);
-				Debug.LogError("SprkBattleSpeed: cannot decode " + LabelResource);
-				return null;
-			}
-			texture.name = "SprkBattleSpeedLabels";
-			texture.wrapMode = TextureWrapMode.Clamp;
-			texture.filterMode = FilterMode.Trilinear;
-			texture.anisoLevel = 2;
-			labelSheet = texture;
-		}
-		labelSheetFailed = false;
-		return labelSheet;
-	}
-
-	private static Rect LabelCell(Texture2D sheet, bool on, int labelIndex)
-	{
-		int index = (on ? LabelCount : 0) + Mathf.Clamp(labelIndex, 0, LabelCount - 1);
-		float x = index % CellColumns * (CellWidth + 2 * CellPad) + CellPad;
-		float top = index / CellColumns * (CellHeight + 2 * CellPad) + CellPad;
-		return new Rect(x / sheet.width, 1f - (top + CellHeight) / sheet.height, (float)CellWidth / sheet.width, (float)CellHeight / sheet.height);
 	}
 }

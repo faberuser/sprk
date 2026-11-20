@@ -95,6 +95,15 @@ class AssetSetTests(ClientFixture):
         self.assertIn(player, second["deleted_files"])
         self.assertFalse((self.root / "updates/releases/second/files" / player).exists())
 
+    def test_dropping_a_listed_asset_set_needs_an_explicit_request(self):
+        player = "UnityPlayer.dll"
+        self.publish("first", DEFAULT_INCLUDES, asset_set=self.write_set("assets-1", {player: b"player"}))
+        with self.assertRaisesRegex(ValueError, "lists the asset set"):
+            self.publish("second", DEFAULT_INCLUDES)
+        self.assertFalse((self.root / "updates/releases/second").exists())
+        dropped = self.publish("third", DEFAULT_INCLUDES, drop_assets=True)
+        self.assertIn(player, dropped["deleted_files"])
+
     def test_code_file_wins_over_an_asset_with_the_same_path(self):
         code = "King's Raid_Data/Managed/fixture.dll"
         manifest = self.publish("first", DEFAULT_INCLUDES, asset_set=self.write_set("assets-1", {code: b"stale"}))

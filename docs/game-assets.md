@@ -107,8 +107,12 @@ Platforms without the launcher use the game's own patch downloader. With
 URL), `host.json` points Android and iOS at `<SPRK_ASSETS_CDN_URL>/<platform>/`. Windows
 always gets the empty `/cdn/` patch.
 
-The client reads `LastBuildVersion.txt`, downloads `<n>/patch.json` when the version
-changed, and downloads every archive whose MD5 or length differs from its local record,
+The client downloads only when its CDN is this asset service (a URL containing
+`/updates/assets/`): installations carry the old live game's `PatchInfo/patch.json`,
+which the game reuses as the remote list while the versions match, so with the legacy
+empty `/cdn/` (Windows) it downloads nothing, as the shipped game did. Publish Android
+versions above 1, the version of that carried list. The client reads
+`LastBuildVersion.txt`, downloads `<n>/patch.json` when the version changed, and downloads every archive whose MD5 or length differs from its local record,
 filtered by quality tier and language. Each Raw archive is written to `<file>.part`,
 checked, then moved into place. Publish an Android folder with
 `--platform Android --client <folder> --patch-prefix ""`.

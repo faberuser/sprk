@@ -177,7 +177,7 @@ def sign_manifest(manifest: dict, private_key: Path) -> dict:
     }}
 
 
-def publish(client: Path, output: Path, version: str, channel: str, includes: list[str], signing_key: Path | None = None, deleted_files: list[str] | None = None, build_inputs_sha256: str | None = None, unmanaged: list[str] | None = None, asset_set: Path | None = None) -> dict:
+def publish(client: Path, output: Path, version: str, channel: str, includes: list[str], signing_key: Path | None = None, deleted_files: list[str] | None = None, build_inputs_sha256: str | None = None, unmanaged: list[str] | None = None, asset_set: Path | None = None, drop_assets: bool = False) -> dict:
     if not IDENTIFIER.fullmatch(version) or not IDENTIFIER.fullmatch(channel) or channel.lower() == "releases":
         raise ValueError("Version/channel must start with a letter or digit and contain only letters, digits, '.', '_', '-' (max 128 characters); channel cannot be 'releases'")
     client = client.resolve(strict=True)
@@ -210,6 +210,11 @@ def publish(client: Path, output: Path, version: str, channel: str, includes: li
         # Only code files are carried forward as files to copy; assets come
         # from the pinned asset set (and are deleted when it drops them).
         previous_files = {safe_path(item["path"]) for item in previous.get("files", []) if not is_asset_entry(item)}
+        # Without the asset set, every previously listed asset would become a
+        # deletion and launchers would remove the Unity player and bundles.
+        if asset_set is None and not drop_assets and any(is_asset_entry(item) for item in previous.get("files", [])):
+            raise ValueError("The previous release lists the asset set; pass it (client/assets/StandaloneWindows.json), "
+                             "or --no-asset-set to delete those files from installations on purpose")
         removed = {safe_path(path) for path in previous.get("deleted_files", [])}
         explicit_removals = {safe_path(path) for path in (deleted_files or []) + privacy.get("deleted_files", [])}
         removed.update(explicit_removals)
@@ -297,14 +302,15 @@ def main() -> None:
     parser.add_argument("--delete", action="append", help="Client-relative obsolete file to remove, including files not previously managed; repeat as needed")
     parser.add_argument("--asset-set", type=Path, default=DEFAULT_ASSET_SET,
                         help="Pinned asset set listed in the release (default: client/assets/StandaloneWindows.json)")
-    parser.add_argument("--no-asset-set", action="store_true", help="Publish code files only")
+    parser.add_argument("--no-asset-set", action="store_true",
+                        help="Publish code files only; files the previous release listed from the asset set become deletions")
     parser.add_argument("--unmanaged-list", type=Path, default=UNMANAGED_LIST,
                         help="Files releases stop managing without deleting them (default: unmanaged_files.txt next to this script)")
     args = parser.parse_args()
     try:
         manifest = publish(args.client, args.output, args.version, args.channel, args.include or DEFAULT_INCLUDES, args.signing_key, args.delete,
                            unmanaged=load_unmanaged(args.unmanaged_list),
-                           asset_set=None if args.no_asset_set else args.asset_set)
+                           asset_set=None if args.no_asset_set else args.asset_set, drop_assets=args.no_asset_set)
     except (OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Publish failed: {error}\n")
     code = [item for item in manifest["files"] if not is_asset_entry(item)]

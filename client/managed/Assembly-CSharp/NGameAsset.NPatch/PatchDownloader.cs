@@ -376,12 +376,23 @@ public class PatchDownloader : GlobalAutoBehaviour<PatchDownloader>, DownloadHan
 		List<Coroutine> coroutineList = new List<Coroutine>();
 		int endedCoroutineCount = 0;
 		int maxParallelDownloadCount = ((MaxParallelDownloadCount <= 0) ? 1 : MaxParallelDownloadCount);
-		// SPRK: start the download workers. The shipped code counted every worker
-		// as ended without starting one, so nothing was ever downloaded. Each
-		// worker reports exactly once; the first error stops the queue so the
-		// others finish their current archive and end.
+		// SPRK: start the download workers, but only for SPRK's asset service
+		// (/updates/assets/<platform>/, see docs/game-assets.md). The shipped code
+		// counted every worker as ended without starting one. Installations carry
+		// the old live game's PatchInfo/patch.json, which the game reuses as the
+		// remote list while its version matches the server's, so with the legacy
+		// empty /cdn/ (Windows, whose launcher installs the assets) it would try
+		// to download archives that no server has; there it still downloads
+		// nothing. Each worker reports exactly once; the first error stops the
+		// queue so the others finish their current archive and end.
+		bool sprkAssets = patchData.RootUrl.IndexOf("/updates/assets/", StringComparison.Ordinal) >= 0;
 		for (int j = 0; j < maxParallelDownloadCount; j++)
 		{
+			if (!sprkAssets)
+			{
+				endedCoroutineCount++;
+				continue;
+			}
 			coroutineList.Add(VespaCoroutine.Start(this, coDownloadArchive(j, patchData.Version, patchData.RootUrl, assetInfoDic, delegate(EDownloadResponse response, string message)
 			{
 				endedCoroutineCount++;
