@@ -114,6 +114,12 @@ Windows, rebuilds `../sprk-android` and publishes Android, each only when someth
 changed (`--no-assets` skips it). Android is skipped with a message until
 `client/android/dev.py content` and `assets` have run once.
 
+The test commands publish the same way, so a changed bundle or override shows up in
+the next local test: `python client/dev.py test` publishes from its test copy before
+starting it, and `python client/android/dev.py test` and `hot` run
+`python client/dev.py assets` (update the test copy's data and overrides, then
+publish; your real game folder is not changed). Each takes `--no-assets`.
+
 Upload to the host's update storage:
 
 ```powershell

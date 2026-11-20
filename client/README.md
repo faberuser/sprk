@@ -51,8 +51,10 @@ One script covers the whole loop:
 
 ```powershell
 python client/dev.py test       # build, then start a separate test copy of the game
+                                #   (publishes new asset versions when assets changed)
 python client/dev.py install    # build, put it into your real game, publish a local release
                                 #   and new asset versions when assets changed
+python client/dev.py assets     # only publish new asset versions (test copy data + overrides)
 python client/dev.py build      # only compile, to check for errors
 python client/dev.py clean      # delete the test copy
 ```
@@ -266,7 +268,9 @@ python client/android/dev.py content --apk <path>\kings-raid-4.88.8.apk  # once,
 python client/android/dev.py build          # compile the game code, build the APK
 python client/android/dev.py test           # build, install, push missing device data, start on the local server
 python client/android/dev.py test --picker  # same, but choose the server on the device
-python client/android/dev.py hot            # C# only: compile, push the DLLs, restart (no APK rebuild)
+python client/android/dev.py hot            # compile, push the DLLs, restart (no APK rebuild)
+                                            # test and hot also publish new asset versions when assets
+                                            # changed (client/dev.py assets; --no-assets to skip)
 python client/android/dev.py connect        # restore the adb forwarding to the local server
 ```
 

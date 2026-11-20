@@ -8,11 +8,13 @@
                                             bundles converted from ../sprk-client (needs content)
     python client/android/dev.py build      compile the game code and build the APK
     python client/android/dev.py test       build, install on the device, push missing device
-                                            data, forward the local server, start the game
+                                            data, publish new asset versions when the assets or
+                                            client/overrides/files changed (client/dev.py assets;
+                                            --no-assets to skip), forward the local server, start the game
                                             (--picker: choose the server on the device, as
                                             SprkLauncher does on Windows)
-    python client/android/dev.py hot        C# only: compile, push the game DLLs, restart the game
-                                            (no APK rebuild; the fast loop)
+    python client/android/dev.py hot        compile, push the game DLLs, publish new asset versions
+                                            as test does, restart the game (no APK rebuild; the fast loop)
     python client/android/dev.py connect    restore adb port forwarding to the local server
 
 By default the game plays on the local server (start_server.bat) through `adb reverse`.
@@ -79,6 +81,13 @@ def unity(args, method: str, log: str):
         raise SystemExit(f"Unity {method} failed (exit {result.returncode}); see {log_path}")
 
 
+def publish_assets(args):
+    # The game downloads the local asset store's versions at start (docs/game-assets.md),
+    # so edited bundles and overrides reach the device through a new version.
+    if not args.no_assets:
+        run([sys.executable, REPO / "client/dev.py", "assets"])
+
+
 def compile_code():
     run([sys.executable, REPO / "client/dev.py", "build"])
     run([sys.executable, PROJECT / "sync_inputs.py"])
@@ -121,6 +130,7 @@ def cmd_test(args):
     # The APK carries the current DLLs; drop overrides left by `hot`.
     run([args.adb, "-s", args.serial, "shell", "rm", "-rf", "/sdcard/Android/data/com.sprk.hybridprobe/files/sprk/hot"])
     script(args, "push_patch.sh")
+    publish_assets(args)
     # Unattended runs skip the server picker and use Local; --picker shows it on launch.
     env = {**os.environ, "SPRK_SERVER_PICKER": "1" if args.picker else "0"}
     run([find_bash(), "--noprofile", "--norc", PROJECT / "push_content.sh", "Login", args.adb, args.serial], env=env)
@@ -130,6 +140,7 @@ def cmd_test(args):
 def cmd_hot(args):
     run([sys.executable, REPO / "client/dev.py", "build"])
     script(args, "push_hot.sh")
+    publish_assets(args)
     script(args, "run_probe.sh")
 
 
@@ -147,6 +158,7 @@ def main():
     ap.add_argument("--serial", default="emulator-5554")
     ap.add_argument("--no-build", action="store_true", help="test: install the existing APK")
     ap.add_argument("--picker", action="store_true", help="test: show the server picker at launch instead of using Local")
+    ap.add_argument("--no-assets", action="store_true", help="test, hot: do not publish asset versions")
     args = ap.parse_args()
     if not shutil.which(args.adb) and not Path(args.adb).is_file():
         raise SystemExit(f"adb not found: {args.adb}")
