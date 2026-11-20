@@ -48,7 +48,9 @@ public class StateBase_QueryMarketInfo : StateBase
 				yield return new WaitQuitError(serverInfo.ShutdownMessage);
 			}
 		}
-		string host = serverInfo.Host;
+		// SPRK: honor the server's Https flag. Without a scheme the requester used http://,
+		// which Android refuses for remote servers ("Insecure connection not allowed").
+		string host = NVespa.NWeb.WebServiceRequester.WithScheme(serverInfo.Host, serverInfo.Https);
 		_ = serverInfo.CookieKeyword;
 		SingletonUpdater<WebServiceManager>.instance.Requester.SetHost(host);
 		bool queried = false;
