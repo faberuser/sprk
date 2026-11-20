@@ -19,6 +19,8 @@ public class UnityStartup
 		Application.logMessageReceivedThreaded += UnityCallback.logMessageReceivedThreaded;
 		UnityCache.SetPlayMode(UnityCache.EPlayMode.Playing);
 		UnityCallback.RuntimeInit_BeforeSceneLoad();
+		// SPRK: parse the title background while the first scenes load.
+		SprkLoginPresentation.Preload();
 		SystemLog($"UnityStartup.{MethodBase.GetCurrentMethod().Name}");
 	}
 

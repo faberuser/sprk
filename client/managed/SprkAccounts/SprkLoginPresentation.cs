@@ -393,6 +393,29 @@ public sealed class SprkLoginPresentation : MonoBehaviour
 		RefreshMusic();
 	}
 
+	/// <summary>
+	/// Starts loading the selected background's scene in the background (game start), so the
+	/// title does not wait for it (SprkLoginSceneData). Before the first patch download there
+	/// is nothing to load; the title then loads it as before.
+	/// </summary>
+	public static void Preload()
+	{
+		if (Application.isBatchMode)
+		{
+			return;
+		}
+		try
+		{
+			string selected = SelectedBackground;
+			Background background = Options.backgrounds.First((Background x) => x.id == selected);
+			SprkLoginSceneData.Preload(Path.Combine(ContentRoot, background.scene));
+		}
+		catch (Exception)
+		{
+			catalog = null;
+		}
+	}
+
 	public static void Configure(LoginBackground window)
 	{
 		// The headless battle worker (-batchmode) has no screen and ships without

@@ -164,7 +164,7 @@ public sealed class SprkRecoveredLoginScene : IDisposable
 		bank.SetActive(value: false);
 		try
 		{
-			Build(JsonMapper.ToObject(File.ReadAllText(path)), parent);
+			Build(SprkLoginSceneData.Load(path), parent);
 		}
 		catch (Exception innerException)
 		{
