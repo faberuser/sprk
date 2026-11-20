@@ -208,6 +208,8 @@ public static partial class SprkText
 		{ "Search artifact", new string[] { "Artefakt suchen", "Rechercher un artefact", "遺物を検索", "유물 검색", "Поиск артефакта", "搜索神器", "搜尋神器" } },
 		{ "Search hero or item", new string[] { "Held oder Gegenstand suchen", "Rechercher un héros ou un objet", "英雄・アイテムを検索", "영웅 또는 아이템 검색", "Поиск героя или предмета", "搜索英雄或道具", "搜尋英雄或道具" } },
 		{ "All Classes", new string[] { "Alle Klassen", "Toutes les classes", "全クラス", "모든 클래스", "Все классы", "所有职业", "所有職業" } },
+		{ "Class", new string[] { "Klasse", "Classe", "クラス", "클래스", "Класс", "职业", "職業" } },
+		{ "Search", new string[] { "Suchen", "Rechercher", "検索", "검색", "Поиск", "搜索", "搜尋" } },
 		{ "Use", new string[] { "Verwenden", "Utiliser", "使用", "사용", "Использовать", "使用", "使用" } },
 		{ "Inventory Expansion", new string[] { "Inventarerweiterung", "Extension d'inventaire", "所持品拡張", "가방 확장", "Расширение инвентаря", "背包扩充", "背包擴充" } },
 		{ "This ticket will expand your inventory by {0} slots. ", new string[] { "Dieses Ticket erweitert dein Inventar um {0} Plätze. ", "Ce ticket agrandira votre inventaire de {0} emplacements. ", "このチケットで所持品を{0}枠拡張します。", "이 티켓으로 가방을 {0}칸 확장합니다. ", "Этот билет расширит инвентарь на {0} ячеек. ", "此券将使背包增加{0}格。", "此券將使背包增加{0}格。" } },

@@ -15,6 +15,7 @@ using NNguiExtension;
 using NShared;
 using NShared.NJit;
 using NVespa;
+using NVespa.NNGUIExtension;
 using NVespa.NSingleton;
 using UnityEngine;
 
@@ -831,6 +832,149 @@ public static class SprkTicketSearchProbe
 		return "PASS: Hero Info class/name intersection, zero results, clear, bookmark indices, reopen, selection and layout; heroes=" + func();
 	}
 
+	private static Rect PanelRect(UIPanel panel, Transform space)
+	{
+		Vector3[] corners = panel.worldCorners;
+		Vector3 a = space.InverseTransformPoint(corners[0]);
+		Vector3 b = space.InverseTransformPoint(corners[2]);
+		return Rect.MinMaxRect(Mathf.Min(a.x, b.x), Mathf.Min(a.y, b.y), Mathf.Max(a.x, b.x), Mathf.Max(a.y, b.y));
+	}
+
+	private static string R(Rect r)
+	{
+		return "(" + r.xMin.ToString("0") + "," + r.yMin.ToString("0") + ")-(" + r.xMax.ToString("0") + "," + r.yMax.ToString("0") + ")";
+	}
+
+	// Fills a party window's hero list with every open hero and checks the class/name row.
+	// keep=true leaves the window shown with a class selected, for a screenshot.
+	private static string PartyHeroTest(string windowName, bool keep)
+	{
+		EnsureAccount();
+		string shownText = Show(windowName);
+		Check(shown != null, shownText);
+		BaseWindow owner = shown.GetComponent<BaseWindow>();
+		UserHeroListPanel panel = (UserHeroListPanel)owner.GetType().GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).First((FieldInfo f) => f.FieldType == typeof(UserHeroListPanel)).GetValue(owner);
+		Check(panel != null && panel.GridHeroList != null, windowName + " has a hero list");
+		UIScrollGrid grid = panel.GridHeroList;
+		Transform frame = grid.transform.parent;
+		bool hideInactive = grid.Grid.hideInactive;
+		Rect before = PanelRect(grid.ClippingPanel, frame);
+		List<CreatureData> list = (from h in GameRoot.Instance.CreatureDataContainer.GetAllData()
+			where h.OpenType == CreatureOpenType.Opened
+			select h).ToList();
+		Check(list.Count > 20, "hero fixture pool");
+		// Same as UserHeroListPanel.CreateHeroPortraitComponent, without the account owner the fixture lacks.
+		Dictionary<UserHeroListPanel.HeroInfoKey, HeroPortraitComponent> portraits = Field<Dictionary<UserHeroListPanel.HeroInfoKey, HeroPortraitComponent>>(panel, "_dicUserHeroPortarit");
+		HeroPortraitComponent.EPortraitMode mode = (panel.PortraitSelector.PrefabType == HeroPortraitComponent.PrefabSelector.EPrefabType.Small) ? HeroPortraitComponent.EPortraitMode.Icon : HeroPortraitComponent.EPortraitMode.Basic;
+		foreach (CreatureData item in list)
+		{
+			CachedHeroInfo info = new CachedHeroInfo(item);
+			info.Level = 100;
+			info.Star = 5;
+			info.Transcended = 5;
+			HeroPortraitComponent portrait = NGame2.NUI.UIHelper.AddGridItem(grid, panel.PortraitSelector.PrefabAuto);
+			portrait.Open(info, null, null, mode);
+			portraits.Add(new UserHeroListPanel.HeroInfoKey(0L, item.Index), portrait);
+		}
+		NGame2.NUI.UIHelper.RepositionGrid(grid);
+		grid.ScrollView.ResetPosition();
+		Vector2 softBefore = grid.ClippingPanel.clipSoftness;
+		Vector4 regionBefore = grid.ClippingPanel.baseClipRegion;
+		float contentBefore = NGUIMath.CalculateRelativeWidgetBounds(frame, grid.Grid.transform).max.y;
+		Define.PatchDownloaded = true;
+		try
+		{
+			SprkTicketSearch.AfterPartyGrid(panel);
+		}
+		finally
+		{
+			Define.PatchDownloaded = false;
+		}
+		LoadSpecAtlases(shown);
+		Transform row = frame.Find(SprkTicketSearch.PartyRowName);
+		Check(row != null, "party filter row created");
+		SprkHeroGridState state = row.GetComponent<SprkHeroGridState>();
+		SprkTicketSearchBox box = row.GetComponent<SprkTicketSearchBox>();
+		Check(state != null && state.classes != null && box != null && box.input != null, "party filter controls");
+		List<HeroPortraitComponent> heroes = new List<HeroPortraitComponent>();
+		panel.ForeachAction(delegate(HeroPortraitComponent p)
+		{
+			heroes.Add(p);
+		});
+		Func<int> shownCount = () => heroes.Count((HeroPortraitComponent h) => h.gameObject.activeSelf);
+		Rect after = PanelRect(grid.ClippingPanel, frame);
+		float contentAfter = NGUIMath.CalculateRelativeWidgetBounds(frame, grid.Grid.transform).max.y;
+		Bounds search = ColliderBounds(box.input, frame);
+		Bounds classes = ColliderBounds(state.classes, frame);
+		string geometry = windowName + " clip " + R(before) + " -> " + R(after) + " class " + classes.min.x.ToString("0") + ".." + classes.max.x.ToString("0") + " y" + classes.center.y.ToString("0") + " h" + classes.size.y.ToString("0") + " search " + search.min.x.ToString("0") + ".." + search.max.x.ToString("0") + " y" + search.center.y.ToString("0") + " h" + search.size.y.ToString("0") + " drop " + state.drop.ToString("0") + " soft " + softBefore.y.ToString("0") + "->" + grid.ClippingPanel.clipSoftness.y.ToString("0") + " content " + contentBefore.ToString("0") + "->" + contentAfter.ToString("0") + " gapBelow " + (classes.min.y - contentAfter).ToString("0") + " labels '" + state.classes.SelectedLabel.text + "'/'" + box.input.defaultText + "'";
+		Check(row.GetComponent<UIPanel>().depth > grid.ClippingPanel.depth, "filter row above grid panel; " + geometry);
+		Check(Mathf.Abs(after.yMin - before.yMin) < 1f && Mathf.Abs(after.yMax - (before.yMax - Mathf.Round(classes.size.y + 8f) - state.drop)) < 1.5f, "grid top lowered by the row, bottom kept; " + geometry);
+		Check(Mathf.Abs(contentAfter - (contentBefore - Mathf.Round(classes.size.y + 8f))) < 1.5f, "lowering the row into the soft band does not move the portraits; " + geometry);
+		bool narrow = (before.width - 12f) * 0.5f - 6f < 280f;
+		Check(state.classes.SelectedLabel.text == SprkText.Get(narrow ? "Class" : "All Classes") && box.input.defaultText == SprkText.Get(narrow ? "Search" : "Search hero"), "labels fit the width; " + geometry);
+		Check(classes.max.x <= search.min.x + 1f, "class filter and search do not overlap; " + geometry);
+		Check(Mathf.Abs(classes.size.x - search.size.x) < 2f, "class filter and search are equal width; " + geometry);
+		Check(classes.min.x >= before.xMin - 1f && search.max.x <= before.xMax + 1f, "row stays inside the grid's width; " + geometry);
+		Check(classes.min.y >= after.yMax - 1f && classes.max.y <= before.yMax + 1f, "row sits in the space taken from the grid; " + geometry);
+		Check(Mathf.Abs(search.center.y - classes.center.y) < 2f, "row controls share a centre line; " + geometry);
+		Check(!state.filtering && grid.Grid.hideInactive == hideInactive, "unfiltered grid keeps native culling");
+		// Game code may rewrite the clip region later (anchors, size sync); the trim must come back.
+		UIPanel clipPanel = grid.ClippingPanel;
+		UIWidget dragWidget = (grid.DragScrollView != null) ? grid.DragScrollView.GetComponent<UIWidget>() : null;
+		string resets = "anchoredClip=" + clipPanel.isAnchored + "(" + clipPanel.updateAnchors + ") syncHeight=" + grid.SynchronizationWidgetHeight + " anchoredDrag=" + (dragWidget != null && dragWidget.isAnchored);
+		geometry = geometry + " " + resets;
+		SprkClipTrim keeper = row.GetComponent<SprkClipTrim>();
+		Check(keeper != null, "clip keeper attached");
+		clipPanel.ResetAndUpdateAnchors();
+		grid.SynchronizationWidgetSize();
+		if (dragWidget != null)
+		{
+			dragWidget.ResetAndUpdateAnchors();
+		}
+		Check(Mathf.Abs(PanelRect(clipPanel, frame).yMax - after.yMax) < 1f && Mathf.Abs(PanelRect(clipPanel, frame).yMin - after.yMin) < 1f, "native anchor/size updates keep the trim by themselves; " + geometry);
+		Check(!keeper.Enforce(), "keeper has nothing to redo after native updates; " + geometry);
+		clipPanel.baseClipRegion = regionBefore;
+		Check(keeper.Enforce() && Mathf.Abs(PanelRect(clipPanel, frame).yMax - after.yMax) < 1f && Mathf.Abs(PanelRect(clipPanel, frame).yMin - after.yMin) < 1f, "a reset clip region is trimmed again; " + geometry);
+		grid.ScrollView.SetDragAmount(0f, 1f, updateScrollbars: false);
+		grid.ScrollView.SetDragAmount(0f, 0f, updateScrollbars: false);
+		clipPanel.baseClipRegion = regionBefore;
+		keeper.Enforce();
+		float scrolledTop = NGUIMath.CalculateRelativeWidgetBounds(frame, grid.Grid.transform).max.y;
+		Check(scrolledTop <= PanelRect(clipPanel, frame).yMax + 1f, "after scrolling back up the first row starts below the filter row (" + scrolledTop.ToString("0") + " vs clip top " + PanelRect(clipPanel, frame).yMax.ToString("0") + "); " + geometry);
+		grid.ScrollView.ResetPosition();
+		int tag = (int)list[0].TagType;
+		int tagCount = list.Count((CreatureData h) => h.TagType == (CreatureTagType)tag);
+		state.classes.SelectItem(tag);
+		Check(shownCount() == tagCount && grid.Grid.hideInactive, "class filter (" + shownCount() + " of " + tagCount + ")");
+		box.input.value = list[0].Name;
+		box.OnSubmitted();
+		Check(shownCount() > 0 && heroes.Where((HeroPortraitComponent h) => h.gameObject.activeSelf).All((HeroPortraitComponent h) => h.CreatureData.TagType == (CreatureTagType)tag), "combined class and name");
+		box.input.value = "zzzzzzzzzzzzzzzzzzzz";
+		box.OnSubmitted();
+		Check(shownCount() == 0, "zero results");
+		box.Clear();
+		Check(shownCount() == tagCount, "clear preserves class");
+		Vector4 region = grid.ClippingPanel.baseClipRegion;
+		SprkTicketSearch.AfterPartyGrid(panel);
+		Check(grid.ClippingPanel.baseClipRegion == region && frame.Find(SprkTicketSearch.PartyRowName) == row, "rebuild keeps layout");
+		Check(state.classes.CurrentKey == tag && shownCount() == tagCount, "rebuild (position tab) keeps the class filter");
+		SprkTicketSearch.BeforePartyGrid(panel);
+		Check(box.text == "" && state.classes.CurrentKey == 0 && !state.filtering && grid.Grid.hideInactive == hideInactive, "reopen reset");
+		Check(grid.Grid.hideInactive || heroes.Any((HeroPortraitComponent h) => h.gameObject.activeSelf), "reopen shows heroes again");
+		if (keep)
+		{
+			// Shown outside BaseWindow.Open, some windows stay at their fade-in start.
+			foreach (UIPanel p in shown.GetComponentsInChildren<UIPanel>(includeInactive: true))
+			{
+				p.alpha = 1f;
+			}
+			state.classes.SelectItem(tag);
+			box.input.value = "a";
+			box.OnSubmitted();
+		}
+		return "PASS: " + windowName + " class/name filter, zero results, clear, rebuild, reopen; heroes=" + heroes.Count + "; " + geometry;
+	}
+
 	private sealed class InspectSelectionListener : InspectUserList.Listener
 	{
 		public HeroPortraitComponent selected;
@@ -964,6 +1108,14 @@ public static class SprkTicketSearchProbe
 		if (mode == "hero-info-test")
 		{
 			return HeroInfoTest();
+		}
+		if (mode != null && mode.StartsWith("party-hero-test:"))
+		{
+			return PartyHeroTest(mode.Substring(16), keep: false);
+		}
+		if (mode != null && mode.StartsWith("party-hero-show:"))
+		{
+			return PartyHeroTest(mode.Substring(16), keep: true);
 		}
 		if (mode != null && mode.StartsWith("show:"))
 		{
