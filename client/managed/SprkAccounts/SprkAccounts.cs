@@ -281,10 +281,7 @@ public sealed class SprkAccounts : MonoBehaviour
 
 	private static byte[] ChatResource(string name)
 	{
-		using Stream stream = typeof(SprkAccounts).Assembly.GetManifestResourceStream(name);
-		using MemoryStream memoryStream = new MemoryStream();
-		stream.CopyTo(memoryStream);
-		return memoryStream.ToArray();
+		return SprkEmbeddedResources.Read(typeof(SprkAccounts).Assembly, name) ?? throw new FileNotFoundException(name);
 	}
 
 	public static bool UseFullChatLayout()

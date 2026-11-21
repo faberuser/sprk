@@ -94,6 +94,9 @@ public class SprkBootstrap : MonoBehaviour
     IEnumerator Start()
     {
         Application.targetFrameRate = 60;
+        // Keep the screen on through the server picker and the update download;
+        // the game applies its own sleep option once it runs.
+        Screen.sleepTimeout = SleepTimeout.NeverSleep;
         Log($"device={SystemInfo.deviceModel} abi={(IntPtr.Size == 8 ? "64" : "32")}-bit os={SystemInfo.operatingSystem}");
         Log($"gfx={SystemInfo.graphicsDeviceType} {SystemInfo.graphicsDeviceName}");
 
@@ -164,6 +167,9 @@ public class SprkBootstrap : MonoBehaviour
         {
             byte[] dll = files[$"hot/{name}.dll.bytes"];
             if (dll == null) { Log($"hot {name}: missing", true); continue; }
+            // il2cpp cannot serve embedded resources of assemblies loaded from bytes; the game reads
+            // them from the image instead (SprkEmbeddedResources in Assembly-CSharp).
+            AppDomain.CurrentDomain.SetData("SPRK_HOT_DLL:" + name, dll);
             try { hot[name] = Assembly.Load(dll); }
             catch (Exception e) { Log($"hot {name}: {e.GetType().Name}: {e.Message}", true); }
         }

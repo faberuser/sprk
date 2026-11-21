@@ -74,13 +74,18 @@ class AssetOverlayTest(unittest.TestCase):
         scene = next(f for f in windows["files"] if f["name"] == "PlainAsset/Text/Scene.bjs")
         self.assertEqual(scene["md5"], hashlib.md5(b"scene").hexdigest())
         android = {f["name"]: f for f in payload["platforms"]["Android"]["files"]}
-        # Bundles only; Android's own shader bundle and the D3D ones stay out.
-        self.assertEqual(sorted(android), ["Assetbundle/Atlas.unity3d", "Assetbundle/BundlePack.bin"])
+        # Converted bundles plus the neutral data as it is; Android's own shader bundle
+        # and the D3D ones stay out.
+        self.assertEqual(sorted(android), ["Assetbundle/Atlas.unity3d", "Assetbundle/BundlePack.bin",
+                                           "PlainAsset/Text/Scene.bjs"])
         self.assertEqual(android["Assetbundle/Atlas.unity3d"]["source"], "Assetbundle/Atlas.unity3d")
+        self.assertEqual(android["PlainAsset/Text/Scene.bjs"]["source"], "PlainAsset/Text/Scene.bjs")
+        self.assertEqual(android["PlainAsset/Text/Scene.bjs"]["sha256"], hashlib.sha256(b"scene").hexdigest())
         with tarfile.open(archive) as bundle:
             members = {m.name: bundle.extractfile(m).read() for m in bundle.getmembers()}
         self.assertEqual(members, {"Android/Assetbundle/Atlas.unity3d": b"android:atlas",
-                                   "Android/Assetbundle/BundlePack.bin": b"pack"})
+                                   "Android/Assetbundle/BundlePack.bin": b"pack",
+                                   "Android/PlainAsset/Text/Scene.bjs": b"scene"})
         self.assertEqual(android["Assetbundle/Atlas.unity3d"]["sha256"], hashlib.sha256(b"android:atlas").hexdigest())
 
     def test_a_file_that_differs_from_the_manifest_is_rejected(self):

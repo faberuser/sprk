@@ -59,6 +59,15 @@ server added in the in-app list), reaches the lobby at the display's refresh rat
 
 ## Game code
 
+- **Embedded resources:** read them with `SprkEmbeddedResources.Read(assembly, name)`, never
+  `Assembly.GetManifestResourceStream`. The game's assemblies are loaded from bytes by
+  HybridCLR, and il2cpp looks for their resources in `Data/Resources/<name>-resources.dat`,
+  which does not exist for them, so the stream is null on Android. Images, meshes and other
+  resources then go missing on Android only (the Mask of xdd model and icons, Maya's
+  composed icons, the chat atlas). The helper falls back to reading the assembly image:
+  bytes the bootstrap registers (`SPRK_HOT_DLL:<name>`, APKs built after this change) or
+  the updater's `sprk/hot/<name>.dll.bytes`.
+
 - `LoginEncrypter` cannot decode the server certificate under IL2CPP (*"Unable to decode
   certificate"*). Login works because SPRK uses token authentication, but the encrypted
   login id is empty. Decoding the PEM to DER first did not help.
@@ -77,8 +86,10 @@ manifest, the same one SprkLauncher uses:
 
 - game assemblies (`Assembly-CSharp`, every `Sprk*.dll`) into `sprk/hot/`, so new
   features (for example a new `Sprk*` assembly) need no new APK;
-- tables, localization, `PlainAsset`, `LoginPresentation`, video and the other
-  platform-neutral patch files into `Documents/Patch/StandaloneWindows/` (about 750 MB);
+- tables, localization, video and the platform-neutral patch files SPRK changed into
+  `Documents/Patch/StandaloneWindows/` (about 750 MB). A release carries only the
+  `PlainAsset` files SPRK changed; the game's own `PlainAsset`, `LoginPresentation`,
+  `ContentsDefine` and `AiScript` come with the Android asset set (below);
 - not Windows asset bundles, and not the game's patch records (`PatchInfo/`,
   `patch.json`, `patch.bjs`), which the game's downloader owns on Android.
 
@@ -96,6 +107,11 @@ release. Runs on phones (tested on a Galaxy S25 Ultra against the public server)
 (`../sprk-client`) is the source of truth for assets; `python client/android/dev.py assets`
 builds `../sprk-android/build` from it (`content/build_android_assets.py`):
 
+- the platform-neutral data outside `Assetbundle/` (`PlainAsset` node trees and cutscenes,
+  `LoginPresentation`, `ContentsDefine`, `AiScript`; about 4,100 files) is the Windows
+  client's, as it is (hard link): the same selection as the Windows asset set. Without it
+  phones lacked `NodeTree/Common/Cinema.bjs` (black Hall of Heroes and Dressing Room),
+  cutscenes and effect node trees; BlueStacks only had them from `adb push`;
 - a bundle unchanged from the original game, which the original Android set
   (`../sprk-android/base-apk/Assetbundle`) has, is used as it is (hard link);
 - a bundle SPRK changed, or that Android lacks (Windows-only content and the whole Low

@@ -9,8 +9,9 @@ assets without an upload (docs/game-assets.md).
 
 * StandaloneWindows: the release's own files (from "release": the bytes are in the
   release, at patch_prefix + name).
-* Android: every bundle among them converted (convert_bundles.py), BundlePack.bin as it
-  is; the bytes are in client-asset-overlay.tar.gz at Android/<name>. Each names its
+* Android: every bundle among them converted (convert_bundles.py), BundlePack.bin and
+  the platform-neutral data (PlainAsset, ...) as they are; the bytes are in
+  client-asset-overlay.tar.gz at Android/<name>. Each names its
   Windows source; the service applies it only when that Windows file changed.
 
 The overlay JSON is signed like the release manifest.
@@ -66,7 +67,10 @@ def android_files(client: Path, windows: list[dict], output: Path, shader_map: d
     plan = []  # (windows name, android name, converted)
     for item in windows:
         if not item["name"].startswith(BUNDLES):
-            continue  # the Android bootstrap installs the rest from the release
+            # Platform-neutral data (PlainAsset, ...): the Android set lists it too
+            # (build_android_assets.py), so its changes reach that list as they are.
+            plan.append((item["name"], item["name"], False))
+            continue
         rel = item["name"][len(BUNDLES):]
         if rel.startswith(tools.SKIPPED_PREFIXES) or rel in tools.ANDROID_ONLY:
             continue

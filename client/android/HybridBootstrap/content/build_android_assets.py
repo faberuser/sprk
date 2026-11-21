@@ -14,9 +14,15 @@ BundlePack.bin, the bundle index, is platform-neutral and comes from Windows (th
 Android one predates content the tables use). The shader bundle the game loads
 (Unity_2018/Shader.unity3d) is the original Android GLES one.
 
+The platform-neutral patch data outside Assetbundle/ (PlainAsset node trees and
+cutscenes, LoginPresentation, ContentsDefine, AiScript) is the Windows client's, as it
+is: the same selection the Windows asset set publishes (publish_assets.py). Code releases
+only carry the files SPRK changed, so without these the Android game has no cinema
+backgrounds, cutscenes or effect node trees.
+
 Incremental: a bundle is converted again only when its source or the converter changed
-(state in ../sprk-android/build/.sprk-android.json). Unchanged originals are hard links into
-../sprk-android/base-apk where possible. Never edit ../sprk-android/build by hand; run this again after
+(state in ../sprk-android/build/.sprk-android.json). Unchanged originals and the neutral
+data are hard links into ../sprk-android/base-apk and the Windows client where possible. Never edit ../sprk-android/build by hand; run this again after
 changing Windows assets, then publish it with
 `publish_assets.py --client ../sprk-android/build --platform Android --patch-prefix ""`.
 
@@ -37,7 +43,10 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[3]
 WORKSPACE = REPO.parent
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(REPO))
 import convert_bundles  # noqa: E402
+from client.scripts.release.publish_assets import PATCH_PREFIX, code_path, excluded  # noqa: E402
+from client.scripts.release.publish_client_update import ignored  # noqa: E402
 
 WINDOWS_PATCH = WORKSPACE / "sprk-client" / "King's Raid_Data" / "Documents" / "Patch" / "StandaloneWindows"
 # Files the game loads from the original Android set as they are.
@@ -45,6 +54,14 @@ ANDROID_ONLY = ("Unity_2018/Shader.unity3d", "Shader.unity3d")
 # Windows-only shader bundles (D3D); Android uses ANDROID_ONLY instead.
 SKIPPED_PREFIXES = ("Unity_2018/", "Unity_2020/")
 NEUTRAL = ("BundlePack.bin",)
+BUNDLES = "Assetbundle/"
+
+
+def neutral_data(name: str) -> bool:
+    """A patch-folder file (relative name) outside Assetbundle/ that the game's patch
+    downloader serves: the Windows asset set's selection (publish_assets.collect)."""
+    full = PATCH_PREFIX + name
+    return not name.startswith(BUNDLES) and not excluded(full, PATCH_PREFIX) and not code_path(full)
 
 
 def md5(path: Path) -> str:
@@ -83,6 +100,34 @@ def convert_one(source: str, target: str, shader_map: dict) -> tuple[str, dict |
         return target, stats
     except Exception as e:  # reported per bundle; the others still finish
         return target, f"{type(e).__name__}: {e}"
+
+
+def mirror_data(windows: Path, out: Path, data: dict) -> None:
+    """Place the Windows neutral patch data (neutral_data) at the same paths under out;
+    data maps each placed name to its source fingerprint. Names Windows no longer has
+    are removed."""
+    sources = {}
+    for path in sorted(windows.rglob("*")):
+        rel = path.relative_to(windows).as_posix()
+        if rel.startswith(BUNDLES) or any(part.startswith(".") for part in rel.split("/")):
+            continue
+        if path.is_file() and not ignored(path) and neutral_data(rel):
+            sources[rel] = path
+    placed = kept = 0
+    for rel, source in sources.items():
+        key = fingerprint(source)
+        target = out / rel
+        if data.get(rel) == key and target.is_file():
+            kept += 1
+            continue
+        place(source, target)
+        data[rel] = key
+        placed += 1
+    stale = [rel for rel in data if rel not in sources]
+    for rel in stale:
+        (out / rel).unlink(missing_ok=True)
+        del data[rel]
+    print(f"{len(sources)} neutral data files: {kept} up to date, {placed} from Windows, {len(stale)} removed", flush=True)
 
 
 def main() -> None:
@@ -156,6 +201,8 @@ def main() -> None:
 
     print(f"{len(plan)} files: {kept} up to date, {linked} from originals/Windows, {len(todo)} to convert, {len(stale)} removed",
           flush=True)
+    if not args.only:
+        mirror_data(args.windows, args.out, state.setdefault("data", {}))
     failures, totals = [], {}
     if todo:
         with ProcessPoolExecutor(max_workers=args.jobs) as pool:

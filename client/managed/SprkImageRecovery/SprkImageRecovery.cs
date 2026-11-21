@@ -374,25 +374,16 @@ public static class SprkImageRecovery
 	private static readonly Dictionary<string, string> bundleImages = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
 	{
 		{ "Icon/Item/ACCESSORY_HEAD_SPRKXDD", "SprkIcons.Item.ACCESSORY_HEAD_SPRKXDD.png" },
-		{ "Customize/Product/Portrait/Accessory_Head_SprkXdd", "SprkPortraits.Accessory_Head_SprkXdd.png" }
+		{ "Customize/Product/Portrait/Accessory_Head_SprkXdd", "SprkPortraits.Accessory_Head_SprkXdd.png" },
+		{ "Icon/Emoticon/SprkXdd", "SprkIcons.Emoticon.SprkXdd.png" }
 	};
 
 	private static Texture2D LoadEmbedded(string resource, string name)
 	{
-		using Stream stream = typeof(SprkImageRecovery).Assembly.GetManifestResourceStream(resource);
-		if (stream == null)
+		byte[] bytes = SprkEmbeddedResources.Read(typeof(SprkImageRecovery).Assembly, resource);
+		if (bytes == null)
 		{
 			return null;
-		}
-		byte[] bytes = new byte[(int)stream.Length];
-		int read;
-		for (int i = 0; i < bytes.Length; i += read)
-		{
-			read = stream.Read(bytes, i, bytes.Length - i);
-			if (read == 0)
-			{
-				throw new EndOfStreamException();
-			}
 		}
 		Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, mipChain: false);
 		if (!texture.LoadImage(bytes, markNonReadable: true))
@@ -444,21 +435,7 @@ public static class SprkImageRecovery
 		}
 		if (!tpIcons.TryGetValue(num, out var value) || value == null)
 		{
-			using Stream stream = typeof(SprkImageRecovery).Assembly.GetManifestResourceStream("SprkTpIcons." + num + ".png");
-			if (stream == null)
-			{
-				throw new InvalidOperationException("Missing TP icon: " + num);
-			}
-			byte[] array = new byte[(int)stream.Length];
-			int num2;
-			for (int i = 0; i < array.Length; i += num2)
-			{
-				num2 = stream.Read(array, i, array.Length - i);
-				if (num2 == 0)
-				{
-					throw new EndOfStreamException();
-				}
-			}
+			byte[] array = SprkEmbeddedResources.Read(typeof(SprkImageRecovery).Assembly, "SprkTpIcons." + num + ".png") ?? throw new InvalidOperationException("Missing TP icon: " + num);
 			value = new Texture2D(2, 2, TextureFormat.RGBA32, mipChain: false);
 			if (!value.LoadImage(array, markNonReadable: true))
 			{

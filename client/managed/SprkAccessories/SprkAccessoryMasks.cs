@@ -174,22 +174,7 @@ public static class SprkAccessoryMasks
 
 	private static byte[] Resource(string name)
 	{
-		using Stream stream = typeof(SprkAccessoryMasks).Assembly.GetManifestResourceStream(name);
-		if (stream == null)
-		{
-			throw new FileNotFoundException(name);
-		}
-		byte[] array = new byte[stream.Length];
-		int num;
-		for (int i = 0; i < array.Length; i += num)
-		{
-			num = stream.Read(array, i, array.Length - i);
-			if (num == 0)
-			{
-				throw new EndOfStreamException(name);
-			}
-		}
-		return array;
+		return SprkEmbeddedResources.Read(typeof(SprkAccessoryMasks).Assembly, name) ?? throw new FileNotFoundException(name);
 	}
 
 	// Format: "SPKM", int32 version 1, vertex count, index count, per vertex position/normal/uv

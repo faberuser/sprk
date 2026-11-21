@@ -49,7 +49,13 @@ public static class SprkAndroidBuild
         PlayerSettings.stripEngineCode = false;
         PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
         PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel23;
-        PlayerSettings.defaultInterfaceOrientation = UIOrientation.LandscapeLeft;
+        // Landscape on either side, following the device's auto-rotate setting.
+        PlayerSettings.defaultInterfaceOrientation = UIOrientation.AutoRotation;
+        PlayerSettings.allowedAutorotateToLandscapeLeft = true;
+        PlayerSettings.allowedAutorotateToLandscapeRight = true;
+        PlayerSettings.allowedAutorotateToPortrait = false;
+        PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
+        PlayerSettings.useAnimatedAutorotation = true;
         PlayerSettings.gcIncremental = false; // HybridCLR: keep the simplest GC mode for the first proof
         PlayerSettings.SetIl2CppCompilerConfiguration(android, Il2CppCompilerConfiguration.Release);
         PlayerSettings.SetIl2CppCodeGeneration(android, UnityEditor.Build.Il2CppCodeGeneration.OptimizeSize);
