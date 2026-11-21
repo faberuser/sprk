@@ -51,8 +51,14 @@ class LocalizationTests(unittest.TestCase):
         for path in (catalog.ROOT / 'tables').rglob('*.json'):
             for language, values in json.loads(path.read_text(encoding='utf-8')).get('localization', {}).items():
                 languages.setdefault(language, {}).update(values)
+        # Some patches translate text the base game already ships in English
+        # (tables/birthday-stories), so translations may cover more keys than
+        # the English patches; every translated language must still agree.
+        english = set(languages['English'])
+        expected = set(languages[catalog.LANGUAGES[0]])
         for language in catalog.LANGUAGES:
-            self.assertEqual(set(languages['English']), set(languages[language]), language)
+            self.assertLessEqual(english, set(languages[language]), language)
+            self.assertEqual(expected, set(languages[language]), language)
             self.assertTrue(all(str(value).strip() for value in languages[language].values()))
 
 
