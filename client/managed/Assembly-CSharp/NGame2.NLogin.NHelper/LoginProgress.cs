@@ -108,7 +108,9 @@ public class LoginProgress
 	{
 		Status = EStatus.Progressing;
 		SingletonUpdater<WebServiceManager>.instance.Requester.AesKey = null;
-		SingletonUpdater<WebServiceManager>.instance.Requester.SetHost(ServerAddress);
+		// SPRK: ServerAddress has no scheme (StateBase_LoginGameServer strips it); without one the
+		// requester falls back to http://, which Android refuses for remote hosts.
+		SingletonUpdater<WebServiceManager>.instance.Requester.SetHost(WebServiceRequester.WithScheme(ServerAddress, UseHttps));
 		Vespa_System_Action_Extension_Method.fire(OnMessage, "Get Certificate.");
 		SingletonUpdater<WebServiceManager>.instance.Requester.Request<NShared.GetCertificate.Request, NShared.GetCertificate.Response>(new NShared.GetCertificate.Request(), OnResponseCertificate);
 	}
@@ -136,7 +138,7 @@ public class LoginProgress
 		if (r.PublicIp != null)
 		{
 			ServerAddress = r.PublicIp;
-			SingletonUpdater<WebServiceManager>.instance.Requester.SetHost(ServerAddress);
+			SingletonUpdater<WebServiceManager>.instance.Requester.SetHost(WebServiceRequester.WithScheme(ServerAddress, UseHttps));
 		}
 		RequestLogin(requestLoginStatus);
 	}
