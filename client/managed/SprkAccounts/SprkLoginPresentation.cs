@@ -474,6 +474,18 @@ public sealed class SprkLoginPresentation : MonoBehaviour
 				break;
 			}
 			UISprite uISprite = FindNativeLogo();
+			if (uISprite != null && logoAtlas != null)
+			{
+				// Android draws the logo from the bundle atlas. A new login scene (switch
+				// account) has a new logo sprite on the native atlas, whose texture may be the
+				// one already recorded as restored, so point every logo at the bundle atlas.
+				if (uISprite.atlas != logoAtlas)
+				{
+					uISprite.atlas = logoAtlas;
+				}
+				LogoStatus = "restored from the bundle atlas";
+				break;
+			}
 			Texture2D texture2D = ((uISprite == null || uISprite.atlas == null) ? null : (uISprite.mainTexture as Texture2D));
 			if (texture2D != null)
 			{
@@ -500,7 +512,13 @@ public sealed class SprkLoginPresentation : MonoBehaviour
 	private static void RestoreLogoSubtitle(UISprite sprite, Texture2D target)
 	{
 		string path = ((SystemOptionData.Spec == ESpecType.Low) ? "LowLargeSpec" : "HighAndMidSpec");
-		AssetBundle assetBundle = logoAtlasBundle ?? AssetBundle.LoadFromFile(Path.Combine(UnityCache.GetDownloadedAssetPath("Assetbundle"), path, "NguiAtlas_UI_Prefab_Login.unity3d"));
+		string file = Path.Combine(UnityCache.GetDownloadedAssetPath("Assetbundle"), path, "NguiAtlas_UI_Prefab_Login.unity3d");
+		if (logoAtlasBundle == null && Application.platform == RuntimePlatform.Android && !File.Exists(file))
+		{
+			// Before the first asset download: the copy built into the APK (SprkAndroidBuild).
+			file = Path.Combine(Application.streamingAssetsPath, "sprk", "login", path, "NguiAtlas_UI_Prefab_Login.unity3d");
+		}
+		AssetBundle assetBundle = logoAtlasBundle ?? AssetBundle.LoadFromFile(file);
 		if (assetBundle == null)
 		{
 			throw new InvalidOperationException("Login atlas bundle could not be opened");
@@ -537,6 +555,7 @@ public sealed class SprkLoginPresentation : MonoBehaviour
 				// bundle atlas is ASTC, the scene's atlas comes from the Windows data). The
 				// bundle atlas already holds the complete logo, so draw the logo from it.
 				sprite.atlas = uIAtlas;
+				logoAtlas = uIAtlas;
 				logoAtlasBundle = assetBundle;
 				restoredLogoTexture = target;
 				return;
@@ -566,6 +585,8 @@ public sealed class SprkLoginPresentation : MonoBehaviour
 
 	// Kept loaded while the logo is drawn from it (see the format fallback above).
 	private static AssetBundle logoAtlasBundle;
+
+	private static UIAtlas logoAtlas;
 
 	private void HideNativeObject(GameObject go)
 	{

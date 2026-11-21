@@ -278,6 +278,10 @@ public class GameOptionWindow : BaseWindow, GameOptionBaseComponent.Listener
 				}
 				foreach (NShared.GameOptionData item in gameOptionDatas)
 				{
+					if (SprkHiddenOnMobile(item))
+					{
+						continue;
+					}
 					switch (item.GameOptionComponent)
 					{
 					case GameOptionComponent.Button:
@@ -708,6 +712,25 @@ public class GameOptionWindow : BaseWindow, GameOptionBaseComponent.Listener
 		{
 			string stringDirect = LocalizationManager.GetStringDirect("MENU_SERVICE_GUIDELINE");
 			LawRelatedPopup.Open(_countryServerData, stringDirect, 2);
+		}
+	}
+
+	// SPRK: options that do nothing on phones. Screen and Resolution size a Windows window;
+	// Android always syncs to the display, so V-Sync has no effect there.
+	private static bool SprkHiddenOnMobile(NShared.GameOptionData item)
+	{
+		if (!Application.isMobilePlatform || item == null)
+		{
+			return false;
+		}
+		switch (item.FieldName)
+		{
+		case "Graphic_WindowControl":
+		case "Graphic_ResolutionControl":
+		case "Graphic_VSyncControl":
+			return true;
+		default:
+			return item.OptionName == "OPTION_GAME_RESOULUTION";
 		}
 	}
 

@@ -753,6 +753,8 @@ public class LoginPatchDownloader : BaseWindow, DownloadWarningPopup.Listener
 			if (totalArchiveCount == 0)
 			{
 				UIHelper.SetSpriteFillAmount(Sprite_LoadingBar, 1f);
+				// SPRK: nothing to download; without a text the prefab's placeholder ("로그인") showed.
+				UIHelper.SetLabelText(ProgressLabel, SprkText.Get("Download Complete"));
 				break;
 			}
 			float num = (float)downloadedFraction / (float)totalArchiveCount;
@@ -764,6 +766,7 @@ public class LoginPatchDownloader : BaseWindow, DownloadWarningPopup.Listener
 		}
 		case PatchDownloader.DownloadState.Done:
 			UIHelper.SetSpriteFillAmount(Sprite_LoadingBar, 1f);
+			UIHelper.SetLabelText(ProgressLabel, SprkText.Get("Download Complete"));
 			break;
 		default:
 			UIHelper.SetSpriteFillAmount(Sprite_LoadingBar, 0f);

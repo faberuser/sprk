@@ -168,6 +168,14 @@ public sealed class SprkAccounts : MonoBehaviour
 
 	private UILabel confirmVisibilityLabel;
 
+	private UILabel subtitleLabel;
+
+	private UILabel changeServerLabel;
+
+	private UILabel backLabel;
+
+	private string captionLanguage;
+
 	private UIInput username;
 
 	private UIInput password;
@@ -314,6 +322,16 @@ public sealed class SprkAccounts : MonoBehaviour
 			{
 				uISprite.atlas = chatAtlas;
 			}
+		}
+	}
+
+	// Nickname prefabs restrict typing to ASCII; validity is decided by NickChecker and the server.
+	public static void AllowAnyLanguageNickname(UIInput input)
+	{
+		if (input != null)
+		{
+			input.validation = UIInput.Validation.None;
+			input.onValidate = null;
 		}
 	}
 
@@ -1235,7 +1253,8 @@ public sealed class SprkAccounts : MonoBehaviour
 		border = Surface(Child("Border", root.transform, 0f, 0f), 846, 0, new Color(0.24f, 0.34f, 0.43f, 0.96f), -1);
 		background = Surface(Child("Background", root.transform, 0f, 0f), 840, 0, new Color(0.035f, 0.055f, 0.09f, 0.96f), 0);
 		title = Label("Title", root.transform, SprkText.Get("Welcome Back"), 0f, 363f, 730, 60, 42);
-		Label("Subtitle", root.transform, SprkText.Get("SPRK ACCOUNT"), 0f, 313f, 730, 30, 19).color = new Color(0.61f, 0.72f, 0.82f);
+		subtitleLabel = Label("Subtitle", root.transform, SprkText.Get("SPRK ACCOUNT"), 0f, 313f, 730, 30, 19);
+		subtitleLabel.color = new Color(0.61f, 0.72f, 0.82f);
 		Surface(Child("Accent", root.transform, 0f, 287f), 72, 4, Accent, 1);
 		username = Input(changingPassword ? "CurrentPassword" : "Username", changingPassword ? SprkText.Get("Current Password") : "Username", 218f, changingPassword, out var row);
 		username.characterLimit = (changingPassword ? 128 : 32);
@@ -1250,13 +1269,13 @@ public sealed class SprkAccounts : MonoBehaviour
 		serverStatus = Child("ServerStatus", root.transform, 0f, 0f);
 		serverLabel = Label("Label", serverStatus.transform, "", 0f, 0f, 696, 36, 23);
 		serverLabel.color = new Color(0.66f, 0.77f, 0.86f);
-		changeServerButton = Button("ChangeServer", "Change", 296f, 0f, 96, ChangeServer, out var _, serverStatus.transform, primary: false, 40);
+		changeServerButton = Button("ChangeServer", "Change", 296f, 0f, 96, ChangeServer, out changeServerLabel, serverStatus.transform, primary: false, 40);
 		submit = Button("Submit", SprkText.Get("Log In"), 0f, 0f, 696, Submit, out submitLabel, null, primary: true, 52);
 		toggle = Button("SwitchMode", SprkText.Get("Create an Account"), 0f, 0f, 696, SwitchMode, out switchLabel, null, primary: false, 52);
 		message = Label("Message", root.transform, "", 0f, 0f, 730, 22, 22);
 		message.color = new Color(1f, 0.79f, 0.48f);
 		message.overflowMethod = UILabel.Overflow.ResizeHeight;
-		back = Button(changingPassword ? "Cancel" : "BackToAccounts", changingPassword ? "Cancel" : SprkText.Get("Back to Accounts"), 0f, 0f, 696, BackToAccounts, out var _, null, primary: false, 52);
+		back = Button(changingPassword ? "Cancel" : "BackToAccounts", changingPassword ? "Cancel" : SprkText.Get("Back to Accounts"), 0f, 0f, 696, BackToAccounts, out backLabel, null, primary: false, 52);
 		accountList = Child("SavedAccounts", root.transform, 0f, 0f);
 		if (!changingPassword)
 		{
@@ -1290,8 +1309,54 @@ public sealed class SprkAccounts : MonoBehaviour
 		}
 	}
 
+	private static string CurrentLanguage()
+	{
+		return SingletonAuto<LocalizationManager>.instance.Language.ToString();
+	}
+
+	private static void SetCaption(UILabel label, string english)
+	{
+		if (label != null)
+		{
+			label.text = SprkText.Get(english);
+		}
+	}
+
+	private static UILabel Caption(UIInput input)
+	{
+		Transform transform = ((input != null && input.transform.parent != null) ? input.transform.parent.Find("Caption") : null);
+		if (!(transform != null))
+		{
+			return null;
+		}
+		return transform.GetComponent<UILabel>();
+	}
+
+	// The form is built once and reused, so captions set in Build() must be
+	// re-translated whenever the panel refreshes or the language changes.
+	private void RefreshCaptions()
+	{
+		captionLanguage = CurrentLanguage();
+		SetCaption(subtitleLabel, "SPRK ACCOUNT");
+		SetCaption(Caption(username), changingPassword ? "Current Password" : "Username");
+		SetCaption(Caption(password), changingPassword ? (deletingAccount ? "Type DELETE to confirm" : "New Password") : "Password");
+		SetCaption(Caption(confirm), "Confirm Password");
+		SetCaption(changeServerLabel, "Change");
+		if (!changingPassword)
+		{
+			SetCaption(backLabel, "Back to Accounts");
+		}
+		SetCaption(passwordVisibilityLabel, (password.inputType == UIInput.InputType.Password) ? "Show" : "Hide");
+		SetCaption(confirmVisibilityLabel, (confirm.inputType == UIInput.InputType.Password) ? "Show" : "Hide");
+		if (changingPassword)
+		{
+			SetCaption(currentVisibilityLabel, (username.inputType == UIInput.InputType.Password) ? "Show" : "Hide");
+		}
+	}
+
 	private void Refresh()
 	{
+		RefreshCaptions();
 		if (changingPassword)
 		{
 			RefreshPasswordChange();
@@ -1367,8 +1432,6 @@ public sealed class SprkAccounts : MonoBehaviour
 		bool isEnabled = (uIButton2.isEnabled = flag);
 		uIButton.isEnabled = isEnabled;
 		RefreshLayout();
-		username.transform.parent.Find("Caption").GetComponent<UILabel>().text = SprkText.Get("Current Password");
-		password.transform.parent.Find("Caption").GetComponent<UILabel>().text = SprkText.Get((deletingAccount ? "Type DELETE to confirm" : "New Password"));
 		password.inputType = ((!deletingAccount) ? UIInput.InputType.Password : UIInput.InputType.Standard);
 		passwordVisibility.gameObject.SetActive(!deletingAccount);
 		confirmRow.SetActive(!deletingAccount);
@@ -1418,6 +1481,10 @@ public sealed class SprkAccounts : MonoBehaviour
 
 	private void Update()
 	{
+		if (root != null && root.activeInHierarchy && captionLanguage != CurrentLanguage())
+		{
+			Refresh();
+		}
 		if (!changingPassword && !busy && root != null && root.activeInHierarchy && Time.unscaledTime >= nextAccountRefresh)
 		{
 			nextAccountRefresh = Time.unscaledTime + 1f;

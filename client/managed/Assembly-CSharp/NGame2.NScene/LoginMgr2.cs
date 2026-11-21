@@ -134,7 +134,7 @@ public class LoginMgr2 : SceneBehaviour<LoginMgr2>
 			if (server != null)
 			{
 				SingletonUpdater<WebServiceManager>.instance.Requester.Reset();
-				SingletonUpdater<WebServiceManager>.instance.Requester.SetHost(server.Host);
+				SingletonUpdater<WebServiceManager>.instance.Requester.SetHost(WebServiceRequester.WithScheme(server.Host, server.Https));
 			}
 		});
 	}

@@ -182,7 +182,11 @@ pub(super) async fn settle(db: &mut PgConnection, s: &AppState, a: i64) -> Resul
             .find(|v|rank>=n(v,"MinRank")&&rank<=n(v,"MaxRank")) else {continue;};
         let inserted=crate::db::query("INSERT INTO community_claims(account,kind,target,period) VALUES($1,'guild_conquest_session_reward',0,$2) ON CONFLICT DO NOTHING")
             .bind(a).bind(period.to_string()).execute(&mut *db).await?.rows_affected();
-        if inserted>0 {progression::mail_reward(db,s,a,n(reward,"RewardIndex"),"Guild Conquest session reward").await?;}
+        if inserted>0 {
+            progression::mail_reward(db,s,a,n(reward,"RewardIndex"),"Guild Conquest session reward").await?;
+            // "Rank 1st on a Round in Guild Conquest" counts settled rounds by final group rank.
+            crate::api::progression::record(db,a,"GuildSuppressRank",rank,period,1).await?;
+        }
     }
     Ok(())
 }

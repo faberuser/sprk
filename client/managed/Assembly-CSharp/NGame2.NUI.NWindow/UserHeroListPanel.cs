@@ -86,6 +86,7 @@ public class UserHeroListPanel
 		_listener = listener as IListener;
 		_selectionMarkAction = selectionMarkAction;
 		_dungeonData = dungeonData;
+		SprkTicketSearch.BeforePartyGrid(this);
 		if (IsValidTogglePosition() && !TogglePosition.Total.value)
 		{
 			TogglePosition.Total.value = true;
@@ -474,6 +475,7 @@ public class UserHeroListPanel
 		UIHelper.RepositionGrid(GridHeroList);
 		SelectionMark();
 		SprkDispatchSelection.RefreshList(this);
+		SprkTicketSearch.AfterPartyGrid(this);
 	}
 
 	public void OnHeroPositionToggleChange()

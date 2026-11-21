@@ -190,3 +190,179 @@ async fn export_mission_rule_audit() {
     std::fs::write(&path,serde_json::to_vec_pretty(&report).unwrap()).unwrap();
     println!("Mission rule audit: {} definitions, {unresolved} unresolved. {}",report["definitions"],path.display());
 }
+
+#[tokio::test]
+async fn mission_rules_raid_tab_milestones_follow_their_raid_and_stage() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    let progress=|v:&View,id:i64| v.quest(&s,quest(&s,id));
+    let clear=|c:i64,d:i64,count:i64| action(&s,a,"ClearDungeon",c,d,count);
+    let v=view(&s,a).await;
+    for id in [1001160,1001200,1001220,1001450,1001470,1001600,1002500,1002940] {assert_eq!(progress(&v,id),0,"{id} starts pending");}
+    // Fire Dragon single T7 Stage 2 (Level 10) is below T8 Stage 1.
+    clear(905,10,1).await;
+    assert_eq!(progress(&view(&s,a).await,1001160),0);
+    assert_ne!(claim(&s,&u,1001160).await["Result"],"Success");
+    // Fire Dragon multi T8 Stage 3 completes T8 Stage 1 and 3, not Frost.
+    clear(901,13,1).await;
+    let v=view(&s,a).await;
+    assert_eq!((progress(&v,1001160),progress(&v,1001180),progress(&v,1001230)),(1,1,0));
+    assert_eq!(claim(&s,&u,1001160).await["Result"],"Success");
+    // Single hard mode Stage 4 reports the shared hard raid 11.
+    clear(931,4,1).await;
+    let v=view(&s,a).await;
+    assert_eq!((progress(&v,1001190),progress(&v,1001220),progress(&v,1001260)),(1,1,0));
+    // Field raids: Lava counts clears of any stage; Stage 2 needs Level 2.
+    clear(8,100,49).await;clear(8,101,1).await;
+    let v=view(&s,a).await;
+    assert_eq!((progress(&v,1001450),progress(&v,1001470),progress(&v,1001490)),(50,0,0));
+    assert_eq!(claim(&s,&u,1001450).await["Result"],"Success");
+    clear(8,111,1).await;
+    assert_eq!(progress(&view(&s,a).await,1001470),1);
+    // Technomagic and Technomagic Enchantment raids by boss and stage.
+    clear(10,2106,1).await;clear(10,4103,1).await;
+    let v=view(&s,a).await;
+    assert_eq!((progress(&v,1002500),progress(&v,1002440),progress(&v,1002940),progress(&v,1002910)),(1,0,1,0));
+    // Challenge Raid rows count their own mode, five clears per node in order.
+    clear(921,1,7).await;
+    let v=view(&s,a).await;
+    assert_eq!((progress(&v,1001600),progress(&v,1001610),progress(&v,1001620),progress(&v,1001660)),(7,2,0,0),"raw progress; the client sees it capped at 5");
+    assert_eq!(claim(&s,&u,1001600).await["Result"],"Success");
+    assert_ne!(claim(&s,&u,1001610).await["Result"],"Success","Multi 2 needs clears 6-10");
+    clear(941,1,5).await;
+    let v=view(&s,a).await;
+    assert_eq!((progress(&v,1001660),progress(&v,1001670),progress(&v,1001610)),(5,0,2),"Single clears never count for Multi");
+    clear(951,1,3).await;
+    assert_eq!(claim(&s,&u,1001610).await["Result"],"Success");
+    // Enchant goals only count that element's scrolls.
+    action(&s,a,"Enchant",1,45029,1).await;
+    let v=view(&s,a).await;
+    assert_eq!((progress(&v,1001200),progress(&v,1001270)),(1,0));
+}
+
+#[tokio::test]
+async fn mission_rules_battle_tab_milestones_follow_their_content_and_stage() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    let progress=|v:&View,id:i64| v.quest(&s,quest(&s,id));
+    let clear=|c:i64,d:i64,count:i64| action(&s,a,"ClearDungeon",c,d,count);
+    let ids=[1000650,1000670,11031,1000700,1000710,1000760,1000820,1000880,1000890,1000920,1001080,1001090,1001110,1001120];
+    let v=view(&s,a).await;
+    for id in ids {assert_eq!(progress(&v,id),0,"{id} starts pending");}
+    // Royal Underground Labyrinth: floor B3 of the Priest labyrinth (1007).
+    let floor=|tower:i64,f:i64| s.tables.battle.rows("TowerFloor").iter()
+        .find(|r|n(r,"TowerIndex")==tower && n(r,"Floor")==f).map(|r|(n(r,"ChapterIndex"),n(r,"DungeonIndex"))).unwrap();
+    let challenge=floor(21,3);clear(challenge.0,challenge.1,5).await;
+    let v=view(&s,a).await;
+    assert_eq!((progress(&v,1000650),progress(&v,11031)),(0,0),"Tower of Challenge floors are not the Labyrinth");
+    let (c,d)=floor(1007,3);clear(c,d,1).await;
+    let v=view(&s,a).await;
+    assert_eq!((progress(&v,1000650),progress(&v,1000670),progress(&v,1000680),progress(&v,11031)),(1,1,0,1));
+    // World Boss damage: best single battle against that boss, any season.
+    for (boss,day,score) in [(3,"2026-01-01",20_000_000_000_i64),(3,"2026-01-02",20_000_000_000)] {
+        crate::db::query("INSERT INTO battle_scores(family,boss,season,account,day,score) VALUES('world_boss',$1,1,$2,$3,$4)")
+            .bind(boss).bind(a).bind(day).bind(score).execute(&s.db).await.unwrap();
+    }
+    assert_eq!(progress(&view(&s,a).await,1000700),0,"30B needs one battle, not a sum of days");
+    crate::db::query("INSERT INTO battle_scores(family,boss,season,account,day,score) VALUES('world_boss',97,1,$1,'2026-01-03',40000000000)")
+        .bind(a).execute(&s.db).await.unwrap();
+    let v=view(&s,a).await;
+    assert_eq!((progress(&v,1000700),progress(&v,1000710),progress(&v,1000760),progress(&v,1000820)),(1,0,0,0));
+    // God King trials: stage N or a harder one of the same gate.
+    clear(100000,3,1).await;
+    let v=view(&s,a).await;
+    assert_eq!((progress(&v,1000880),progress(&v,1000890),progress(&v,1000900),progress(&v,1000920)),(1,1,0,0));
+    // Shakmeh: story stage 6 and Devourer stage 2; Otherworldly Darkness untouched.
+    clear(50000,6,1).await;clear(50000,502,1).await;
+    let v=view(&s,a).await;
+    assert_eq!((progress(&v,1001080),progress(&v,1001090),progress(&v,1001100),progress(&v,1001110),progress(&v,1001120)),(1,1,0,1,0));
+    assert_eq!(claim(&s,&u,1001080).await["Result"],"Success");
+}
+
+#[tokio::test]
+async fn mission_rules_guideline_growth_and_guild_milestones_use_their_filters() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    let progress=|v:&View,id:i64| v.quest(&s,quest(&s,id));
+    let ids=[11221,10832,11101,10951,11491,11102,11281,10781,10782,1000390,1000440,1000250,1000260,1000350,1002070,1002090,1002130];
+    let v=view(&s,a).await;
+    for id in ids {assert_eq!(progress(&v,id),0,"{id} starts pending");}
+    // Field Raid Lava, Repositorium, Fire Dragon entry, Eclipse, Challenge Stage.
+    action(&s,a,"ClearDungeon",8,100,2).await;action(&s,a,"ClearDungeon",5100,1,2).await;
+    action(&s,a,"EnterDungeon",902,11,1).await;
+    action(&s,a,"EndEclipse",0,0,1).await;action(&s,a,"EnterDungeon",97,11,1).await;
+    let v=view(&s,a).await;
+    assert_eq!((progress(&v,11221),progress(&v,11421),progress(&v,10832),progress(&v,11101),progress(&v,10951),progress(&v,11491)),(2,0,2,0,1,0),
+        "Frost Dragon and substory stages do not count");
+    action(&s,a,"EnterDungeon",931,4,1).await;action(&s,a,"EnterDungeon",97,12,1).await;
+    let v=view(&s,a).await;
+    assert_eq!((progress(&v,11101),progress(&v,11491)),(1,1));
+    // Shops: Raid Shop item 335 is the Baby Dragon box, 336 the Dragon box; Hero Inn shop is 10.
+    action(&s,a,"BuyShopItem",11,336,1).await;action(&s,a,"BuyShopItem",10,1,1).await;
+    let v=view(&s,a).await;
+    assert_eq!((progress(&v,11102),progress(&v,1000250),progress(&v,11281),progress(&v,1000260)),(0,1,1,0),
+        "a stamina potion is not a kinship material");
+    action(&s,a,"BuyShopItem",11,335,1).await;action(&s,a,"BuyShopItem",10,7,1).await;
+    let v=view(&s,a).await;
+    assert_eq!((progress(&v,11102),progress(&v,1000260)),(1,1));
+    // Crafting counts the named item only.
+    action(&s,a,"CraftItem",0,0,5).await;action(&s,a,"CraftItem",9999,15,3).await;action(&s,a,"CraftItem",2017,63,1).await;
+    let v=view(&s,a).await;
+    assert_eq!((progress(&v,10781),progress(&v,10782),progress(&v,1000390),progress(&v,1000440),progress(&v,1002070)),(3,0,0,1,0));
+    // Tower of Challenge clears (50 needed), not Labyrinth floors.
+    let floor=|tower:i64| s.tables.battle.rows("TowerFloor").iter().find(|r|n(r,"TowerIndex")==tower).map(|r|(n(r,"ChapterIndex"),n(r,"DungeonIndex"))).unwrap();
+    let (c,d)=floor(1001);action(&s,a,"ClearDungeon",c,d,60).await;
+    assert_eq!(progress(&view(&s,a).await,1000350),0);
+    let (c,d)=floor(21);action(&s,a,"ClearDungeon",c,d,50).await;
+    assert_eq!(progress(&view(&s,a).await,1000350),50);
+    // Guild: Conquest rounds ranked 1st and Guild War attacks.
+    action(&s,a,"GuildSuppressRank",2,1,1).await;action(&s,a,"GuildSuppressRank",1,2,2).await;
+    crate::db::query("INSERT INTO guild_arena_records(guild_id,enemy_guild,account,enemy,season,win,data) VALUES(1,2,$1,3,1,0,'{}')")
+        .bind(a).execute(&s.db).await.unwrap();
+    let v=view(&s,a).await;
+    assert_eq!((progress(&v,1002090),progress(&v,1002130)),(2,1),"a lost attack still counts; 2nd place does not");
+    assert_eq!(claim(&s,&u,1002130).await["Result"],"Success");
+}
+
+#[tokio::test]
+async fn mission_rules_equip_milestones_require_the_named_gear_worn() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    let progress=|v:&View,id:i64| v.quest(&s,quest(&s,id));
+    let find=|f:&dyn Fn(&Value)->bool| s.tables.extensions.rows("EquipItem").iter()
+        .find(|r|f(r) && s.tables.hero_shop.items.contains_key(&(n(r,"ItemIndex") as i32))).map(|r|n(r,"ItemIndex") as i32).unwrap();
+    let mana=find(&|r|n(r,"PartType")==7 && n(r,"DetailIndex")!=90004);
+    let chaos=find(&|r|n(r,"SetIndex")==102 && n(r,"PartType")==6);
+    let unique=find(&|r|n(r,"PartType")==7 && n(r,"DetailIndex")==90004);
+    let mana=grant(&s,a,mana,1,0).await.equipment[0].slot_index;
+    let chaos=grant(&s,a,chaos,1,0).await.equipment[0].slot_index;
+    let unique=grant(&s,a,unique,1,0).await.equipment[0].slot_index;
+    let v=view(&s,a).await;
+    assert_eq!((progress(&v,1000430),progress(&v,1000470),progress(&v,1002220)),(0,0,0),"owning is not wearing");
+    crate::db::query("UPDATE heroes SET equip_item_slot_index_7=$1,equip_item_slot_index_6=$2 WHERE account_id=$3 AND hero_index=1")
+        .bind(unique).bind(chaos).bind(a).execute(&s.db).await.unwrap();
+    let v=view(&s,a).await;
+    assert_eq!((progress(&v,1000430),progress(&v,1000470),progress(&v,1002220)),(0,0,1),"a primary Unique Treasure is neither");
+    crate::db::query("UPDATE heroes SET equip_item_slot_index_7=$1,equip_item_slot_index_8=$2 WHERE account_id=$3 AND hero_index=1")
+        .bind(mana).bind(unique).bind(a).execute(&s.db).await.unwrap();
+    let v=view(&s,a).await;
+    assert_eq!((progress(&v,1000430),progress(&v,1000470)),(1,1));
+}
+
+#[tokio::test]
+async fn mission_rules_weekly_eclipse_key_counts_keys_spent_this_week() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    let row=s.tables.progression.achievements.iter().find(|r|n(r,"Index")==1715).unwrap();
+    assert_eq!(view(&s,a).await.achievement(&s,row),(0,1));
+    crate::db::query("INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES($1,'2000-01-01','ConsumeEclipseKey',0,0,5)")
+        .bind(a).execute(&s.db).await.unwrap();
+    assert_eq!(view(&s,a).await.achievement(&s,row),(0,1),"an old week does not count");
+    action(&s,a,"ConsumeEclipseKey",0,0,1).await;
+    assert_eq!(view(&s,a).await.achievement(&s,row),(1,1));
+}
+
+#[tokio::test]
+async fn mission_rules_god_king_trial_goal_counts_trials_not_substories() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    // Guideline 10931: "Challenge the Trial of the God King {1} time(s)".
+    action(&s,a,"ClearDungeon",97,2,2).await;
+    assert_eq!(view(&s,a).await.quest(&s,quest(&s,10931)),0,"substory stages are not God King trials");
+    action(&s,a,"ClearDungeon",100001,1,2).await;
+    assert_eq!(view(&s,a).await.quest(&s,quest(&s,10931)),2);
+}

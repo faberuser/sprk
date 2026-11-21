@@ -823,10 +823,15 @@ public static class SprkTicketSearch
 
 	private static SprkTicketSearchBox Ensure(BaseWindow window, Transform parent, string placeholder)
 	{
-		SprkTicketSearchBox sprkTicketSearchBox = window.GetComponent<SprkTicketSearchBox>();
+		return Ensure(window, window, parent, placeholder);
+	}
+
+	private static SprkTicketSearchBox Ensure(Component host, Component window, Transform parent, string placeholder)
+	{
+		SprkTicketSearchBox sprkTicketSearchBox = host.GetComponent<SprkTicketSearchBox>();
 		if (sprkTicketSearchBox == null)
 		{
-			sprkTicketSearchBox = window.gameObject.AddComponent<SprkTicketSearchBox>();
+			sprkTicketSearchBox = host.gameObject.AddComponent<SprkTicketSearchBox>();
 		}
 		if (sprkTicketSearchBox.content == null)
 		{
@@ -843,7 +848,7 @@ public static class SprkTicketSearch
 		return sprkTicketSearchBox;
 	}
 
-	private static void BuildField(SprkTicketSearchBox box, BaseWindow window, Transform root)
+	private static void BuildField(SprkTicketSearchBox box, Component window, Transform root)
 	{
 		UIAtlas uIAtlas = FindAtlas(window, "Common_Box_2");
 		UILabel uILabel = FontSource(window);
@@ -1170,12 +1175,12 @@ public static class SprkTicketSearch
 		SizeField(box, new Vector3(0f, num - 12f - 31f, 0f), (int)Math.Min(620f, num2 - 120f));
 	}
 
-	private static Transform FilterRow(HeroPortraitList window, Transform frame)
+	private static Transform FilterRow(Component window, Transform frame, string name = HeroRowName)
 	{
-		Transform row = frame.Find("SprkHeroFilterRow");
+		Transform row = frame.Find(name);
 		if (row == null)
 		{
-			GameObject gameObject = new GameObject("SprkHeroFilterRow");
+			GameObject gameObject = new GameObject(name);
 			gameObject.layer = frame.gameObject.layer;
 			gameObject.transform.SetParent(frame, worldPositionStays: false);
 			gameObject.AddComponent<UIPanel>();
@@ -1195,6 +1200,131 @@ public static class SprkTicketSearch
 			}
 		}
 		return row;
+	}
+
+	private static UIComboBox CreateClassCombo(Transform row, int width, Action changed, string allLabel = null)
+	{
+		UIComboBox uIComboBox = UnityEngine.Object.Instantiate(Field<UIComboBox>(VespaResource.Load<GameObject>("Prefab2/Window/Inventory/WeaponUniqueSelect").GetComponentInChildren<SelectFilter>(includeInactive: true), "ComboBoxSub"), row, worldPositionStays: false);
+		uIComboBox.name = "SprkHeroClass";
+		uIComboBox.OnChanged = null;
+		uIComboBox.ConditionGameObjects = new UIComboBox.ShowOrHideObjects[0];
+		AtlasAssignerBase[] componentsInChildren = uIComboBox.GetComponentsInChildren<AtlasAssignerBase>(includeInactive: true);
+		for (int i = 0; i < componentsInChildren.Length; i++)
+		{
+			componentsInChildren[i].Assign();
+		}
+		UIWidget[] componentsInChildren2 = uIComboBox.GetComponentsInChildren<UIWidget>(includeInactive: true);
+		for (int i = 0; i < componentsInChildren2.Length; i++)
+		{
+			componentsInChildren2[i].SetAnchor((Transform)null);
+		}
+		Geometry g = Capture(uIComboBox.transform);
+		int num = (from p in g.childWidths
+			where p.Key is UISprite
+			select p.Value).DefaultIfEmpty(g.width).Max();
+		int num2 = width;
+		Apply(uIComboBox.transform, g, 0f, (int)Math.Round((float)num2 * (float)g.width / (float)num));
+		uIComboBox.transform.localScale = Vector3.one * 0.82f;
+		UISprite uISprite = (from s in uIComboBox.GetComponentsInChildren<UISprite>(includeInactive: true)
+			where s.GetComponentInParent<UIPopupRoot>() == null
+			orderby s.width descending
+			select s).FirstOrDefault();
+		BoxCollider component = uIComboBox.GetComponent<BoxCollider>();
+		if (component != null && uISprite != null)
+		{
+			component.center = new Vector3(uISprite.transform.localPosition.x, uISprite.transform.localPosition.y, 0f);
+			component.size = new Vector3(uISprite.width, uISprite.height, component.size.z);
+		}
+		uIComboBox.gameObject.SetActive(value: true);
+		uIComboBox.Clear();
+		UISprite uISprite2 = uIComboBox.GetComponentsInChildren<UISprite>(includeInactive: true).FirstOrDefault((UISprite s) => s.name == "Sprite_Dir");
+		float num3 = ((uISprite2 != null) ? (uISprite2.transform.localPosition.x + (float)uISprite2.width * 0.5f + 8f) : ((float)(-num2) * 0.5f + 40f));
+		float num4 = ((uISprite != null) ? uISprite.transform.localPosition.x : 0f);
+		float num5 = Math.Min(num4 - num3, (float)num2 * 0.5f - 34f);
+		UILabel selectedLabel = uIComboBox.SelectedLabel;
+		selectedLabel.overflowMethod = UILabel.Overflow.ShrinkContent;
+		selectedLabel.pivot = UIWidget.Pivot.Center;
+		selectedLabel.alignment = NGUIText.Alignment.Center;
+		selectedLabel.width = (int)(num5 * 2f);
+		selectedLabel.height = 52;
+		selectedLabel.transform.localPosition = new Vector3(num4, selectedLabel.transform.localPosition.y, 0f);
+		UIPanel[] componentsInChildren3 = uIComboBox.RootWindow.GetComponentsInChildren<UIPanel>(includeInactive: true);
+		for (int i = 0; i < componentsInChildren3.Length; i++)
+		{
+			componentsInChildren3[i].depth = row.GetComponent<UIPanel>().depth + 10;
+		}
+		int num6 = num2 - 24;
+		componentsInChildren2 = uIComboBox.RootWindow.GetComponentsInChildren<UIWidget>(includeInactive: true);
+		foreach (UIWidget uIWidget in componentsInChildren2)
+		{
+			if (uIWidget.width > num6)
+			{
+				uIWidget.width = ((uIWidget is UILabel) ? (num6 - 36) : num6);
+			}
+		}
+		BoxCollider[] componentsInChildren4 = uIComboBox.RootWindow.GetComponentsInChildren<BoxCollider>(includeInactive: true);
+		foreach (BoxCollider boxCollider in componentsInChildren4)
+		{
+			boxCollider.size = new Vector3(Math.Min(num6, boxCollider.size.x), boxCollider.size.y, boxCollider.size.z);
+		}
+		uIComboBox.AddItem(0, allLabel ?? SprkText.Get("All Classes"));
+		foreach (CreatureTagType item in FilterHelper.GetListOrderCreatureTagType())
+		{
+			uIComboBox.AddItem((int)item, LocalizationManager.GetString(item));
+		}
+		uIComboBox.Reposition();
+		uIComboBox.SelectFirstItem(isNotify: false);
+		uIComboBox.OnChanged = delegate
+		{
+			changed();
+		};
+		UIPopupRoot popup = uIComboBox.RootWindow;
+		if (popup != null && popup.RootWidget != null)
+		{
+			Vector3 home = popup.RootWidget.transform.localPosition;
+			EventDelegate.Add(popup.onShow, delegate
+			{
+				PlaceClassList(uIComboBox, home);
+			});
+		}
+		return uIComboBox;
+	}
+
+	// Opens the class list above its box when it would run past the bottom of the screen
+	// (raid rooms sit low) and there is more room above.
+	public static void PlaceClassList(UIComboBox combo, Vector3 home)
+	{
+		try
+		{
+			Transform list = combo.RootWindow.RootWidget.transform;
+			list.localPosition = home;
+			UISprite face = ComboFace(combo);
+			Camera camera = NGUITools.FindCameraForLayer(combo.gameObject.layer);
+			if (face == null || camera == null)
+			{
+				return;
+			}
+			Transform space = combo.transform;
+			Bounds items = NGUIMath.CalculateRelativeWidgetBounds(space, list, considerInactive: true);
+			Bounds box = NGUIMath.CalculateRelativeWidgetBounds(space, face.transform, considerInactive: true);
+			float below = camera.WorldToViewportPoint(space.TransformPoint(new Vector3(0f, items.min.y, 0f))).y;
+			if (below >= 0f)
+			{
+				return;
+			}
+			float gap = box.min.y - items.max.y;
+			float shift = box.max.y + gap - items.min.y;
+			float above = camera.WorldToViewportPoint(space.TransformPoint(new Vector3(0f, items.max.y + shift, 0f))).y;
+			if (above - 1f > -below)
+			{
+				return;
+			}
+			list.position += space.TransformVector(new Vector3(0f, shift, 0f));
+		}
+		catch (Exception exception)
+		{
+			Debug.LogException(exception);
+		}
 	}
 
 	public static void BeforeHeroGrid(HeroPortraitList window)
@@ -1277,81 +1407,11 @@ public static class SprkTicketSearch
 			SprkTicketSearchBox box = Ensure(window, transform, SprkText.Get("Search hero"));
 			if (state.classes == null)
 			{
-				UIComboBox uIComboBox = UnityEngine.Object.Instantiate(Field<UIComboBox>(VespaResource.Load<GameObject>("Prefab2/Window/Inventory/WeaponUniqueSelect").GetComponentInChildren<SelectFilter>(includeInactive: true), "ComboBoxSub"), transform, worldPositionStays: false);
-				uIComboBox.name = "SprkHeroClass";
-				uIComboBox.OnChanged = null;
-				uIComboBox.ConditionGameObjects = new UIComboBox.ShowOrHideObjects[0];
-				AtlasAssignerBase[] componentsInChildren = uIComboBox.GetComponentsInChildren<AtlasAssignerBase>(includeInactive: true);
-				for (int i = 0; i < componentsInChildren.Length; i++)
-				{
-					componentsInChildren[i].Assign();
-				}
-				UIWidget[] componentsInChildren2 = uIComboBox.GetComponentsInChildren<UIWidget>(includeInactive: true);
-				for (int i = 0; i < componentsInChildren2.Length; i++)
-				{
-					componentsInChildren2[i].SetAnchor((Transform)null);
-				}
-				Geometry g = Capture(uIComboBox.transform);
-				int num = (from p in g.childWidths
-					where p.Key is UISprite
-					select p.Value).DefaultIfEmpty(g.width).Max();
-				int num2 = (int)Math.Round(414.6341552734375);
-				Apply(uIComboBox.transform, g, 0f, (int)Math.Round((float)num2 * (float)g.width / (float)num));
-				uIComboBox.transform.localScale = Vector3.one * 0.82f;
-				uIComboBox.transform.localPosition = new Vector3(-170f, 392.9f, 0f);
-				UISprite uISprite = (from s in uIComboBox.GetComponentsInChildren<UISprite>(includeInactive: true)
-					where s.GetComponentInParent<UIPopupRoot>() == null
-					orderby s.width descending
-					select s).FirstOrDefault();
-				BoxCollider component = uIComboBox.GetComponent<BoxCollider>();
-				if (component != null && uISprite != null)
-				{
-					component.center = new Vector3(uISprite.transform.localPosition.x, uISprite.transform.localPosition.y, 0f);
-					component.size = new Vector3(uISprite.width, uISprite.height, component.size.z);
-				}
-				uIComboBox.gameObject.SetActive(value: true);
-				uIComboBox.Clear();
-				UISprite uISprite2 = uIComboBox.GetComponentsInChildren<UISprite>(includeInactive: true).FirstOrDefault((UISprite s) => s.name == "Sprite_Dir");
-				float num3 = ((uISprite2 != null) ? (uISprite2.transform.localPosition.x + (float)uISprite2.width * 0.5f + 8f) : ((float)(-num2) * 0.5f + 40f));
-				float num4 = ((uISprite != null) ? uISprite.transform.localPosition.x : 0f);
-				float num5 = Math.Min(num4 - num3, (float)num2 * 0.5f - 34f);
-				UILabel selectedLabel = uIComboBox.SelectedLabel;
-				selectedLabel.overflowMethod = UILabel.Overflow.ShrinkContent;
-				selectedLabel.pivot = UIWidget.Pivot.Center;
-				selectedLabel.alignment = NGUIText.Alignment.Center;
-				selectedLabel.width = (int)(num5 * 2f);
-				selectedLabel.height = 52;
-				selectedLabel.transform.localPosition = new Vector3(num4, selectedLabel.transform.localPosition.y, 0f);
-				UIPanel[] componentsInChildren3 = uIComboBox.RootWindow.GetComponentsInChildren<UIPanel>(includeInactive: true);
-				for (int i = 0; i < componentsInChildren3.Length; i++)
-				{
-					componentsInChildren3[i].depth = transform.GetComponent<UIPanel>().depth + 10;
-				}
-				int num6 = num2 - 24;
-				componentsInChildren2 = uIComboBox.RootWindow.GetComponentsInChildren<UIWidget>(includeInactive: true);
-				foreach (UIWidget uIWidget in componentsInChildren2)
-				{
-					if (uIWidget.width > num6)
-					{
-						uIWidget.width = ((uIWidget is UILabel) ? (num6 - 36) : num6);
-					}
-				}
-				BoxCollider[] componentsInChildren4 = uIComboBox.RootWindow.GetComponentsInChildren<BoxCollider>(includeInactive: true);
-				foreach (BoxCollider boxCollider in componentsInChildren4)
-				{
-					boxCollider.size = new Vector3(Math.Min(num6, boxCollider.size.x), boxCollider.size.y, boxCollider.size.z);
-				}
-				uIComboBox.AddItem(0, SprkText.Get("All Classes"));
-				foreach (CreatureTagType item in FilterHelper.GetListOrderCreatureTagType())
-				{
-					uIComboBox.AddItem((int)item, LocalizationManager.GetString(item));
-				}
-				uIComboBox.Reposition();
-				uIComboBox.SelectFirstItem(isNotify: false);
-				uIComboBox.OnChanged = delegate
+				UIComboBox uIComboBox = CreateClassCombo(transform, (int)Math.Round(414.6341552734375), delegate
 				{
 					box.Apply();
-				};
+				});
+				uIComboBox.transform.localPosition = new Vector3(-170f, 392.9f, 0f);
 				state.classes = uIComboBox;
 				heroListGrid.transform.localPosition += new Vector3(0f, -96f, 0f);
 				UIPanel clippingPanel = heroListGrid.ClippingPanel;
@@ -1372,13 +1432,15 @@ public static class SprkTicketSearch
 						component3.size -= new Vector3(0f, 96f, 0f);
 					}
 				}
+				state.drop = TrimSoftTop(heroListGrid, HeroRowDrop);
+				uIComboBox.transform.localPosition += new Vector3(0f, -state.drop, 0f);
 			}
 			box.styleSource = (from s in state.classes.GetComponentsInChildren<UISprite>(includeInactive: true)
 				where s.GetComponentInParent<UIPopupRoot>() == null
 				orderby s.width descending
 				select s).FirstOrDefault();
 			box.content.transform.localScale = Vector3.one * 0.82f;
-			SizeField(box, new Vector3(170f, 397f, 0f), (int)Math.Round(414.6341552734375));
+			SizeField(box, new Vector3(170f, 397f - state.drop, 0f), (int)Math.Round(414.6341552734375));
 			box.pool = () => from h in state.heroes
 				where h != null && (state.classes.CurrentKey <= 0 || h.CreatureData.TagType == (CreatureTagType)state.classes.CurrentKey)
 				select HeroText(h.HeroInfo.HeroIndex);
@@ -1429,5 +1491,278 @@ public static class SprkTicketSearch
 		}
 		ApplyHeroGrid(window, component, Box(window));
 		return false;
+	}
+
+	public const string PartyRowName = "SprkPartyFilterRow";
+
+	private const float PartyRowMargin = 8f;
+
+	// Measured from the game at 1280x720: tall party portraits leave ~17px more below the row than above it,
+	// small raid icons ~6px (about 1.7 UI units per pixel).
+	private const float PartyRowDrop = 15f;
+
+	private const float PartyRowDropSmall = 4f;
+
+	private const float PartyNarrowWidth = 280f;
+
+	private const float HeroRowDrop = 11f;
+
+	private const float PartyRowGap = 12f;
+
+	private const float PartyRowPad = 6f;
+
+	private static SprkHeroGridState PartyState(UserHeroListPanel panel)
+	{
+		UIScrollGrid grid = (panel == null) ? null : panel.GridHeroList;
+		Transform frame = (grid == null) ? null : grid.transform.parent;
+		Transform row = (frame == null) ? null : frame.Find(PartyRowName);
+		return (row == null) ? null : row.GetComponent<SprkHeroGridState>();
+	}
+
+	// Called when a party window opens its hero list: start every visit unfiltered.
+	public static void BeforePartyGrid(UserHeroListPanel panel)
+	{
+		try
+		{
+			SprkHeroGridState state = PartyState(panel);
+			if (state == null)
+			{
+				return;
+			}
+			SprkTicketSearchBox box = state.GetComponent<SprkTicketSearchBox>();
+			if (box != null)
+			{
+				box.ResetSilently();
+			}
+			if (state.classes != null)
+			{
+				state.classes.SelectItem(0, isNotify: false);
+			}
+			ApplyPartyGrid(panel, state, box);
+		}
+		catch (Exception exception)
+		{
+			Debug.LogException(exception);
+		}
+	}
+
+	// Called after the party window (re)builds its hero grid, including position-tab changes.
+	public static void AfterPartyGrid(UserHeroListPanel panel)
+	{
+		try
+		{
+			UIScrollGrid grid = (panel == null) ? null : panel.GridHeroList;
+			if (grid == null || grid.Grid == null || grid.ClippingPanel == null || grid.transform.parent == null)
+			{
+				return;
+			}
+			Transform frame = grid.transform.parent;
+			BaseWindow window = grid.GetComponentInParent<BaseWindow>(includeInactive: true);
+			Component owner = (window != null) ? (Component)window : grid;
+			Transform row = FilterRow(owner, frame, PartyRowName);
+			SprkHeroGridState state = row.GetComponent<SprkHeroGridState>();
+			if (state == null)
+			{
+				state = row.gameObject.AddComponent<SprkHeroGridState>();
+			}
+			Rect clip = ClipRect(grid.ClippingPanel, frame);
+			float each = Math.Max(120f, (clip.width - PartyRowGap) * 0.5f - PartyRowPad);
+			// Narrow lists (raid rooms) use the short labels.
+			bool narrow = each < PartyNarrowWidth;
+			SprkTicketSearchBox box = Ensure(row, owner, row, SprkText.Get(narrow ? "Search" : "Search hero"));
+			if (state.classes == null)
+			{
+				state.hideInactive = grid.Grid.hideInactive;
+				int width = Mathf.RoundToInt(each / HeroRowScale);
+				float left = clip.center.x - (each + PartyRowGap) * 0.5f;
+				float right = clip.center.x + (each + PartyRowGap) * 0.5f;
+				state.classes = CreateClassCombo(row, width, delegate
+				{
+					box.Apply();
+				}, narrow ? SprkText.Get("Class") : null);
+				UISprite face = ComboFace(state.classes);
+				// The search box takes the class box's sprite height (SprkTicketSearchBox.MatchStyle).
+				float height = Mathf.Round(((face != null) ? face.height : 62) * HeroRowScale + PartyRowMargin);
+				// Lower the row so the gap above it matches the gap down to the first portraits;
+				// the grid gives up the same amount of its soft-clip band, so portraits stay put.
+				bool small = panel.PortraitSelector != null && panel.PortraitSelector.PrefabType == HeroPortraitComponent.PrefabSelector.EPrefabType.Small;
+				ShrinkGridTop(grid, height);
+				state.drop = TrimSoftTop(grid, small ? PartyRowDropSmall : PartyRowDrop);
+				SprkClipTrim keeper = row.gameObject.AddComponent<SprkClipTrim>();
+				keeper.grid = grid;
+				keeper.trim = height + state.drop;
+				keeper.Record();
+				float y = clip.yMax - height * 0.5f - state.drop;
+				state.classes.transform.localPosition = new Vector3(left, y, 0f);
+				if (face != null)
+				{
+					Vector3 at = row.InverseTransformPoint(face.transform.position);
+					state.classes.transform.localPosition += new Vector3(left - at.x, y - at.y, 0f);
+				}
+				box.content.transform.localScale = Vector3.one * HeroRowScale;
+				SizeField(box, new Vector3(right, y, 0f), width);
+				ResetScroll(grid);
+			}
+			box.styleSource = ComboFace(state.classes);
+			box.pool = () => PartyHeroes(panel)
+				.Where((HeroPortraitComponent p) => PartyClassMatches(p, state))
+				.Select((HeroPortraitComponent p) => HeroText(p.HeroInfo.HeroIndex));
+			box.rebuild = delegate
+			{
+				ApplyPartyGrid(panel, state, box);
+			};
+			ApplyPartyGrid(panel, state, box);
+		}
+		catch (Exception exception)
+		{
+			Debug.LogException(exception);
+		}
+	}
+
+	private static UISprite ComboFace(UIComboBox combo)
+	{
+		if (combo == null)
+		{
+			return null;
+		}
+		return (from s in combo.GetComponentsInChildren<UISprite>(includeInactive: true)
+			where s.GetComponentInParent<UIPopupRoot>() == null
+			orderby s.width descending
+			select s).FirstOrDefault();
+	}
+
+	// The visible clip area of a scroll panel, in the coordinates of `space`.
+	private static Rect ClipRect(UIPanel panel, Transform space)
+	{
+		Vector3[] corners = panel.worldCorners;
+		Vector3 a = space.InverseTransformPoint(corners[0]);
+		Vector3 b = space.InverseTransformPoint(corners[2]);
+		return Rect.MinMaxRect(Math.Min(a.x, b.x), Math.Min(a.y, b.y), Math.Max(a.x, b.x), Math.Max(a.y, b.y));
+	}
+
+	// Lowers the top edge of a soft-clipped grid by up to `amount`, taken from its clip softness:
+	// a scroll view aligns content one softness below the edge, so the content does not move.
+	// Returns the amount applied (0 for hard clipping).
+	private static float TrimSoftTop(UIScrollGrid grid, float amount)
+	{
+		UIPanel clip = grid.ClippingPanel;
+		if (clip == null || clip.clipping != UIDrawCall.Clipping.SoftClip)
+		{
+			return 0f;
+		}
+		Vector2 softness = clip.clipSoftness;
+		float trim = Mathf.Floor(Math.Min(amount, softness.y));
+		if (trim <= 0f)
+		{
+			return 0f;
+		}
+		clip.clipSoftness = new Vector2(softness.x, softness.y - trim);
+		ShrinkGridTop(grid, trim);
+		return trim;
+	}
+
+	// Lowers the top edge of a vertical scroll grid by `height`, keeping its bottom edge.
+	private static void ShrinkGridTop(UIScrollGrid grid, float height)
+	{
+		UIPanel clip = grid.ClippingPanel;
+		if (!LowerTopAnchor(clip, height))
+		{
+			Vector4 region = clip.baseClipRegion;
+			clip.baseClipRegion = new Vector4(region.x, region.y - height * 0.5f, region.z, region.w - height);
+		}
+		UIDragScrollView drag = grid.DragScrollView;
+		if (drag == null || drag.transform == clip.transform)
+		{
+			return;
+		}
+		UIWidget widget = drag.GetComponent<UIWidget>();
+		BoxCollider collider = drag.GetComponent<BoxCollider>();
+		if (widget == null && collider == null)
+		{
+			return;
+		}
+		if (widget != null && LowerTopAnchor(widget, height))
+		{
+			if (collider != null && !widget.autoResizeBoxCollider)
+			{
+				collider.size -= new Vector3(0f, height, 0f);
+			}
+			return;
+		}
+		drag.transform.localPosition += new Vector3(0f, -height * 0.5f, 0f);
+		if (widget != null)
+		{
+			widget.height -= (int)height;
+		}
+		if (collider != null)
+		{
+			collider.size -= new Vector3(0f, height, 0f);
+		}
+	}
+
+	// An anchored rect is recomputed from its anchors (raid lists every frame), so a
+	// changed size would be lost: lower the top anchor instead. False when not top-anchored.
+	private static bool LowerTopAnchor(UIRect rect, float height)
+	{
+		if (rect == null || !rect.isAnchored || rect.topAnchor == null || rect.topAnchor.target == null)
+		{
+			return false;
+		}
+		rect.topAnchor.absolute -= Mathf.RoundToInt(height);
+		rect.ResetAndUpdateAnchors();
+		return true;
+	}
+
+	private static List<HeroPortraitComponent> PartyHeroes(UserHeroListPanel panel)
+	{
+		List<HeroPortraitComponent> heroes = new List<HeroPortraitComponent>();
+		panel.ForeachAction(delegate(HeroPortraitComponent p)
+		{
+			if (p != null && p.HeroInfo != null && p.CreatureData != null)
+			{
+				heroes.Add(p);
+			}
+		});
+		return heroes;
+	}
+
+	private static bool PartyClassMatches(HeroPortraitComponent hero, SprkHeroGridState state)
+	{
+		int tag = (state.classes == null) ? 0 : state.classes.CurrentKey;
+		if (tag > 0)
+		{
+			return hero.CreatureData.TagType == (CreatureTagType)tag;
+		}
+		return true;
+	}
+
+	private static void ApplyPartyGrid(UserHeroListPanel panel, SprkHeroGridState state, SprkTicketSearchBox box)
+	{
+		UIScrollGrid grid = panel.GridHeroList;
+		if (grid == null || grid.Grid == null)
+		{
+			return;
+		}
+		bool filtering = (state.classes != null && state.classes.CurrentKey > 0) || (box != null && box.Active);
+		if (!filtering && !state.filtering)
+		{
+			return;
+		}
+		state.filtering = filtering;
+		foreach (HeroPortraitComponent hero in PartyHeroes(panel))
+		{
+			bool show = !filtering || (PartyClassMatches(hero, state) && box.Accepts(HeroText(hero.HeroInfo.HeroIndex)));
+			if (hero.gameObject.activeSelf != show)
+			{
+				hero.gameObject.SetActive(show);
+			}
+		}
+		grid.Grid.hideInactive = filtering || state.hideInactive;
+		UIHelper.RepositionGrid(grid);
+		ResetScroll(grid);
+		if (!grid.Grid.hideInactive && grid.DisableOutside && !UIScrollGrid.ForceEnableOutside.Value)
+		{
+			grid.Grid.DisableChildIfNotVisible();
+		}
 	}
 }

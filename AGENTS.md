@@ -112,6 +112,11 @@ this repository. The Unity player, assets and tables are never source.
 - Verify user-visible changes on the real game with
   [client automation](docs/client-automation.md)
   (`--client ../sprk-client-test`); it runs an isolated server and database.
+  For UI changes, start with a prefab-fixture probe that renders only the
+  changed window on the Login screen
+  ([how](docs/client-automation.md#test-a-ui-change-with-prefab-fixtures-no-login)).
+  Test clients are muted by default; don't unmute them (`SPRK_AUTOMATION_SOUND=1`)
+  unless the test needs sound.
 - Assets and tables have no source form. Put a changed file, in final form,
   under `client/overrides/files/` at its client-relative path, with matching
   `SPRK-Native*.json` integrity metadata when the data requires it. Changes

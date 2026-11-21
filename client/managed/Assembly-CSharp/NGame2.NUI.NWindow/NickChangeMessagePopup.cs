@@ -39,6 +39,7 @@ public class NickChangeMessagePopup : BaseWindow
 	public void Init(ItemData itemData)
 	{
 		_itemData = itemData;
+		SprkAccounts.AllowAnyLanguageNickname(NickInput);
 	}
 
 	public override void Reset()

@@ -29,6 +29,12 @@ public static class SprkKarmaRaid
 
 		public UILabel[] Captions;
 
+		/// <summary>
+		/// The karma group the window shows now. The window is reused for every karma
+		/// dungeon while the button is made once, so its click reads this, not a capture.
+		/// </summary>
+		public PunishmentGroupData Karma;
+
 		public readonly Dictionary<UIWidget, KeyValuePair<Vector3, int>> Originals = new Dictionary<UIWidget, KeyValuePair<Vector3, int>>();
 
 		// The cloned Reward List button re-applies its own caption; keep ours.
@@ -256,13 +262,34 @@ public static class SprkKarmaRaid
 		}
 	}
 
-	public static void OpenDispatch(PunishmentGroupData group)
+	public static void OpenDispatch(PunishmentGroupData group, int deckNumber = 1)
 	{
 		RaidData raidData = RaidFor(group);
 		if (raidData != null)
 		{
-			ContentUIDispatchBattle.OpenGlobalRaid(raidData);
+			ContentUIDispatchBattle.OpenGlobalRaid(raidData, deckNumber);
 		}
+	}
+
+	/// <summary>
+	/// The karma group a dispatch runs in (see <see cref="ActiveDispatch"/>), or null.
+	/// Karma dungeons have no DispatchType in the dungeon table, so the lobby's
+	/// on-going dispatch list cannot tell them apart by type.
+	/// </summary>
+	public static PunishmentGroupData GroupForDispatch(WCL_DispatchBattleInfo info)
+	{
+		if (info == null || info.DungeonIndex != 1)
+		{
+			return null;
+		}
+		foreach (PunishmentGroupData item in GameRoot.Instance.PunishmentGroupDataContainer.GetAllData())
+		{
+			if (item != null && item.PunishmentDungeonType == EPunishmentDungeonType.Karma && item.ChapterIndex == info.ChapterIndex)
+			{
+				return item;
+			}
+		}
+		return null;
 	}
 
 	/// <summary>
@@ -303,6 +330,7 @@ public static class SprkKarmaRaid
 			Remember(selectLayout, component);
 			Remember(selectLayout, uIWidget);
 		}
+		selectLayout.Karma = karma;
 		// Dispatch needs no opening: it pays per run (see DispatchCost).
 		Vector3 key = selectLayout.Originals[component].Key;
 		Vector3[] worldCorners = uIWidget2.worldCorners;
@@ -319,11 +347,12 @@ public static class SprkKarmaRaid
 			UIWidget component3 = gameObject.GetComponent<UIWidget>();
 			ClearAnchors(component3);
 			selectLayout.Dispatch = gameObject.GetComponent<UIButton>();
+			SelectLayout layout = selectLayout;
 			selectLayout.Dispatch.onClick = new List<EventDelegate>
 			{
 				new EventDelegate(delegate
 				{
-					OpenDispatch(karma);
+					OpenDispatch(layout.Karma);
 				})
 			};
 			UILocalize[] componentsInChildren = gameObject.GetComponentsInChildren<UILocalize>(includeInactive: true);

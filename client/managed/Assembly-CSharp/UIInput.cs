@@ -480,12 +480,88 @@ public class UIInput : MonoBehaviour, UICamera.IOnPressListener, UICamera.IOnDra
 		if (label != null && NGUITools.GetActive(this))
 		{
 			mSelectMe = Time.frameCount;
+			SprkOpenKeyboard();
 		}
 		EventDelegate.Execute(onFocusIn);
 	}
 
+	// SPRK: the game's assemblies are compiled for Windows, where NGUI leaves out its
+	// touch-screen keyboard code, so on Android a selected field never got a keyboard. This
+	// restores it: the keyboard opens on select, its text becomes the value (validated as
+	// typed input is), Done submits, and closing it or deselecting the field ends input.
+	private static TouchScreenKeyboard sprkKeyboard;
+
+	private static UIInput sprkKeyboardOwner;
+
+	private static bool SprkUsesTouchKeyboard
+	{
+		get
+		{
+			if (Application.platform == RuntimePlatform.Android)
+			{
+				return TouchScreenKeyboard.isSupported;
+			}
+			return false;
+		}
+	}
+
+	private void SprkOpenKeyboard()
+	{
+		if (!SprkUsesTouchKeyboard)
+		{
+			return;
+		}
+		sprkKeyboardOwner = this;
+		sprkKeyboard = TouchScreenKeyboard.Open(mValue ?? string.Empty, (TouchScreenKeyboardType)keyboardType,
+			inputType == InputType.AutoCorrect, label.multiLine, inputType == InputType.Password, false,
+			mDefaultText ?? string.Empty, characterLimit);
+	}
+
+	private void SprkCloseKeyboard()
+	{
+		if (sprkKeyboardOwner != this)
+		{
+			return;
+		}
+		TouchScreenKeyboard keyboard = sprkKeyboard;
+		sprkKeyboard = null;
+		sprkKeyboardOwner = null;
+		if (keyboard != null && keyboard.active)
+		{
+			keyboard.active = false;
+		}
+	}
+
+	private void SprkUpdateKeyboard()
+	{
+		TouchScreenKeyboard keyboard = sprkKeyboard;
+		string text = keyboard.text ?? string.Empty;
+		if (text != mValue)
+		{
+			value = text;
+			if (mValue != text)
+			{
+				keyboard.text = mValue;
+			}
+		}
+		switch (keyboard.status)
+		{
+		case TouchScreenKeyboard.Status.Done:
+			SprkCloseKeyboard();
+			Submit();
+			RemoveFocus();
+			break;
+		case TouchScreenKeyboard.Status.Canceled:
+		case TouchScreenKeyboard.Status.LostFocus:
+			SprkCloseKeyboard();
+			RemoveFocus();
+			break;
+		}
+	}
+
 	protected void OnDeselectEvent()
 	{
+		SprkCloseKeyboard();
 		if (mDoInit)
 		{
 			Init();
@@ -541,6 +617,11 @@ public class UIInput : MonoBehaviour, UICamera.IOnPressListener, UICamera.IOnDra
 			{
 				return;
 			}
+		}
+		if (sprkKeyboard != null && sprkKeyboardOwner == this)
+		{
+			SprkUpdateKeyboard();
+			return;
 		}
 		string compositionString = Input.compositionString;
 		if (!string.IsNullOrEmpty(Input.inputString))

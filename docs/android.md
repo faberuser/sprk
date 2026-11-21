@@ -90,7 +90,7 @@ file; unchanged files are not re-hashed (size and write time). If the server can
 reached, the player can retry or play the installed version. Unattended dev runs
 (`server:local`) skip the update, so `dev.py hot` and `push_patch.sh` keep working.
 `dotnet run --project client/android/UpdateTests` checks the rules against the local
-release. Not run on a device yet: the APK build needs the repacked content first.
+release. Runs on phones (tested on a Galaxy S25 Ultra against the public server).
 
 **Android asset bundles: a maintained set converted from Windows.** The Windows client
 (`../sprk-client`) is the source of truth for assets; `python client/android/dev.py assets`
@@ -118,15 +118,19 @@ Published for the game's patch downloader as the `Android` asset set (see
 the game downloads its quality tier and language from the update service. Tested on
 BlueStacks: 11,308 Low-tier English bundles downloaded and verified, then the lobby. The
 original Android set had no Low tier (8,014 files missing); the converted one has it.
-The repacked built-in content (`sprk/content/`, ~420 MB) still comes with
-`push_content.sh`.
+The repacked built-in content (scenes, `Resources`, MonoScripts and shaders, ~440 MB)
+is inside the APK (`StreamingAssets/sprk/content/`, staged by `SprkAndroidBuild` from
+`artifacts/android-bootstrap/content/`), so an installed APK starts the game on its own.
+A copy under `sprk/content/` on the device would take precedence; `push_content.sh` now
+removes such copies and only writes the dev index (start scene, `server:local`).
 
 ## Distribution
 
 - The package id is `com.sprk.hybridprobe` and the APK is debug-signed. Changing the id
   makes a new app (the 8.6 GB patch folder and saved logins must be set up again).
-- Device content arrives by `adb push` (see the planned download above); there is no CI
-  build and no link to the launcher's update system.
+- The APK carries the built-in content (about 440 MB, so a new APK is needed when
+  `content` is rebuilt); code and data come from the server's release and asset bundles
+  from its asset store. There is no CI build of the APK yet.
 - Remote servers must serve `host.json` over HTTPS (plain HTTP only works for loopback),
   so a phone away from the PC needs an HTTPS server.
 - `client/android/HybridBootstrap/.utmp/` (Unity build cache) was committed in

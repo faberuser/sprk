@@ -678,11 +678,9 @@ public class PetExplorePartyPopup : BaseWindow, PetPortraitComponent.IListener, 
 
 	public void OnClickStart()
 	{
-		if (_listener != null)
+		if (_listener != null && _status == PetHelper.EPetExploreInfoStatus.Start && PetHelper.EnoughExplorePetCount(__Extension_Method_ICollection__.COUNT(_listSelectPetListComponent), _exploreIndex))
 		{
-			string stringDirect = LocalizationManager.GetStringDirect("ECLIPSE_BATTLE_INFO_POPUP_TITLE");
-			string stringDirect2 = LocalizationManager.GetStringDirect("RAIDER_CONTENTS_DELETE_DESC");
-			MessagePopup.Open(stringDirect, stringDirect2);
+			_listener.OnClickExploreStart(_exploreIndex, _deckIndex, GetSelectPetInidices());
 		}
 	}
 

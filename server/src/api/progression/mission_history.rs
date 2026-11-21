@@ -13,12 +13,16 @@ pub(super) struct History {
     pub facts: Vec<(String, i64, i64)>,
     pub guild_attendance: i64,
     pub guild_wins: i64,
+    /// Guild War attacks, won or lost.
+    pub guild_attacks: i64,
     pub conquest_entries: i64,
     pub guild_decks: Vec<Value>,
     pub pet_hatches: i64,
     pub monthly_stories: i64,
     pub linked_account: bool,
     pub world_rank: Option<i64>,
+    /// Best single-battle damage per World Boss index.
+    pub world_boss_best: BTreeMap<i64, i64>,
 }
 
 /// Mission-relevant fields of a completed arena run. Triggers keep
@@ -114,8 +118,8 @@ impl History {
             .bind(account).fetch_one(&mut *db).await?;
         }
         if has(GUILD_WINS) {
-        out.guild_wins = crate::db::query_scalar(
-            "SELECT COUNT(*) FROM guild_arena_records WHERE account=$1 AND win=1",
+        (out.guild_wins, out.guild_attacks) = crate::db::query_as(
+            "SELECT COUNT(*) FILTER (WHERE win=1),COUNT(*) FROM guild_arena_records WHERE account=$1",
         )
         .bind(account)
         .fetch_one(&mut *db)
@@ -151,6 +155,8 @@ impl History {
         if has(WORLD_RANK) {
         out.world_rank = crate::db::query_scalar("SELECT MIN(place) FROM (SELECT account,ROW_NUMBER() OVER (PARTITION BY boss,season ORDER BY total DESC,account) place FROM (SELECT account,boss,season,MAX(score) total FROM battle_scores WHERE family='world_boss' GROUP BY account,boss,season HAVING MAX(score)>0)) WHERE account=$1")
             .bind(account).fetch_one(&mut *db).await?;
+        out.world_boss_best = crate::db::query_as::<(i64, i64)>("SELECT boss,MAX(score) FROM battle_scores WHERE family='world_boss' AND account=$1 GROUP BY boss")
+            .bind(account).fetch_all(&mut *db).await?.into_iter().collect();
         }
         let mut changed = 0;
         macro_rules! keep {
@@ -167,13 +173,13 @@ impl History {
         keep!(HIST_EQUIP, equipment);
         keep!(FACTS, facts);
         keep!(GUILD_ATT, guild_attendance);
-        keep!(GUILD_WINS, guild_wins);
+        keep!(GUILD_WINS, guild_wins, guild_attacks);
         keep!(CONQUEST, conquest_entries);
         keep!(GUILD_DECKS, guild_decks);
         keep!(PET, pet_hatches);
         keep!(MONTHLY, monthly_stories);
         keep!(LINKED, linked_account);
-        keep!(WORLD_RANK, world_rank);
+        keep!(WORLD_RANK, world_rank, world_boss_best);
         Ok(changed)
     }
 

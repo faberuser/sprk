@@ -34,6 +34,16 @@ public class WebServiceRequester : SingletonUpdater<WebServiceRequester>
 
 	public string Host { get; private set; }
 
+	/// <summary>SPRK: a server host with the scheme its Https flag asks for (kept when it has one).</summary>
+	public static string WithScheme(string host, bool https)
+	{
+		if (string.IsNullOrEmpty(host) || host.IndexOf("://") >= 0)
+		{
+			return host;
+		}
+		return (https ? "https://" : "http://") + host;
+	}
+
 	public string SessionKey { get; set; }
 
 	public string AesKey { get; set; }

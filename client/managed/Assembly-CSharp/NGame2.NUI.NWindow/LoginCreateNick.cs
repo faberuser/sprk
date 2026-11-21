@@ -54,6 +54,7 @@ public class LoginCreateNick : BaseWindow
 	public void Init(Listener listener)
 	{
 		_listener = listener;
+		SprkAccounts.AllowAnyLanguageNickname(NickInput);
 		NickInput.value = string.Empty;
 		if (GlobalAutoBehaviour<AccountManager>.isValidInstance && GlobalAutoBehaviour<AccountManager>.instance != null && GlobalAutoBehaviour<AccountManager>.instance.UserManager.MiscInfo.NickChange >= 1)
 		{

@@ -511,7 +511,7 @@ public class ContentUIDispatchBattle : BaseWindow, HeroPortraitComponent.Listene
 				list.Add(cachedHeroInfo.HeroIndex);
 			}
 		}
-		if (list.Count != _maxCountHero)
+		if (list.Count == 0)
 		{
 			MessagePopup.OpenInform(LocalizationManager.GetString(DispatchBattle.WARNNING_NOT_ENOUGH_PARTY));
 			return;
@@ -1032,7 +1032,7 @@ public class ContentUIDispatchBattle : BaseWindow, HeroPortraitComponent.Listene
 			{
 				UpdateRepeatCountInputUI();
 			}
-			UIHelper.EnableButton(ButtonStart, _dataListHeroPicked.Count == _maxCountHero, grayscaleIfDisable: true);
+			UIHelper.EnableButton(ButtonStart, _dataListHeroPicked.Count > 0, grayscaleIfDisable: true);
 			break;
 		case ProgressUIState.Prepare:
 			UpdateDungeonImg(TxMissionImg);
@@ -1766,7 +1766,7 @@ public class ContentUIDispatchBattle : BaseWindow, HeroPortraitComponent.Listene
 			}
 		}
 		UpdateClassEnterBanHeroPortrait();
-		UIHelper.EnableButton(ButtonStart, _dataListHeroPicked.Count == _maxCountHero, grayscaleIfDisable: true);
+		UIHelper.EnableButton(ButtonStart, _dataListHeroPicked.Count > 0, grayscaleIfDisable: true);
 	}
 
 	void HeroPortraitComponent.Listener.OnViewInfo(HeroPortraitComponent heroPortrait, bool isMine)

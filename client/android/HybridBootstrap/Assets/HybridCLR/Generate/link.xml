@@ -327,6 +327,8 @@
     <type fullname="UnityEngine.Time" preserve="all" />
     <type fullname="UnityEngine.TooltipAttribute" preserve="all" />
     <type fullname="UnityEngine.TouchScreenKeyboard" preserve="all" />
+    <type fullname="UnityEngine.TouchScreenKeyboard/Status" preserve="all" />
+    <type fullname="UnityEngine.TouchScreenKeyboardType" preserve="all" />
     <type fullname="UnityEngine.TrackedReference" preserve="all" />
     <type fullname="UnityEngine.Transform" preserve="all" />
     <type fullname="UnityEngine.TransparencySortMode" preserve="all" />
