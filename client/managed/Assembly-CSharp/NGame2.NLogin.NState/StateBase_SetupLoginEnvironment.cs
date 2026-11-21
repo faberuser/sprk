@@ -57,15 +57,45 @@ public class StateBase_SetupLoginEnvironment : StateBase
 	private IEnumerator coRunBackground(LoginBackground loginBackgroundWindow)
 	{
 		yield return new WaitUntil(() => LogoScene.IsLogoPlayed);
-		// SPRK: the pause follows the logo intro on Windows. Android starts at the login
-		// scene without that intro, so the pause was only a second of black screen.
-		if (!SceneAutoBehaviour<LoginManagement>.instance.IsBIOncePlayed() && Application.platform != RuntimePlatform.Android)
+		// The logo effect (LoginBI) plays once per install; the background opens under it.
+		if (!SceneAutoBehaviour<LoginManagement>.instance.IsBIOncePlayed())
 		{
-			yield return new WaitForSeconds(1f);
+			if (Application.platform == RuntimePlatform.Android)
+			{
+				yield return SprkWaitForLoginBI();
+			}
+			else
+			{
+				yield return new WaitForSeconds(1f);
+			}
 		}
 		loginBackgroundWindow.Open(StateBase.ClientConfig);
 		loginBackgroundWindow.ShowMessage(showUnsuitableMsg: false, showGuestLoginMsg: false);
 		WaitingPopup.BlockWaitingPopup = false;
 		loginBackgroundWindow.PlayEffectPhase();
+	}
+
+	// SPRK: Android starts at the login scene, so the fixed second the Windows logo scene
+	// leads into was a second of black screen there. Opening at once instead showed the
+	// title background for a frame before the first-install logo effect covered it; wait
+	// until that effect draws (at most the original second).
+	private static IEnumerator SprkWaitForLoginBI()
+	{
+		float deadline = Time.realtimeSinceStartup + 1f;
+		while (Time.realtimeSinceStartup < deadline)
+		{
+			LoginBI loginBI = UnityEngine.Object.FindObjectOfType<LoginBI>();
+			if (loginBI == null || loginBI.BIEffectOnce == null)
+			{
+				yield break;
+			}
+			if (loginBI.BIEffectOnce.IsPlaying)
+			{
+				yield return null;
+				yield return null;
+				yield break;
+			}
+			yield return null;
+		}
 	}
 }
