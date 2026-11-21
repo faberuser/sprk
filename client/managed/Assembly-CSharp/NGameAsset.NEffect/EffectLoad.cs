@@ -128,6 +128,10 @@ public class EffectLoad : IAsyncLoad<IEffect>, IAsyncLoadBase
 			return;
 		}
 		EffectInstance effectInstance = new EffectInstance();
+		if (SprkAccessoryMasks.IsMask(Code))
+		{
+			effectInstance.SprkMaskCode = Code;
+		}
 		if (!effectInstance.Open(OpenData, Layer, ExtraTransform))
 		{
 			effectInstance.Release();

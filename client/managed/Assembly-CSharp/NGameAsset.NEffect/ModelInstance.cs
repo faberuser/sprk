@@ -66,6 +66,8 @@ public class ModelInstance
 		{
 			return false;
 		}
+		// SPRK: before SetupRenderer captures the materials.
+		SprkAccessoryMasks.Apply(Owner.SprkMaskCode, ModelGo);
 		CommonData commonData = Data.GetCommonData();
 		Transform transformForEffectModelAttach = commonData.GetTransformForEffectModelAttach(Owner, this);
 		if (transformForEffectModelAttach != null)
@@ -217,6 +219,7 @@ public class ModelInstance
 		}
 		if (ModelGo != null)
 		{
+			SprkAccessoryMasks.Restore(ModelGo);
 			_assetFactory.Release(ModelGo);
 			ModelGo = null;
 		}

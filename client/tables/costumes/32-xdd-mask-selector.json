@@ -1,0 +1,10 @@
+{
+  "table": "AccessorySelectItemTable",
+  "upsert": [
+    {
+      "ItemCode": "ACCESSORY_HEAD_SPRKXDD",
+      "AccessoryIndex": 3102599,
+      "AllOwnedRewardIndex": 171
+    }
+  ]
+}

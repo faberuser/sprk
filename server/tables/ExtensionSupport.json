@@ -234078,6 +234078,28 @@
       "IsShow": false
     },
     {
+      "Index": 3102599,
+      "Code": "Accessory.Head.Head.SprkXdd",
+      "UnableHero": null,
+      "PartType": 1,
+      "PivotType": 1,
+      "NameKey": 8,
+      "ProductDescKey": 9,
+      "Category": 4,
+      "Group": 4,
+      "ReqBuyGem": 0,
+      "Mileage": 0,
+      "IsOpen": true,
+      "IsBuy": false,
+      "New": 0,
+      "ProductImagePath": 10,
+      "IconPortraitPath": 11,
+      "PreviewableWhenOwned": true,
+      "OpenDate": 0,
+      "IsShow": false,
+      "SprkGiftOnly": true
+    },
+    {
       "Index": 3901601,
       "Code": "Accessory.Head.Head.GL17.A.L",
       "UnableHero": null,
@@ -238030,6 +238052,13 @@
       "AllOwnedRewardIndex": 171,
       "TargetHero": null,
       "ItemIndex": 3102510
+    },
+    {
+      "ItemCode": "ACCESSORY_HEAD_SPRKXDD",
+      "AccessoryIndex": 3102599,
+      "AllOwnedRewardIndex": 171,
+      "TargetHero": null,
+      "ItemIndex": 3102599
     },
     {
       "ItemCode": "ACCESSORY_ITEM_HEAD_3901212",

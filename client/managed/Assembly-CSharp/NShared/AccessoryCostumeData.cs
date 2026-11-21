@@ -18,6 +18,16 @@ public class AccessoryCostumeData : IDataKeySelector<int>, IPayShopEventSearchIn
 	[CompilerGenerated]
 	private bool _003CPreviewableWhenOwned_003Ek__BackingField;
 
+	// SPRK: accessories only obtainable as rewards (gift codes): never sold, and listed in the
+	// Dressing Room only for heroes that own them. Every other accessory is sold (IsBuy below).
+	// The server refuses to sell them too ("SprkGiftOnly" in tables/ExtensionSupport.json).
+	public const int SprkXddMaskIndex = 3102599;
+
+	public static bool IsSprkGiftOnly(int index)
+	{
+		return index == SprkXddMaskIndex;
+	}
+
 	int IDataKeySelector<int>.Key => Index;
 
 	[Key(0)]
@@ -105,7 +115,7 @@ public class AccessoryCostumeData : IDataKeySelector<int>, IPayShopEventSearchIn
 		[CompilerGenerated]
 		get
 		{
-			return true;
+			return !IsSprkGiftOnly(Index);
 		}
 		[CompilerGenerated]
 		set
@@ -129,7 +139,7 @@ public class AccessoryCostumeData : IDataKeySelector<int>, IPayShopEventSearchIn
 		[CompilerGenerated]
 		get
 		{
-			return false;
+			return IsSprkGiftOnly(Index);
 		}
 		[CompilerGenerated]
 		set

@@ -24,6 +24,7 @@ Set SPRK_GM_KEY in your environment or enter it at the hidden prompt. Keys are n
 Use the private admin listener, not the game port or Cloudflare hostname.
 """
 
+import contextlib
 import sys
 import os
 import getpass
@@ -87,8 +88,8 @@ def cmd_export_players(cfg, output="players.csv") -> bool:
     if destination.suffix.lower() not in (".csv", ".json"):
         print("  Export filename must end in .csv or .json.")
         return False
-    if destination.exists():
-        print(f"  File already exists: {destination}. Choose a new output filename.")
+    if destination.is_dir():
+        print(f"  Output path is a directory: {destination}. Choose a file name.")
         return False
     key = os.environ.get("SPRK_GM_KEY") or getpass.getpass("GM administrator key: ")
     if not key:
@@ -123,8 +124,11 @@ def cmd_export_players(cfg, output="players.csv") -> bool:
         if not rows or type(next_after) is not int or next_after != after:
             print("  Export failed: invalid pagination cursor. No export written.")
             return False
+    # Write to a temporary file beside the destination, then swap it in, so a
+    # failed write never leaves a truncated export in place of an existing one.
+    temporary = destination.with_name(f".{destination.name}.{os.getpid()}.tmp")
     try:
-        with destination.open("x", encoding="utf-8", newline="") as stream:
+        with temporary.open("w", encoding="utf-8", newline="") as stream:
             if destination.suffix.lower() == ".json":
                 json.dump(players, stream, ensure_ascii=False, indent=2)
                 stream.write("\n")
@@ -132,8 +136,11 @@ def cmd_export_players(cfg, output="players.csv") -> bool:
                 writer = csv.DictWriter(stream, fieldnames=["AccountId", "Username", "Nickname", "Online", "LastOnlineTime"], extrasaction="ignore")
                 writer.writeheader()
                 writer.writerows(players)
+        os.replace(temporary, destination)
     except OSError as exc:
         print(f"  Could not write export: {exc}")
+        with contextlib.suppress(OSError):
+            temporary.unlink()
         return False
     print(f"  Exported {len(players)} players to {destination.resolve()}")
     return True
@@ -501,7 +508,7 @@ def build_parser() -> argparse.ArgumentParser:
     players.add_argument("query", nargs="?", default="")
     players.add_argument("--after", type=int, default=0)
     export = sub.add_parser("export-players", help="Export all player IDs, usernames, nicknames and online status")
-    export.add_argument("--output", default="players.csv", help="New .csv or .json output file (default: players.csv)")
+    export.add_argument("--output", default="players.csv", help=".csv or .json output file, overwritten if it exists (default: players.csv)")
     mh = sub.add_parser('maxheroes', help='Create a separate max-core-hero raid test database')
     mh.add_argument('--source-url', required=True, help='PostgreSQL URL of a database copy to clone')
     mh.add_argument('--output-db', required=True, help='Name of the new fixture database (same server)')

@@ -163,3 +163,41 @@ async fn coupon_retries_and_failed_mail_are_atomic() {
     results.sort();
     assert_eq!(results, vec!["AlreadyReceived", "Success"]);
 }
+
+#[tokio::test]
+async fn xdd_mask_coupon_mails_the_gift_only_accessory_item() {
+    let (s, key, a) = setup().await;
+    assert_eq!(
+        redeem(&s, &key, "CouponCode=pdfabergift2&CountryCode=VN").await["Result"],
+        "Success"
+    );
+    assert_eq!(
+        redeem(&s, &key, "CouponCode=PDFABERGIFT2&CountryCode=VN").await["Result"],
+        "AlreadyReceived"
+    );
+    let id: i64 = crate::db::query_scalar(
+        "SELECT mail_id FROM coupon_redemptions WHERE account_id=$1 AND code='PDFABERGIFT2'",
+    )
+    .bind(a)
+    .fetch_one(&s.db)
+    .await
+    .unwrap();
+    let claimed = mail::receive_mail(State(s.clone()), body(&key, &format!("MailIndex={id}")))
+        .await
+        .unwrap()
+        .0;
+    assert_eq!(claimed["Result"], "Success", "{claimed}");
+    let count: i64 =
+        crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=3102599")
+            .bind(a)
+            .fetch_one(&s.db)
+            .await
+            .unwrap();
+    assert_eq!(count, 100);
+    assert_eq!(s.tables.get_item_index("ACCESSORY_HEAD_SPRKXDD"), Some(3102599));
+    // PDFABERGIFT is a separate code and still redeemable.
+    assert_eq!(
+        redeem(&s, &key, "CouponCode=PDFABERGIFT&CountryCode=VN").await["Result"],
+        "Success"
+    );
+}

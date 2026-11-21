@@ -1,2 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <EmbeddedResource Include="SprkMasks.*.png;SprkMasks.*.mesh" LogicalName="%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

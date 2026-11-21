@@ -364,36 +364,70 @@ public static class SprkImageRecovery
 		{
 			return texture != null;
 		}
-		string resource = "SprkIcons." + spritePath.Substring(5).Replace('/', '.') + ".png";
-		using (Stream stream = typeof(SprkImageRecovery).Assembly.GetManifestResourceStream(resource))
-		{
-			if (stream != null)
-			{
-				byte[] bytes = new byte[(int)stream.Length];
-				int read;
-				for (int i = 0; i < bytes.Length; i += read)
-				{
-					read = stream.Read(bytes, i, bytes.Length - i);
-					if (read == 0)
-					{
-						throw new EndOfStreamException();
-					}
-				}
-				texture = new Texture2D(2, 2, TextureFormat.RGBA32, mipChain: false);
-				if (texture.LoadImage(bytes, markNonReadable: true))
-				{
-					texture.name = "SPRK " + spritePath;
-					texture.hideFlags = HideFlags.HideAndDontSave;
-				}
-				else
-				{
-					UnityEngine.Object.Destroy(texture);
-					texture = null;
-				}
-			}
-		}
+		texture = LoadEmbedded("SprkIcons." + spritePath.Substring(5).Replace('/', '.') + ".png", spritePath);
 		iconOverrides[spritePath] = texture;
 		return texture != null;
+	}
+
+	// Bundle textures (UIBundleLoader paths) SPRK ships as embedded PNGs: art for accessories
+	// added without asset bundles (SprkAccessoryMasks, docs/accessory-masks.md).
+	private static readonly Dictionary<string, string> bundleImages = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+	{
+		{ "Icon/Item/ACCESSORY_HEAD_SPRKXDD", "SprkIcons.Item.ACCESSORY_HEAD_SPRKXDD.png" },
+		{ "Customize/Product/Portrait/Accessory_Head_SprkXdd", "SprkPortraits.Accessory_Head_SprkXdd.png" }
+	};
+
+	private static Texture2D LoadEmbedded(string resource, string name)
+	{
+		using Stream stream = typeof(SprkImageRecovery).Assembly.GetManifestResourceStream(resource);
+		if (stream == null)
+		{
+			return null;
+		}
+		byte[] bytes = new byte[(int)stream.Length];
+		int read;
+		for (int i = 0; i < bytes.Length; i += read)
+		{
+			read = stream.Read(bytes, i, bytes.Length - i);
+			if (read == 0)
+			{
+				throw new EndOfStreamException();
+			}
+		}
+		Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, mipChain: false);
+		if (!texture.LoadImage(bytes, markNonReadable: true))
+		{
+			UnityEngine.Object.Destroy(texture);
+			return null;
+		}
+		texture.name = "SPRK " + name;
+		texture.hideFlags = HideFlags.HideAndDontSave;
+		return texture;
+	}
+
+	private static bool TryBundleImage(UIBundleLoader loader, string assetPath)
+	{
+		if (assetPath == null || !bundleImages.TryGetValue(assetPath, out var resource))
+		{
+			return false;
+		}
+		if (!iconOverrides.TryGetValue(resource, out var texture) || texture == null)
+		{
+			texture = LoadEmbedded(resource, assetPath);
+			if (texture == null)
+			{
+				throw new InvalidOperationException("Missing embedded image: " + resource);
+			}
+			iconOverrides[resource] = texture;
+		}
+		UITexture uiTex = loader.UiTex;
+		if (uiTex != null)
+		{
+			uiTex.material = null;
+			uiTex.mainTexture = texture;
+			uiTex.uvRect = new Rect(0f, 0f, 1f, 1f);
+		}
+		return true;
 	}
 
 	public static bool TryTpIcon(UIBundleLoader loader)
@@ -406,7 +440,7 @@ public static class SprkImageRecovery
 		int num = (string.Equals(assetPath, "Icon/Item/TRANSCEND_10POINT", StringComparison.OrdinalIgnoreCase) ? 10 : (string.Equals(assetPath, "Icon/Item/TRANSCEND_15POINT", StringComparison.OrdinalIgnoreCase) ? 15 : (string.Equals(assetPath, "Icon/Item/SPRK_XDD", StringComparison.OrdinalIgnoreCase) ? 9900001 : 0)));
 		if (num == 0)
 		{
-			return false;
+			return TryBundleImage(loader, assetPath);
 		}
 		if (!tpIcons.TryGetValue(num, out var value) || value == null)
 		{

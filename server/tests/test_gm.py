@@ -67,14 +67,21 @@ class GmTests(unittest.TestCase):
                     self.assertFalse(gm.cmd_export_players({}, output))
                 self.assertFalse(output.exists())
 
-    def test_export_preserves_existing_file(self):
+    def test_export_overwrites_existing_file_only_on_success(self):
+        player = {"AccountId": 1, "Username": "user", "Nickname": None, "Online": False, "LastOnlineTime": None}
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "players.json"
             output.write_text("existing")
-            with patch.object(gm, "post") as post, contextlib.redirect_stdout(io.StringIO()):
+            with patch.dict(os.environ, {"SPRK_GM_KEY": "test-key"}), \
+                    patch.object(gm, "post", return_value={}), contextlib.redirect_stdout(io.StringIO()):
                 self.assertFalse(gm.cmd_export_players({}, output))
-            post.assert_not_called()
             self.assertEqual(output.read_text(), "existing")
+            with patch.dict(os.environ, {"SPRK_GM_KEY": "test-key"}), \
+                    patch.object(gm, "post", return_value={"Players": [player], "NextAfter": None}), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                self.assertTrue(gm.cmd_export_players({}, output))
+            self.assertEqual(json.loads(output.read_text(encoding="utf-8")), [player])
+            self.assertEqual(sorted(p.name for p in Path(directory).iterdir()), ["players.json"])
 
     def test_account_selection_and_explicit_currency_only(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -1,0 +1,19 @@
+{
+  "table": "ItemTable",
+  "upsert": [
+    {
+      "Index": 3102599,
+      "Code": "ACCESSORY_HEAD_SPRKXDD",
+      "ItemStory": "",
+      "Item3DPath": "",
+      "Type": "AccessorySelectItem",
+      "Grade": 5,
+      "AssetGroup": "AccessoryCostume",
+      "NotForSale": true,
+      "GetEffect": "Rare",
+      "DropItemNodeTreeCode": "",
+      "ReplaceNameKey": "",
+      "ReplaceDesc2Key": ""
+    }
+  ]
+}
