@@ -291,7 +291,13 @@ public sealed class SprkLoginSettings : MonoBehaviour, GameOptionWindow.Listener
 		{
 			return value;
 		}
-		AssetBundle assetBundle = AssetBundle.LoadFromFile(Path.Combine(NVespa.UnityCache.GetDownloadedAssetPath("Assetbundle"), text, "NguiAtlas_UI_Prefab_" + name + ".unity3d"));
+		string file = Path.Combine(NVespa.UnityCache.GetDownloadedAssetPath("Assetbundle"), text, "NguiAtlas_UI_Prefab_" + name + ".unity3d");
+		if (Application.platform == RuntimePlatform.Android && !File.Exists(file))
+		{
+			// Before the first asset download: the copy built into the APK (SprkAndroidBuild).
+			file = Path.Combine(Application.streamingAssetsPath, "sprk", "login", text, "NguiAtlas_UI_Prefab_" + name + ".unity3d");
+		}
+		AssetBundle assetBundle = AssetBundle.LoadFromFile(file);
 		if (assetBundle == null)
 		{
 			throw new InvalidOperationException("The installed settings artwork could not be loaded.");

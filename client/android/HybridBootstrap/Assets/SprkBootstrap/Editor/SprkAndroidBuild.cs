@@ -261,13 +261,21 @@ public static class SprkAndroidBuild
         return ContentFiles.ToList();
     }
 
-    // The title logo's atlas (with the "X: The Final" subtitle) from the maintained Android
-    // asset set, so the title is complete before the first asset download
-    // (SprkLoginPresentation.RestoreLogoSubtitle falls back to this copy).
+    // Atlases the title screen needs before the first asset download, from the maintained
+    // Android asset set: the logo (with the "X: The Final" subtitle;
+    // SprkLoginPresentation.RestoreLogoSubtitle) and the Settings window's artwork
+    // (SprkLoginSettings.LoadLoginAtlas). Both fall back to these copies.
+    static readonly string[] LoginAtlases =
+    {
+        "NguiAtlas_UI_Prefab_Login.unity3d",
+        "NguiAtlas_UI_Prefab_GameOption.unity3d",
+        "NguiAtlas_UI_Prefab_PayShop.unity3d",
+    };
+
     static void StageLoginAtlas()
     {
-        const string name = "NguiAtlas_UI_Prefab_Login.unity3d";
         foreach (var spec in new[] { "HighAndMidSpec", "LowLargeSpec" })
+        foreach (var name in LoginAtlases)
         {
             string src = Path.GetFullPath(Path.Combine(ProjectDir, "..", "..", "..", "..", "sprk-android", "build", "Assetbundle", spec, name));
             if (!File.Exists(src))
