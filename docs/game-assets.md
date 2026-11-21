@@ -92,7 +92,8 @@ changes to original bundles).
 ## Publish
 
 Windows assets come from the installed client, Android assets from `../sprk-android/build`
-(built by `client/android/dev.py assets`, which converts changed Windows bundles):
+(built by `client/android/dev.py assets`, which converts changed Windows bundles and copies
+the platform-neutral data such as `PlainAsset`):
 
 ```powershell
 python client/scripts/release/publish_assets.py --client ../sprk-client
