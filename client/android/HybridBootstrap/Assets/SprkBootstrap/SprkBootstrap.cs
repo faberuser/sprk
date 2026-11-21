@@ -94,6 +94,9 @@ public class SprkBootstrap : MonoBehaviour
     IEnumerator Start()
     {
         Application.targetFrameRate = 60;
+        // Keep the screen on through the server picker and the update download;
+        // the game applies its own sleep option once it runs.
+        Screen.sleepTimeout = SleepTimeout.NeverSleep;
         Log($"device={SystemInfo.deviceModel} abi={(IntPtr.Size == 8 ? "64" : "32")}-bit os={SystemInfo.operatingSystem}");
         Log($"gfx={SystemInfo.graphicsDeviceType} {SystemInfo.graphicsDeviceName}");
 
