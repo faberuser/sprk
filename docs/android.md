@@ -56,6 +56,13 @@ server added in the in-app list), reaches the lobby at the display's refresh rat
 - Scene loads stall for 0.4–1.7 s while bundles, atlases and models load (as on Windows).
 - An x86_64 build for emulators was set aside; BlueStacks runs the ARM64 build through
   its translation layer.
+- **Frame rate.** Optimized Frame Pacing (Swappy) is off: on some phones it ran every
+  Max Frame choice at half speed (30 → 15, 60 → 30, 144 → 60), apparently pacing for a
+  120 Hz panel that the phone was driving at 60 Hz. `FrameManager.ApplyDisplayRefreshRate` asks
+  Android for the slowest display mode that fits the chosen frame rate (window
+  `preferredDisplayModeId`; the fastest mode for Auto), because Android otherwise keeps
+  90/120/144 Hz panels at 60 Hz. Some vendors' power managers can still cap a game at
+  60 Hz; the app cannot override that.
 
 ## Game code
 
