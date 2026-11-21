@@ -251,10 +251,10 @@ Android asset bundles. It is a prototype; open work is listed in
 - Unity **6000.0.53f1** with Android Build Support, installed through Unity Hub. **Hub
   must be running and signed in** during builds; the editor gets its licence from Hub.
 - `pip install -r client/scripts/requirements-client.txt` (UnityPy, Pillow).
-- Next to the repository: `../sprk-client` (the Windows client) and `../sprk-apk`, the
+- Next to the repository: `../sprk-client` (the Windows client) and `../sprk-android/base-apk`, the
   pinned original Android inputs: `kings-raid-4.88.8.apk` (for `content` only) and
   `Assetbundle/` (the original Android bundles, from `Documents/Patch/Android/Assetbundle`).
-  `../sprk-android` is the maintained Android asset set built from them.
+  `../sprk-android/build` is the maintained Android asset set built from them.
 - A device: BlueStacks with ADB enabled (`HD-Adb.exe`, serial `emulator-5554`, the
   default) or a phone over USB (`--adb <adb.exe> --serial <id>`, see `adb devices`).
 - The local server (`start_server.bat`).
@@ -286,7 +286,7 @@ BlueStacks); later runs skip what is already there. `hot` puts the DLLs in
 `files/sprk/hot/` on the device, where the bootstrap prefers them over the APK's copies;
 `test` removes them again. `dev.py` finds Unity through Unity Hub (`--unity` or
 `SPRK_UNITY` override it) and runs the device scripts with Git Bash. Unity logs go to
-`artifacts/android-bootstrap/`, with the APK (`apk/sprk-hybrid-probe.apk`), the repacked
+`../sprk-android/bootstrap/`, with the APK (`apk/sprk-hybrid-probe.apk`), the repacked
 content (`content/`) and the reference bundles (`templates/`).
 
 ### Servers and accounts
@@ -323,7 +323,7 @@ the tutorial; _Skip Tutorial_ leads to the lobby. To drive the UI from the PC us
   startup steps with timestamps, the first occurrence of each error with its stack, and a
   `perf` line every 5 s (fps, frame times, frames over 50 ms, GCs, heap, target fps).
 - logcat: `adb logcat -v time Unity:V CRASH:E DEBUG:E '*:S'`; `dev.py test` saves it to
-  `artifacts/android-bootstrap/probe-logcat.txt`.
+  `../sprk-android/bootstrap/probe-logcat.txt`.
 - Switches, as lines in the device's `files/sprk/index.txt`: `debug:overlay` (log on
   screen), `debug:probes` (startup self-tests), `server:local` (skip the server list).
 
@@ -349,7 +349,7 @@ In `android/HybridBootstrap/` (what `dev.py` runs):
 | Script                              | Purpose                                                                       |
 | ----------------------------------- | ----------------------------------------------------------------------------- |
 | `sync_inputs.py`                    | Game DLLs, AOT plugins from `../sprk-client`, app icon into the Unity project |
-| `content/extract_apk_data.py`       | Original APK player data → `artifacts/android-bootstrap/apk-data`             |
+| `content/extract_apk_data.py`       | Original APK player data → `../sprk-android/bootstrap/apk-data`             |
 | `content/repack_content.py`         | Windows player data → Android content bundles and `resources-map.json`        |
 | `content/patch_player_resources.py` | Run by the build: the player's Resources and shader-name tables               |
 | `push_patch.sh`, `push_content.sh`  | Patch folder; dev startup index (the content bundles are in the APK)          |

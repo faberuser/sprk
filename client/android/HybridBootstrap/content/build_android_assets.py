@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Build the maintained Android asset set (../sprk-android) from the Windows client.
+"""Build the maintained Android asset set (../sprk-android/build) from the Windows client.
 
 The Windows client (../sprk-client) is the source of truth for game assets. For every
 asset bundle it has:
 
 * unchanged from the original game (its MD5 matches the original Windows patch list)
-  and present in the original Android set (../sprk-apk/Assetbundle): the original
+  and present in the original Android set (../sprk-android/base-apk/Assetbundle): the original
   Android bundle is used;
 * otherwise (changed by SPRK, or missing on Android, including the whole Low tier):
   the Windows bundle is converted (convert_bundles.py).
@@ -15,10 +15,10 @@ Android one predates content the tables use). The shader bundle the game loads
 (Unity_2018/Shader.unity3d) is the original Android GLES one.
 
 Incremental: a bundle is converted again only when its source or the converter changed
-(state in ../sprk-android/.sprk-android.json). Unchanged originals are hard links into
-../sprk-apk where possible. Never edit ../sprk-android by hand; run this again after
+(state in ../sprk-android/build/.sprk-android.json). Unchanged originals are hard links into
+../sprk-android/base-apk where possible. Never edit ../sprk-android/build by hand; run this again after
 changing Windows assets, then publish it with
-`publish_assets.py --client ../sprk-android --platform Android --patch-prefix ""`.
+`publish_assets.py --client ../sprk-android/build --platform Android --patch-prefix ""`.
 
 usage: python client/android/HybridBootstrap/content/build_android_assets.py [--jobs N] [--only PREFIX]
 """
@@ -88,8 +88,8 @@ def convert_one(source: str, target: str, shader_map: dict) -> tuple[str, dict |
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--windows", type=Path, default=WINDOWS_PATCH, help="Windows patch folder")
-    ap.add_argument("--original", type=Path, default=WORKSPACE / "sprk-apk" / "Assetbundle", help="original Android bundles")
-    ap.add_argument("--out", type=Path, default=WORKSPACE / "sprk-android", help="Android asset set (patch-folder layout)")
+    ap.add_argument("--original", type=Path, default=WORKSPACE / "sprk-android" / "base-apk" / "Assetbundle", help="original Android bundles")
+    ap.add_argument("--out", type=Path, default=WORKSPACE / "sprk-android" / "build", help="Android asset set (patch-folder layout)")
     ap.add_argument("--shader-map", type=Path, default=HERE / "shader-map.json")
     ap.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) - 2))
     ap.add_argument("--only", help="limit to bundle paths starting with this (testing)")

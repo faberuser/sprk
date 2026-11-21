@@ -18,9 +18,9 @@ SERIAL="${2:-emulator-5554}"
 ROOT="$(cd "$HERE/../../../.." && pwd)"
 WIN="$ROOT/sprk-client/King's Raid_Data/Documents/Patch/StandaloneWindows"
 # The maintained Android bundle set (client/android/dev.py assets); before it is built,
-# the original Android bundles pinned in ../sprk-apk.
-ANDROID="$ROOT/sprk-android/Assetbundle"
-[ -d "$ANDROID" ] || ANDROID="$ROOT/sprk-apk/Assetbundle"
+# the original Android bundles pinned in ../sprk-android/base-apk.
+ANDROID="$ROOT/sprk-android/build/Assetbundle"
+[ -d "$ANDROID" ] || ANDROID="$ROOT/sprk-android/base-apk/Assetbundle"
 DEST=/sdcard/Android/data/com.sprk.hybridprobe/files/Documents/Patch/StandaloneWindows
 NEUTRAL=(AiScript ContentsDefine LocalizationJit LoginPresentation PatchInfo PlainAsset TableData TableJit Video patch.json patch.bjs SPRK-NativeCombat.json SPRK-NativeData.json SPRK-NativeLocalization.json)
 

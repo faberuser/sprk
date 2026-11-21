@@ -41,8 +41,8 @@ OVERRIDES = REPO / "client/overrides/files"
 UPDATES = REPO / "client-updates"
 SIGNING_KEY = UPDATES / "update-signing/private.pem"
 ASSETS = UPDATES / "assets"
-ANDROID_GAME = REPO.parent / "sprk-android"
-ANDROID_ORIGINALS = REPO.parent / "sprk-apk" / "Assetbundle"
+ANDROID_GAME = REPO.parent / "sprk-android" / "build"
+ANDROID_ORIGINALS = REPO.parent / "sprk-android" / "base-apk" / "Assetbundle"
 SHADER_MAP = REPO / "client/android/HybridBootstrap/content/shader-map.json"
 LOCAL_HOST = "http://127.0.0.1:8080/host.json"
 LOCAL_MANIFEST = "http://127.0.0.1:8081/updates/stable/manifest.json"
@@ -151,7 +151,7 @@ def publish_asset_versions(game: Path) -> None:
     result = publish_assets(game, ASSETS, "StandaloneWindows", if_changed=True)
     if result["version"] is not None:
         published.append(f"StandaloneWindows {result['version']}")
-    # Android: convert the changed Windows bundles into ../sprk-android, then publish it.
+    # Android: convert the changed Windows bundles into ../sprk-android/build, then publish it.
     missing = [str(p) for p in (ANDROID_GAME, ANDROID_ORIGINALS, SHADER_MAP) if not p.exists()]
     if missing:
         print("Android assets not published; missing " + ", ".join(missing)

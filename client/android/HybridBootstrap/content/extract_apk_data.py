@@ -6,7 +6,7 @@ adds those to the GLES shader bundle. Only the player data is extracted (no Mana
 and sharedassets0.assets is re-joined from its .splitN parts.
 
 usage: python client/android/HybridBootstrap/content/extract_apk_data.py <kings-raid-4.88.8.apk>
-       [--out artifacts/android-bootstrap/apk-data]
+       [--out ../sprk-android/bootstrap/apk-data]
 """
 import argparse
 import re
@@ -20,7 +20,7 @@ PREFIX = "assets/bin/Data/"
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("apk", type=Path)
-    ap.add_argument("--out", type=Path, default=REPO / "artifacts" / "android-bootstrap" / "apk-data")
+    ap.add_argument("--out", type=Path, default=REPO.parent / "sprk-android" / "bootstrap" / "apk-data")
     args = ap.parse_args()
     out = args.out
     out.mkdir(parents=True, exist_ok=True)

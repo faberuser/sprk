@@ -19,7 +19,8 @@ pub(crate) async fn execute(
             if n(item::data(state, id)?, "Type") != if guild { 25 } else { 24 } {
                 return Err(rule("ItemTypeMismatch"));
             }
-            let name = req.text(if guild { "Name" } else { "Nick" }).trim();
+            let escaped = req.escaped_text(if guild { "Name" } else { "Nick" });
+            let name = escaped.trim();
             let min = state.tables.hero_shop.constant(
                 if guild {
                     "MinGuildNameLength"
