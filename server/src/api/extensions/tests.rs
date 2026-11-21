@@ -3562,3 +3562,139 @@ async fn gift_only_xdd_mask_is_never_sold_but_its_item_grants_it() {
     assert_eq!(login.user_info.gem, 100000);
     assert!(login.player_accessory_costume_infos.iter().any(|v| v["HeroIndex"] == 1 && v["AccessoryCostumeIndex"] == 3102599));
 }
+
+#[tokio::test]
+async fn soul_weapon_rearrange_until_reports_exact_odds_pays_tickets_then_gems_and_guarantees() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let slot = give(&s, a, 1001, 1).await.equipment[0].slot_index;
+    give(&s, a, 111001, 1).await;
+    assert_eq!(call(&s, &u, "soul_weapon_liberation", &format!("EquipItemSlotIndex={slot}")).await["Result"], "Success");
+    let saved = || async { get(&mut s.db.acquire().await.unwrap(), a, "soul", slot as i64).await.unwrap() };
+    let gems = |v: i64| crate::db::query("UPDATE user_info SET gem=$1,pay_gem=0 WHERE account_id=$2").bind(v).bind(a);
+    let wallet = || async {
+        let gem: i64 = crate::db::query_scalar("SELECT gem FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap();
+        let tickets: i64 = crate::db::query_scalar("SELECT COALESCE(SUM(count)::bigint,0) FROM items WHERE account_id=$1 AND item_index=2202")
+            .bind(a).fetch_one(&s.db).await.unwrap();
+        (gem, tickets)
+    };
+    let renew = |target: &str, extra: &str| format!("EquipItemSlotIndex={slot}&{target}&{extra}");
+    // The bruiser example: ATK 53.0-57.0%, both bonuses at least 15.0%.
+    let bruiser = "SprkAtkMin=530&SprkAtkMax=570&SprkAtkBonusMin=150&SprkHpBonusMin=150";
+    // Exactly one outcome in 401 x 201 x 201.
+    let perfect = "SprkAtkMin=700&SprkAtkMax=700&SprkAtkBonusMin=200&SprkHpBonusMin=200";
+
+    // Targets outside the native ranges are refused before anything is charged.
+    gems(100000).execute(&s.db).await.unwrap();
+    let before = saved().await;
+    for bad in [
+        "SprkAtkMin=600&SprkAtkMax=550",
+        "SprkAtkMin=299&SprkAtkMax=700",
+        "SprkAtkMin=300&SprkAtkMax=701",
+        "SprkAtkMin=300&SprkAtkMax=700&SprkAtkBonusMin=201",
+        "SprkAtkMin=300&SprkAtkMax=700&SprkHpBonusMin=-1",
+    ] {
+        let r = call(&s, &u, "soul_weapon_renew_option", &renew(bad, "SprkMaxTries=5")).await;
+        assert_eq!(r["Result"], "RenewOptionRaioFail", "{bad}: {r}");
+    }
+    for tries in [0, soul::SOUL_RENEW_UNTIL_MAX_TRIES + 1] {
+        let r = call(&s, &u, "soul_weapon_renew_option", &renew(bruiser, &format!("SprkMaxTries={tries}"))).await;
+        assert_eq!(r["Result"], "RenewOptionRaioFail", "{tries}: {r}");
+    }
+    assert_eq!(saved().await, before);
+    assert_eq!(wallet().await, (100000, 0));
+
+    // Preview: exact odds and the scaled guarantee, nothing charged.
+    let p = call(&s, &u, "soul_weapon_renew_option", &renew(bruiser, "SprkPreview=1")).await;
+    assert_eq!(p["Result"], "Success", "{p}");
+    assert_eq!((n(&p, "SprkHits"), n(&p, "SprkOutcomes")), (41 * 51 * 51, 401 * 201 * 201));
+    assert_eq!((n(&p, "SprkPityMisses"), n(&p, "SprkPityLimit")), (0, 456), "ceil(3 / 0.658%)");
+    let p = call(&s, &u, "soul_weapon_renew_option", &renew(perfect, "SprkPreview=1")).await;
+    assert_eq!((n(&p, "SprkHits"), n(&p, "SprkPityLimit")), (1, soul::SOUL_RENEW_UNTIL_MAX_TRIES), "capped at one run");
+    assert_eq!(saved().await, before);
+    assert_eq!(wallet().await, (100000, 0));
+
+    // No tickets and too few gems: refused.
+    gems(199).execute(&s.db).await.unwrap();
+    let r = call(&s, &u, "soul_weapon_renew_option", &renew(perfect, "SprkMaxTries=5")).await;
+    assert_eq!(r["Result"], "NotEnoughGem", "{r}");
+    assert_eq!(saved().await, before);
+
+    // Two tickets, then one 200-gem roll; the next is unaffordable.
+    give(&s, a, 2202, 2).await;
+    gems(300).execute(&s.db).await.unwrap();
+    let r = call(&s, &u, "soul_weapon_renew_option", &renew(perfect, "SprkMaxTries=5")).await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!((n(&r, "SprkTries"), n(&r, "SprkTicketsUsed"), n(&r, "SprkGemsSpent")), (3, 2, 200), "{r}");
+    assert_eq!(r["SprkHit"], false);
+    assert_eq!((n(&r, "SprkPityMisses"), n(&r, "SprkPityLimit")), (3, soul::SOUL_RENEW_UNTIL_MAX_TRIES));
+    assert_eq!(r["CurrencyResult"]["AddValue"], -200);
+    assert_eq!(wallet().await, (100, 0));
+    let info = saved().await;
+    assert_eq!(&info, &r["ResultSoulWeaponInfo"]);
+    assert_eq!(info["PendingRenew"], true);
+    assert_eq!(info["RenewOptionCount"], 3);
+    assert_eq!((n(&info, "OptionRatio1"), n(&info, "OptionBonusRatio1")), (n(&before, "OptionRatio1"), n(&before, "OptionBonusRatio1")), "only pending changes");
+    let atk = n(&info, "RenewOptionRatio1");
+    assert!((300..=700).contains(&atk) && n(&info, "RenewOptionRatio2") == 1000 - atk, "{info}");
+
+    // An unconfirmed roll blocks the next run, and the native Keep restores it.
+    let r = call(&s, &u, "soul_weapon_renew_option", &renew(perfect, "SprkMaxTries=1")).await;
+    assert_eq!(r["Result"], "Fail", "{r}");
+    assert_eq!(wallet().await, (100, 0));
+    let kept = call(&s, &u, "soul_weapon_confirm_renew_option", &format!("EquipItemSlotIndex={slot}&IsNew=false")).await;
+    assert_eq!(kept["Result"], "Success", "{kept}");
+    assert_eq!(n(&saved().await, "OptionRatio1"), n(&before, "OptionRatio1"));
+
+    // Progress carries over: the 100,000th accumulated roll lands in the target.
+    crate::db::query("UPDATE sprk_target_pity SET misses=99998 WHERE account_id=$1 AND kind='soul_renew'")
+        .bind(a).execute(&s.db).await.unwrap();
+    gems(100000).execute(&s.db).await.unwrap();
+    let r = call(&s, &u, "soul_weapon_renew_option", &renew(perfect, "SprkMaxTries=5")).await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert!(n(&r, "SprkTries") <= 2, "{r}");
+    assert_eq!((r["SprkHit"].clone(), r["SprkGuaranteed"].clone()), (json!(true), json!(n(&r, "SprkTries") == 2)), "{r}");
+    assert_eq!(n(&r, "SprkPityMisses"), 0);
+    let info = &r["ResultSoulWeaponInfo"];
+    assert_eq!(
+        (n(info, "RenewOptionRatio1"), n(info, "RenewOptionRatio2"), n(info, "RenewOptionBonusRatio1"), n(info, "RenewOptionBonusRatio2")),
+        (700, 300, 200, 200)
+    );
+    let taken = call(&s, &u, "soul_weapon_confirm_renew_option", &format!("EquipItemSlotIndex={slot}&IsNew=true")).await;
+    assert_eq!(taken["Result"], "Success", "{taken}");
+    let info = saved().await;
+    assert_eq!((n(&info, "OptionRatio1"), n(&info, "OptionBonusRatio1"), n(&info, "OptionBonusRatio2")), (700, 200, 200));
+
+    // Another target starts its own progress; any outcome hits in one roll.
+    let r = call(&s, &u, "soul_weapon_renew_option", &renew(perfect, "SprkMaxTries=1")).await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    let p = call(&s, &u, "soul_weapon_confirm_renew_option", &format!("EquipItemSlotIndex={slot}&IsNew=false")).await;
+    assert_eq!(p["Result"], "Success", "{p}");
+    let p = call(&s, &u, "soul_weapon_renew_option", &renew(bruiser, "SprkPreview=1")).await;
+    assert_eq!(n(&p, "SprkPityMisses"), 0, "{p}");
+    let r = call(&s, &u, "soul_weapon_renew_option", &renew("SprkAtkMin=300&SprkAtkMax=700", "SprkMaxTries=50")).await;
+    assert_eq!((n(&r, "SprkTries"), r["SprkHit"].clone()), (1, json!(true)), "{r}");
+    let kept = call(&s, &u, "soul_weapon_confirm_renew_option", &format!("EquipItemSlotIndex={slot}&IsNew=false")).await;
+    assert_eq!(kept["Result"], "Success", "{kept}");
+
+    // Max ATK with only its own bonus maxed: 11 x 1 x 201 outcomes, so the
+    // guarantee is 3 x 7,328 rolls. With both bonuses maxed (the preset) the
+    // odds are 1 in ~1.47 million and the 100,000 cap applies.
+    let atk_only = "SprkAtkMin=690&SprkAtkMax=700&SprkAtkBonusMin=200&SprkHpBonusMin=0";
+    let p = call(&s, &u, "soul_weapon_renew_option", &renew(atk_only, "SprkPreview=1")).await;
+    assert_eq!((n(&p, "SprkHits"), n(&p, "SprkPityLimit")), (11 * 201, 21983), "{p}");
+    let max_atk = "SprkAtkMin=690&SprkAtkMax=700&SprkAtkBonusMin=200&SprkHpBonusMin=200";
+    let p = call(&s, &u, "soul_weapon_renew_option", &renew(max_atk, "SprkPreview=1")).await;
+    assert_eq!((n(&p, "SprkHits"), n(&p, "SprkPityLimit")), (11, soul::SOUL_RENEW_UNTIL_MAX_TRIES), "{p}");
+
+    // A full-length run finishes quickly and always lands by the guarantee.
+    gems(250_000_000).execute(&s.db).await.unwrap();
+    let started = std::time::Instant::now();
+    let r = call(&s, &u, "soul_weapon_renew_option", &renew(perfect, &format!("SprkMaxTries={}", soul::SOUL_RENEW_UNTIL_MAX_TRIES))).await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!(r["SprkHit"], true, "{r}");
+    let tries = n(&r, "SprkTries");
+    assert!((1..=soul::SOUL_RENEW_UNTIL_MAX_TRIES).contains(&tries), "{r}");
+    assert_eq!(n(&r, "SprkGemsSpent"), 200 * tries);
+    assert!(started.elapsed() < std::time::Duration::from_secs(5), "{:?}", started.elapsed());
+}

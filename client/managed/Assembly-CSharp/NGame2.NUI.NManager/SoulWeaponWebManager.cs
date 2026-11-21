@@ -265,6 +265,7 @@ public class SoulWeaponWebManager : SingletonAuto<SoulWeaponWebManager>
 		request.OptionStat2 = soulWeaponInfo.GetBaseStat(ESoulWeaponStatType.Hp, isRenew: false);
 		request.BonusOptionStat1 = soulWeaponInfo.GetBonusStat(request.OptionStat1, ESoulWeaponStatType.Attack, isRenew: false);
 		request.BonusOptionStat2 = soulWeaponInfo.GetBonusStat(request.OptionStat2, ESoulWeaponStatType.Hp, isRenew: false);
+		SprkSoulRenewUntil.Arm(request);
 		SingletonUpdater<WebServiceManager>.instance.Requester.Request(request, delegate(NShared.SoulWeaponRenewOption.Response response)
 		{
 			if (response.BaseResult != BaseResultType.Success)
@@ -284,6 +285,7 @@ public class SoulWeaponWebManager : SingletonAuto<SoulWeaponWebManager>
 				{
 					e.OnSoulWeaponRenewOption(response.ResultSoulWeaponInfo);
 				});
+				SprkSoulRenewUntil.Done(response);
 			}
 		});
 	}

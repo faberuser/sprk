@@ -34,6 +34,13 @@ class LocalizationTests(unittest.TestCase):
         source = (catalog.ROOT / 'managed/SprkArtifactSourceFilter/SprkArtifactSourceFilter.cs').read_text(encoding='utf-8')
         for value in re.findall(LITERAL, re.search(r'Labels = new string\[\d+\] \{(.*?)\}', source)[1]):
             self.assertIn(json.loads(value), entries)
+        source = (catalog.ROOT / 'managed/SprkReforgeUntil/SprkSoulRenewUntil.cs').read_text(encoding='utf-8')
+        captions = re.findall(r'Caption = (' + LITERAL + ')', source)
+        captions += re.findall(r'AddCaption\(\w+, \w+, ' + LITERAL + ', (' + LITERAL + ')', source)
+        captions += re.findall(r'captions\.Add\(new KeyValuePair<UILabel, string>\(AddLabel\([^;]*?\), (' + LITERAL + r')\)\);', source)
+        self.assertEqual(len(captions), 7)
+        for value in captions:
+            self.assertIn(json.loads(value), entries)
 
     def test_missing_locale_and_broken_format_are_rejected(self):
         good = ['Count: {0}'] + ['Anzahl: {0}'] * 7

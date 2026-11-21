@@ -55,6 +55,7 @@ public static class JM_NShared_SoulWeaponRenewOption_Request
 		{
 			dictionary.Add("SessionId", o.SessionId);
 		}
+		SprkSoulRenewUntil.Encode(dictionary, o);
 		return dictionary;
 	}
 }

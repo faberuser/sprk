@@ -567,6 +567,20 @@ public sealed class SprkAutomation : MonoBehaviour
 				Write(reply);
 				return;
 			}
+			if (command.action == "soul-renew-until-probe")
+			{
+				string profile = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+				if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Login" || string.IsNullOrEmpty(profile) || !profile.StartsWith("soul-renew-"))
+				{
+					throw new InvalidOperationException("Rearrange until fixture requires isolated Login and soul-renew profile");
+				}
+				string result = (string)Assembly.Load("SprkReforgeUntil").GetType("SprkSoulRenewUntilProbe").GetMethod("Run")
+					.Invoke(null, new object[1] { command.text });
+				reply = Snapshot(command.id);
+				reply.materials.Add(result);
+				Write(reply);
+				return;
+			}
 			if (command.action == "ticket-search-probe")
 			{
 				string environmentVariable9 = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");

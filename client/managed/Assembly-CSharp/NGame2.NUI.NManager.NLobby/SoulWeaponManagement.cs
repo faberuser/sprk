@@ -450,6 +450,10 @@ public class SoulWeaponManagement : BaseManagement<SoulWeaponManagement>, SoulWe
 
 	private void OpenRenewMessagePopup(SoulWeaponInfo soulWeaponInfo, RequirePrice requirePrice, Action action)
 	{
+		if (SprkSoulRenewUntil.TryStart(soulWeaponInfo))
+		{
+			return;
+		}
 		int valueInt = GameRoot.Instance.ConstantDataContainer.GetValueInt("SoulWeaponRenewTicketItemIndex");
 		ItemInfo itemInfo = GlobalAutoBehaviour<AccountManager>.instance.ItemManager.Get(valueInt);
 		if (itemInfo == null || (itemInfo != null && itemInfo.Count == 0))

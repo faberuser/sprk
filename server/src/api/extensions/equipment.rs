@@ -703,7 +703,7 @@ pub(super) async fn spendable_gold(db: &mut PgConnection, account: i64) -> Resul
 }
 
 /// Free plus paid rubies, less any amount reserved by a pending battle entry.
-async fn spendable_gem(db: &mut PgConnection, account: i64) -> Result<i64> {
+pub(super) async fn spendable_gem(db: &mut PgConnection, account: i64) -> Result<i64> {
     let row = crate::db::query("SELECT gem,pay_gem FROM user_info WHERE account_id=$1")
         .bind(account)
         .fetch_one(&mut *db)
