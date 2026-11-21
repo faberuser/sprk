@@ -59,6 +59,15 @@ server added in the in-app list), reaches the lobby at the display's refresh rat
 
 ## Game code
 
+- **Embedded resources:** read them with `SprkEmbeddedResources.Read(assembly, name)`, never
+  `Assembly.GetManifestResourceStream`. The game's assemblies are loaded from bytes by
+  HybridCLR, and il2cpp looks for their resources in `Data/Resources/<name>-resources.dat`,
+  which does not exist for them, so the stream is null on Android. Images, meshes and other
+  resources then go missing on Android only (the Mask of xdd model and icons, Maya's
+  composed icons, the chat atlas). The helper falls back to reading the assembly image:
+  bytes the bootstrap registers (`SPRK_HOT_DLL:<name>`, APKs built after this change) or
+  the updater's `sprk/hot/<name>.dll.bytes`.
+
 - `LoginEncrypter` cannot decode the server certificate under IL2CPP (*"Unable to decode
   certificate"*). Login works because SPRK uses token authentication, but the encrypted
   login id is empty. Decoding the PEM to DER first did not help.

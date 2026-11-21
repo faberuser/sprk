@@ -164,6 +164,9 @@ public class SprkBootstrap : MonoBehaviour
         {
             byte[] dll = files[$"hot/{name}.dll.bytes"];
             if (dll == null) { Log($"hot {name}: missing", true); continue; }
+            // il2cpp cannot serve embedded resources of assemblies loaded from bytes; the game reads
+            // them from the image instead (SprkEmbeddedResources in Assembly-CSharp).
+            AppDomain.CurrentDomain.SetData("SPRK_HOT_DLL:" + name, dll);
             try { hot[name] = Assembly.Load(dll); }
             catch (Exception e) { Log($"hot {name}: {e.GetType().Name}: {e.Message}", true); }
         }
