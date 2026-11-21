@@ -1741,17 +1741,21 @@ async fn hero_presets_save_restore_and_clearing_preserves_paid_slot() {
     let slot = if let Some(i) = equipped {
         i
     } else {
+        // HashMap order is random: pick the lowest index that is both an
+        // equip reward and has equipment data, so the test is deterministic.
         let id = *s
             .tables
             .hero_shop
             .items
             .keys()
-            .find(|i| {
-                s.tables
-                    .items
-                    .reward_item(**i)
-                    .is_some_and(|v| v.kind == "Equip")
+            .filter(|i| {
+                s.tables.inventory.equipment.contains_key(*i)
+                    && s.tables
+                        .items
+                        .reward_item(**i)
+                        .is_some_and(|v| v.kind == "Equip")
             })
+            .min()
             .unwrap();
         let mut tx = s.db.begin().await.unwrap();
         let mut r = crate::api::tutorial::Rewards::default();
