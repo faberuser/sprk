@@ -12,11 +12,11 @@
   ],
   "files": {
     "LocalizationJit/LocalizationAll_ChineseSimplified.jit": {
-      "sha256": "cca819be54949ad4512acd545d33200a8da7c8e36c16263f0c766d92606f5f02",
+      "sha256": "8a09bed2128ad9a9e25356a51756c11ce04bc94cf6ac22e39471cc42dbcec1cc",
       "originalSha256": "d259ef6d142fb3a61741f954f30815a8860e7df102001b243192734ac451c662"
     },
     "LocalizationJit/LocalizationAll_ChineseTraditional.jit": {
-      "sha256": "4f1226a98fd5dd2e7a92f4e99a7f4626cf337f57bb8441b9997928c74e73f4b1",
+      "sha256": "ebfa03b78a6fed77afbe10166c753abd93fa6d82adf449e1c9c2acbe7b9b4e46",
       "originalSha256": "4c60d885fb88713bebf24b8342db4b8fa86d61db05a49ebd0c6b74b3ad0e1c80"
     },
     "LocalizationJit/LocalizationAll_English.jit": {
@@ -24,23 +24,23 @@
       "originalSha256": "1c5123def223090b3032d270e60afaa6eed321419478a39e1ab354dd3f892ece"
     },
     "LocalizationJit/LocalizationAll_French.jit": {
-      "sha256": "fef4bc85fb8e916355f70b14ed04e616f4da30fecf8ed88e39e7397b4e5b96c6",
+      "sha256": "22f2d728f1b5da93d0e18708ce0aa192c43230c8615fd5faf177fd735af19a27",
       "originalSha256": "6ff52dd56c49e164289821390cfbc2eff3cda4d652c5b28e09ac73275a2c6fc6"
     },
     "LocalizationJit/LocalizationAll_German.jit": {
-      "sha256": "45ead982e58df04ab1b965216a32bdccae9520de2b8540cf02526b304ca14c5e",
+      "sha256": "1c32666d973a67ef49fa1bdce33742d03355f4b1b9083fb23670ca928518877d",
       "originalSha256": "b747402e843864147e7bdcce5b27230ddf59610e6d5740e6a927b56b650d8cec"
     },
     "LocalizationJit/LocalizationAll_Japanese.jit": {
-      "sha256": "4670e356127f008e785398ad91004bb5309d6600630ad0535c0503bd0d76ad62",
+      "sha256": "9cdbab4e3d4554a4d84e792965647d2a4c8a586b856f50b04539196793b30ffd",
       "originalSha256": "10892275d2af2a89b3bb09801e2eb884b82c9a0461a8b6aea46977ccb332c887"
     },
     "LocalizationJit/LocalizationAll_Korean.jit": {
-      "sha256": "8e689149b52b3a380f696356dee71025e8b3f14e77d39417740bdae630798394",
+      "sha256": "b057db19a9926c253f0dcfc2108bc4f2d3417dfb21b4185466f125ee2434299a",
       "originalSha256": "d69d559f961f056c1d2000027bc6f43892d43d8ca2c678417ce123e6a74bd515"
     },
     "LocalizationJit/LocalizationAll_Russian.jit": {
-      "sha256": "ac1b0f54a5c97f451ba4771d2083d97bf8372cb482c479296d4d6c80bf620572",
+      "sha256": "7b702bd52ce0ce2a2bd81eaa0b10788eab1d902b739232d39cbbcd75a61bf41f",
       "originalSha256": "ed31e3c00d64be92bf4d8d0c9521767a67e0cb5b4062f424b5c9bf05517269de"
     }
   },
