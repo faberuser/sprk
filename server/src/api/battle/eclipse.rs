@@ -179,6 +179,8 @@ pub(super) async fn begin(
             return Err(rule("Fail"));
         }
         let stamina = dungeons::charge(db, s, a, 22, tickets).await?;
+        // The weekly "use Eclipse Keys" mission counts keys spent on entry.
+        crate::api::progression::record(db, a, "ConsumeEclipseKey", 0, 0, tickets).await?;
         run = json!({"MatchIndex":match_id,"IsPlayEclipse":true,"DeckIndex":1,"LastDeckIndex":snapshot.len(),
             "StartPosition":pos,"StartWaveIndex":wave,"MaxWaveIndex":0,"TeamWave":wave,"EnterTicketCount":tickets,
             "OnlineGameSpeedRatio":speed,"Expires":now()+settings(s,"BattleExpirySeconds",14400),

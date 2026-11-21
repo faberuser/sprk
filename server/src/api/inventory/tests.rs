@@ -3034,3 +3034,19 @@ async fn rewarding_a_locked_item_reports_its_lock_and_creation_time() {
     item::give(&mut tx,&s,a,ItemGrant { index: 1001, count: 1, star: 4, custom: 0 },&mut r).await.unwrap();
     assert_eq!(r.items.last().unwrap(), &result);
 }
+
+#[tokio::test]
+async fn crafting_records_the_crafted_item_for_missions() {
+    let (state, u) = setup().await;
+    // Recipe 16 crafts a Stone of Infinity (10000) from Fragments of Infinity.
+    let r = state.tables.inventory.crafts[&16].clone();
+    assert_eq!(item::n(&r, "ItemIndex"), 10000);
+    materials(&state, &u, &r, 2).await;
+    let ok = craft::craft_item(State(state.clone()), craft_form(&u, &r, 2)).await.unwrap().0;
+    assert_eq!(ok["Result"], "Success");
+    let failed = craft::craft_item(State(state.clone()), craft_form(&u, &r, 1)).await.unwrap().0;
+    assert_eq!(failed["Result"], "NotEnoughMaterial");
+    let rows: Vec<(i64, i64, i64)> = crate::db::query_as("SELECT arg,arg2,value FROM progression_metrics WHERE account_id=$1 AND kind='CraftItem'")
+        .bind(u.user_info.account_id).fetch_all(&state.db).await.unwrap();
+    assert_eq!(rows, [(10000, 16, 2)], "two crafts of the item, nothing for the failed attempt");
+}

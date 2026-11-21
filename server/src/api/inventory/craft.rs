@@ -47,6 +47,11 @@ async fn clear(db: &mut PgConnection, account: i64, slot: i64) -> Result<()> {
     crate::db::query("UPDATE craft_slots SET craft_index=0,item_index=0,item_count=0,complete_time=0,paid_gold=0,materials='[]' WHERE account_id=$1 AND slot_index=$2").bind(account).bind(slot).execute(db).await?;
     Ok(())
 }
+/// Missions name the crafted item ("Craft a Stone of Infinity"), so a finished
+/// craft records the item and recipe. Cancelled crafts never reach this.
+async fn crafted(db: &mut PgConnection, account: i64, item: i64, recipe: i64, crafts: i64) -> Result<()> {
+    crate::api::progression::record(db, account, "CraftItem", item, recipe, crafts).await
+}
 async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value>> {
     let req = Request::parse(&body)?;
     let account = req.account(&state)?;
@@ -54,7 +59,6 @@ async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value
     item::init(&mut tx, &state, account).await?;
     match execute(&mut tx, &state, account, &req, action).await {
         Ok(value) => {
-            if action=="craft_item" {crate::api::progression::record(&mut tx,account,"CraftItem",0,0,1).await?;}
             tx.commit().await?;
             Ok(Json(value))
         }
@@ -185,6 +189,7 @@ async fn execute(
                 .await?;
                 consumed.extend(r.items);
                 out["EquipItemResults"] = json!(r.equipment);
+                crafted(db, account, index as i64, craft_index as i64, count as i64).await?;
             } else {
                 crate::db::query("UPDATE craft_slots SET craft_index=$1,item_index=$2,item_count=$3,complete_time=$4,paid_gold=$5,materials=$6 WHERE account_id=$7 AND slot_index=$8")
                     .bind(craft_index).bind(index).bind(output).bind(state.server_time()+duration).bind(gold).bind(json!(refunds).to_string()).bind(account).bind(slot).execute(&mut *db).await?;
@@ -217,6 +222,11 @@ async fn execute(
                     .await?;
                     out["ItemResult"] = r.items.first().cloned().unwrap_or(Value::Null);
                     out["EquipItemResults"] = json!(r.equipment);
+                    let recipe = row.get::<i32, _>("craft_index");
+                    let per_craft = state.tables.inventory.crafts.get(&recipe)
+                        .map(|c| n(c, "ResultItemCount")).filter(|v| *v > 0).unwrap_or(1);
+                    crafted(db, account, row.get::<i32, _>("item_index") as i64, recipe as i64,
+                        (row.get::<i32, _>("item_count") as i64 / per_craft).max(1)).await?;
                     clear(db, account, slot).await?;
                 }
                 "cancel_craft_item" => {

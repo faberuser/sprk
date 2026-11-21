@@ -925,6 +925,10 @@ impl View {
                 None,
             ),
             "ConsumeGold" | "ConsumeGem" => self.metric(kind, &p, None, None),
+            "ConsumeStamina" if row["ReqValue"] == "EclipseKey" => {
+                target = sub(9).max(1);
+                self.metric("ConsumeEclipseKey", &p, None, None)
+            }
             "ConsumeStamina" => {
                 if row["ReqValue"] == "Chicken" || row["ReqValue"] == "Stamina" || req > 0 {
                     if sub(9) > 0 {
