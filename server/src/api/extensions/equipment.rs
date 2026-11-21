@@ -89,6 +89,10 @@ pub(super) async fn execute(
                     "AwakenPoint",
                 );
             }
+            // The client charges the awakened star's price once per material
+            // icon, and shows each awakening stone as its own icon.
+            let material_count =
+                materials.len() as i64 + pairs.iter().map(|(_, count)| count).sum::<i64>();
             let mut consumed = vec![];
             for (id, count) in pairs {
                 let stone = row(state, "AwakenStone", &[("ItemIndex", id)])?;
@@ -157,11 +161,11 @@ pub(super) async fn execute(
                 &[
                     ("DetailIndex", n(data, "DetailIndex")),
                     ("Tier", n(data, "Tier")),
-                    ("Star", eq.star as i64),
+                    ("Star", eq.star as i64 + 1),
                 ],
             )?;
             out["CurrencyResult"] =
-                hero::currency(db, account, "Gold", -n(price, "ReqGold")).await?;
+                hero::currency(db, account, "Gold", -n(price, "ReqGold") * material_count).await?;
             if n(price, "ItemCount1") > 0 {
                 consumed.push(
                     item::consume(

@@ -2254,12 +2254,12 @@ async fn artifact_awakening_accepts_native_material_forms_and_persists_once() {
         assert_eq!(result["Result"],"Success","{result}");
         assert_eq!(result["Success"],true);
         assert_eq!(result["ResultEquipItem"]["Star"],1);
-        assert_eq!(gold(&s).await,before-50000);
+        assert_eq!(gold(&s).await,before-100000);
         let saved:i64=crate::db::query_scalar("SELECT star FROM equip_items WHERE slot_index=$1").bind(x).fetch_one(&s.db).await.unwrap();
         assert_eq!(saved,1);
         assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM equip_items WHERE slot_index=$1").bind(y).fetch_one(&s.db).await.unwrap(),0);
         assert_ne!(call(&s,&u,"awaken_equip",&args).await["Result"],"Success");
-        assert_eq!(gold(&s).await,before-50000);
+        assert_eq!(gold(&s).await,before-100000);
     }
     let target=give(&s,a,1001,1).await.equipment[0].slot_index;
     give(&s,a,5301,1).await;
@@ -2275,7 +2275,7 @@ async fn assert_awakening_rejects_locked_material(item_index: i32, detail_type: 
     let detail = row(&s, "EquipItemDetail", &[("DetailIndex", n(data, "DetailIndex"))]).unwrap();
     assert_eq!(n(detail, "EquipItemDetailType"), detail_type);
     let price = row(&s, "EquipAwakenPrice", &[
-        ("DetailIndex", n(data, "DetailIndex")), ("Tier", n(data, "Tier")), ("Star", 0),
+        ("DetailIndex", n(data, "DetailIndex")), ("Tier", n(data, "Tier")), ("Star", 1),
     ]).unwrap();
     assert!(n(price, "ReqGold") > 0);
     let equips = give(&s, a, item_index, 3).await.equipment;
@@ -2335,7 +2335,8 @@ async fn assert_awakening_rejects_locked_material(item_index: i32, detail_type: 
     let out = call(&s, &u, "awaken_equip", &args).await;
     assert_eq!(out["Result"], "Success", "item {item_index}: {out}");
     assert_eq!(out["ResultEquipItem"]["Star"], 1);
-    assert_eq!(gold(&s).await, before_gold - n(price, "ReqGold"));
+    let material_count = 2 + i64::from(stone.is_some());
+    assert_eq!(gold(&s).await, before_gold - n(price, "ReqGold") * material_count);
     let remaining: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=$1 AND slot_index IN ($2,$3)")
         .bind(a).bind(unlocked).bind(locked).fetch_one(&s.db).await.unwrap();
     assert_eq!(remaining, 0);
@@ -2360,6 +2361,32 @@ async fn awakening_locked_unique_weapon_material_preserves_inventory_and_gold() 
 #[tokio::test]
 async fn awakening_locked_unique_treasure_material_preserves_inventory_and_gold() {
     assert_awakening_rejects_locked_material(102014, 14, 43).await;
+}
+
+#[tokio::test]
+async fn awakening_charges_next_star_price_per_material() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    crate::db::query("UPDATE user_info SET gold=10000000000 WHERE account_id=$1")
+        .bind(a).execute(&s.db).await.unwrap();
+    // Artifact prices differ per star, so the star used for the price shows.
+    let id = 150044;
+    let data = meta(&s, id).unwrap();
+    let price = |star: i64| n(row(&s, "EquipAwakenPrice", &[
+        ("DetailIndex", n(data, "DetailIndex")), ("Tier", n(data, "Tier")), ("Star", star),
+    ]).unwrap(), "ReqGold");
+    assert_ne!(price(1), price(2));
+    let equips = give(&s, a, id, 4).await.equipment;
+    let target = equips[0].slot_index;
+    crate::db::query("UPDATE equip_items SET star=1 WHERE slot_index=$1")
+        .bind(target).execute(&s.db).await.unwrap();
+    let before = gold(&s).await;
+    let out = call(&s, &u, "awaken_equip", &format!(
+        "EquipItemSlotIndex={target}&MaterialSlotIndices=[{},{},{}]",
+        equips[1].slot_index, equips[2].slot_index, equips[3].slot_index,
+    )).await;
+    assert_eq!(out["Result"], "Success", "{out}");
+    assert_eq!(gold(&s).await, before - price(2) * 3);
 }
 
 #[tokio::test]
@@ -2394,7 +2421,7 @@ async fn awakening_validates_materials_and_charges_once() {
     assert_eq!(r["Result"], "Success", "{r}");
     assert_eq!(r["Success"], true);
     assert_eq!(r["ResultEquipItem"]["Star"], 1);
-    assert_eq!(gold(&s).await, 99950000);
+    assert_eq!(gold(&s).await, 99900000);
     let r = call(
         &s,
         &u,
@@ -2403,7 +2430,7 @@ async fn awakening_validates_materials_and_charges_once() {
     )
     .await;
     assert_ne!(r["Result"], "Success");
-    assert_eq!(gold(&s).await, 99950000);
+    assert_eq!(gold(&s).await, 99900000);
 }
 #[tokio::test]
 async fn soul_weapon_advancement_ticket_unlocks_plain_weapon_and_persists() {
