@@ -149,5 +149,3 @@ removes such copies and only writes the dev index (start scene, `server:local`).
   from its asset store. There is no CI build of the APK yet.
 - Remote servers must serve `host.json` over HTTPS (plain HTTP only works for loopback),
   so a phone away from the PC needs an HTTPS server.
-- `client/android/HybridBootstrap/.utmp/` (Unity build cache) was committed in
-  `7f4fa7e1` and is now ignored; remove it from the index.
