@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Everyday Android commands (the HybridCLR build in client/android/HybridBootstrap).
 
-    python client/android/dev.py content    (original APK: ../sprk-apk/kings-raid-4.88.8.apk, or --apk)
+    python client/android/dev.py content    (original APK: ../sprk-android/base-apk/kings-raid-4.88.8.apk, or --apk)
                             one-time / after a Windows player-data or repacker change:
                             reference bundles, original APK data, content repack
-    python client/android/dev.py assets     build ../sprk-android: original Android bundles plus
+    python client/android/dev.py assets     build ../sprk-android/build: original Android bundles plus
                                             bundles converted from ../sprk-client (needs content)
     python client/android/dev.py build      compile the game code and build the APK
     python client/android/dev.py test       build, install on the device, push missing device
@@ -33,9 +33,9 @@ import sys
 
 REPO = Path(__file__).resolve().parents[2]
 PROJECT = REPO / "client/android/HybridBootstrap"
-ARTIFACTS = REPO / "artifacts/android-bootstrap"
+ARTIFACTS = REPO.parent / "sprk-android/bootstrap"
 # Pinned original Android inputs, next to the repository (game content; never committed).
-ORIGINAL_APK = REPO.parent / "sprk-apk" / "kings-raid-4.88.8.apk"
+ORIGINAL_APK = REPO.parent / "sprk-android" / "base-apk" / "kings-raid-4.88.8.apk"
 APK = ARTIFACTS / "apk/sprk-hybrid-probe.apk"
 UNITY_VERSION = "6000.0.53f1"
 DEFAULT_ADB = "C:/Program Files/BlueStacks_nxt/HD-Adb.exe"
@@ -106,7 +106,7 @@ def cmd_content(args):
 
 
 def cmd_assets(args):
-    # ../sprk-android: original Android bundles plus bundles converted from ../sprk-client.
+    # ../sprk-android/build: original Android bundles plus bundles converted from ../sprk-client.
     cmd = [sys.executable, PROJECT / "content/build_android_assets.py"]
     if args.only:
         cmd += ["--only", args.only]

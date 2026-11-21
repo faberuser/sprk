@@ -10,7 +10,7 @@ INSTALL=0; [ "${1:-}" = --install ] && { INSTALL=1; shift; }
 ADB="${1:-/c/Program Files/BlueStacks_nxt/HD-Adb.exe}"
 SERIAL="${2:-emulator-5554}"
 PKG=com.sprk.hybridprobe
-OUT="$HERE/../../../artifacts/android-bootstrap"
+OUT="$HERE/../../../../sprk-android/bootstrap"
 mkdir -p "$OUT"
 adb() { "$ADB" -s "$SERIAL" "$@"; }
 win() { if command -v cygpath >/dev/null; then cygpath -w "$1"; else echo "$1"; fi; }

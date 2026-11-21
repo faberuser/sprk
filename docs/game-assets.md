@@ -79,7 +79,7 @@ When the update service starts with its pinned release, it compares the overlay 
 each platform's active version. Files that differ are written as the next version (the
 active one with those files replaced, download categories kept), then `current.txt`
 switches; players get them at their next login. An Android file is applied only when
-its Windows source changed, so the conversions published from `../sprk-android` are
+its Windows source changed, so the conversions published from `../sprk-android/build` are
 never replaced by equivalent ones. Applying the same overlay again changes nothing.
 A failure (no GitHub access, `.sync-lock` present, a corrupt download) is logged and
 leaves the active versions; the next start retries. Redeploying an older image applies
@@ -91,12 +91,12 @@ changes to original bundles).
 
 ## Publish
 
-Windows assets come from the installed client, Android assets from `../sprk-android`
+Windows assets come from the installed client, Android assets from `../sprk-android/build`
 (built by `client/android/dev.py assets`, which converts changed Windows bundles):
 
 ```powershell
 python client/scripts/release/publish_assets.py --client ../sprk-client
-python client/scripts/release/publish_assets.py --client ../sprk-android --platform Android --patch-prefix "" --metadata "../sprk-client/King's Raid_Data/Documents/Patch/StandaloneWindows/patch.json"
+python client/scripts/release/publish_assets.py --client ../sprk-android/build --platform Android --patch-prefix "" --metadata "../sprk-client/King's Raid_Data/Documents/Patch/StandaloneWindows/patch.json"
 ```
 
 Each publishes the next version of the patch folder into `client-updates/assets`. It
@@ -110,7 +110,7 @@ nothing when the files equal the active version's. Hashes are cached by size and
 modification time (`<platform>/.hash-cache.json`, never uploaded; `--rehash` ignores it).
 
 `python client/dev.py install` does all of this after its local release: it publishes
-Windows, rebuilds `../sprk-android` and publishes Android, each only when something
+Windows, rebuilds `../sprk-android/build` and publishes Android, each only when something
 changed (`--no-assets` skips it). Android is skipped with a message until
 `client/android/dev.py content` and `assets` have run once.
 

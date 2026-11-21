@@ -31,6 +31,30 @@ Drop old `sprk_auto_*` databases by hand. Build the release server first if
 needed. Ports must be free. `--external-server` explicitly reuses an
 already-running server; its database is not isolated by the launcher.
 
+**Logging in past the loading screen needs the asset service.** Without
+`SPRK_ASSETS_CDN_URL`, the launched test server gives the client the empty
+`/cdn/` patch. After login the client then stops at **"Ready AssetBundle"** and
+the client log shows `BundlePack Load Failed: PackPath is null`. Login-screen
+probes are not affected. For anything that needs the lobby, do what
+`start_server.bat` does:
+
+1. Make sure the update service is listening on 8081. `start_server.bat` runs
+   it, but stop its game server first so ports 8080/9001 are free. To run only
+   the update service, start `target/release/sprk-server.exe` from the
+   repository root with `SPRK_SERVICE_MODE=updates`, `PORT=8081`,
+   `SPRK_UPDATES_DIR=<repo>/client-updates` and a `DATABASE_URL`. Use a
+   `sprk_auto_*` database, not the main one. Check that
+   `http://127.0.0.1:8081/updates/assets/StandaloneWindows/LastBuildVersion.txt`
+   answers.
+2. Launch with the variable set, so the test server passes it on to the client:
+
+   ```bash
+   SPRK_ASSETS_CDN_URL=http://127.0.0.1:8081/updates/assets/ SPRK_HOST_URL=http://127.0.0.1:8080/host.json \
+     python client/scripts/automation/client_automation.py launch --seed-from sprk --profile <name>
+   ```
+
+Stop the update service you started when you are done.
+
 `--profile host` selects separate PlayerPrefs keys and a stable test device ID.
 Different profiles create distinct guest accounts. Profile launches use copied,
 separately named executables to avoid Unity's single-instance check, with

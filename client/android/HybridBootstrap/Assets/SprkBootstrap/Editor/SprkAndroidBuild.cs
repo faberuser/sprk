@@ -15,7 +15,7 @@ using UnityEngine;
 /// <summary>
 /// Batch-mode entry points. Run from the repository root with:
 ///   Unity.exe -batchmode -quit -projectPath client/android/HybridBootstrap -buildTarget Android
-///             -executeMethod SprkAndroidBuild.Build -logFile artifacts/android-bootstrap/build.log
+///             -executeMethod SprkAndroidBuild.Build -logFile ../sprk-android/bootstrap/build.log
 /// </summary>
 public static class SprkAndroidBuild
 {
@@ -25,8 +25,8 @@ public static class SprkAndroidBuild
 
     static string ProjectDir => Path.GetDirectoryName(Application.dataPath);
 
-    // Build output lives with the other generated files: <repo>/artifacts/android-bootstrap.
-    public static string ArtifactsDir => Path.GetFullPath(Path.Combine(ProjectDir, "..", "..", "..", "artifacts", "android-bootstrap"));
+    // Build output lives with the other generated files: ../sprk-android/bootstrap (next to the repository, outside artifacts/).
+    public static string ArtifactsDir => Path.GetFullPath(Path.Combine(ProjectDir, "..", "..", "..", "..", "sprk-android", "bootstrap"));
 
     static List<string> HotNames() =>
         File.ReadAllLines(Path.Combine(ProjectDir, HotDir, "hot-update.txt")).Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
@@ -263,7 +263,7 @@ public static class SprkAndroidBuild
         const string name = "NguiAtlas_UI_Prefab_Login.unity3d";
         foreach (var spec in new[] { "HighAndMidSpec", "LowLargeSpec" })
         {
-            string src = Path.GetFullPath(Path.Combine(ProjectDir, "..", "..", "..", "..", "sprk-android", "Assetbundle", spec, name));
+            string src = Path.GetFullPath(Path.Combine(ProjectDir, "..", "..", "..", "..", "sprk-android", "build", "Assetbundle", spec, name));
             if (!File.Exists(src))
             {
                 throw new Exception($"{src} missing; run client/android/dev.py assets");

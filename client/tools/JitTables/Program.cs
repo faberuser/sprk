@@ -423,7 +423,9 @@ sealed class JitTable
     // the stored value is never read, and the serializer writes the forced value.
     public static readonly Dictionary<string, string[]> ForcedGetterFields = new()
     {
-        ["CostumeTable"] = new[] { "IsOpen", "PreviewableWhenOwned", "IsShow" }
+        ["CostumeTable"] = new[] { "IsOpen", "PreviewableWhenOwned", "IsShow" },
+        // SPRK sells every accessory except gift-only ones (AccessoryCostumeData.IsSprkGiftOnly).
+        ["AccessoryCostumeTable"] = new[] { "IsOpen", "IsBuy", "PreviewableWhenOwned" }
     };
 
     // True when the rebuilt bytes decode to the same rows, in the same order, apart from the given fields.

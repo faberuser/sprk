@@ -1,0 +1,17 @@
+{
+  "table": "AccessoryCostumeTable",
+  "upsert": [
+    {
+      "Index": 3102599,
+      "Code": "Accessory.Head.Head.SprkXdd",
+      "PartType": "Head",
+      "PivotType": "Head",
+      "NameKey": "COSTUME_NAME_ACCESSORY_BODY_3102599",
+      "ProductDescKey": "COSTUME_DESC_ACCESSORY_BODY_3102599",
+      "Category": "Head",
+      "Group": "Head",
+      "ProductImagePath": "Customize/Product/Portrait/Accessory_Head_SprkXdd",
+      "IconPortraitPath": "Icon/Item/ACCESSORY_HEAD_SPRKXDD"
+    }
+  ]
+}

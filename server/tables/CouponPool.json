@@ -75,6 +75,18 @@
       "ExpiresAt": null,
       "MailTitle": "PDFABERGIFT",
       "MailContent": "xdd"
+    },
+    "PDFABERGIFT2": {
+      "Items": [
+        {
+          "ItemIndex": 3102599,
+          "ItemCount": 100
+        }
+      ],
+      "Countries": [],
+      "ExpiresAt": null,
+      "MailTitle": "PDFABERGIFT2",
+      "MailContent": "Mask of xdd"
     }
   }
 }

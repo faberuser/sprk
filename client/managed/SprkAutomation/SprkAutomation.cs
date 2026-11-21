@@ -542,6 +542,19 @@ public sealed class SprkAutomation : MonoBehaviour
 				Write(reply);
 				return;
 			}
+			if (command.action == "accessory-mask-probe")
+			{
+				string text9 = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+				if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Login" || string.IsNullOrEmpty(text9) || !text9.StartsWith("accessories-") || string.IsNullOrEmpty(command.text))
+				{
+					throw new InvalidOperationException("Accessory mask fixture requires isolated Login, accessories profile and a report path");
+				}
+				Type type4 = Assembly.Load("SprkAccessories").GetType("SprkAccessoryMasksProbe");
+				reply = Snapshot(command.id);
+				reply.materials.Add((string)type4.GetMethod("Start", BindingFlags.Static | BindingFlags.Public).Invoke(null, new object[1] { command.text }));
+				Write(reply);
+				return;
+			}
 			if (command.action == "inn-presentation-probe")
 			{
 				string environmentVariable8 = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");

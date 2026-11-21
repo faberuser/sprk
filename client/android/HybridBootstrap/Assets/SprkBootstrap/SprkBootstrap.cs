@@ -133,7 +133,11 @@ public class SprkBootstrap : MonoBehaviour
             try { updater = new SprkUpdater(updateUrl, keyBytes == null ? null : Encoding.UTF8.GetString(keyBytes), hotNames, (m, f) => Log(m, f)); }
             catch (Exception e) { overlay = true; Log("update key: " + e.Message, true); yield break; }
             Log($"updating from {updateUrl}");
+            // Run() returns only after a successful update or the player's "Play without updating";
+            // the failed attempts it logged must not stop the game from starting.
+            int failuresBeforeUpdate = failures;
             yield return updater.Run();
+            failures = failuresBeforeUpdate;
             hotNames.AddRange(updater.ExtraHotNames);
             updater = null;
         }

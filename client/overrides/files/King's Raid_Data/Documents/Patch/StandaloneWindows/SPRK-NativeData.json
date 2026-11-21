@@ -15,8 +15,12 @@
       "originalSha256": "e05d274cb52e964da8b8789b2cc25dcc01589befb4a7dac1e5bff62505abdaf8"
     },
     "TableJit/AccessoryCostumeTable.jit": {
-      "sha256": "ad424f4b984893b0edec91deaed27e04dd091b3716841f26deb7b5a75141ca78",
+      "sha256": "60885d7987b58614a0f7b5c4e6f1e40bfa17f24cd59f8de8f3c384c9ebac8198",
       "originalSha256": "9cbc16478412dc04fb84e64d5267174f27238a7232fd7796b2e387a6b27c6a3e"
+    },
+    "TableJit/AccessorySelectItemTable.jit": {
+      "sha256": "2825f8558242101d276239e9fe3cbbcace0150d584c6920eff1dfe8b7730461e",
+      "originalSha256": "61c9728d60fae0ff1f83b65ec34d14cd514052ae8af30b7bf6306cee532f40c0"
     },
     "TableJit/CampaignChapterTable.jit": {
       "sha256": "f7e3a4cae1b9d9744577e171e34bf2ea6e18fc23e43f8e9e348ea2b2b7f4abbc",
@@ -107,7 +111,7 @@
       "sha256": "7fc5c440e06e401573ea7ba4ea66d71b81a18dc8d8af2b6cc05d8c69cc1bb188"
     },
     "TableJit/ItemTable.jit": {
-      "sha256": "2f3443da44efc225d49ea844b190e295a734464ee70746eb31abf55da51578fc",
+      "sha256": "94b5a191e561b7e5f19b645c0ac49b173fe60f683be94587f881d75ce6b2dfa5",
       "originalSha256": "72d9404c61449b05eaec317ce82f1720b04ea99507d4a82be43d3f797fd5bb3a"
     },
     "TableJit/MainStoryTable.jit": {

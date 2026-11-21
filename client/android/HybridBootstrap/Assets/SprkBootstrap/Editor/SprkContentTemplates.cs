@@ -6,10 +6,10 @@ using UnityEngine;
 
 /// <summary>
 /// Builds tiny reference bundles with this exact Unity version and target so the
-/// content repacker (content/repack_content.py, reading artifacts/android-bootstrap/templates) can copy the AssetBundle object
+/// content repacker (content/repack_content.py, reading ../sprk-android/bootstrap/templates) can copy the AssetBundle object
 /// layout, archive structure and engine type trees from real Unity output.
 ///   Unity.exe -batchmode -quit -projectPath client/android/HybridBootstrap -buildTarget Android
-///             -executeMethod SprkContentTemplates.Build -logFile artifacts/android-bootstrap/templates.log
+///             -executeMethod SprkContentTemplates.Build -logFile ../sprk-android/bootstrap/templates.log
 /// </summary>
 public static class SprkContentTemplates
 {

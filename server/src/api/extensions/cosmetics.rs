@@ -157,6 +157,10 @@ pub(super) async fn execute(
             if action != "buy_customizing_costumes" {
                 return Err(rule("CostumeNotOwned"));
             }
+            // SPRK gift-only accessories (gift-code rewards) are never sold.
+            if data["SprkGiftOnly"] == true {
+                return Err(rule("AccessoryCostumeNotOpened"));
+            }
             gem += n(data, "ReqBuyGem");
             mileage += n(data, "Mileage");
             owned = json!({"HeroIndex":0,"AccessoryCostumeIndex":id,"CreatedTime":state.server_time_str()});

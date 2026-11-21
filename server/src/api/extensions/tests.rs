@@ -1003,6 +1003,8 @@ async fn all_accessories_can_be_purchased_with_atomic_price_and_balance_checks()
     let mut acquired=0;
     for data in rows {
         if data["UnableHero"].as_array().is_some_and(|v|v.contains(&json!(1))) { continue; }
+        // Gift-only accessories are never sold (gift_only_xdd_mask_is_never_sold_but_its_item_grants_it).
+        if data["SprkGiftOnly"]==true { continue; }
         let id=n(data,"Index");let price=n(data,"ReqBuyGem");
         assert!(price>0,"Accessory {id} must have an explicit price");
         let position=json!({id.to_string():{"PositionX":"0","PositionY":"0","PositionZ":"0","RotationX":"0","RotationY":"0","RotationZ":"0","Scale":"1"}}).to_string();
@@ -1045,7 +1047,7 @@ async fn all_accessories_can_be_purchased_with_atomic_price_and_balance_checks()
             "Success"
         );
     }
-    assert_eq!(acquired,rows.len());
+    assert_eq!(acquired,rows.iter().filter(|d|d["SprkGiftOnly"]!=true).count());
     let login=user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
     assert_eq!(login.user_info.gem as i64,10000000-spent);
     assert_eq!(login.player_accessory_costume_infos.len(),acquired);
@@ -3525,4 +3527,38 @@ async fn soul_weapon_auto_enhance_reaches_plus_twenty() {
     let used: Vec<(i64, i64)> = r["RemovedItemResultInfos"].as_array().unwrap().iter()
         .map(|v| (v["ItemIndex"].as_i64().unwrap(), -v["AddCount"].as_i64().unwrap())).collect();
     assert_eq!(used, vec![(5100, 2136), (5101, 1875), (5102, 958), (5103, 1262)]);
+}
+
+#[tokio::test]
+async fn gift_only_xdd_mask_is_never_sold_but_its_item_grants_it() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let data = row(&s, "AccessoryCostume", &[("Index", 3102599)]).unwrap();
+    assert_eq!(data["SprkGiftOnly"], true);
+    assert_eq!(data["Code"], "Accessory.Head.Head.SprkXdd");
+    let pos = json!({"3102599":{"PositionX":"0","PositionY":"0","PositionZ":"0",
+        "RotationX":"0","RotationY":"0","RotationZ":"0","Scale":"1"}});
+    let escaped = urlencoding::encode(&pos.to_string()).into_owned();
+    let wire = urlencoding::encode(&escaped);
+    let args = format!("HeroIndex=1&AccessoryCostumePositionInfo={wire}&BuyGold=0&CostumeIndex=0&HairCostumeIndex=0&WeaponCostumeIndex=0&HideUniqueWeapon=0");
+    let key = cosmetics::accessory_key(1, 3102599).unwrap();
+    for gem in [0, 1000, 10000] {
+        let r = call(&s, &u, "hero/buy_customizing_costumes", &format!("{args}&BuyGem={gem}")).await;
+        assert_ne!(r["Result"], "Success", "{r}");
+        assert!(get(&mut s.db.acquire().await.unwrap(), a, "accessory", key).await.unwrap().is_null());
+    }
+    let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    assert_eq!(login.user_info.gem, 100000);
+    // The gift-code item applies it to a hero; equipping it afterwards is free.
+    give(&s, a, 3102599, 1).await;
+    let single = urlencoding::encode(&pos["3102599"].to_string()).into_owned();
+    let single = urlencoding::encode(&single);
+    let used = call(&s, &u, "item/use_accessory_select_item",
+        &format!("ItemIndex=3102599&AccessoryCostumeIndex=3102599&HeroIndex=1&PositionInfo={single}")).await;
+    assert_eq!(used["Result"], "Success", "{used}");
+    let equipped = call(&s, &u, "hero/buy_customizing_costumes", &format!("{args}&BuyGem=0")).await;
+    assert_eq!(equipped["Result"], "Success", "{equipped}");
+    let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    assert_eq!(login.user_info.gem, 100000);
+    assert!(login.player_accessory_costume_infos.iter().any(|v| v["HeroIndex"] == 1 && v["AccessoryCostumeIndex"] == 3102599));
 }

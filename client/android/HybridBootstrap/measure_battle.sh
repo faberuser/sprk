@@ -7,7 +7,7 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 LABEL="${1:-run}"
-OUT="$HERE/../../../artifacts/android-bootstrap/perf-$LABEL.txt"
+OUT="$HERE/../../../../sprk-android/bootstrap/perf-$LABEL.txt"
 export MSYS_NO_PATHCONV=1
 ADB="/c/Program Files/BlueStacks_nxt/HD-Adb.exe"
 s() { "$ADB" -s emulator-5554 shell "$@"; }

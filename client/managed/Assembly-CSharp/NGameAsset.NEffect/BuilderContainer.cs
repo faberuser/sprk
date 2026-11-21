@@ -18,6 +18,8 @@ public class BuilderContainer : SingletonAuto<BuilderContainer>
 		{
 			return null;
 		}
+		// SPRK: accessories without bundles load their base accessory's effect (SprkAccessoryMasks).
+		requestCode = SprkAccessoryMasks.EffectCode(requestCode);
 		lock (_cache)
 		{
 			string text = "Effect." + requestCode;

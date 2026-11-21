@@ -70,6 +70,20 @@ impl Request {
     pub fn text(&self, key: &str) -> &str {
         self.0.get(key).map(String::as_str).unwrap_or("")
     }
+    /// Free text from the native client. `WebServiceRequester` escapes every
+    /// value with `WWW.EscapeURL` before `WWWForm` encodes it again, so
+    /// non-ASCII text arrives as `%E3%85%8B` after form decoding. Undo that
+    /// second layer (`+` is a space there; a literal `+` arrives as `%2B`).
+    /// Plain values from API clients and tests pass through unchanged.
+    pub fn escaped_text(&self, key: &str) -> String {
+        let raw = self.text(key);
+        if !raw.contains('%') && !raw.contains('+') {
+            return raw.to_string();
+        }
+        urlencoding::decode(&raw.replace('+', " "))
+            .map(|s| s.into_owned())
+            .unwrap_or_else(|_| raw.to_string())
+    }
     pub fn number(&self, key: &str, default: i64) -> Result<i64> {
         match self.0.get(key) {
             Some(v) => v

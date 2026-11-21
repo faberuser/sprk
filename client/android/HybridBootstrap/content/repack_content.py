@@ -577,11 +577,11 @@ class Repacker:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--windows-data", default=str(WORKSPACE / "sprk-client" / "King's Raid_Data"))
-    ap.add_argument("--android-data", default=str(REPO / "artifacts" / "android-bootstrap" / "apk-data"),
+    ap.add_argument("--android-data", default=str(REPO.parent / "sprk-android" / "bootstrap" / "apk-data"),
                     help="assets/bin/Data extracted from the original 4.88.8 APK")
-    ap.add_argument("--android-shaders", default=str(WORKSPACE / "sprk-apk" / "Assetbundle" / "Unity_2018" / "Shader.unity3d"))
-    ap.add_argument("--templates", default=str(REPO / "artifacts" / "android-bootstrap" / "templates"))
-    ap.add_argument("--out", default=str(REPO / "artifacts" / "android-bootstrap" / "content"))
+    ap.add_argument("--android-shaders", default=str(WORKSPACE / "sprk-android" / "base-apk" / "Assetbundle" / "Unity_2018" / "Shader.unity3d"))
+    ap.add_argument("--templates", default=str(REPO.parent / "sprk-android" / "bootstrap" / "templates"))
+    ap.add_argument("--out", default=str(REPO.parent / "sprk-android" / "bootstrap" / "content"))
     args = ap.parse_args()
 
     win = Path(args.windows_data)

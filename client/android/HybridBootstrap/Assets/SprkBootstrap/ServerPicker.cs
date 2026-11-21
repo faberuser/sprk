@@ -98,7 +98,8 @@ public sealed class ServerPicker
         var label = new GUIStyle(GUI.skin.label) { fontSize = 34 };
         var small = new GUIStyle(GUI.skin.label) { fontSize = 26, wordWrap = true };
         var button = new GUIStyle(GUI.skin.button) { fontSize = 38 };
-        var field = new GUIStyle(GUI.skin.textField) { fontSize = 36 };
+        // The default text field anchors text to the top; center it in the tall touch-sized box.
+        var field = new GUIStyle(GUI.skin.textField) { fontSize = 36, alignment = TextAnchor.MiddleLeft, padding = new RectOffset(16, 16, 0, 0) };
         GUI.Box(area, GUIContent.none);
         GUILayout.BeginArea(new Rect(area.x + 40, area.y + 30, w - 80, area.height - 60));
         GUILayout.Label("Choose a server", title, GUILayout.Height(90));

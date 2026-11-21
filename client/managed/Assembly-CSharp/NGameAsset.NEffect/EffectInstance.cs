@@ -21,6 +21,9 @@ public class EffectInstance : IEffect, ExtraRenderFxController.IOwner
 
 	private GameObject _dummyGo;
 
+	// SPRK: the requested accessory code when it is an SprkAccessoryMasks mask over a base effect.
+	public string SprkMaskCode;
+
 	public BaseData Base { get; private set; }
 
 	public bool IsVisible { get; private set; }

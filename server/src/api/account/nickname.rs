@@ -18,19 +18,19 @@ fn validation(state: &AppState, nick: &str) -> &'static str {
 /// AccountId identify players. Availability therefore checks format only.
 pub async fn query(State(state): State<AppState>, body: Bytes) -> Result<Json<Value>> {
     let req = Request::parse(&body)?;
-    let result = validation(&state, req.text("Nick"));
+    let result = validation(&state, &req.escaped_text("Nick"));
     Ok(Json(json!({"BaseResult":"Success","Result":result,"IsAvailable":result=="Success"})))
 }
 
 pub async fn change(State(state): State<AppState>, body: Bytes) -> Result<Json<Value>> {
     let req = Request::parse(&body)?;
     let account = req.account(&state)?;
-    let nick = req.text("Nick");
-    let result = validation(&state, nick);
+    let nick = req.escaped_text("Nick");
+    let result = validation(&state, &nick);
     if result == "Success" {
         // No inventory or currency mutations, even on repeated changes.
         crate::db::query("UPDATE accounts SET nick=$1 WHERE account_id=$2")
-            .bind(nick).bind(account).execute(&state.db).await?;
+            .bind(&nick).bind(account).execute(&state.db).await?;
     }
     Ok(Json(json!({"BaseResult":"Success","Result":result})))
 }
@@ -71,5 +71,14 @@ mod tests {
         }
         let nicks: Vec<String> = crate::db::query_scalar("SELECT nick FROM accounts ORDER BY account_id").fetch_all(&state.db).await.unwrap();
         assert_eq!(nicks, ["Raider2", "othername"]);
+        // The native client escapes values with WWW.EscapeURL before WWWForm
+        // encodes them again; non-ASCII names must count their real characters.
+        for (nick, result) in [("ㅋㅋ", "Success"), ("日本語ネーム", "Success"), ("ㅋ", "TooShortNick"), ("가나다라마바사아자차카타파", "TooLongNick")] {
+            let wire = serde_urlencoded::to_string([("SessionKey", "session1"), ("Nick", &urlencoding::encode(nick))]).unwrap();
+            assert_eq!(query(State(state.clone()), Bytes::from(wire.clone())).await.unwrap().0["Result"], result, "{nick}");
+            assert_eq!(change(State(state.clone()), Bytes::from(wire)).await.unwrap().0["Result"], result, "{nick}");
+        }
+        let nick: String = crate::db::query_scalar("SELECT nick FROM accounts WHERE account_id=1").fetch_one(&state.db).await.unwrap();
+        assert_eq!(nick, "日本語ネーム");
     }
 }

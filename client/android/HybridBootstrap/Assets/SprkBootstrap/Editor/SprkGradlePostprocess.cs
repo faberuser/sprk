@@ -7,7 +7,7 @@ using Debug = UnityEngine.Debug;
 /// <summary>
 /// Fills the player's ResourceManager with the game's Resources container (pointing into
 /// the repacked content bundles) before Gradle packs the APK. Skipped when the content
-/// has not been repacked yet (artifacts/android-bootstrap/content/resources-map.json).
+/// has not been repacked yet (../sprk-android/bootstrap/content/resources-map.json).
 /// </summary>
 public class SprkGradlePostprocess : IPostGenerateGradleAndroidProject
 {
@@ -17,7 +17,7 @@ public class SprkGradlePostprocess : IPostGenerateGradleAndroidProject
     {
         string project = Path.GetDirectoryName(Application.dataPath);
         string repo = Path.GetFullPath(Path.Combine(project, "..", "..", ".."));
-        string map = Path.Combine(repo, "artifacts", "android-bootstrap", "content", "resources-map.json");
+        string map = Path.Combine(repo, "..", "sprk-android", "bootstrap", "content", "resources-map.json");
         string ggm = Path.Combine(unityLibrary, "src", "main", "assets", "bin", "Data", "globalgamemanagers");
         if (!File.Exists(map)) { Debug.LogWarning($"[SprkGradlePostprocess] no {map}; Resources stay empty"); return; }
         if (!File.Exists(ggm)) throw new FileNotFoundException("globalgamemanagers not found in Gradle project", ggm);

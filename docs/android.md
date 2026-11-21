@@ -94,10 +94,10 @@ release. Runs on phones (tested on a Galaxy S25 Ultra against the public server)
 
 **Android asset bundles: a maintained set converted from Windows.** The Windows client
 (`../sprk-client`) is the source of truth for assets; `python client/android/dev.py assets`
-builds `../sprk-android` from it (`content/build_android_assets.py`):
+builds `../sprk-android/build` from it (`content/build_android_assets.py`):
 
 - a bundle unchanged from the original game, which the original Android set
-  (`../sprk-apk/Assetbundle`) has, is used as it is (hard link);
+  (`../sprk-android/base-apk/Assetbundle`) has, is used as it is (hard link);
 - a bundle SPRK changed, or that Android lacks (Windows-only content and the whole Low
   tier, about 9,000 bundles), is converted (`content/convert_bundles.py`): Android target
   platform, DXT/BC textures transcoded to ETC2, shader references kept (the Android
@@ -110,8 +110,8 @@ builds `../sprk-android` from it (`content/build_android_assets.py`):
   the game loads (`Unity_2018/Shader.unity3d`) is the original Android one.
 
 Run `assets` again after changing Windows assets; only changed bundles are converted again
-(state in `../sprk-android/.sprk-android.json`). It needs `content/shader-map.json` (tracked; `content` rewrites it, and CI uses it to convert edited bundles).
-`push_patch.sh` pushes `../sprk-android` once it exists.
+(state in `../sprk-android/build/.sprk-android.json`). It needs `content/shader-map.json` (tracked; `content` rewrites it, and CI uses it to convert edited bundles).
+`push_patch.sh` pushes `../sprk-android/build` once it exists.
 
 Published for the game's patch downloader as the `Android` asset set (see
 [game assets](game-assets.md#publish)): with `SPRK_ASSETS_CDN_URL` set on the game server,
@@ -120,7 +120,7 @@ BlueStacks: 11,308 Low-tier English bundles downloaded and verified, then the lo
 original Android set had no Low tier (8,014 files missing); the converted one has it.
 The repacked built-in content (scenes, `Resources`, MonoScripts and shaders, ~440 MB)
 is inside the APK (`StreamingAssets/sprk/content/`, staged by `SprkAndroidBuild` from
-`artifacts/android-bootstrap/content/`), so an installed APK starts the game on its own.
+`../sprk-android/bootstrap/content/`), so an installed APK starts the game on its own.
 A copy under `sprk/content/` on the device would take precedence; `push_content.sh` now
 removes such copies and only writes the dev index (start scene, `server:local`).
 
