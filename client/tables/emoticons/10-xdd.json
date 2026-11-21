@@ -1,0 +1,11 @@
+{
+  "table": "EmoticonTable",
+  "upsert": [
+    {
+      "Index": 64,
+      "Keyword": "xdd",
+      "TabIndex": 1,
+      "AssetPath": "Icon/Emoticon/SprkXdd"
+    }
+  ]
+}

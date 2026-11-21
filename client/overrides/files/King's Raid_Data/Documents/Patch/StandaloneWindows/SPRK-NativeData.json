@@ -58,6 +58,10 @@
       "sha256": "c4d359b7ff0dfe23ca66af19b118608eeaf28c4eccbe4544c1e133126ff6e5b8",
       "originalSha256": "a94d0223b4a3b5b6b8aecbd6e7c4baca260a82681c9106877c1f59606034bd4a"
     },
+    "TableJit/EmoticonTable.jit": {
+      "sha256": "4c4413170b8f421b669a36451cf51eeb1e3fd3fa3e2e1065d5a18958f88a30d4",
+      "originalSha256": "909e11ee86037c1a107d38cf2962fa8a3d1a88a795c7daa03d84327c0dd8fe77"
+    },
     "TableJit/EquipItemTable.jit": {
       "sha256": "e32decfca6955e47b1880562d5780e28a9f821191a3493da1c238f40cf2e2dfd",
       "originalSha256": "a0664178e07ee5a1d0ec3e2bfdfb1d0bce7aba18b4861a06d50537716bdfe362"

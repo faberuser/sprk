@@ -374,7 +374,8 @@ public static class SprkImageRecovery
 	private static readonly Dictionary<string, string> bundleImages = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
 	{
 		{ "Icon/Item/ACCESSORY_HEAD_SPRKXDD", "SprkIcons.Item.ACCESSORY_HEAD_SPRKXDD.png" },
-		{ "Customize/Product/Portrait/Accessory_Head_SprkXdd", "SprkPortraits.Accessory_Head_SprkXdd.png" }
+		{ "Customize/Product/Portrait/Accessory_Head_SprkXdd", "SprkPortraits.Accessory_Head_SprkXdd.png" },
+		{ "Icon/Emoticon/SprkXdd", "SprkIcons.Emoticon.SprkXdd.png" }
 	};
 
 	private static Texture2D LoadEmbedded(string resource, string name)
