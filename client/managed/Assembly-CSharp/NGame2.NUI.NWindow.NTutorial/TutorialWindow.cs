@@ -189,7 +189,7 @@ public class TutorialWindow : MonoBehaviour, IGlobalWindow
 		{
 			return new Vector2((float)activeHeight * num, activeHeight);
 		}
-		return new Vector2(1920f, activeHeight);
+		return new Vector2((float)activeHeight * num, activeHeight);
 	}
 
 	public static Vector2 GetStaticUiSize()
@@ -201,7 +201,7 @@ public class TutorialWindow : MonoBehaviour, IGlobalWindow
 		{
 			return new Vector2((float)activeHeight * num, activeHeight);
 		}
-		return new Vector2(1920f, activeHeight);
+		return new Vector2((float)activeHeight * num, activeHeight);
 	}
 
 	void IGlobalWindow.ReserveCache(UiPreloader preloader)
