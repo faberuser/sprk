@@ -86,6 +86,25 @@ public class UIRoot : MonoBehaviour
 				list[i].Update();
 			}
 		}
+		for (int j = 0; j < list.Count; j++)
+		{
+			if (!(list[j] != null) || !list[j].sprkUserScale)
+			{
+				continue;
+			}
+			UIWidget[] componentsInChildren = list[j].GetComponentsInChildren<UIWidget>(includeInactive: true);
+			for (int k = 0; k < componentsInChildren.Length; k++)
+			{
+				componentsInChildren[k].MarkAsChanged();
+			}
+		}
+		for (int l = 0; l < UIPanel.list.Count; l++)
+		{
+			if (UIPanel.list[l] != null)
+			{
+				UIPanel.list[l].SprkRefreshScale();
+			}
+		}
 		Broadcast("UpdateAnchors");
 		if (UICamera.onScreenResize != null)
 		{
@@ -238,6 +257,10 @@ public class UIRoot : MonoBehaviour
 	protected virtual void Awake()
 	{
 		mTrans = base.transform;
+		if (GetComponent<NGame2.GameUIRoot>() != null || GetComponent<NGame2.GlobalUIRoot>() != null)
+		{
+			sprkUserScale = true;
+		}
 	}
 
 	protected virtual void OnEnable()
