@@ -76,6 +76,23 @@ public class SelectItemMessagePopup : BaseWindow, ItemIconComponent.Listener
 		GlobalAutoBehaviour<PopupManegement>.instance.Add(windowPrefab);
 	}
 
+	public static void OpenWithStarGoal(string title, string content, List<Tuple<ItemData, int>> itemList, Action<SelectItemMessagePopup, int, int> onYes, int selectCountMax, int starGoal)
+	{
+		WindowPrefab<SelectItemMessagePopup> windowPrefab = new WindowPrefab<SelectItemMessagePopup>("Resources/Prefab2/Window/MessagePopup/SelectItemMessagePopup", GameUIRoot.ELayerType.UI);
+		windowPrefab.instance.OpenInternal(title, content, itemList, onYes, null, closeOnYes: true, 0, useCount: true, disableMaxButton: false, selectCountMax);
+		SprkTicketQuantity.Attach(windowPrefab.instance, starGoal);
+		GlobalAutoBehaviour<PopupManegement>.instance.Add(windowPrefab);
+	}
+
+	public void SetSelectCount(int count)
+	{
+		if (_selectedIdx != 0)
+		{
+			_selectedCount = Mathf.Clamp(count, 1, Mathf.Max(1, GetItemSelectableCount(_selectedIdx)));
+			UpdateCountButtonState(updateInput: true);
+		}
+	}
+
 	public static void OpenWithGemPrice(string title, string content, List<Tuple<ItemData, int>> itemList, int gem, Action<SelectItemMessagePopup, int, int> onYes, Action onCancel = null, bool closeOnYes = true)
 	{
 		WindowPrefab<SelectItemMessagePopup> windowPrefab = new WindowPrefab<SelectItemMessagePopup>("Resources/Prefab2/Window/MessagePopup/SelectItemMessagePopup", GameUIRoot.ELayerType.UI);
@@ -111,6 +128,7 @@ public class SelectItemMessagePopup : BaseWindow, ItemIconComponent.Listener
 		UIHelper.SetLabelText(Label_Content, content);
 		UIHelper.EnableButton(Button_Yes, enable: false);
 		UIHelper.EnableGameObject(Button_Max, !_disableMaxButton);
+		SprkTicketQuantity.Attach(this, 0);
 		FactoryBase.ReleaseAndClearList(_itemList);
 		Tuple<ItemData, int>[] array = itemCountList.ToArray();
 		Array.Sort(array, delegate(Tuple<ItemData, int> lhs, Tuple<ItemData, int> rhs)

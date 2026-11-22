@@ -3108,7 +3108,7 @@ public class InventoryManagement : BaseManagement<InventoryManagement>, InvenLis
 
 	void WeaponUniqueSelect.Listener.OnSelectWeaponUnique(int useItemIndex, int buyItemIndex, Action onSelect)
 	{
-		ShowItemCountSelectPopup(useItemIndex, GameRoot.Instance.ConstantDataContainer.GetValueInt("EquipSelectItemMaxOpenCount"), delegate(int itemIndex, int itemCount)
+		ShowItemCountSelectPopup(useItemIndex, SprkTicketQuantity.MaxCount, SprkTicketQuantity.EquipGoal(useItemIndex, GameRoot.Instance.ItemDataContainer), delegate(int itemIndex, int itemCount)
 		{
 			ShowItemCountConfirmPopup(useItemIndex, buyItemIndex, itemCount, delegate
 			{
@@ -3119,6 +3119,11 @@ public class InventoryManagement : BaseManagement<InventoryManagement>, InvenLis
 	}
 
 	private void ShowItemCountSelectPopup(int useItemIndex, int itemCountMax, Action<int, int> onItemCountConfirm)
+	{
+		ShowItemCountSelectPopup(useItemIndex, itemCountMax, 0, onItemCountConfirm);
+	}
+
+	private void ShowItemCountSelectPopup(int useItemIndex, int itemCountMax, int starGoal, Action<int, int> onItemCountConfirm)
 	{
 		string title = LocalizationManager.GetString(NShared.NLocalization.Common.INFORM);
 		string stringDirect = LocalizationManager.GetStringDirect("EQUIP_SELECT_ITEM_COUNT_MESSAGE");
@@ -3132,10 +3137,18 @@ public class InventoryManagement : BaseManagement<InventoryManagement>, InvenLis
 				list2.Add(new Tuple<ItemData, int>(data, item.Count));
 			}
 		}
-		SelectItemMessagePopup.OpenWithDisableMaxButton(title, stringDirect, list2, delegate(SelectItemMessagePopup selectItemPopup, int idx, int count)
+		Action<SelectItemMessagePopup, int, int> onYes = delegate(SelectItemMessagePopup selectItemPopup, int idx, int count)
 		{
 			Vespa_System_Action_Extension_Method.fire(onItemCountConfirm, idx, count);
-		}, itemCountMax);
+		};
+		if (starGoal > 0)
+		{
+			SelectItemMessagePopup.OpenWithStarGoal(title, stringDirect, list2, onYes, itemCountMax, starGoal);
+		}
+		else
+		{
+			SelectItemMessagePopup.OpenWithDisableMaxButton(title, stringDirect, list2, onYes, itemCountMax);
+		}
 	}
 
 	private void ShowItemCountConfirmPopup(int useItemIndex, int getItemIndex, int itemCount, Action onConfirm)
@@ -3737,7 +3750,7 @@ public class InventoryManagement : BaseManagement<InventoryManagement>, InvenLis
 
 	void SoulStoneSelect.IListener.OnSelectSoulStone(int useItemIndex, int selectItemIndex, Action onSelect)
 	{
-		ShowItemCountSelectPopup(useItemIndex, 0, delegate(int itemIndex, int itemCount)
+		ShowItemCountSelectPopup(useItemIndex, SprkTicketQuantity.MaxCount, SprkTicketQuantity.SoulStoneGoal, delegate(int itemIndex, int itemCount)
 		{
 			ShowItemCountConfirmPopup(useItemIndex, selectItemIndex, itemCount, delegate
 			{

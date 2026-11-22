@@ -595,6 +595,20 @@ public sealed class SprkAutomation : MonoBehaviour
 				Write(reply);
 				return;
 			}
+			if (command.action == "ticket-quantity-probe")
+			{
+				string ticketQuantityProfile = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+				if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Login" || string.IsNullOrEmpty(ticketQuantityProfile) || !ticketQuantityProfile.StartsWith("ticket-quantity-"))
+				{
+					throw new InvalidOperationException("Ticket quantity fixture requires isolated Login and ticket-quantity profile");
+				}
+				string ticketQuantityResult = (string)Assembly.Load("SprkTicketQuantity").GetType("SprkTicketQuantityProbe").GetMethod("Run")
+					.Invoke(null, new object[1] { command.text });
+				reply = Snapshot(command.id);
+				reply.materials.Add(ticketQuantityResult);
+				Write(reply);
+				return;
+			}
 			if (command.action == "hero-rune-filter-probe")
 			{
 				string environmentVariable10 = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
