@@ -30,10 +30,12 @@ mod extensions;
 mod battle;
 mod special_shop;
 mod costume_tickets;
+mod monster_archive;
 pub use battle::BattleTable;
 pub use extensions::ExtensionTable;
 pub use progression::{MissionGroups, ProgressionTable};
 pub use hero_shop::HeroShopTable;
+pub use monster_archive::{ArchiveMonster, MonsterArchiveTable};
 pub use inventory::InventoryTable;
 pub mod item;
 mod item_group;
@@ -94,6 +96,7 @@ pub struct GameTables {
     pub reward_string_pool: Arc<RewardStringPool>,
     pub items: Arc<ItemTable>,
     pub tutorials: Arc<TutorialTable>,
+    pub monster_archive: Arc<MonsterArchiveTable>,
 }
 
 impl GameTables {
@@ -175,6 +178,7 @@ impl GameTables {
             reward_string_pool: Arc::new(reward_string_pool),
             items: Arc::new(items),
             tutorials: Arc::new(tutorials),
+            monster_archive: Arc::new(MonsterArchiveTable::load(&table_dir.join("MonsterArchiveSupport.json"))?),
         })
     }
     
@@ -196,6 +200,7 @@ impl GameTables {
             reward_string_pool: Arc::new(RewardStringPool::default()),
             items: Arc::new(ItemTable::default()),
             tutorials: Arc::new(TutorialTable::default()),
+            monster_archive: Arc::new(MonsterArchiveTable::default()),
         }
     }
     

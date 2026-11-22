@@ -477,10 +477,14 @@ async fn end_inner(
     trusted: bool,
 ) -> Result<Value> {
     if n(dungeon(s, r)?, "BattleType") == 36 {
-        return super::eclipse::end_campaign(db, s, a, r).await;
+        let mut out = super::eclipse::end_campaign(db, s, a, r).await?;
+        super::archive::record(db, s, a, r, &mut out).await?;
+        return Ok(out);
     }
     if n(dungeon(s,r)?,"BattleType")==48 {
-        return super::karma::end(db,s,a,r).await;
+        let mut out = super::karma::end(db,s,a,r).await?;
+        super::archive::record(db,s,a,r,&mut out).await?;
+        return Ok(out);
     }
     let saved = crate::db::query("SELECT * FROM battle_runs WHERE account=$1")
         .bind(a)
@@ -540,6 +544,8 @@ async fn end_inner(
     if n(&entry,"ConquestGuildId")>0 {
         let mut out=response(s,"campaign/end_campaign");
         super::super::community::conquest_finish(db,s,a,r,&entry,&mut out).await?;
+        // Monster Index entries are part of the saved response retries replay.
+        super::archive::record(db,s,a,r,&mut out).await?;
         let mut settled=entry;
         settled["ConquestEndResponse"]=out.clone();
         crate::db::query("UPDATE battle_runs SET completed=1,entry=$1 WHERE account=$2 AND completed=0")
@@ -550,6 +556,7 @@ async fn end_inner(
         let mut out=item::success();
         super::super::community::raid_finish(db,s,a,r,&entry,&mut out).await?;
         super::treasure::record_time(db, s, a, r, saved.get("started"), n(dungeon(s, r)?, "BattleType"), &mut out).await?;
+        super::archive::record(db, s, a, r, &mut out).await?;
         crate::db::query("UPDATE battle_runs SET completed=1 WHERE account=$1 AND completed=0").bind(a).execute(db).await?;
         return Ok(out);
     }
@@ -577,6 +584,8 @@ async fn end_inner(
     rooms::finish(db, s, a, &request, completed, &mut out).await?;
     super::treasure::record_time(db, s, a, r, saved.get("started"), n(dungeon(s, &request)?, "BattleType"), &mut out).await?;
     if completed {crate::api::services::records::record_clear(db,a,&entry,r.number("PureBattleTime",elapsed)?).await?;}
+    // Before the response is saved below: story and party retries replay it.
+    super::archive::record(db, s, a, r, &mut out).await?;
     // Story and substory battles can submit the ending twice. Persist the
     // first response with settlement so retries do not reroll or regrant loot.
     let mut settled_entry = entry;
