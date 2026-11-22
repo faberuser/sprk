@@ -466,7 +466,7 @@ public sealed class SprkAutomation : MonoBehaviour
 				Write(reply);
 				return;
 			}
-			if (command.action == "line-pet-index-probe" || command.action == "line-pet-currency-probe")
+			if (command.action == "line-pet-index-probe" || command.action == "line-pet-currency-probe" || command.action == "pet-book-layout-probe")
 			{
 				string environmentVariable3 = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
 				if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Login" || string.IsNullOrEmpty(environmentVariable3) || !environmentVariable3.StartsWith("line-pets-"))
@@ -474,7 +474,7 @@ public sealed class SprkAutomation : MonoBehaviour
 					throw new InvalidOperationException("LINE pet fixture requires isolated Login and line-pets profile");
 				}
 				reply = Snapshot(command.id);
-				reply.materials.Add((command.action == "line-pet-currency-probe") ? ProbeLinePetCurrency() : ProbeLinePetIndex());
+				reply.materials.Add((command.action == "pet-book-layout-probe") ? ProbePetBookLayout() : ((command.action == "line-pet-currency-probe") ? ProbeLinePetCurrency() : ProbeLinePetIndex()));
 				Write(reply);
 				return;
 			}
@@ -5829,6 +5829,167 @@ public sealed class SprkAutomation : MonoBehaviour
 			}
 		}
 		return "PASS: native LINE summon tables load 500-ruby singles / 5,000-ruby 10+1 draws, with ruby payment and no event period.";
+	}
+
+	private static string DescribeWidget(UIWidget w, Transform relativeTo)
+	{
+		if (w == null)
+		{
+			return "null";
+		}
+		Vector3 p = relativeTo.InverseTransformPoint(w.transform.position);
+		string anchors = w.isAnchored ? ("L=" + DescribeAnchor(w.leftAnchor) + " R=" + DescribeAnchor(w.rightAnchor) + " B=" + DescribeAnchor(w.bottomAnchor) + " T=" + DescribeAnchor(w.topAnchor)) : "unanchored";
+		return w.name + "[" + w.GetType().Name + " " + w.width + "x" + w.height + " at (" + p.x.ToString("F0") + "," + p.y.ToString("F0") + ") pivot=" + w.pivot + " aspect=" + w.keepAspectRatio + " " + anchors + "]";
+	}
+
+	private static string DescribeAnchor(UIRect.AnchorPoint a)
+	{
+		if (a == null || a.target == null)
+		{
+			return "-";
+		}
+		return a.target.name + ":" + a.relative.ToString("F2") + "+" + a.absolute;
+	}
+
+	private static string ProbeIndexArchives(object managers)
+	{
+		Type t = managers.GetType();
+		FieldInfo heroField = t.GetField("HeroManager");
+		FieldInfo equipField = t.GetField("EquipItemManager");
+		FieldInfo itemField = t.GetField("ItemManager");
+		object hero0 = heroField.GetValue(managers);
+		object equip0 = equipField.GetValue(managers);
+		object item0 = itemField.GetValue(managers);
+		try
+		{
+			CreatureData[] heroes = (from d in GameRoot.Instance.CreatureDataContainer.GetAllData()
+				where d.OpenType != CreatureOpenType.None && d.OpenType != CreatureOpenType.CommingSoon && d.Race != CreatureRaceType.Pet && d.TagType != CreatureTagType.None
+				orderby d.Index
+				select d).Take(3).ToArray();
+			NGame2.NAccount.UserHeroManager heroManager = new NGame2.NAccount.UserHeroManager();
+			heroManager.Reset(heroes.Select((CreatureData d) => new CachedHeroInfo(d)).ToArray());
+			heroField.SetValue(managers, heroManager);
+			ItemData[] archive = (from d in GameRoot.Instance.ItemDataContainer.GetAllData()
+				where d.IsArchive
+				orderby d.Index
+				select d).ToArray();
+			ItemData equip = archive.First((ItemData d) => d.Type == ItemType.Equip);
+			ItemData normal = archive.First((ItemData d) => d.Type != ItemType.Equip);
+			NGame2.NAccount.UserEquipItemManager equipManager = new NGame2.NAccount.UserEquipItemManager();
+			equipManager.Reset(new EquipItemInfo[2]
+			{
+				new EquipItemInfo { SlotIndex = 1, ItemIndex = equip.Index, Star = 2 },
+				new EquipItemInfo { SlotIndex = 2, ItemIndex = equip.Index, Star = 4 }
+			});
+			equipField.SetValue(managers, equipManager);
+			NGame2.NAccount.UserItemManager itemManager = new NGame2.NAccount.UserItemManager();
+			itemManager.Reset(new ItemInfo[1] { new ItemInfo { ItemIndex = normal.Index, Count = 3 } });
+			itemField.SetValue(managers, itemManager);
+			NGame2.NAccount.UserArchiveManager am = GlobalAutoBehaviour<AccountManager>.instance.ArchiveManager;
+			int heroAll = am.GetHeroArchiveCount(CreatureTagType.None);
+			int heroTag = am.GetHeroArchiveCount(heroes[0].TagType);
+			int expectTag = heroes.Count((CreatureData d) => d.TagType == heroes[0].TagType);
+			int itemTotal = NGame2.NUI.NWindow.Common.GetUniqueItemArchiveTotalCount(ArchiveSubType.UniqueWeapon) + NGame2.NUI.NWindow.Common.GetUniqueItemArchiveTotalCount(ArchiveSubType.UniqueTreasure) + NGame2.NUI.NWindow.Common.GetUniqueItemArchiveTotalCount(ArchiveSubType.Artifact) + NGame2.NUI.NWindow.Common.GetEquipItemArchiveTotalCount() + NGame2.NUI.NWindow.Common.GetNormlaItemArchiveTotalCount();
+			if (heroAll != 3 || heroTag != expectTag || !am.IsContainItem(equip.Index) || !am.IsContainItem(normal.Index) || am.IsContainItem(archive.Last().Index) || am.GetItemAwake(equip.Index) != 4 || am.GetItemCount() != 2)
+			{
+				throw new Exception("Index archive counts wrong: heroes=" + heroAll + " tag=" + heroTag + "/" + expectTag + " equip=" + am.IsContainItem(equip.Index) + " normal=" + am.IsContainItem(normal.Index) + " awake=" + am.GetItemAwake(equip.Index) + " items=" + am.GetItemCount());
+			}
+			return "PASS index archives: heroes 3 (tag " + heroes[0].TagType + " " + heroTag + "), items 2 (equip " + equip.Index + " star 4, item " + normal.Index + "); IsArchive items=" + archive.Length + " vs Index item total=" + itemTotal;
+		}
+		finally
+		{
+			heroField.SetValue(managers, hero0);
+			equipField.SetValue(managers, equip0);
+			itemField.SetValue(managers, item0);
+		}
+	}
+
+	private static string ProbePetBookLayout()
+	{
+		TableRoot.Instance.SetPatchDownLoadComplete(isComplete: true);
+		AccountManager accountManager = GlobalAutoBehaviour<AccountManager>.instance;
+		object value = accountManager.GetType().GetProperty("AccountManagers", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(accountManager, null);
+		FieldInfo field = value.GetType().GetField("PetManager");
+		object value2 = field.GetValue(value);
+		FieldInfo archiveField = value.GetType().GetField("ArchiveManager");
+		object archive2 = archiveField.GetValue(value);
+		CreatureData[] pets = (from d in GameRoot.Instance.CreatureDataContainer.GetAllData()
+			where d.Race == CreatureRaceType.Pet
+			orderby d.Index
+			select d).Take(5).ToArray();
+		NGame2.NAccount.UserPetManager userPetManager = new NGame2.NAccount.UserPetManager();
+		userPetManager.Reset(pets.Select((CreatureData d, int i) => new PetInfo
+		{
+			PetIndex = d.Index,
+			Star = (sbyte)(i + 1)
+		}).ToArray());
+		field.SetValue(value, userPetManager);
+		archiveField.SetValue(value, new NGame2.NAccount.UserArchiveManager());
+		GameObject root = new GameObject("PetBookLayoutFixture");
+		root.layer = UIRoot.list[0].gameObject.layer;
+		root.transform.SetParent(UIRoot.list[0].transform, worldPositionStays: false);
+		try
+		{
+			GameObject obj = VespaResource.Load<GameObject>("Resources/Prefab2/Window/Pet/PetListBook");
+			PetListBook book = UnityEngine.Object.Instantiate(obj, root.transform, worldPositionStays: false).GetComponent<PetListBook>();
+			book.gameObject.SetActive(value: true);
+			BindingFlags bindingAttr = BindingFlags.Instance | BindingFlags.NonPublic;
+			typeof(PetListBook).GetMethod("SetupPetList", bindingAttr).Invoke(book, null);
+			typeof(PetListBook).GetMethod("SetupPetPortraitComponent", bindingAttr).Invoke(book, new object[1] { CreatureGrade.None });
+			typeof(PetListBook).GetMethod("SetupGauge", bindingAttr, null, new Type[1] { typeof(CreatureGrade) }, null).Invoke(book, new object[1] { CreatureGrade.None });
+			List<PetPortraitComponent> list = (List<PetPortraitComponent>)typeof(PetListBook).GetField("_petPortraitComponentList", bindingAttr).GetValue(book);
+			List<string> lines = new List<string>();
+			if (book.LabelGauge.text != "5.49% ( 5 / 91 )" && !book.LabelGauge.text.StartsWith("5.") )
+			{
+				throw new Exception("Collection gauge ignores owned pets: " + book.LabelGauge.text);
+			}
+			lines.Add("PASS gauge=" + book.LabelGauge.text + " fill=" + book.SpriteGauge.fillAmount.ToString("F3"));
+			foreach (PetPortraitComponent portrait in list.Where((PetPortraitComponent c) => c.PetInfo != null).Take(5))
+			{
+				lines.Add("pet " + portrait.CreatureData.Index + " star=" + portrait.VisualStar + " portrait=" + DescribeWidget(portrait.WidgetThis, portrait.transform));
+				foreach (PetPortraitComponent.RootWidgetInfo info in portrait.RootWidgetInfos)
+				{
+					lines.Add("  rootinfo " + info.SubComponent + " -> " + DescribeWidget(info.RootWidget, portrait.transform));
+				}
+				NGame2.NUI.NComponent2.NPetPortraitSub.StarSubComponent star = portrait.GetSubComponent<NGame2.NUI.NComponent2.NPetPortraitSub.StarSubComponent>();
+				for (Transform t = portrait.transform; t != null && t != root.transform; t = t.parent)
+				{
+					t.gameObject.SetActive(value: true);
+				}
+				portrait.WidgetThis.ResetAndUpdateAnchors();
+				foreach (UIWidget w2 in star.Root.GetComponentsInChildren<UIWidget>(includeInactive: true))
+				{
+					UIRect.AnchorUpdate mode = w2.updateAnchors;
+					w2.updateAnchors = UIRect.AnchorUpdate.OnUpdate;
+					w2.ResetAndUpdateAnchors();
+					w2.updateAnchors = mode;
+				}
+				lines.Add("  starRoot " + DescribeWidget(star.Root, portrait.transform));
+				UIWidget shown = star.StarList.FirstOrDefault((UIWidget w3) => w3.gameObject.activeSelf);
+				if (shown == null || !star.Root.gameObject.activeSelf)
+				{
+					throw new Exception("Owned pet star not shown: " + portrait.CreatureData.Index);
+				}
+				float bottom = portrait.transform.InverseTransformPoint(shown.worldCorners[0]).y;
+				float portraitBottom = portrait.transform.InverseTransformPoint(portrait.WidgetThis.worldCorners[0]).y;
+				if (shown.height != 38 || shown.width != new int[5] { 38, 62, 86, 110, 134 }[portrait.VisualStar - 1] || Mathf.Abs(bottom - portraitBottom - 2f) > 1f || shown != star.StarList[portrait.VisualStar - 1])
+				{
+					throw new Exception("Pet star stretched or misplaced: " + DescribeWidget(shown, portrait.transform) + " bottom=" + bottom + " portraitBottom=" + portraitBottom);
+				}
+				foreach (UIWidget w in star.Root.GetComponentsInChildren<UIWidget>(includeInactive: true))
+				{
+					lines.Add("    " + (w.gameObject.activeInHierarchy ? "on " : "off ") + DescribeWidget(w, portrait.transform) + (w is UISprite ? (" sprite=" + ((UISprite)w).spriteName + " type=" + ((UISprite)w).type) : ""));
+				}
+			}
+			lines.Add(ProbeIndexArchives(value));
+			return string.Join(" | ", lines.ToArray());
+		}
+		finally
+		{
+			field.SetValue(value, value2);
+			archiveField.SetValue(value, archive2);
+			UnityEngine.Object.Destroy(root);
+		}
 	}
 
 	private static string ProbeLinePetIndex()

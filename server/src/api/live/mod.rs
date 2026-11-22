@@ -57,7 +57,10 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
     // Unity's WWWForm repeats array keys. Preserve every hero selection and
     // pet placement slot rather than retaining only the final element.
     let mut r = match path {
-        "pet/change_pet_layout" => Request::parse_with_integer_arrays(&body, &["PetIndices"])?,
+        "pet/change_pet_layout" | "pet/pet_start_explore" => {
+            Request::parse_with_integer_arrays(&body, &["PetIndices"])?
+        }
+        "pet/pet_upgrade_tier" => Request::parse_with_integer_arrays(&body, &["PetSouls"])?,
         "equip_gacha/exec_equip_gacha" => Request::parse_with_integer_arrays(&body, &["HeroIndices"])?,
         _ => Request::parse(&body)?,
     };

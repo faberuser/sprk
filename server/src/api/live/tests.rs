@@ -706,6 +706,45 @@ async fn pets_enforce_ownership_food_exploration_and_tier_materials() {
     .await);
 }
 #[tokio::test]
+async fn native_repeated_pet_arrays_start_exploration_and_upgrade_tier() {
+    let (s, u) = setup().await;
+    let a = account(&u);
+    for id in [7100000, 7100001, 7100002] {
+        let mut db = s.db.acquire().await.unwrap();
+        pets::add(&mut db, &s, a, id).await.unwrap();
+        let mut pet = get(&mut db, a, "pet", id).await.unwrap();
+        pet["FullPoint"] = json!(100);
+        crate::api::extensions::put(&mut db, a, "pet", id, &pet).await.unwrap();
+    }
+    // Native WWWForm sends one field per element (a single pet is a bare value).
+    let v = call(
+        &s,
+        &u,
+        "pet/pet_start_explore",
+        "ExploreIndex=10101&DeckIndex=1&PetIndices=7100000&PetIndices=7100001",
+    )
+    .await;
+    ok(&v);
+    assert_eq!(v["PetExploreInfo"]["PetIndices"], "7100000,7100001");
+    let v = call(
+        &s,
+        &u,
+        "pet/pet_start_explore",
+        "ExploreIndex=10101&DeckIndex=2&PetIndices=7100002",
+    )
+    .await;
+    ok(&v);
+    assert_eq!(v["PetExploreInfo"]["PetIndices"], "7100002");
+    seed(&s, &u, 20111, 10).await;
+    ok(&call(
+        &s,
+        &u,
+        "pet/pet_upgrade_tier",
+        &(0..10).map(|_| "PetSouls=20111").collect::<Vec<_>>().join("&"),
+    )
+    .await);
+}
+#[tokio::test]
 async fn event_contributions_rewards_and_craft_rollback() {
     let (s, u) = setup().await;
     ok(&call(&s, &u, "shop/buy_payshop_product", "Index=920002").await);
