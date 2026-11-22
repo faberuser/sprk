@@ -19,6 +19,7 @@ use sqlx::PgConnection;
 use crate::db::RowExt;
 use std::collections::BTreeSet;
 mod campaign;
+pub(crate) mod archive;
 pub(crate) mod entry_costs;
 mod contents;
 mod punishment;
@@ -39,6 +40,8 @@ mod special;
 mod tests;
 #[cfg(test)]
 mod entry_cost_tests;
+#[cfg(test)]
+mod archive_tests;
 #[cfg(test)]
 mod dispatch_tests;
 #[cfg(test)]
