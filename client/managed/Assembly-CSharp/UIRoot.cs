@@ -50,7 +50,7 @@ public class UIRoot : MonoBehaviour
 
 	public const string SprkUserScaleKey = "Sprk.Graphics.UIScale";
 
-	public static readonly int[] SprkUserScaleChoices = new int[5] { 80, 90, 100, 110, 120 };
+	public static readonly int[] SprkUserScaleChoices = new int[4] { 80, 90, 100, 110 };
 
 	private static int sprkUserScalePercent = -1;
 
