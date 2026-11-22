@@ -336,10 +336,12 @@ public class HeroEquipAwaken : BaseWindow, ItemIconComponent.Listener, HeroEquip
 		if (ReloadList)
 		{
 			ClearPublicAwakenIconList();
+			int maxAwakenPoint = SprkGetMaxAwakenPoint();
 			_ListPublicAwakenItems.ForEach(delegate(ItemInfo itemInfo)
 			{
 				ItemData data = GameRoot.Instance.ItemDataContainer.GetData(itemInfo.ItemIndex);
-				for (int i = 0; i < itemInfo.Count; i++)
+				int count = System.Math.Min(itemInfo.Count, SprkMaxUsefulStones(data, maxAwakenPoint));
+				for (int i = 0; i < count; i++)
 				{
 					ItemIconComponent itemIconComponent = UIHelper.AddGridItem(AwakeInvenItemListGrid, ItemIconComponent.PrefabAuto);
 					itemIconComponent.Open(data, this);
@@ -1640,6 +1642,37 @@ public class HeroEquipAwaken : BaseWindow, ItemIconComponent.Listener, HeroEquip
 	{
 		icon.SetIconGrayScale(gray);
 		icon.gameObject.SetActive(!gray);
+	}
+
+	// One icon is created per stone, so a stack of tens of thousands made the
+	// window take seconds to open. Selection stops once the success rate
+	// reaches 100%, which happens past the highest awaken point bracket, so
+	// more icons than that per stone type can never be used.
+	private static int SprkGetMaxAwakenPoint()
+	{
+		int num = 0;
+		foreach (EquipAwakenRatioData allDatum in GameRoot.Instance.EquipAwakenRatioDataContainer.GetAllData())
+		{
+			if (allDatum.AwakenPoint > num)
+			{
+				num = allDatum.AwakenPoint;
+			}
+		}
+		return num;
+	}
+
+	private static int SprkMaxUsefulStones(ItemData data, int maxAwakenPoint)
+	{
+		if (data == null)
+		{
+			return 0;
+		}
+		EquipAwakenPointData equipAwakenPointData = GameRoot.Instance.EquipAwakenPointDataContainer.GetData(data.AwakenStar);
+		if (equipAwakenPointData == null || equipAwakenPointData.AwakenPoint <= 0 || maxAwakenPoint <= 0)
+		{
+			return 1;
+		}
+		return maxAwakenPoint / equipAwakenPointData.AwakenPoint + 1;
 	}
 
 	private void SprkCompactMaterialGrid()
