@@ -145,7 +145,6 @@ public class GameUIRoot : MonoBehaviour, IInspectorGuiDrawer
 			ContentsGroup = NGUITools.AddChild(UIRoot.gameObject, undo: false);
 			ContentsGroup.name = "Contents Group";
 		}
-		UIRoot.sprkUserScale = true;
 	}
 
 	public LayerInfo GetLayerInfo(GameObject cameraGroup, ELayerType layerType)

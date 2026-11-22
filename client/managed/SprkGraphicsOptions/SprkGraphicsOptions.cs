@@ -426,10 +426,6 @@ public sealed class SprkGraphicsOptions : MonoBehaviour
 			new GraphicsHelpInfo("Global Filter", "Applies a color filter to the 3D world and model previews. The UI keeps its original colors.\nChoose a preset, then fine-tune it with the Color Palette (left/right: saturation, up/down: shadow and midtone lightness) or the Advanced sliders. Each preset keeps its own adjustments.\nFilter Intensity blends the preset with the original image. Default turns the filter off.")
 		},
 		{
-			"UI Scale",
-			new GraphicsHelpInfo("UI Scale", "Changes the size of menus, windows and text.\n100% is the original size. Higher values make the interface larger and easier to read; very tall windows may reach the screen edges. Lower values fit more on screen.")
-		},
-		{
 			"Lobby Camera Sensitivity",
 			new GraphicsHelpInfo("Lobby Camera Sensitivity", "Changes mouse drag and wheel-zoom speed in the lobby and world map.\n100% is normal speed. Lower values give finer control; higher values move faster. This changes camera controls, not image quality or rendering performance.")
 		},
@@ -1384,7 +1380,6 @@ public sealed class SprkGraphicsOptions : MonoBehaviour
 				Add(tabUIInfo, "Battle Effects", "BattleEffects", new string[3] { "Full", "Balanced", "Minimal" });
 				Add(tabUIInfo, "Effect Coverage", "EffectCoverage", new string[3] { "Full", "Reduced", "Minimal" });
 				Add(tabUIInfo, "Adaptive Battle Scale", "AdaptiveBattleScale", new string[5] { "Off", "30 FPS", "60 FPS", "120 FPS", "144 FPS" });
-				Add(tabUIInfo, "UI Scale", "UIScale", UIRoot.SprkUserScaleChoices.Select((int n) => n + "%").ToArray());
 				Add(tabUIInfo, "Lobby Camera Sensitivity", "LobbyCameraSensitivity", new string[5] { "50%", "75%", "100%", "125%", "150%" });
 				Add(tabUIInfo, "Model Camera Sensitivity", "ModelCameraSensitivity", new string[5] { "50%", "75%", "100%", "125%", "150%" });
 				AddGlobalFilterRow(tabUIInfo);
@@ -1694,7 +1689,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour
 				list.Add(gameOptionBaseComponent6.transform);
 			}
 		}
-		array = new string[4] { "UI Scale", "Lobby Camera Sensitivity", "Model Camera Sensitivity", "Global Filter" };
+		array = new string[3] { "Lobby Camera Sensitivity", "Model Camera Sensitivity", "Global Filter" };
 		foreach (string title3 in array)
 		{
 			GameOptionBaseComponent gameOptionBaseComponent7 = componentsInChildren.FirstOrDefault((GameOptionBaseComponent r) => r.name == "SPRK " + title3);
@@ -1871,12 +1866,6 @@ public sealed class SprkGraphicsOptions : MonoBehaviour
 								SystemOptionData.Graphic_ResolutionControl = (EResolutionControl)resolutionValues[choice];
 								SprkTestPrefs.Save();
 							}
-							else if (key == "UIScale")
-							{
-								SprkTestPrefs.SetInt(UIRoot.SprkUserScaleKey, UIRoot.SprkUserScaleChoices[choice]);
-								SprkTestPrefs.Save();
-								UIRoot.SetSprkUserScale(UIRoot.SprkUserScaleChoices[choice]);
-							}
 							else
 							{
 								int value = ((!(key == "RenderScale")) ? (IsScaleChild(key) ? (100 + 25 * choice) : ((key == "AdaptiveBattleScale") ? adaptivePreferenceValues[choice] : (IsSensitivityKey(key) ? (50 + 25 * choice) : ((!(key == "MSAASamples")) ? choice : ((SupportedSamples().Length == 0) ? 1 : SupportedSamples()[choice]))))) : ((choice != 5) ? (100 + 25 * choice) : 0));
@@ -2011,8 +2000,6 @@ public sealed class SprkGraphicsOptions : MonoBehaviour
 				return (PreviewScale - 100) / 25;
 			case "ParticleDensity":
 				return Mathf.Clamp(SprkTestPrefs.GetInt("Sprk.Graphics.ParticleDensity", 0), 0, 2);
-			case "UIScale":
-				return Mathf.Max(0, Array.IndexOf(UIRoot.SprkUserScaleChoices, UIRoot.SprkUserScalePercent));
 			case "AdaptiveBattleScale":
 				return Mathf.Max(0, Array.IndexOf(adaptivePreferenceValues, SprkTestPrefs.GetInt("Sprk.Graphics." + key, 0)));
 			case "BattleEffects":
@@ -2518,7 +2505,6 @@ public sealed class SprkGraphicsOptions : MonoBehaviour
 			list.Add("SPRK Battle Effects");
 			list.Add("SPRK Effect Coverage");
 			list.Add("SPRK Adaptive Battle Scale");
-			list.Add("SPRK UI Scale");
 			list.Add("SPRK Lobby Camera Sensitivity");
 			list.Add("SPRK Model Camera Sensitivity");
 			list.Add("SPRK Global Filter");

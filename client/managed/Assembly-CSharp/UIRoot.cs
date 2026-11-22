@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -43,75 +42,6 @@ public class UIRoot : MonoBehaviour
 
 	private Transform mTrans;
 
-	// SPRK: user UI scale for the game's main 1920x1080 roots. Shrinking the
-	// virtual screen enlarges the UI while anchors still follow the screen edges.
-	[NonSerialized]
-	public bool sprkUserScale;
-
-	public const string SprkUserScaleKey = "Sprk.Graphics.UIScale";
-
-	public static readonly int[] SprkUserScaleChoices = new int[4] { 80, 90, 100, 110 };
-
-	private static int sprkUserScalePercent = -1;
-
-	public static int SprkUserScalePercent
-	{
-		get
-		{
-			if (sprkUserScalePercent < 0)
-			{
-				sprkUserScalePercent = SprkClampUserScale(SprkTestPrefs.GetInt(SprkUserScaleKey, 100));
-			}
-			return sprkUserScalePercent;
-		}
-	}
-
-	private static int SprkClampUserScale(int percent)
-	{
-		return Mathf.Clamp(percent, SprkUserScaleChoices[0], SprkUserScaleChoices[SprkUserScaleChoices.Length - 1]);
-	}
-
-	public static void SetSprkUserScale(int percent)
-	{
-		percent = SprkClampUserScale(percent);
-		if (percent == SprkUserScalePercent)
-		{
-			return;
-		}
-		sprkUserScalePercent = percent;
-		for (int i = 0; i < list.Count; i++)
-		{
-			if (list[i] != null)
-			{
-				list[i].Update();
-			}
-		}
-		for (int j = 0; j < list.Count; j++)
-		{
-			if (!(list[j] != null) || !list[j].sprkUserScale)
-			{
-				continue;
-			}
-			UIWidget[] componentsInChildren = list[j].GetComponentsInChildren<UIWidget>(includeInactive: true);
-			for (int k = 0; k < componentsInChildren.Length; k++)
-			{
-				componentsInChildren[k].MarkAsChanged();
-			}
-		}
-		for (int l = 0; l < UIPanel.list.Count; l++)
-		{
-			if (UIPanel.list[l] != null)
-			{
-				UIPanel.list[l].SprkRefreshScale();
-			}
-		}
-		Broadcast("UpdateAnchors");
-		if (UICamera.onScreenResize != null)
-		{
-			UICamera.onScreenResize();
-		}
-	}
-
 	public Constraint constraint
 	{
 		get
@@ -146,19 +76,6 @@ public class UIRoot : MonoBehaviour
 	}
 
 	public int activeHeight
-	{
-		get
-		{
-			int num = nativeActiveHeight;
-			if (!sprkUserScale || SprkUserScalePercent == 100)
-			{
-				return num;
-			}
-			return Mathf.Max(2, Mathf.RoundToInt((float)num * 100f / (float)SprkUserScalePercent));
-		}
-	}
-
-	private int nativeActiveHeight
 	{
 		get
 		{
@@ -257,10 +174,6 @@ public class UIRoot : MonoBehaviour
 	protected virtual void Awake()
 	{
 		mTrans = base.transform;
-		if (GetComponent<NGame2.GameUIRoot>() != null || GetComponent<NGame2.GlobalUIRoot>() != null)
-		{
-			sprkUserScale = true;
-		}
 	}
 
 	protected virtual void OnEnable()

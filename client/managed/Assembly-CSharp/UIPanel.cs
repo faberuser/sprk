@@ -1063,15 +1063,6 @@ public class UIPanel : UIRect
 		Invalidate(includeChildren: true);
 	}
 
-	// SPRK: the UI root's scale changed; drop the matrix cached for this frame
-	// so widget geometry is rebuilt with the new scale.
-	public void SprkRefreshScale()
-	{
-		mMatrixFrame = -1;
-		mResized = true;
-		SetDirty();
-	}
-
 	private new void Awake()
 	{
 		SingletonAuto<LinkedTransform<UIPanel>>.instance.OnAwake(this);
