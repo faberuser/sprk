@@ -268,6 +268,13 @@ does not change materials or gameplay. Null slots on visible renderers can ident
 magenta effects. Asset changes belong in the tracked client build inputs
 described in [CI client releases](github-client-updates.md).
 
+Bundle check: the `bundle-load-probe` action loads asset bundles with Unity's own loader
+and then every asset in them, and reports bundles the player refuses and assets that load
+as null. Pass client-relative paths under `Documents/Patch/StandaloneWindows`, one per line,
+as `text` (for example `Assetbundle/MidSpec/Effect_....unity3d`), and run it at Login,
+before the game has opened those bundles. Use it after changing bundles in
+`client/overrides/files/` (see `client/scripts/build/retarget_android_bundles.py`).
+
 The opt-in bridge also accepts `video-probe` through the Python `request` API.
 Without parameters it reports native cinematic state, preparation, playback,
 decoded frame, dimensions and resolved URL. Set `text` to a valid video-table

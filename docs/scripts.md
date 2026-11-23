@@ -25,6 +25,7 @@ python client/dev.py --help                                         # build, tes
 python client/android/dev.py --help                                 # Android: content, build, test, hot (client/README.md)
 python client/scripts/build/build_managed_client.py --help          # compiler used by dev.py and CI
 python client/scripts/build/build_tables.py --help                  # table/text patches -> overrides (docs/jit-tables.md)
+python client/scripts/build/retarget_android_bundles.py --help      # Android bundle -> Windows override (client/overrides/README.md)
 python client/scripts/release/build_client_release.py --help        # complete signed release (CI)
 python client/scripts/release/publish_client_update.py --help       # local release from the installed client
 python client/scripts/release/publish_assets.py --help              # publish game assets for the patch downloader

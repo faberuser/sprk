@@ -1697,7 +1697,7 @@ public sealed class SprkAutomation : MonoBehaviour
 							reply.materials.Add(dictionary2);
 						}
 					}
-					else if (command.action != "hero-growth-probe" && command.action != "account-form-probe" && command.action != "guild-attendance-probe" && command.action != "payment-probe" && command.action != "lobby-probe" && command.action != "snapshot" && command.action != "screenshot" && command.action != "quit" && command.action != "renderers" && command.action != "probe-renderer" && command.action != "soul-scene" && command.action != "dispatch-probe" && command.action != "party-ui" && command.action != "inn-scene" && command.action != "input-focus" && command.action != "perk-popup" && command.action != "skill-probe" && command.action != "combat-probe" && command.action != "combat-simulation" && command.action != "skill-table-probe" && command.action != "combat-table-probe")
+					else if (command.action != "hero-growth-probe" && command.action != "account-form-probe" && command.action != "guild-attendance-probe" && command.action != "payment-probe" && command.action != "lobby-probe" && command.action != "snapshot" && command.action != "screenshot" && command.action != "quit" && command.action != "renderers" && command.action != "probe-renderer" && command.action != "soul-scene" && command.action != "dispatch-probe" && command.action != "party-ui" && command.action != "inn-scene" && command.action != "input-focus" && command.action != "perk-popup" && command.action != "skill-probe" && command.action != "combat-probe" && command.action != "combat-simulation" && command.action != "skill-table-probe" && command.action != "combat-table-probe" && command.action != "bundle-load-probe")
 					{
 						throw new InvalidOperationException("Unknown action");
 					}
@@ -1825,6 +1825,43 @@ public sealed class SprkAutomation : MonoBehaviour
 						Application.persistentDataPath
 					}
 				});
+			}
+			if (command.action == "bundle-load-probe")
+			{
+				// Loads asset bundles (text: client-relative paths under Documents/Patch/StandaloneWindows,
+				// one per line) with Unity's own loader and every asset in them; reports bundles Unity
+				// refuses and assets that load as null. Run it at Login, before the game opens them.
+				string patchRoot = Path.Combine(Application.dataPath, "Documents/Patch/StandaloneWindows");
+				foreach (string relative in (command.text ?? "").Split(new char[2] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries))
+				{
+					Dictionary<string, object> result = new Dictionary<string, object>
+					{
+						{ "kind", "bundleLoad" },
+						{ "path", relative }
+					};
+					AssetBundle bundle = AssetBundle.LoadFromFile(Path.Combine(patchRoot, relative));
+					if (bundle == null)
+					{
+						result["loaded"] = false;
+					}
+					else
+					{
+						List<string> failed = new List<string>();
+						string[] names = bundle.GetAllAssetNames();
+						foreach (string name in names)
+						{
+							if (bundle.LoadAsset(name) == null)
+							{
+								failed.Add(name);
+							}
+						}
+						result["loaded"] = true;
+						result["assets"] = names.Length;
+						result["failedAssets"] = failed;
+						bundle.Unload(unloadAllLoadedObjects: true);
+					}
+					reply.materials.Add(result);
+				}
 			}
 			if (command.action == "video-probe")
 			{

@@ -1501,7 +1501,14 @@ public class StatController : SnapshotObject
 		{
 			string name = typeof(Knockback).Name;
 			StateData data = GameRoot.Instance.StateDataContainer.GetData(name);
-			Owner.StateController.AddState(data, BattleConstant.ShortKnockbackDurationMs, attacker);
+			// SPRK: the big-hit stagger is a CC state added directly, so it skipped the creature's
+			// IgnoreCc list. Bosses kept alive by ForceMinHp (World Boss) took it on every hit worth
+			// 100%+ of their max HP, which cancelled their skills mid-cast (e.g. Xanadus' Nightmare
+			// of Abyss). Honor IgnoreCc like every other CC source does.
+			if (data != null && !Owner.BattleCreatureData.CanIgnoreState(data.StateType) && !Owner.BattleCreatureData.CanIgnoreState(data.Group))
+			{
+				Owner.StateController.AddState(data, BattleConstant.ShortKnockbackDurationMs, attacker);
+			}
 		}
 	}
 
