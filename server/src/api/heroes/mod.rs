@@ -300,6 +300,35 @@ pub(crate) fn appearance(hero: &Value) -> Value {
     }
     r
 }
+/// Legend costumes carry their own weapon and hair. The native Dressing Room
+/// previews them with Basic Weapon and basic hair (`CheckBasicHairWeaponCostume`)
+/// but sends the hero's previous `HideUniqueWeapon` on Apply, so a hero that
+/// showed its Unique Weapon kept rendering it (e.g. Jane's coffin over her
+/// Legend spear) and both weapon rows read "Equipped". Force the Legend look
+/// whenever `look` (stored details, an appearance or a preset) wears one.
+pub(crate) fn apply_legend_look(state: &AppState, look: &mut Value) -> bool {
+    const LEGEND: i64 = 2;
+    let id = n(look, "CostumeIndex");
+    let legend = i32::try_from(id).ok()
+        .and_then(|id| state.tables.hero_shop.costumes.get(&id))
+        .is_some_and(|c| n(c, "CostumeType") == LEGEND);
+    if legend {
+        look["HideUniqueWeapon"] = json!(1);
+        look["WeaponCostumeIndex"] = json!(0);
+        look["HairCostumeIndex"] = json!(0);
+    }
+    legend
+}
+/// Wear body costume `id` on the live hero `h` and its stored `extra` details.
+fn equip_body(state: &AppState, h: &mut Value, extra: &mut Value, id: i32) {
+    extra["CostumeIndex"] = json!(id);
+    h["CostumeIndex"] = json!(id);
+    if apply_legend_look(state, h) {
+        for key in ["HideUniqueWeapon", "WeaponCostumeIndex", "HairCostumeIndex"] {
+            extra[key] = h[key].clone();
+        }
+    }
+}
 fn star(state: &AppState, s: i64, t: i64) -> Result<&Value> {
     state
         .tables
@@ -555,8 +584,7 @@ pub(crate) async fn execute(
                 .execute(&mut *db)
                 .await?;
             }
-            extra["CostumeIndex"] = json!(id);
-            h["CostumeIndex"] = json!(id);
+            equip_body(state, &mut h, &mut extra, id);
             out["CurrencyResults"] = json!(currencies);
             out["HeroCostumeResult"] = appearance(&h);
             out["CostumeResults"] = json!(costumes(db, account)
@@ -572,8 +600,7 @@ pub(crate) async fn execute(
                 item::item_index(req, "CostumeIndex")?
             };
             check_costume(db, state, account, &h, id).await?;
-            extra["CostumeIndex"] = json!(id);
-            h["CostumeIndex"] = json!(id);
+            equip_body(state, &mut h, &mut extra, id);
             out["HeroCostumeResult"] = appearance(&h);
         }
         "change_avatar_hero" => {
@@ -608,6 +635,10 @@ pub(crate) async fn execute(
                 return Err(rule("InvalidValue"));
             }
             extra["HideUniqueWeapon"] = json!(value);
+            h["HideUniqueWeapon"] = json!(value);
+            if apply_legend_look(state, &mut h) {
+                extra["HideUniqueWeapon"] = json!(1);
+            }
         }
         "save_costume_storage_slot" | "set_costume_storage_slot" => {
             let slot = req.number("CostumeStorageSlotIndex", 0)?;
@@ -622,11 +653,18 @@ pub(crate) async fn execute(
                 p
             } else {
                 let s:Option<String>=crate::db::query_scalar("SELECT data FROM costume_presets WHERE account_id=$1 AND hero_index=$2 AND slot_index=$3").bind(account).bind(index).bind(slot).fetch_optional(&mut *db).await?;
-                let p: Value = serde_json::from_str(&s.ok_or_else(|| rule("EmptySorageSlot"))?)
+                let mut p: Value = serde_json::from_str(&s.ok_or_else(|| rule("EmptySorageSlot"))?)
                     .map_err(|_| rule("InvalidValue"))?;
                 check_costume(db, state, account, &h, n(&p, "CostumeIndex") as i32).await?;
+                // Presets saved before the Legend look was enforced.
+                let legend = apply_legend_look(state, &mut p);
                 for key in ["CostumeIndex", "HideUniqueWeapon"] {
                     extra[key] = p[key].clone();
+                }
+                if legend {
+                    for key in ["WeaponCostumeIndex", "HairCostumeIndex"] {
+                        extra[key] = p[key].clone();
+                    }
                 }
                 p
             };

@@ -3744,3 +3744,119 @@ async fn soul_weapon_rearrange_until_reports_exact_odds_pays_tickets_then_gems_a
     assert_eq!(n(&r, "SprkGemsSpent"), 200 * tries);
     assert!(started.elapsed() < std::time::Duration::from_secs(5), "{:?}", started.elapsed());
 }
+
+// A Legend costume brings its own weapon and hair (Jane's spear, not her
+// Unique Weapon coffin). The native Dressing Room previews that but its
+// Apply form keeps the hero's previous HideUniqueWeapon=0, and the Costume
+// window's set_costume sends no weapon fields at all.
+#[tokio::test]
+async fn legend_costume_forces_basic_weapon_and_hair_on_every_equip_path() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let (jane, legend) = (25_i64, 2519_i64);
+    assert_eq!(n(&s.tables.hero_shop.costumes[&(legend as i32)], "CostumeType"), 2);
+    let normal = s.tables.hero_shop.costumes.values()
+        .find(|c| n(c, "HeroIndex") == jane && n(c, "CostumeType") != 2 && c["IsDefault"] != true)
+        .map(|c| n(c, "CostumeIndex")).unwrap();
+    crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,star) VALUES($1,9025,$2,5)")
+        .bind(a).bind(jane).execute(&s.db).await.unwrap();
+    for id in [legend, normal] {
+        crate::db::query("INSERT INTO costumes(account_id,costume_index) VALUES($1,$2)")
+            .bind(a).bind(id).execute(&s.db).await.unwrap();
+    }
+    let form = |args: String| Bytes::from(format!("SessionKey={}&{args}", u.user_info.session_key));
+    let save = |look: Value| { let s = s.clone(); async move {
+        hero::save_details(&mut s.db.acquire().await.unwrap(), a, jane as i32, &look).await.unwrap();
+    }};
+    let live = || { let s = s.clone(); async move {
+        let h = hero::info(&mut s.db.acquire().await.unwrap(), a, jane as i32).await.unwrap();
+        [n(&h, "CostumeIndex"), n(&h, "HideUniqueWeapon"), n(&h, "WeaponCostumeIndex"), n(&h, "HairCostumeIndex")]
+    }};
+    let showing_unique = json!({"CostumeIndex":normal,"HideUniqueWeapon":0,"WeaponCostumeIndex":0,"HairCostumeIndex":0});
+
+    // Dressing Room Apply, exactly as the native client sends it.
+    save(showing_unique.clone()).await;
+    let r = call(&s, &u, "hero/buy_customizing_costumes", &format!(
+        "HeroIndex={jane}&CostumeIndex={legend}&HairCostumeIndex=0&WeaponCostumeIndex=0&HideUniqueWeapon=0&BuyGold=0&BuyGem=0")).await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!(r["HeroCostumeResultInfo"]["HideUniqueWeapon"], 1);
+    assert_eq!(live().await, [legend, 1, 0, 0]);
+
+    // Costume window equip over a Unique Weapon, a weapon and a hair costume.
+    save(json!({"CostumeIndex":normal,"HideUniqueWeapon":0,"WeaponCostumeIndex":777,"HairCostumeIndex":888})).await;
+    let r = hero::set_costume(State(s.clone()), form(format!("HeroIndex={jane}&CostumeIndex={legend}"))).await.unwrap().0;
+    assert_eq!(r["Result"], "Success", "{r}");
+    for (key, value) in [("HideUniqueWeapon", 1), ("WeaponCostumeIndex", 0), ("HairCostumeIndex", 0)] {
+        assert_eq!(r["HeroCostumeResult"][key], value, "{key}");
+    }
+    assert_eq!(live().await, [legend, 1, 0, 0]);
+
+    // The Unique Weapon toggle cannot uncover it while the Legend is worn.
+    let r = hero::set_hide_hero_unique_weapon(State(s.clone()),
+        form(format!("HeroIndex={jane}&HideUniqueWeapon=0&WeaponCpstumeIndex=0"))).await.unwrap().0;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!(live().await, [legend, 1, 0, 0]);
+
+    // A preset saved before this fix is repaired when loaded.
+    crate::db::query("INSERT INTO costume_presets(account_id,hero_index,slot_index,data) VALUES($1,$2,1,$3)")
+        .bind(a).bind(jane).bind(json!({"HeroIndex":jane,"CostumeIndex":legend,"HideUniqueWeapon":0,
+            "WeaponCostumeIndex":777,"HairCostumeIndex":888,"CostumeStorageSlotIndex":1}).to_string())
+        .execute(&s.db).await.unwrap();
+    save(showing_unique.clone()).await;
+    let r = hero::set_costume_storage_slot(State(s.clone()), form(format!("HeroIndex={jane}&CostumeStorageSlotIndex=1"))).await.unwrap().0;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!(r["CostumeStorageSlotInfo"]["HideUniqueWeapon"], 1);
+    assert_eq!(live().await, [legend, 1, 0, 0]);
+
+    // Normal costumes keep the player's weapon choice.
+    let r = hero::set_costume(State(s.clone()), form(format!("HeroIndex={jane}&CostumeIndex={normal}"))).await.unwrap().0;
+    assert_eq!(r["Result"], "Success", "{r}");
+    let r = hero::set_hide_hero_unique_weapon(State(s.clone()),
+        form(format!("HeroIndex={jane}&HideUniqueWeapon=0&WeaponCpstumeIndex=0"))).await.unwrap().0;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!(live().await, [normal, 0, 0, 0]);
+}
+
+const LEGEND_REPAIR: &str = include_str!("../../../migrations/0014_legend_costume_look.sql");
+
+#[test]
+fn legend_repair_migration_lists_every_legend_costume() {
+    let tables = crate::tables::test_tables();
+    let mut legend: Vec<i64> = tables.hero_shop.costumes.values()
+        .filter(|c| n(c, "CostumeType") == 2).map(|c| n(c, "CostumeIndex")).collect();
+    legend.sort();
+    let list = LEGEND_REPAIR.split("INSERT INTO legend_costumes VALUES").nth(1).unwrap().split(';').next().unwrap();
+    let mut listed: Vec<i64> = list.split(|c: char| !c.is_ascii_digit()).filter_map(|v| v.parse().ok()).collect();
+    listed.sort();
+    assert_eq!(listed, legend);
+}
+
+// Heroes, presets and lobby avatars saved by earlier servers.
+#[tokio::test]
+async fn legend_repair_migration_fixes_stored_looks_only() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let bad = json!({"CostumeIndex":"2519","HideUniqueWeapon":0,"WeaponCostumeIndex":777,"HairCostumeIndex":888,"Level":60});
+    let normal = json!({"CostumeIndex":2510,"HideUniqueWeapon":0,"WeaponCostumeIndex":777,"HairCostumeIndex":888});
+    for (hero_index, look) in [(25, &bad), (26, &normal)] {
+        hero::save_details(&mut s.db.acquire().await.unwrap(), a, hero_index, look).await.unwrap();
+        crate::db::query("INSERT INTO costume_presets(account_id,hero_index,slot_index,data) VALUES($1,$2,1,$3)")
+            .bind(a).bind(hero_index).bind(look.to_string()).execute(&s.db).await.unwrap();
+    }
+    crate::db::query("INSERT INTO lobby_appearance(account_id,avatar_hero_index,costume_index,hair_costume_index,weapon_costume_index,hide_unique_weapon,snapshot) VALUES ($1,12519,2519,888,777,0,$2) ON CONFLICT(account_id) DO UPDATE SET costume_index=2519,hair_costume_index=888,weapon_costume_index=777,hide_unique_weapon=0,snapshot=excluded.snapshot")
+        .bind(a).bind(bad.to_string()).execute(&s.db).await.unwrap();
+    sqlx::raw_sql(LEGEND_REPAIR).execute(&s.db).await.unwrap();
+    let fixed = |v: &Value| [n(v, "HideUniqueWeapon"), n(v, "WeaponCostumeIndex"), n(v, "HairCostumeIndex")];
+    let details = hero::details(&mut s.db.acquire().await.unwrap(), a, 25).await.unwrap();
+    assert_eq!(fixed(&details), [1, 0, 0]);
+    assert_eq!(n(&details, "Level"), 60);
+    assert_eq!(hero::details(&mut s.db.acquire().await.unwrap(), a, 26).await.unwrap(), normal);
+    let presets: Vec<String> = crate::db::query_scalar("SELECT data FROM costume_presets WHERE account_id=$1 ORDER BY hero_index")
+        .bind(a).fetch_all(&s.db).await.unwrap();
+    assert_eq!(fixed(&serde_json::from_str(&presets[0]).unwrap()), [1, 0, 0]);
+    assert_eq!(serde_json::from_str::<Value>(&presets[1]).unwrap(), normal);
+    let row = crate::db::query("SELECT hide_unique_weapon,weapon_costume_index,hair_costume_index,snapshot FROM lobby_appearance WHERE account_id=$1")
+        .bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!([row.get::<i64, _>("hide_unique_weapon"), row.get("weapon_costume_index"), row.get("hair_costume_index")], [1, 0, 0]);
+    assert_eq!(fixed(&serde_json::from_str(&row.get::<String, _>("snapshot")).unwrap()), [1, 0, 0]);
+}
