@@ -2238,6 +2238,65 @@ async fn equipment_storage_and_sales_check_ownership_equipped_state_and_locks() 
 }
 
 #[tokio::test]
+async fn selling_a_full_expanded_bag_succeeds_in_one_request() {
+    // A fully expanded bag holds 1400 pieces and the client sends every
+    // selected piece in one request; 1100 used to fail with HTTP 400.
+    let (state, u) = setup().await;
+    let a = u.user_info.account_id;
+    let (&id, item) = state
+        .tables
+        .inventory
+        .items
+        .iter()
+        .find(|(_, v)| {
+            item::n(v, "Type") == 1 && v["NotForSale"] == false && item::n(v, "SellGold") > 0
+        })
+        .unwrap();
+    let slots: Vec<i64> = crate::db::query_scalar(
+        "INSERT INTO equip_items(account_id,item_index) SELECT $1,$2 FROM generate_series(1,1400) RETURNING slot_index",
+    )
+    .bind(a)
+    .bind(id)
+    .fetch_all(&state.db)
+    .await
+    .unwrap();
+    let preset = json!([{"HeroIndex":1,"EquipItemSlotIndex":[slots[7],0],"EquipItemUid":["x",""],"EquipItemRunePage":[1,0]}]);
+    crate::db::query("INSERT INTO hero_presets(account_id,storage_key,data) VALUES($1,'bulk',$2)")
+        .bind(a)
+        .bind(preset.to_string())
+        .execute(&state.db)
+        .await
+        .unwrap();
+    let started = std::time::Instant::now();
+    let result = item::sell_equip(
+        State(state.clone()),
+        form(&u, &format!("EquipItemSlotIndices={}", json!(slots))),
+    )
+    .await
+    .unwrap()
+    .0;
+    eprintln!("sold 1400 pieces in {:?}", started.elapsed());
+    assert_eq!(result["Result"], "Success", "{result}");
+    assert_eq!(
+        result["CurrencyResult"]["AddValue"],
+        item::n(item, "SellGold") * 1400
+    );
+    let left: i64 = crate::db::query_scalar("SELECT count(*) FROM equip_items WHERE account_id=$1 AND slot_index IN (SELECT sprk_json_ints($2))")
+        .bind(a)
+        .bind(json!(slots).to_string())
+        .fetch_one(&state.db)
+        .await
+        .unwrap();
+    assert_eq!(left, 0);
+    let saved: String = crate::db::query_scalar("SELECT data FROM hero_presets WHERE account_id=$1 AND storage_key='bulk'")
+        .bind(a)
+        .fetch_one(&state.db)
+        .await
+        .unwrap();
+    assert_eq!(serde_json::from_str::<Value>(&saved).unwrap()[0]["EquipItemSlotIndex"], json!([0, 0]));
+}
+
+#[tokio::test]
 async fn equipment_option_selection_validates_options_and_persists_them() {
     let (state, u) = setup().await;
     let (&ticket, selector) = state

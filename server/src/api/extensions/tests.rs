@@ -3069,6 +3069,25 @@ async fn native_equipment_grind_single_and_batch_persist_rewards_and_removal() {
 }
 
 #[tokio::test]
+async fn grinding_a_full_expanded_bag_succeeds_in_one_request() {
+    // The client grinds every selected piece in one request; above 1000 the
+    // server answered Fail, shown as a generic network error.
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let template=give(&s,a,1001,1).await.equipment.remove(0);
+    let slots:Vec<i64>=crate::db::query_scalar("INSERT INTO equip_items(account_id,item_index) SELECT $1,$2 FROM generate_series(1,1399) RETURNING slot_index")
+        .bind(a).bind(template.item_index).fetch_all(&s.db).await.unwrap();
+    let slots:Vec<i64>=std::iter::once(template.slot_index as i64).chain(slots).collect();
+    let started=std::time::Instant::now();
+    let r=call(&s,&u,"break_equip",&format!("EquipItemSlotIndices={}",json!(slots))).await;
+    eprintln!("ground 1400 pieces in {:?}",started.elapsed());
+    assert_eq!(r["Result"],"Success","{r}");
+    let left:i64=crate::db::query_scalar("SELECT count(*) FROM equip_items WHERE account_id=$1 AND slot_index IN (SELECT sprk_json_ints($2))")
+        .bind(a).bind(json!(slots).to_string()).fetch_one(&s.db).await.unwrap();
+    assert_eq!(left,0);
+}
+
+#[tokio::test]
 async fn native_equipment_grind_rejects_locked_duplicates_and_rolls_back_entire_batch() {
     let (s,u)=setup().await;
     let a=u.user_info.account_id;

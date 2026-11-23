@@ -458,7 +458,8 @@ async fn break_equipment(
     account: i64,
     req: &Request,
 ) -> Result<Value> {
-    let ids = ids_with_limit(req, "EquipItemSlotIndices", 1000)?;
+    // Grinding a whole bag (up to 1440 pieces) is one request; see EQUIP_BATCH_LIMIT.
+    let ids = ids_with_limit(req, "EquipItemSlotIndices", item::EQUIP_BATCH_LIMIT)?;
     if ids.is_empty() {
         return Err(rule("InvalidMaterial"));
     }

@@ -1238,6 +1238,12 @@ async fn sell_or_break(
     }
     Ok(out)
 }
+/// Most pieces one sell/chest request may name. The client sends every
+/// selected piece in one request with no cap of its own, and a fully expanded
+/// bag (280 + 140 x 8) plus the chest holds 1440 (more when over capacity).
+/// The former 1000 cap answered such "sell all" requests with HTTP 400, which
+/// the client shows as a generic network error.
+pub(crate) const EQUIP_BATCH_LIMIT: usize = 5000;
 async fn equipment_action(
     db: &mut PgConnection,
     state: &AppState,
@@ -1252,13 +1258,14 @@ async fn equipment_action(
             "EquipItemSlotIndices"
         } else {
             "EquipItemSlotIndex"
-        }, 1000)?
+        }, EQUIP_BATCH_LIMIT)?
     };
     if ids.is_empty() {
         return Err(rule("EquipNotOwned"));
     }
     let mut gold = 0;
     let mut changed = vec![];
+    let mut sold = std::collections::BTreeSet::new();
     for id in ids {
         let row = crate::db::query("SELECT * FROM equip_items WHERE account_id=$1 AND slot_index=$2")
             .bind(account)
@@ -1296,12 +1303,7 @@ async fn equipment_action(
                 return Err(rule("NotForSale"));
             }
             gold += n(item, "SellGold");
-            crate::api::heroes::presets::forget_equipment(db, account, id).await?;
-            crate::db::query("DELETE FROM equip_items WHERE account_id=$1 AND slot_index=$2")
-                .bind(account)
-                .bind(id)
-                .execute(&mut *db)
-                .await?;
+            sold.insert(id);
         } else {
             let destination = if action == "set_chest" { 1 } else { 0 };
             if row.get::<i32, _>("inventory_type") != destination {
@@ -1317,6 +1319,16 @@ async fn equipment_action(
             .await?;
             changed.push(id);
         }
+    }
+    if !sold.is_empty() {
+        // Every piece is validated first; presets and rows are then cleared
+        // once for the whole sale instead of re-reading presets per piece.
+        crate::api::heroes::presets::forget_equipments(db, account, &sold).await?;
+        crate::db::query("DELETE FROM equip_items WHERE account_id=$1 AND slot_index IN (SELECT sprk_json_ints($2))")
+            .bind(account)
+            .bind(json!(sold).to_string())
+            .execute(&mut *db)
+            .await?;
     }
     let mut out = success();
     if action == "sell_equip" {
