@@ -724,3 +724,43 @@ async fn dispatch_slots_are_limited_only_by_free_heroes() {
     // A hero already out on a dispatch still cannot start another one.
     assert_eq!(start(1).await["Result"], "AlreadyOnBattleHero");
 }
+
+#[tokio::test]
+async fn settled_dispatches_store_no_settlement_reply_and_migration_drops_old_ones() {
+    for cancel in [false, true] {
+        let (s, u) = fixture(false).await;
+        let a = account(&u);
+        let job = start(&s, &u, 2).await;
+        let slot = n(&job, "SlotIndex");
+        let mut saved = job.clone();
+        saved["SimulationResults"] = json!([{"Outcome":1,"TimeMs":1000},{"Outcome":0,"TimeMs":1000}]);
+        saved["FinishTimestamp"] = json!(now() - 1);
+        put(&mut s.db.acquire().await.unwrap(), a, "dispatch", slot, &saved).await.unwrap();
+        let path = if cancel { "dispatch/cancel_dispatch" } else { "dispatch/request_complete_dispatch" };
+        let args = format!("SlotIndex={slot}");
+        let done = call(&s, &u, path, &args).await;
+        assert_eq!(done["Result"], "Success", "{done}");
+        let stored = get(&mut s.db.acquire().await.unwrap(), a, "dispatch", slot).await.unwrap();
+        assert!(matches!(stored["State"].as_str(), Some("Complete" | "Cancel")), "{stored}");
+        // Every dispatch list, campaign entry and dispatch start parses it.
+        assert!(stored.get("CollectionResponse").is_none(), "{stored}");
+        // The terminal row still guards against collecting twice.
+        assert_eq!(call(&s, &u, path, &args).await["Result"], "AlreadyFinishDispatchBattle");
+    }
+
+    // Rows written by earlier builds.
+    let (s, u) = fixture(false).await;
+    let a = account(&u);
+    let mut db = s.db.acquire().await.unwrap();
+    let reply = json!({"Result":"Success","Big":"x".repeat(1000)});
+    put(&mut db, a, "dispatch", 1, &json!({"SlotIndex":1,"State":"Complete","WinCount":2,"CollectionResponse":reply,"SimulationSnapshot":{"A":1}})).await.unwrap();
+    put(&mut db, a, "dispatch", 2, &json!({"SlotIndex":2,"State":"Cancel","SimulationSnapshot":{"A":1}})).await.unwrap();
+    put(&mut db, a, "dispatch", 3, &json!({"SlotIndex":3,"State":"Battle","SimulationSnapshot":{"A":1}})).await.unwrap();
+    drop(db);
+    sqlx::raw_sql(include_str!("../../../migrations/0015_dispatch_dead_weight.sql")).execute(&s.db).await.unwrap();
+    let mut db = s.db.acquire().await.unwrap();
+    assert_eq!(get(&mut db, a, "dispatch", 1).await.unwrap(), json!({"SlotIndex":1,"State":"Complete","WinCount":2}));
+    assert_eq!(get(&mut db, a, "dispatch", 2).await.unwrap(), json!({"SlotIndex":2,"State":"Cancel"}));
+    // A running job keeps its inline snapshot until its next preparation moves it.
+    assert_eq!(get(&mut db, a, "dispatch", 3).await.unwrap()["SimulationSnapshot"], json!({"A":1}));
+}

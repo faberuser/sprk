@@ -349,10 +349,15 @@ async fn list(db: &mut PgConnection, a: i64, kind: &str) -> Result<Vec<Value>> {
     };
     rows.iter().map(|v| read_json(v)).collect()
 }
+/// Fails with NoHero unless the account owns every hero, in one statement
+/// (a party entry took two statements per hero).
 async fn owned(db: &mut PgConnection, a: i64, heroes: &[i64]) -> Result<()> {
-    for h in heroes {
-        hero::info(db, a, *h as i32).await?;
-    }
+    let wanted: BTreeSet<i64> = heroes.iter().copied().collect();
+    if wanted.is_empty() { return Ok(()); }
+    let list = serde_json::to_string(&wanted).map_err(|e| ServerError::Internal(e.to_string()))?;
+    let found: i64 = crate::db::query_scalar("SELECT COUNT(DISTINCT hero_index) FROM heroes WHERE account_id=$1 AND hero_index IN (SELECT sprk_json_ints($2))")
+        .bind(a).bind(list).fetch_one(db).await?;
+    if found != wanted.len() as i64 { return Err(rule("NoHero")); }
     Ok(())
 }
 async fn claim(

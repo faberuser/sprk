@@ -15,7 +15,9 @@ slow, failing or locking game from the database and `sprk-game.log`.
   compensation audit), `0008` the gameplay triggers, `0009` the
   response-cache revision triggers, `0010` the reforge/enchant guarantees and
   `0011` the revision parts (which part of a player's progression changed)
-  and `0012` the row estimate of `sprk_json_ints`.
+  `0012` the row estimate of `sprk_json_ints`, `0013` the monster archive,
+  `0014` the Legend costume look repair and `0015` the removal of stored
+  dispatch settlement replies.
 - **Roles.** `sprk_owner` owns the schema, runs migrations, backups and
   diagnostics. `sprk_app` is the game's role: data access only, not a
   superuser.
@@ -412,6 +414,7 @@ Either flag can be used alone. The report prints:
   open mail, up to `OVERFLOW_MAIL_EQUIPMENT` (25) pieces; `item::free_slots`
   counts once per grant, and a batch that fills the bag stops counting.
   Claiming a mail needs room for all of its pieces.
+- **Campaign entry** checks party ownership in one statement.
 - **Hero snapshots** (`community::cached_hero`) fetch all ten equipped pieces
   in one statement. A whole-roster Hero preset writes one row per changed Hero;
   batch `break_equip` clears references once and grants summed materials once
@@ -540,8 +543,12 @@ Either flag can be used alone. The report prints:
   up to ~900 KB) is written once at start into its own `dispatch_snapshot`
   row (naming its job), so the job row stays small for every prepared repeat
   and revealed round; settlement deletes it. Rows saved with it inline move it
-  out on their next preparation. Neither it nor `CollectionResponse` (the
-  settlement reply) is sent to the client.
+  out on their next preparation. It is never sent to the client. Settlement
+  does not store its reply: a finished job only guards against a second
+  collection, and the replies earlier builds kept (`CollectionResponse`, up to
+  2.9 MB, 11 of the 12 MB of dispatch rows) were parsed for every job of the
+  player on each list poll, campaign entry and dispatch start (`0015` drops
+  them).
 - **Ordeal.** The node map (opponents' account snapshots, ~750 KB) lives in
   `battle_state` kind `ordeal_nodes`, written only when it is generated,
   refreshed or repaired; the `ordeal` row keeps the progress that every

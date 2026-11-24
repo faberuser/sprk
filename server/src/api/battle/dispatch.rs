@@ -185,8 +185,9 @@ pub(super) async fn snapshot(db: &mut PgConnection, a: i64) -> Result<Vec<Value>
             run["State"] = json!("ReadyToComplete");
             put(db, a, "dispatch", n(run, "SlotIndex"), run).await?;
         }
-        // Server-only: the worker's battle snapshot (~100 KB per job) and the
-        // settlement reply. No client reads them, and SprkDispatch polls this
+        // Server-only: the worker's battle snapshot (~100 KB per job), and the
+        // settlement reply that earlier builds stored (up to 2.9 MB; dropped by
+        // migration 0015). No client reads them, and SprkDispatch polls this
         // list every 3 s while a job runs.
         if let Some(run) = run.as_object_mut() {
             run.remove("SimulationSnapshot");
@@ -353,7 +354,6 @@ pub(super) async fn execute(
         out["TeamExpResult"] = out["ExpResult"].clone();
         info["State"] = json!(if cancel { "Cancel" } else { "Complete" });
         info["CompleteTime"] = json!(time(now()));
-        info["CollectionResponse"] = out.clone();
         // The native result popup lists StaminaResult and EclipseStaminaResult on
         // cancel, and only EclipseStaminaResult on collection: send the refund once.
         if let Some(refund) = out.as_object_mut().and_then(|o| o.remove("StaminaResult")) {
@@ -429,7 +429,6 @@ pub(super) async fn execute(
     if n(&info, "SimulationVersion") < 1 {
         info["ServerResult"] = json!(vec!["1"; count as usize].join(","));
     }
-    info["CollectionResponse"] = out.clone();
     // The native cancel popup lists StaminaResult and EclipseStaminaResult (both
     // also applied), so a cancel sends the refund once, as EclipseStaminaResult.
     // Collection lists and applies only EclipseStaminaResult; keep any key award.
