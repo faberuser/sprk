@@ -274,7 +274,13 @@ docker run -d --name sprk-diag -e POSTGRES_PASSWORD=diag -p 127.0.0.1:55440:5432
 docker exec sprk-diag pg_isready -h 127.0.0.1 -U postgres   # repeat until it accepts connections
 docker exec sprk-diag createdb -U postgres sprk
 docker exec -i sprk-diag pg_restore -U postgres -d sprk --no-owner --no-privileges --exit-on-error < sprk-<time>.dump
+docker exec sprk-diag vacuumdb -U postgres -d sprk --analyze-only
 ```
+
+Analyze before measuring: a restore carries no planner statistics, and some
+plans production never uses appear until autovacuum gets to the tables (an
+`IN (SELECT sprk_json_ints($2))` lookup of equipped pieces took 140 ms instead
+of 0.7 ms).
 
 `--no-owner --no-privileges` skip the production roles, which the scratch
 server does not have. The copy is at
@@ -415,6 +421,20 @@ Either flag can be used alone. The report prints:
   counts once per grant, and a batch that fills the bag stops counting.
   Claiming a mail needs room for all of its pieces.
 - **Campaign entry** checks party ownership in one statement.
+- **Hero-level gear.** After a request that changed the equipment revision
+  (every battle that drops gear or gives hero EXP), `hero_level::notify`
+  re-levels hero-bound and worn shared gear in one `UPDATE … RETURNING`
+  (the `MaxLevelByHero` items are bound as JSON), instead of reading every
+  hero and piece (1,700+ rows for active players) into the server.
+- **Battle-type counts.** About 200 missions count `ClearDungeon` by battle
+  type, and every battle changes that metric, so they are re-evaluated after
+  each one. `View::typed_metric` sums a kind by (battle type, day) once per
+  snapshot instead of each mission rescanning its rows. With
+  `sprk_progression=debug`, the incremental snapshot trace lists `causes`:
+  what the re-evaluated sections read that changed.
+- **Section tokens** hash each section in place, and a changed achievement
+  list's per-entry digests are computed once for the delta and the delivered
+  record.
 - **Hero snapshots** (`community::cached_hero`) fetch all ten equipped pieces
   in one statement. A whole-roster Hero preset writes one row per changed Hero;
   batch `break_equip` clears references once and grants summed materials once

@@ -97,11 +97,12 @@ pub async fn notify(State(state): State<AppState>, request: HttpRequest, next: N
     }
     let updates = super::cache::get(&state, &session_key, account).await;
     match updates {
-        Ok(updates) => {
+        Ok(mut updates) => {
             // Section clients must not use the combined token: a lobby refresh
             // can replace just one section independently of that combined state.
             if headers.get("x-sprk-sections").is_some_and(|v| v == "1") {
-                for (wire, field) in SNAPSHOT_FIELDS { value[wire] = updates[field].clone(); }
+                // Moved, not copied: these sections are not read again below.
+                for (wire, field) in SNAPSHOT_FIELDS { value[wire] = updates[field].take(); }
                 let info = state.get_session(&session_key);
                 conditional_sections_with_deltas(&mut value, &session_key, &headers,
                     info.as_ref().map(|s| &*s.login_sections), info.as_ref().map(|s| &*s.delivered_achievements));
@@ -156,7 +157,13 @@ pub(crate) fn section_token(session: &str, wire: &str, snapshot: &Value) -> Stri
     let mut digest = Sha256::new();
     digest.update(session.as_bytes());
     digest.update(wire.as_bytes());
-    digest.update(serde_json::to_vec(&normalized(snapshot.clone(), wire == "ReservedPlayRecordInfos")).unwrap());
+    // Hashed in place: only play records need a copy (without UpdatedTime).
+    let bytes = if wire == "ReservedPlayRecordInfos" {
+        serde_json::to_vec(&normalized(snapshot.clone(), true))
+    } else {
+        serde_json::to_vec(snapshot)
+    };
+    digest.update(bytes.unwrap());
     hex::encode(digest.finalize())
 }
 
@@ -165,7 +172,9 @@ pub(crate) fn section_token(session: &str, wire: &str, snapshot: &Value) -> Stri
 pub(crate) fn remember_login_sections(state: &AppState, session: &str, achievements: &Value) {
     if let Some(info) = state.sessions.get(session) {
         let token = section_token(session, "AchievementInfos", achievements);
-        remember_achievements(&info.delivered_achievements, &token, achievements);
+        if let Some(digests) = achievement_digests(achievements) {
+            remember_achievements(&info.delivered_achievements, &token, digests);
+        }
         info.login_sections.lock().unwrap_or_else(|e| e.into_inner()).insert("AchievementInfos".into(), token);
     }
 }
@@ -186,19 +195,20 @@ fn achievement_digests(snapshot: &Value) -> Option<std::collections::BTreeMap<i6
     }).collect()
 }
 
-fn remember_achievements(delivered: &std::sync::Mutex<DeliveredAchievements>, token: &str, snapshot: &Value) {
-    let Some(digests) = achievement_digests(snapshot) else { return; };
+fn remember_achievements(delivered: &std::sync::Mutex<DeliveredAchievements>, token: &str,
+    digests: std::collections::BTreeMap<i64, [u8; 16]>) {
     let mut delivered = delivered.lock().unwrap_or_else(|e| e.into_inner());
     if delivered.iter().any(|(t, _)| t == token) { return; }
     delivered.push_back((token.to_owned(), std::sync::Arc::new(digests)));
     while delivered.len() > DELIVERED_ACHIEVEMENTS_KEPT { delivered.pop_front(); }
 }
 
-/// The entries of `snapshot` that differ from the list delivered as `held`,
-/// or None (send everything) when that list is unknown or lost an entry.
-fn achievement_delta(delivered: &std::sync::Mutex<DeliveredAchievements>, held: &str, snapshot: &Value) -> Option<Vec<Value>> {
+/// The entries of `snapshot` (whose digests are `current`) that differ from
+/// the list delivered as `held`, or None (send everything) when that list is
+/// unknown or lost an entry.
+fn achievement_delta(delivered: &std::sync::Mutex<DeliveredAchievements>, held: &str, snapshot: &Value,
+    current: &std::collections::BTreeMap<i64, [u8; 16]>) -> Option<Vec<Value>> {
     let base = delivered.lock().unwrap_or_else(|e| e.into_inner()).iter().find(|(t, _)| t == held)?.1.clone();
-    let current = achievement_digests(snapshot)?;
     if base.keys().any(|index| !current.contains_key(index)) { return None; }
     Some(snapshot.as_array()?.iter()
         .filter(|entry| entry["AchievementIndex"].as_i64().is_some_and(|index| base.get(&index) != current.get(&index)))
@@ -249,11 +259,13 @@ pub(crate) fn conditional_sections_with_deltas(value: &mut Value, session: &str,
         } else {
             if let Some(b) = baseline.as_mut() { b.remove(wire); }
             if let (Some(delivered), "AchievementInfos") = (deltas, wire) {
-                let snapshot = value[wire].clone();
-                if let Some(changed) = held.and_then(|held| achievement_delta(delivered, &held, &snapshot)) {
-                    value[wire] = json!(changed);
+                // Each entry's digest once, for the delta and the record.
+                if let Some(digests) = achievement_digests(&value[wire]) {
+                    if let Some(changed) = held.and_then(|held| achievement_delta(delivered, &held, &value[wire], &digests)) {
+                        value[wire] = json!(changed);
+                    }
+                    remember_achievements(delivered, &token, digests);
                 }
-                remember_achievements(delivered, &token, &snapshot);
             }
             value[name] = json!(token);
         }
@@ -304,7 +316,7 @@ mod tests {
         let token = |v: &Value| section_token("session", "AchievementInfos", v);
         let login = std::sync::Mutex::new(std::collections::BTreeMap::from([("AchievementInfos".to_string(), token(&v1))]));
         let delivered = std::sync::Mutex::new(DeliveredAchievements::default());
-        remember_achievements(&delivered, &token(&v1), &v1);
+        remember_achievements(&delivered, &token(&v1), achievement_digests(&v1).unwrap());
         let mut headers = axum::http::HeaderMap::new();
         headers.insert("x-sprk-sections", "1".parse().unwrap());
         headers.insert("x-sprk-achievement-delta", "1".parse().unwrap());
@@ -337,7 +349,7 @@ mod tests {
         legacy.insert("x-sprk-achievements", token(&v2).parse().unwrap());
         assert_eq!(reply(&v1, &legacy)["AchievementInfos"], v1);
         // Only a few recent lists are kept.
-        for step in 10..20 { remember_achievements(&delivered, &format!("{step:064}"), &v1); }
+        for step in 10..20 { remember_achievements(&delivered, &format!("{step:064}"), achievement_digests(&v1).unwrap()); }
         headers.insert("x-sprk-achievements", token(&v2).parse().unwrap());
         assert_eq!(reply(&v3, &headers)["AchievementInfos"], v3);
         assert!(delivered.lock().unwrap().len() <= DELIVERED_ACHIEVEMENTS_KEPT);

@@ -102,6 +102,7 @@ pub(crate) async fn get(state: &AppState, session_key: &str, account: i64) -> Re
                     build_ms = (started.elapsed() - refreshed).as_secs_f64() * 1000.0, parts = changes.mask,
                     changed = changed.mask, metrics = changed.metrics.len(), heroes = changed.heroes.len(),
                     stages = changed.stages.len(), evaluated = super::EVALUATED.with(|c| c.get()) - before,
+                    causes = ?super::CAUSES.with(|c| std::mem::take(&mut *c.borrow_mut())),
                     "Incremental progression snapshot");
                 #[cfg(test)]
                 verify_incremental(&mut tx, state, account, &value).await;

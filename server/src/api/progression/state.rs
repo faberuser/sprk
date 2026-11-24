@@ -151,6 +151,11 @@ pub(super) mod part {
     pub const CLAIMS_ALL: u64 = 1 << 32;
     /// Every loaded part (metrics and claims are always loaded in full then).
     pub const ALL: u64 = (1 << 31) - 1;
+    /// Bit names, for the debug trace of why sections were re-evaluated.
+    pub const NAMES: [&str; 33] = ["heroes", "equipment", "npc", "guild_damage", "conquest_kills", "souls", "dungeons",
+        "login", "level", "costumes", "friends", "guild", "tutorials", "items", "entitlements", "arena", "battle",
+        "hist_equip", "facts", "guild_att", "guild_wins", "conquest", "guild_decks", "pet", "monthly", "linked",
+        "world_rank", "created", "attendance", "main_quest", "world_events", "metrics_all", "claims_all"];
 
     /// What a revision part (`table` or `table:kind`, `global:` for account 0;
     /// `progression_metrics:kind@day` for one day of a metric) invalidates.
@@ -262,6 +267,16 @@ impl Deps {
             || self.heroes.iter().any(|k| changed.heroes.contains(k))
             || self.stages.iter().any(|k| changed.stages.contains(k))
     }
+    /// What in `changed` this evaluation read (debug trace only).
+    pub(super) fn causes(&self, changed: &Deps) -> Vec<String> {
+        let mut out: Vec<String> = (0..part::NAMES.len()).filter(|bit| self.mask & changed.mask & (1 << bit) != 0)
+            .map(|bit| part::NAMES[bit].to_owned()).collect();
+        out.extend(self.metrics.iter().filter(|k| changed.metrics.contains(*k)).map(|k| format!("metric:{k}")));
+        out.extend(self.claims.iter().filter(|k| changed.claims.contains(*k)).map(|k| format!("claim:{}", k.0)));
+        if self.heroes.iter().any(|k| changed.heroes.contains(k)) { out.push("hero".into()); }
+        if self.stages.iter().any(|k| changed.stages.contains(k)) { out.push("stage".into()); }
+        out
+    }
 }
 
 /// Hero fields that no mission reads and battles change constantly; the view
@@ -346,6 +361,8 @@ pub(super) struct View {
     // the table lookups (an incremental refresh uses the same tables). Tests
     // that edit a View in place reset these.
     pub(super) inventory_totals: OnceLock<InventoryTotals>,
+    /// Per metric kind: its values summed by (battle type of the stage, day).
+    typed_metrics: std::sync::Mutex<BTreeMap<String, std::sync::Arc<BTreeMap<(i64, String), i64>>>>,
     claim_index: OnceLock<ClaimIndex>,
     battle_lookup: OnceLock<BattleLookup>,
     equipment_lookup: OnceLock<BTreeMap<i64,(i64,i64,i64)>>,
@@ -542,6 +559,7 @@ impl View {
         Ok((Self {
             d,
             inventory_totals: OnceLock::new(),
+            typed_metrics: Default::default(),
             claim_index: OnceLock::new(),
             battle_lookup,
             equipment_lookup,
@@ -605,6 +623,24 @@ impl View {
         (self.d.heroes.len(), self.d.metrics.values().map(Vec::len).sum(), self.d.claims.len())
     }
 
+    /// `kind`'s values by (battle type of their stage, day), for counts over
+    /// battle types: about 200 missions count ClearDungeon by type, and each
+    /// rescanned every row (850 for an active player) after every battle.
+    /// Rows of stages without a battle type are left out. Reads the whole kind.
+    pub(super) fn typed_metric(&self, state: &AppState, kind: &str) -> std::sync::Arc<BTreeMap<(i64, String), i64>> {
+        let rows = self.metrics_of(kind);
+        let mut memo = self.typed_metrics.lock().unwrap_or_else(|e| e.into_inner());
+        memo.entry(kind.to_owned()).or_insert_with(|| {
+            let mut sums = BTreeMap::<(i64, String), i64>::new();
+            for (day, k, chapter, dungeon, value) in rows {
+                if k != kind { continue; }
+                let Some(battle) = self.battle_type(state, *chapter, *dungeon) else { continue; };
+                let sum = sums.entry((battle, day.clone())).or_default();
+                *sum = sum.wrapping_add(*value);
+            }
+            std::sync::Arc::new(sums)
+        }).clone()
+    }
     pub(super) fn battle_type(&self, state: &AppState, chapter: i64, dungeon: i64) -> Option<i64> {
         self.battle_lookup.get_or_init(|| BattleLookup::new(&state.tables.battle)).types.get(&(chapter,dungeon)).copied()
     }

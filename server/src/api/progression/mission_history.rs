@@ -264,16 +264,10 @@ impl View {
         }
     }
     fn stage_count(&self, s: &AppState, metric: &str, period: &str, types: &[i64]) -> i64 {
-        self.metrics_of(metric)
+        self.typed_metric(s, metric)
             .iter()
-            .filter(|(day, kind, c, d, _)| {
-                kind == metric
-                    && (period == "all" || day.as_str() >= period)
-                    && self
-                        .battle_type(s, *c, *d)
-                        .is_some_and(|t| types.contains(&t))
-            })
-            .map(|m| m.4)
+            .filter(|((battle, day), _)| types.contains(battle) && (period == "all" || day.as_str() >= period))
+            .map(|(_, value)| *value)
             .sum()
     }
 
