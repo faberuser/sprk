@@ -256,6 +256,10 @@ impl View {
             "EnterDungeon" if row["ReqValue"] == "GodkingTrial" => {
                 c == ["Table", "NPCTable", "SoulWeapon", "EntryMenuCondition2"]
             }
+            // Spending Eclipse keys proves the Eclipse menu (SoulWeapon entry 3).
+            "ConsumeStamina" if row["ReqValue"] == "EclipseKey" => {
+                c == ["Table", "NPCTable", "SoulWeapon", "EntryMenuCondition3"]
+            }
             _ => false,
         }
     }

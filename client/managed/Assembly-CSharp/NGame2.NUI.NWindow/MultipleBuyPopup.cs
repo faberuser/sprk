@@ -112,7 +112,8 @@ public class MultipleBuyPopup : BaseWindow
 
 	protected long GetItemBuyMaxCount()
 	{
-		long num = ShopHelper.GetPlayerAssetValue(_currentCostType) / _price;
+		// The server accepts at most 1000 items per purchase request.
+		long num = Math.Min(1000L, ShopHelper.GetPlayerAssetValue(_currentCostType) / _price);
 		if (_itemInfo != null && _shopItemData.PurchasableCount > 0)
 		{
 			int num2 = _shopItemData.PurchasableCount - _itemInfo.Purchased;

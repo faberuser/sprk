@@ -355,6 +355,12 @@ async fn mission_rules_weekly_eclipse_key_counts_keys_spent_this_week() {
     assert_eq!(view(&s,a).await.achievement(&s,row),(0,1),"an old week does not count");
     action(&s,a,"ConsumeEclipseKey",0,0,1).await;
     assert_eq!(view(&s,a).await.achievement(&s,row),(1,1));
+    // The table-only SoulWeapon menu predicate must not block the earned reward.
+    let claim=||Bytes::from(format!("SessionKey={}&AchievementIndices=[1715]&Steps=[0]",u.user_info.session_key));
+    let r=handle(s.clone(),claim(),"reward_achievement").await.unwrap().0;
+    assert_eq!(r["Result"],"Success","{r}");
+    let again=handle(s.clone(),claim(),"reward_achievement").await.map(|r|r.0["Result"].clone());
+    assert!(!matches!(again,Ok(ref v) if v=="Success"),"{again:?}");
 }
 
 #[tokio::test]

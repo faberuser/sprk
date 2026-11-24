@@ -34,7 +34,7 @@ public static class SprkSpecialShop
 
 	public static int Maximum(long balance, long price, int purchased, int limit, int grantLimit)
 	{
-		long val = 999L;
+		long val = 1000L;
 		if (price > 0)
 		{
 			val = Math.Min(val, balance / price);

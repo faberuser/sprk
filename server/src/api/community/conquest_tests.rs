@@ -43,7 +43,7 @@ async fn conquest_defeat_records_damage_consumes_keys_and_retries_are_idempotent
 }
 #[tokio::test]
 async fn conquest_boss_kill_mails_once_and_final_boss_uses_native_boss_damage() {
-    let (mut s,u,_)=prepared().await;
+    let (mut s,u,g)=prepared().await;
     let start=battle(&s,&u,"campaign/begin_campaign",&begin(101)).await;
     assert_eq!(start["Result"],"Success","{start}");
     let hp=n(&start["GuildSuppressInfo"],"MonsterHp0");
@@ -63,6 +63,11 @@ async fn conquest_boss_kill_mails_once_and_final_boss_uses_native_boss_damage() 
     assert_eq!(refreshed["GuildSuppressSessionInfo"]["SessionIndex"],10001);assert_eq!(refreshed["GuildSuppressPlayInfos"][0]["TotalDamage"],0);
     call(&s,&u,"guild_suppress/get_guild_suppress_session_info","").await;
     assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM mails WHERE title='Guild Conquest session reward'").fetch_one(&s.db).await.unwrap(),1);
+    // Rank 1: 1,000 base Conquest Points + 1,000 x 100% participation, credited once.
+    let points=||crate::db::query_scalar::<i64>("SELECT sprk_json_int(data,'$.SuppressPoint') FROM community_state WHERE kind='guild' AND owner=$1 AND idx=0").bind(g);
+    assert_eq!(points().fetch_one(&s.db).await.unwrap(),2000);
+    login(&s,"conquest-gameplay").await;
+    assert_eq!(points().fetch_one(&s.db).await.unwrap(),2000);
 }
 #[tokio::test]
 async fn conquest_invalid_requests_do_not_spend_or_score() {

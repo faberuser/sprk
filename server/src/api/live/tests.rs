@@ -253,7 +253,7 @@ async fn special_shop_batches_charge_deliver_and_enforce_stock_atomically() {
     rules["Products"].as_array_mut().unwrap().iter_mut()
         .find(|p| n(p, "Index") == 3093009).unwrap()["PurchasableCount"] = json!(5);
     let before = balance(&s, &u, "gem").await;
-    for quantity in ["0", "-1", "1000", "abc", "9223372036854775807"] {
+    for quantity in ["0", "-1", "1001", "abc", "9223372036854775807"] {
         let result = call(&s, &u, "shop/buy_payshop_product", &format!("Index=3093009&Quantity={quantity}")).await;
         assert_ne!(result["Result"], "Success");
     }

@@ -188,6 +188,38 @@ pub(super) async fn settle(db: &mut PgConnection, s: &AppState, a: i64) -> Resul
             crate::api::progression::record(db,a,"GuildSuppressRank",rank,period,1).await?;
         }
     }
+    award_points(db,s,a).await
+}
+/// Base Conquest Points by final group rank (PUNITIVE_EXPEDITION_REPEAT_RANK_REWARD_INFO_1..4).
+/// The table rewards hold only items; these points are credited to the guild.
+const RANK_POINTS: [i64; 4] = [1000, 800, 650, 550];
+/// Credits the caller's guild once per ended session with the rank's base
+/// Conquest Points plus a bonus of base x participation rate (members who
+/// scored that session / current members).
+async fn award_points(db: &mut PgConnection, s: &AppState, a: i64) -> Result<()> {
+    let Ok((g,_))=guild::membership(db,a).await else {return Ok(());};
+    let sessions:Vec<(i64,String)>=crate::db::query_as("SELECT idx,data FROM community_state c WHERE kind='guild_conquest' AND owner=$1 AND idx<$2 AND sprk_json_int(data,'$.Applied')=1 AND COALESCE(sprk_json_int(data,'$.PointsAwarded'),0)=0 AND EXISTS(SELECT 1 FROM guild_battle_scores b WHERE b.guild_id=c.owner AND b.kind='suppress' AND b.season=c.idx AND b.score>0) ORDER BY idx LIMIT 100")
+        .bind(g).bind(current(s).index).fetch_all(&mut *db).await?;
+    let mut total=0;
+    for (period,data) in sessions {
+        let data:Value=parse(&data)?;
+        let ranks=rankers(db,s,period,Some(n(&data,"GroupIndex"))).await?;
+        let Some(mine)=ranks.iter().find(|v|n(v,"GuildId")==g) else {continue;};
+        let marked=crate::db::query("UPDATE community_state SET data=sprk_json_set(data,'$.PointsAwarded',1::bigint) WHERE kind='guild_conquest' AND owner=$1 AND idx=$2 AND COALESCE(sprk_json_int(data,'$.PointsAwarded'),0)=0")
+            .bind(g).bind(period).execute(&mut *db).await?.rows_affected();
+        if marked==0 {continue;}
+        let Some(&base)=RANK_POINTS.get(n(mine,"Rank") as usize) else {continue;};
+        let participants:i64=crate::db::query_scalar("SELECT COUNT(DISTINCT account) FROM guild_battle_scores WHERE guild_id=$1 AND kind='suppress' AND season=$2 AND score>0")
+            .bind(g).bind(period).fetch_one(&mut *db).await?;
+        let members:i64=crate::db::query_scalar("SELECT COUNT(*) FROM guild_members WHERE guild_id=$1")
+            .bind(g).fetch_one(&mut *db).await?;
+        total+=base+base*participants.min(members)/members.max(1);
+    }
+    if total>0 {
+        let mut info=guild::state(db,s,g).await?;
+        info["SuppressPoint"]=json!(n(&info,"SuppressPoint")+total);
+        guild::save(db,g,&info).await?;
+    }
     Ok(())
 }
 pub(crate) async fn tickets(db: &mut PgConnection, s: &AppState, a: i64, cost: i64) -> Result<Value> {
