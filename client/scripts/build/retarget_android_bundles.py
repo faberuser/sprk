@@ -16,6 +16,8 @@ appear. This keeps every object as it is except what is platform-specific:
 
 It also serves to restore a Windows bundle from the Android original when the Windows
 rebuild lost assets (Xanadus' Skill1_Projectile has no _Smoke object on Windows).
+Android bundles that embed Unity's Standard shader (GLES only) get the D3D11 build
+from a native Windows bundle with ``--standard-donor``.
 
 Shader references need no change: materials point into the shared CAB-Shader bundle,
 which has the same shaders under the same path IDs on both platforms (checked by
@@ -23,6 +25,7 @@ which has the same shaders under the same path IDs on both platforms (checked by
 
 usage: python client/scripts/build/retarget_android_bundles.py <android.unity3d> <out.unity3d>
        [--check-shaders <Assetbundle/Unity_2020/Shader.unity3d> <Android Shader.unity3d>]
+       [--standard-donor <native Windows bundle that embeds a D3D11 Standard shader>]
 Requires UnityPy (pip install UnityPy).
 """
 from __future__ import annotations
@@ -127,9 +130,58 @@ def drop_stale_builtin_preloads(env) -> list[str]:
     return changes
 
 
-def retarget(source: Path, target: Path) -> list[str]:
+def standard_shader(env):
+    for obj in env.objects:
+        if obj.type.name == "Shader" and obj.read_typetree()["m_ParsedForm"]["m_Name"] == "Standard":
+            return obj
+    return None
+
+
+def transplant_standard(source: Path, donor: Path) -> bytes | None:
+    """Replaces the GLES build of Unity's Standard shader embedded in an Android bundle.
+
+    Android bundles embed Standard compiled for OpenGL ES only, which Windows cannot run.
+    The Windows (D3D11) build is taken from a native Windows bundle that embeds it: its
+    bytes and its type tree (the donor may come from another Unity version; the player
+    reads each object through the type tree stored with it) replace the GLES shader
+    under the same path ID, so the materials keep pointing at it. Its dependencies are
+    remapped to the source bundle's externals. Shader variants are stripped per bundle
+    at build time, so use a donor whose Standard has the variants the materials need.
+    """
     env = UnityPy.load(str(source))
+    target = standard_shader(env)
+    if target is None:
+        return None
+    item = target.assets_file
+    externals = [ext.path.lower() for ext in item.externals]
+    donor_env = UnityPy.load(str(donor))
+    shader = standard_shader(donor_env)
+    if shader is None or 4 not in shader.read_typetree()["platforms"]:
+        raise SystemExit(f"{donor.name} has no D3D11 Standard shader")
+    tree = shader.read_typetree()
+    donor_externals = shader.assets_file.externals
+    tree["m_Dependencies"] = [
+        {"m_FileID": externals.index(path) + 1, "m_PathID": dep["m_PathID"]}
+        for dep in tree["m_Dependencies"]
+        if dep["m_FileID"] > 0
+        and (path := donor_externals[dep["m_FileID"] - 1].path.lower()) in externals
+    ]
+    shader.save_typetree(tree)  # re-encoded with the donor's own type tree
+    item.types[item.types.index(target.serialized_type)] = shader.serialized_type
+    target.serialized_type = shader.serialized_type
+    target.set_raw_data(shader.get_raw_data())
+    item.mark_changed()
+    return env.file.save(packer="lz4")
+
+
+def retarget(source: Path, target: Path, standard_donor: Path | None = None) -> list[str]:
     changes = []
+    transplanted = transplant_standard(source, standard_donor) if standard_donor else None
+    if transplanted is not None:
+        env = UnityPy.load(transplanted)
+        changes.append(f"Standard shader: GLES -> D3D11 from {standard_donor.name}")
+    else:
+        env = UnityPy.load(str(source))
     for item in serialized_files(env):
         if int(item.target_platform) != int(WINDOWS):
             changes.append(f"target {int(item.target_platform)} -> {int(WINDOWS)}")
@@ -164,10 +216,12 @@ def main() -> int:
     parser.add_argument("source", type=Path)
     parser.add_argument("target", type=Path)
     parser.add_argument("--check-shaders", nargs=2, type=Path, metavar=("WINDOWS_SHADER", "ANDROID_SHADER"))
+    parser.add_argument("--standard-donor", type=Path, metavar="WINDOWS_BUNDLE",
+                        help="native Windows bundle whose embedded D3D11 Standard shader replaces the GLES one")
     args = parser.parse_args()
     if args.check_shaders:
         check_shaders(args.source, *args.check_shaders)
-    for change in retarget(args.source, args.target):
+    for change in retarget(args.source, args.target, args.standard_donor):
         print(f"{args.target.name}: {change}")
     return 0
 

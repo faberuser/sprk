@@ -1855,9 +1855,19 @@ public sealed class SprkAutomation : MonoBehaviour
 								failed.Add(name);
 							}
 						}
+						// A shader that loads but cannot run on this graphics API renders magenta.
+						List<string> unsupported = new List<string>();
+						foreach (Material material in bundle.LoadAllAssets<Material>())
+						{
+							if (material.shader == null || !material.shader.isSupported)
+							{
+								unsupported.Add(material.name + ":" + ((material.shader == null) ? "null" : material.shader.name));
+							}
+						}
 						result["loaded"] = true;
 						result["assets"] = names.Length;
 						result["failedAssets"] = failed;
+						result["unsupportedShaders"] = unsupported;
 						bundle.Unload(unloadAllLoadedObjects: true);
 					}
 					reply.materials.Add(result);

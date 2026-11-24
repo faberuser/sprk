@@ -61,14 +61,24 @@ Tiers missing on Android (LowSpec) use the MidSpec original. Every override load
 Windows player with all its assets (`bundle-load-probe`, docs/client-automation.md); in a
 Xanadus battle the S2 and S1 effects load. `convert_bundles.py` converts them for Android.
 
-Not fixed:
-- Android originals with embedded GLES shaders cannot run on Windows, so these keep
-  their missing objects: the Eclipse meshes of Lich, Giant Worm SuperElite, Horned Bear
-  Wild and Fire/Warrior Spiders; Zafir's unique-item gacha effect; Crow's and Shamilla's
-  soul weapon casting; Luna (Re) S3 casting; Ripine S1; Tanya's 2021 daily look idle;
-  Valance shop result.
-- Thirteen bundles have some requested objects only in the root copy, not in the tier
+Android originals that embed Unity's Standard shader (GLES only) come from the live
+Android client archived on 2022-09-01 (`Pre-Doomsday/com.vespainteractive.KingsRaid/files/
+Documents/Patch/Android/Assetbundle`), with `--standard-donor`: the Standard shader is
+replaced by the D3D11 build embedded in a native Windows bundle (the Windows copy of the
+same bundle for effects, where it only serves a stray Default-Material; the
+variant-richest `OriginalSpec/Creature_Hero_Ybb_Star0` for creature skins). Restored this
+way: the Eclipse skins of Lich, Giant Worm SuperElite, Horned Bear Wild and the Fire and
+Warrior Spiders; Zafir's unique-item gacha effect; Crow's and Shamilla's soul weapon
+casting; Luna (Re) S3 casting; Ripine S1; Tanya's 2021 daily look idle; the Valance shop
+result. `bundle-load-probe` loads every one with all assets, and every material's shader
+reports `isSupported` (only the NGUI atlases resolve their shader at run time, as the
+native atlases do).
+
+Not fixed (the 2022 client has the same layout, so these are how the game shipped):
+- Thirteen bundles keep some requested objects only in the root copy, not in the tier
   folders (Valance and Yanne attacks/skills, Requina's Glory League victory, the
-  Apocalypsion field); the Android tiers lack them too.
+  Apocalypsion field).
+- `Creature_Hero_Kasel_test`, `Creature_Hero_Ybb_Animation` and one Mirianne facial clip
+  are test or unused entries missing from every client.
 - `1.GameObject.Effect_WorldBoss_Xanadus_Skill2_Loop_Fog` loads with the probe but
   returned null during a battle.
