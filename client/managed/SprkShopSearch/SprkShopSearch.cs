@@ -456,6 +456,12 @@ public static class SprkShopSearch
 			bookmarks.Remove(index);
 			bookmarkOrder.Remove(index);
 		}
+		SaveBookmarks();
+		return flag;
+	}
+
+	private static void SaveBookmarks()
+	{
 		try
 		{
 			storage.Value = Serialize(bookmarkOrder);
@@ -464,7 +470,151 @@ public static class SprkShopSearch
 		{
 			Debug.LogException(exception);
 		}
-		return flag;
+	}
+
+	public const string CodePrefix = "SPRKBM1-";
+
+	private const int MaxCodeEntries = 2000;
+
+	// Bookmark codes: CodePrefix + base64url(zigzag varint per product index, in order, then a 16-bit checksum).
+	public static string ExportCode()
+	{
+		LoadBookmarks();
+		if (bookmarkOrder.Count == 0)
+		{
+			return null;
+		}
+		return EncodeCode(bookmarkOrder);
+	}
+
+	public static string EncodeCode(IEnumerable<int> order)
+	{
+		List<byte> list = new List<byte>();
+		foreach (int item in order)
+		{
+			uint num = (uint)((item << 1) ^ (item >> 31));
+			while (num >= 128)
+			{
+				list.Add((byte)(num | 0x80));
+				num >>= 7;
+			}
+			list.Add((byte)num);
+		}
+		ushort num2 = Checksum(list, list.Count);
+		list.Add((byte)(num2 >> 8));
+		list.Add((byte)num2);
+		return CodePrefix + Convert.ToBase64String(list.ToArray()).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+	}
+
+	// Finds a bookmark code anywhere in the text (so a pasted chat line works) and validates it.
+	public static bool TryDecodeCode(string text, out List<int> order)
+	{
+		order = null;
+		if (string.IsNullOrEmpty(text))
+		{
+			return false;
+		}
+		int num = text.IndexOf(CodePrefix, StringComparison.OrdinalIgnoreCase);
+		if (num < 0)
+		{
+			return false;
+		}
+		System.Text.StringBuilder stringBuilder = new System.Text.StringBuilder();
+		for (int i = num + CodePrefix.Length; i < text.Length; i++)
+		{
+			char c = text[i];
+			if ((c < 'A' || c > 'Z') && (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '-' && c != '_')
+			{
+				break;
+			}
+			stringBuilder.Append(c);
+		}
+		string text2 = stringBuilder.ToString().Replace('-', '+').Replace('_', '/');
+		if (text2.Length % 4 == 1)
+		{
+			return false;
+		}
+		text2 = text2.PadRight(text2.Length + (4 - text2.Length % 4) % 4, '=');
+		byte[] array;
+		try
+		{
+			array = Convert.FromBase64String(text2);
+		}
+		catch (FormatException)
+		{
+			return false;
+		}
+		if (array.Length < 2)
+		{
+			return false;
+		}
+		int num2 = array.Length - 2;
+		if (Checksum(array, num2) != (ushort)((array[num2] << 8) | array[num2 + 1]))
+		{
+			return false;
+		}
+		List<int> list = new List<int>();
+		int num3 = 0;
+		while (num3 < num2)
+		{
+			uint num4 = 0u;
+			int num5 = 0;
+			while (true)
+			{
+				if (num3 >= num2 || num5 > 28)
+				{
+					return false;
+				}
+				byte b = array[num3++];
+				num4 |= (uint)((b & 0x7F) << num5);
+				if ((b & 0x80) == 0)
+				{
+					break;
+				}
+				num5 += 7;
+			}
+			int num6 = (int)(num4 >> 1) ^ -(int)(num4 & 1);
+			if (num6 != 0)
+			{
+				list.Add(num6);
+			}
+			if (list.Count > MaxCodeEntries)
+			{
+				return false;
+			}
+		}
+		order = list;
+		return true;
+	}
+
+	private static ushort Checksum(IList<byte> data, int count)
+	{
+		uint num = 2166136261u;
+		for (int i = 0; i < count; i++)
+		{
+			num = (num ^ data[i]) * 16777619;
+		}
+		return (ushort)(num ^ (num >> 16));
+	}
+
+	// Merges shared bookmarks into this account's list: existing bookmarks stay, new ones are appended in the shared order.
+	public static int Import(IEnumerable<int> order)
+	{
+		LoadBookmarks();
+		int num = 0;
+		foreach (int item in order)
+		{
+			if (item != 0 && bookmarks.Add(item))
+			{
+				bookmarkOrder.Add(item);
+				num++;
+			}
+		}
+		if (num > 0)
+		{
+			SaveBookmarks();
+		}
+		return num;
 	}
 
 	private static NewPayShopGroupData Group(string key, string name, string parent, int sort)
