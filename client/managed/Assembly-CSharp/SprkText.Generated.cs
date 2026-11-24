@@ -480,5 +480,8 @@ public static partial class SprkText
 		{ "Rearrange tickets: {0}", new string[] { "Neuverteilungstickets: {0}", "Tickets de redistribution : {0}", "再分配チケット：{0}", "재분배 티켓: {0}", "Билеты перераспределения: {0}", "重新分配券：{0}", "重新分配券：{0}" } },
 		{ "New Game Data", new string[] { "Neue Spieldaten", "Nouvelles données de jeu", "新しいゲームデータ", "새 게임 데이터", "Новые данные игры", "新的游戏数据", "新的遊戲資料" } },
 		{ "New game data is available. Return to the title screen to download it now?", new string[] { "Neue Spieldaten sind verfügbar. Jetzt zum Titelbildschirm zurückkehren, um sie herunterzuladen?", "De nouvelles données de jeu sont disponibles. Revenir à l'écran titre pour les télécharger maintenant ?", "新しいゲームデータがあります。タイトル画面に戻ってダウンロードしますか？", "새 게임 데이터가 있습니다. 타이틀 화면으로 돌아가 지금 다운로드할까요?", "Доступны новые данные игры. Вернуться на титульный экран, чтобы загрузить их сейчас?", "有新的游戏数据。是否返回标题画面立即下载？", "有新的遊戲資料。是否返回標題畫面立即下載？" } },
+		{ "Skip", new string[] { "Überspringen", "Passer", "スキップ", "건너뛰기", "Пропустить", "跳过", "跳過" } },
+		{ "Skip Animations: On", new string[] { "Animationen überspringen: An", "Passer les animations : oui", "演出スキップ：ON", "연출 건너뛰기: 켜짐", "Пропуск анимаций: вкл.", "跳过动画：开", "跳過動畫：開" } },
+		{ "Skip Animations: Off", new string[] { "Animationen überspringen: Aus", "Passer les animations : non", "演出スキップ：OFF", "연출 건너뛰기: 꺼짐", "Пропуск анимаций: выкл.", "跳过动画：关", "跳過動畫：關" } },
 	};
 }

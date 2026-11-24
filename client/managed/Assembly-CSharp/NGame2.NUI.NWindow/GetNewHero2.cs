@@ -242,6 +242,8 @@ public class GetNewHero2 : FrameControlWindow, ITouchDisabler, LateUpdaterBefore
 	private IEnumerator coOpen(Action onComplete)
 	{
 		DisableUI();
+		// SPRK: Skip button / auto-skip for the cinematic.
+		SprkHeroPresentationSkip.OnCinemaStart(this, _currentStock.OpenMode);
 		if (_currentStock.ShowNewHeroOpeningEffect)
 		{
 			NewHeroOpeningEffect.Play(null);
@@ -261,6 +263,7 @@ public class GetNewHero2 : FrameControlWindow, ITouchDisabler, LateUpdaterBefore
 		_cinema = RenderTargetCinema.CreateInstance(stock);
 		if (_cinema == null)
 		{
+			SprkHeroPresentationSkip.OnCinemaEnd(this);
 			Vespa_System_Action_Extension_Method.fire(onComplete);
 			yield break;
 		}
@@ -308,6 +311,7 @@ public class GetNewHero2 : FrameControlWindow, ITouchDisabler, LateUpdaterBefore
 
 	private void OnEndCinema()
 	{
+		SprkHeroPresentationSkip.OnCinemaEnd(this);
 		if (!(_cinema == null) && !(_cinema.MainCamera == null))
 		{
 			bool flag = IsHeroLeftSide();
@@ -376,6 +380,7 @@ public class GetNewHero2 : FrameControlWindow, ITouchDisabler, LateUpdaterBefore
 	public override void Reset()
 	{
 		base.Reset();
+		SprkHeroPresentationSkip.OnCinemaEnd(this);
 		_receiverHolder.Clear();
 		StopStarEffect();
 		VespaCoroutine.StopAll(this);
@@ -405,6 +410,11 @@ public class GetNewHero2 : FrameControlWindow, ITouchDisabler, LateUpdaterBefore
 		{
 			VespaCoroutine.Start(coClose(this));
 		}
+		else
+		{
+			// SPRK: back/Escape during the cinematic skips it.
+			SprkHeroPresentationSkip.OnBack(this);
+		}
 	}
 
 	public void OnClickClose()
@@ -429,6 +439,7 @@ public class GetNewHero2 : FrameControlWindow, ITouchDisabler, LateUpdaterBefore
 
 	private IEnumerator coSequncePlay(Action onComplete)
 	{
+		SprkHeroPresentationSkip.OnCinemaStart(this, _currentStock.OpenMode);
 		if (_cinema == null)
 		{
 			Vespa_System_Action_Extension_Method.fire(onComplete);

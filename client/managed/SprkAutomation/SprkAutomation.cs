@@ -595,6 +595,20 @@ public sealed class SprkAutomation : MonoBehaviour
 				Write(reply);
 				return;
 			}
+			if (command.action == "hero-skip-probe")
+			{
+				string heroSkipProfile = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+				if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Login" || string.IsNullOrEmpty(heroSkipProfile) || !heroSkipProfile.StartsWith("hero-skip-"))
+				{
+					throw new InvalidOperationException("Hero presentation skip fixture requires isolated Login and hero-skip profile");
+				}
+				string heroSkipResult = (string)Assembly.Load("SprkHeroPresentationSkip").GetType("SprkHeroPresentationSkipProbe").GetMethod("Run")
+					.Invoke(null, new object[1] { command.text });
+				reply = Snapshot(command.id);
+				reply.materials.Add(heroSkipResult);
+				Write(reply);
+				return;
+			}
 			if (command.action == "ticket-quantity-probe")
 			{
 				string ticketQuantityProfile = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");

@@ -136,6 +136,42 @@ public class HeroEnterDungeon : BaseWindow, ChallengeReqItemComponent.Listener
 			SetupBossInfo();
 		}
 		SetupChallengeHeroReqItemList();
+		if (_HeroInfo.EnterDungeon == 0)
+		{
+			SprkPrefillSeals();
+		}
+	}
+
+	// SPRK: unlocking a seal only marks it locally (materials are consumed by
+	// the server on Enter), so every seal whose material is in stock starts
+	// unlocked instead of needing a tap and a confirm each.
+	private void SprkPrefillSeals()
+	{
+		UIGame3DWidget sealsEffectWidget = GetSealsEffectWidget();
+		bool any = false;
+		for (int i = 0; i < _ListChallengeReqItems.Count; i++)
+		{
+			ChallengeReqItemComponent comp = _ListChallengeReqItems[i];
+			if (comp == null || comp.Used || comp.ItemData == null || Helper.GetItemCount(comp.ItemData.Index) < comp.reqItemCount)
+			{
+				continue;
+			}
+			int entryIndex = GetCurUnlockedSealCount() + 1;
+			comp.SetUsed();
+			if (sealsEffectWidget != null)
+			{
+				sealsEffectWidget.PlayEntryPhase(entryIndex, "Activate");
+			}
+			any = true;
+		}
+		if (any)
+		{
+			if (OpenLockSound != null)
+			{
+				OpenLockSound.Play();
+			}
+			UpdateEnterButton();
+		}
 	}
 
 	public override void OnClosing()
