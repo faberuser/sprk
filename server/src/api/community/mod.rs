@@ -95,14 +95,20 @@ pub(crate) async fn stamina_activity(db: &mut PgConnection, s: &AppState, a: i64
         return Ok(Value::Null);
     }
     // Lock the guild so concurrent members' battles do not lose each other's points.
-    let guild: Option<(i64, i64)> = crate::db::query_as("SELECT g.guild_id,m.role FROM guild_members m JOIN guilds g ON g.guild_id=m.guild_id WHERE m.account_id=$1 FOR UPDATE OF g")
+    // With today's coins (the member's own row: its account lock is held).
+    let guild: Option<(i64, i64, Option<String>)> = crate::db::query_as("SELECT g.guild_id,m.role,        (SELECT data FROM community_state WHERE owner=$1 AND kind='guild_point_daily' AND idx=0)         FROM guild_members m JOIN guilds g ON g.guild_id=m.guild_id WHERE m.account_id=$1 FOR UPDATE OF g")
         .bind(a).fetch_optional(&mut *db).await?;
-    let Some((g, role)) = guild else { return Ok(Value::Null); };
+    let Some((g, role, daily)) = guild else { return Ok(Value::Null); };
     let mut out = json!({});
     let master = role == 2;
     let bonus = |key: &str, value: i64| if master { value.saturating_mul(100 + constant(s, key, 20).max(0)) / 100 } else { value };
     let cap = bonus("GuildMasterAddDailyAccGuildPointPercentage", constant(s, "MaxDailyAccGuildPoint", 1000));
-    let acc = daily_guild_point(db, a).await?;
+    let daily = match crate::api::system::prefetch::get(crate::api::system::prefetch::Table::Community, a, "guild_point_daily", 0) {
+        Some(row) => row,
+        None => daily,
+    };
+    let daily = daily.map(|v| parse::<Value>(&v)).transpose()?.unwrap_or(Value::Null);
+    let acc = if daily["Day"] == day() { n(&daily, "Acc") } else { 0 };
     let coins = bonus("GuildMasterAddGuildPointPercentage", spent.saturating_mul(settings(s, "GuildPointPerStamina", 1).max(0)))
         .min((cap - acc).max(0));
     if coins > 0 {
@@ -116,7 +122,14 @@ pub(crate) async fn stamina_activity(db: &mut PgConnection, s: &AppState, a: i64
     if gain <= 0 {
         return Ok(if coins > 0 { out } else { Value::Null });
     }
-    let mut info = get(db, g, "guild", 0).await?;
+    // The guild's row after its lock, with the member's row, in one read.
+    use crate::api::system::prefetch::{self, Table};
+    let (info, member): (Option<String>, Option<String>) = match (prefetch::get(Table::Community, g, "guild", 0), prefetch::get(Table::Community, a, "guild_member", g)) {
+        (Some(info), Some(member)) => (info, member),
+        _ => crate::db::query_as("SELECT (SELECT data FROM community_state WHERE owner=$1 AND kind='guild' AND idx=0),            (SELECT data FROM community_state WHERE owner=$2 AND kind='guild_member' AND idx=$1)")
+            .bind(g).bind(a).fetch_one(&mut *db).await?,
+    };
+    let mut info = info.map(|v| parse::<Value>(&v)).transpose()?.unwrap_or(Value::Null);
     if info.is_null() {
         info = guild::state(db, s, g).await?;
     }
@@ -128,7 +141,7 @@ pub(crate) async fn stamina_activity(db: &mut PgConnection, s: &AppState, a: i64
     crate::db::query("WITH saved AS (INSERT INTO community_state(owner,kind,idx,data) VALUES($1,'guild',0,$2) ON CONFLICT(owner,kind,idx) DO UPDATE SET data=excluded.data) \
         UPDATE guilds SET exp=$3 WHERE guild_id=$1").bind(g).bind(&data).bind(total).execute(&mut *db).await?;
     crate::api::system::prefetch::put(crate::api::system::prefetch::Table::Community, g, "guild", 0, data);
-    let mut m = guild::member_state(db, s, a, g).await?;
+    let mut m = guild::member_state_of(s, member.map(|v| parse::<Value>(&v)).transpose()?.unwrap_or(Value::Null));
     let mine = n(&m, "AccActivityPoint").saturating_add(gain);
     m["AccActivityPoint"] = json!(mine);
     let data = m.to_string();

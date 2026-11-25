@@ -7,6 +7,13 @@ async fn battle(s:&AppState,u:&Value,path:&str,args:&str)->Value {
     crate::api::battle::execute_request(s,path,Bytes::from(format!("SessionKey={}&{args}",u["UserInfo"]["SessionKey"].as_str().unwrap())))
         .await.unwrap()
 }
+/// A first result as its retry replays it: gear levels and Team Level buffs
+/// that the first one synchronized are not synchronized again.
+fn replayed(first:&Value)->Value {
+    let mut v=first.clone();
+    for key in ["ReservedUpdatedEquipItemInfos","ReserveTeamLevelBuffInfos"] { v.as_object_mut().unwrap().remove(key); }
+    v
+}
 fn begin(level:i64)->String { format!("ChapterIndex=9900&DungeonIndex={level}&DungeonDifficulty=0&RaidIndex=90001&RaidLevel={level}&HeroIndices=[1]") }
 fn ending(level:i64,hp:i64,damage:i64,win:bool)->String {
     let boss=if level==101 {11301} else if level==102 {8803} else {8801};
@@ -35,7 +42,7 @@ async fn conquest_defeat_records_damage_consumes_keys_and_retries_are_idempotent
     assert_eq!(end["GuildSuppressScoreInfo"]["TotalDamage"],12345);
     assert_eq!(end["GuildSuppressPlayInfo"]["MonsterHp0"],hp-12345);
     assert_eq!(end["StaminaResult"]["NewValue"],0);
-    assert_eq!(battle(&s,&u,"campaign/end_campaign",&ending(101,hp-12345,12345,false)).await,end);
+    assert_eq!(battle(&s,&u,"campaign/end_campaign",&ending(101,hp-12345,12345,false)).await,replayed(&end));
     let board=call(&s,&u,"guild_suppress/get_guild_suppress_status_board","").await;
     assert_eq!(board["GuildSuppressGroupRankerInfos"][0]["Score"],12345);
     assert_eq!(board["GuildSuppressStatusBoardInfos"][0]["GuildSuppressMemberPlayHistorys"].as_array().unwrap().len(),1);
@@ -50,7 +57,7 @@ async fn conquest_boss_kill_mails_once_and_final_boss_uses_native_boss_damage() 
     let kill=battle(&s,&u,"campaign/end_campaign",&ending(101,0,hp,true)).await;
     assert_eq!(kill["Result"],"Success","{kill}");assert_eq!(kill["GuildSuppressPlayInfo"]["MonsterHp0"],-1);
     assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM mails WHERE title='Guild Conquest boss defeated'").fetch_one(&s.db).await.unwrap(),1);
-    assert_eq!(battle(&s,&u,"campaign/end_campaign",&ending(101,0,hp,true)).await,kill);
+    assert_eq!(battle(&s,&u,"campaign/end_campaign",&ending(101,0,hp,true)).await,replayed(&kill));
     clock(&mut s,74*3600);
     assert_ne!(battle(&s,&u,"campaign/begin_campaign",&begin(101)).await["Result"],"Success");
     let start=battle(&s,&u,"campaign/begin_campaign",&begin(103)).await;assert_eq!(start["Result"],"Success","{start}");

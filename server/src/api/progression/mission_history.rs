@@ -42,7 +42,7 @@ impl History {
     #[cfg(test)]
     pub async fn load(db: &mut PgConnection, account: i64) -> Result<Self> {
         let mut out = Self::default();
-        out.reload(db, account, super::state::part::ALL, None).await?;
+        out.reload(db, account, super::state::part::ALL, None, None).await?;
         Ok(out)
     }
 
@@ -50,7 +50,9 @@ impl History {
     /// others. Returns the parts whose data changed.
     /// `owned_equipment`: the account's equipment item indices when the caller
     /// just loaded them (HIST_EQUIP then needs no statement of its own).
-    pub(super) async fn reload(&mut self, db: &mut PgConnection, account: i64, mask: u64, owned_equipment: Option<BTreeSet<i64>>) -> Result<u64> {
+    /// `fact_kinds`: with FACTS, the play record kinds to reload (None: all).
+    pub(super) async fn reload(&mut self, db: &mut PgConnection, account: i64, mask: u64, owned_equipment: Option<BTreeSet<i64>>,
+        fact_kinds: Option<&BTreeSet<String>>) -> Result<u64> {
         use super::state::part::*;
         fn parse(raw: String) -> Result<Value> {
             serde_json::from_str(&raw)
@@ -107,11 +109,22 @@ impl History {
         };
         }
         if has(FACTS) {
-        out.facts =
-            crate::db::query_as("SELECT kind,idx,value FROM play_record_values WHERE account_id=$1")
+        out.facts = match fact_kinds {
+            None => crate::db::query_as("SELECT kind,idx,value FROM play_record_values WHERE account_id=$1")
                 .bind(account)
                 .fetch_all(&mut *db)
-                .await?;
+                .await?,
+            // A battle changes a few of 2,000+ rows: keep the other kinds.
+            Some(kinds) => {
+                let list = serde_json::to_string(kinds).map_err(|e| ServerError::Internal(e.to_string()))?;
+                let mut facts: Vec<(String, i64, i64)> = before.facts.iter().filter(|(kind, ..)| !kinds.contains(kind)).cloned().collect();
+                facts.extend(crate::db::query_as::<(String, i64, i64)>("SELECT kind,idx,value FROM play_record_values WHERE account_id=$1 AND kind = ANY(ARRAY(SELECT jsonb_array_elements_text($2::jsonb)))")
+                    .bind(account).bind(list).fetch_all(&mut *db).await?);
+                facts
+            }
+        };
+        // In key order either way, so a partial reload compares equal.
+        out.facts.sort_unstable();
         }
         if has(GUILD_ATT) {
         out.guild_attendance = crate::db::query_scalar("SELECT COUNT(DISTINCT period) FROM community_claims WHERE account=$1 AND kind='guild_attend_total'")

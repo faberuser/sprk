@@ -118,6 +118,55 @@ fn update_snapshots(value: &mut Value, updates: &[Value]) {
     }
 }
 
+/// Add synchronized gear levels and unlocked Team Level buffs to a response.
+fn attach(value: &mut Value, updates: Vec<Value>, team_buffs: Vec<Value>) {
+    if !value.is_object() || (updates.is_empty() && team_buffs.is_empty()) { return; }
+    // Full equipment snapshots (e.g. applying presets) must agree with
+    // reserved updates regardless of the client's callback ordering.
+    update_snapshots(value, &updates);
+    let reserved = value
+        .as_object_mut()
+        .unwrap()
+        .entry("ReservedUpdatedEquipItemInfos")
+        .or_insert_with(|| json!([]));
+    if !reserved.is_array() {
+        *reserved = json!([]);
+    }
+    let array = reserved.as_array_mut().unwrap();
+    array.retain(|old| !updates.iter().any(|u| u["SlotIndex"] == old["SlotIndex"]));
+    array.extend(updates);
+    if !team_buffs.is_empty() {
+        let reserved = value.as_object_mut().unwrap().entry("ReserveTeamLevelBuffInfos")
+            .or_insert_with(|| json!([]));
+        if !reserved.is_array() { *reserved = json!([]); }
+        let array = reserved.as_array_mut().unwrap();
+        // Keep an endpoint's newer enhancement value if supplied.
+        for info in team_buffs {
+            if !array.iter().any(|old| old["OpenBuffLevel"] == info["OpenBuffLevel"]) { array.push(info); }
+        }
+    }
+}
+
+/// What `notify` does after the response, inside the endpoint's own
+/// transaction (the caller holds the account lock): saves `notify` a second
+/// write transaction after battles, which nearly always change hero levels or
+/// drop gear. Returns the equipment revision to `remember` after commit.
+pub(crate) async fn settle(db: &mut PgConnection, state: &AppState, account: i64, value: &mut Value) -> Result<i64> {
+    let updates = synchronize(db, state, account).await?;
+    let team_buffs = crate::api::extensions::buffs::unlock_team_buffs(db, state, account).await?;
+    attach(value, updates, team_buffs);
+    crate::api::system::revisions::get(db, "equipment", account).await
+}
+
+/// After `settle`'s transaction committed: `notify` then only checks that
+/// the equipment revision is still `revision`.
+pub(crate) fn remember(state: &AppState, session_key: &str, revision: i64) {
+    if let Some(session) = state.get_session(session_key) {
+        let tables = std::sync::Arc::as_ptr(&state.tables) as usize;
+        *session.equipment_revision.lock().unwrap_or_else(|e| e.into_inner()) = Some((revision, tables));
+    }
+}
+
 /// Cover equipment, presets, potions, battle EXP and recruitment items through
 /// one native response path, so new hero-level sources cannot leave stale gear.
 /// Team EXP from any successful mutation also unlocks its newly eligible buffs.
@@ -205,30 +254,7 @@ pub(crate) async fn notify(
             let Ok(mut value) = serde_json::from_slice::<Value>(&bytes) else {
                 return Response::from_parts(parts, Body::from(bytes));
             };
-            // Full equipment snapshots (e.g. applying presets) must agree with
-            // reserved updates regardless of the client's callback ordering.
-            update_snapshots(&mut value, &updates);
-            let reserved = value
-                .as_object_mut()
-                .unwrap()
-                .entry("ReservedUpdatedEquipItemInfos")
-                .or_insert_with(|| json!([]));
-            if !reserved.is_array() {
-                *reserved = json!([]);
-            }
-            let array = reserved.as_array_mut().unwrap();
-            array.retain(|old| !updates.iter().any(|u| u["SlotIndex"] == old["SlotIndex"]));
-            array.extend(updates);
-            if !team_buffs.is_empty() {
-                let reserved = value.as_object_mut().unwrap().entry("ReserveTeamLevelBuffInfos")
-                    .or_insert_with(|| json!([]));
-                if !reserved.is_array() { *reserved = json!([]); }
-                let array = reserved.as_array_mut().unwrap();
-                // Keep an endpoint's newer enhancement value if supplied.
-                for info in team_buffs {
-                    if !array.iter().any(|old| old["OpenBuffLevel"] == info["OpenBuffLevel"]) { array.push(info); }
-                }
-            }
+            attach(&mut value, updates, team_buffs);
             parts.headers.remove(axum::http::header::CONTENT_LENGTH);
             Response::from_parts(parts, Body::from(serde_json::to_vec(&value).unwrap()))
         }

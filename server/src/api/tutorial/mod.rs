@@ -166,24 +166,31 @@ pub(crate) async fn team_exp(
     if amount == 0 {
         return Ok(());
     }
-    let row = crate::db::query("SELECT team_level, team_exp FROM user_info WHERE account_id = $1")
-        .bind(account_id)
-        .fetch_one(&mut *db)
-        .await?;
-    let old_level: i32 = row.get("team_level");
     let levels = &state.tables.tutorials.support.team_levels;
     let cap = levels
         .iter()
         .map(|row| row.level)
         .max()
         .ok_or_else(|| ServerError::Internal("Missing team levels".into()))?;
-    let (level, exp) = add_exp(levels, old_level, row.get("team_exp"), amount, cap);
-    crate::db::query("UPDATE user_info SET team_level = $1, team_exp = $2 WHERE account_id = $3")
-        .bind(level)
-        .bind(exp)
+    // Add the EXP in the statement that reads the level (a capped level keeps
+    // 0, as `add_exp` stores it): only a level-up needs a second write.
+    let row = crate::db::query("UPDATE user_info SET team_exp = CASE WHEN team_level >= $3 THEN 0 ELSE team_exp + $2 END WHERE account_id = $1 RETURNING team_level, team_exp")
         .bind(account_id)
-        .execute(&mut *db)
+        .bind(amount)
+        .bind(cap)
+        .fetch_one(&mut *db)
         .await?;
+    let old_level: i32 = row.get("team_level");
+    let stored: i64 = row.get("team_exp");
+    let (level, exp) = if old_level >= cap { (old_level, 0) } else { add_exp(levels, old_level, stored - amount, amount, cap) };
+    if (level, exp) != (old_level, stored) {
+        crate::db::query("UPDATE user_info SET team_level = $1, team_exp = $2 WHERE account_id = $3")
+            .bind(level)
+            .bind(exp)
+            .bind(account_id)
+            .execute(&mut *db)
+            .await?;
+    }
     rewards.team_exp.push(
         json!({"AddValue": amount, "NewValue": exp, "OldLevel": old_level, "NewLevel": level}),
     );

@@ -16,8 +16,8 @@ slow, failing or locking game from the database and `sprk-game.log`.
   response-cache revision triggers, `0010` the reforge/enchant guarantees and
   `0011` the revision parts (which part of a player's progression changed)
   `0012` the row estimate of `sprk_json_ints`, `0013` the monster archive,
-  `0014` the Legend costume look repair and `0015` the removal of stored
-  dispatch settlement replies.
+  `0014` the Legend costume look repair, `0015` the removal of stored
+  dispatch settlement replies and `0016` the equipment progression parts.
 - **Roles.** `sprk_owner` owns the schema, runs migrations, backups and
   diagnostics. `sprk_app` is the game's role: data access only, not a
   superuser.
@@ -426,6 +426,9 @@ Either flag can be used alone. The report prints:
   re-levels hero-bound and worn shared gear in one `UPDATE … RETURNING`
   (the `MaxLevelByHero` items are bound as JSON), instead of reading every
   hero and piece (1,700+ rows for active players) into the server.
+  `end_campaign` runs it in its own transaction (`hero_level::settle`) and
+  records the revision for the session, so `notify` only checks that revision
+  instead of opening a second write transaction.
 - **Battle-type counts.** About 200 missions count `ClearDungeon` by battle
   type, and every battle changes that metric, so they are re-evaluated after
   each one. `View::typed_metric` sums a kind by (battle type, day) once per
@@ -488,6 +491,14 @@ Either flag can be used alone. The report prints:
     - Hero fields that battles change and no mission reads
       (`UNREAD_HERO_FIELDS`, flask progress) stay out of the view, so they never
       count as a hero change.
+    - Equipment (`0016`): only a piece's owner, slot, item, star and inventory
+      type invalidate the view, so level, EXP, lock and option changes do not.
+      An insert records `equip_items:+`, and `View::refresh` then loads only
+      the slots above the highest it holds (slots come from a non-cycling
+      sequence and an account's writers hold its lock), not every piece.
+      Updates and deletes still reload all of them.
+    - Play records reload only the changed kinds (`play_record_values:kind`),
+      not the 2,000+ rows of an active player.
 - **Per-type state reads.** The lobby's key, ticket, tower and dungeon-list
   snapshots read a `battle_state`/`extension_state`/`community_state` row per
   type. `system::prefetch` loads those kinds in one statement per table for one
@@ -544,7 +555,11 @@ Either flag can be used alone. The report prints:
   bag once, then subtracts its own pieces (`Rewards::bag_free`, recounted when
   other equipment joined the batch). Booster timers, the guild reward bonus,
   Chicken stamina and battle currencies each take one statement in the common
-  case; a ranked deck record is written only when it would rank.
+  case; a ranked deck record is written only when it would rank. A stamina
+  charge computes its new balance instead of reading it again, Team EXP is
+  added in the statement that reads the level (a level-up writes once more),
+  and a guild member's stamina rewards read today's coins with the guild lock
+  and the guild and member rows together.
   `crate::db` binds `bool` as `bigint`: compare it (`$3 <> 0`) in SQL.
 - **Mission sections in replies.** With `X-SPRK-Sections: 1` the client
   acknowledges each section by token (`X-SPRK-Achievements`, ...); an

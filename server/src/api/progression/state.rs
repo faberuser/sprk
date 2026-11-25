@@ -170,9 +170,20 @@ pub(super) mod part {
             }
             return Some(out);
         }
+        // Only the play records of a changed kind are reloaded.
+        if let Some(kind) = name.strip_prefix("play_record_values:") {
+            out.mask = FACTS;
+            out.fact_kinds = Some([kind.to_owned()].into());
+            return Some(out);
+        }
+        // Equipment inserted, none updated or deleted (0016): only the new rows.
+        if name == "equip_items:+" {
+            out.equipment_added = true;
+            return Some(out);
+        }
         // These parts read every kind of their table.
         let name = match name.split_once(':') {
-            Some((table @ ("arena_runs" | "guild_battle_scores" | "play_record_values"), _)) => table,
+            Some((table @ ("arena_runs" | "guild_battle_scores"), _)) => table,
             _ => name,
         };
         out.mask = match name {
@@ -222,6 +233,10 @@ pub(super) mod part {
         pub mask: u64,
         pub metrics: std::collections::BTreeMap<String, Option<std::collections::BTreeSet<String>>>,
         pub claims: bool,
+        /// With FACTS: reload only these play record kinds (None: every kind).
+        pub fact_kinds: Option<std::collections::BTreeSet<String>>,
+        /// Equipment rows were inserted; without EQUIPMENT, none other changed.
+        pub equipment_added: bool,
     }
     impl Invalidates {
         /// Reload `day` of metric `kind` (every day with None).
@@ -234,6 +249,14 @@ pub(super) mod part {
         }
         /// Everything `other` invalidates as well.
         pub(in super::super) fn merge(&mut self, other: Invalidates) {
+            if other.mask & FACTS != 0 {
+                self.fact_kinds = match (self.mask & FACTS != 0, self.fact_kinds.take(), other.fact_kinds) {
+                    (false, _, kinds) => kinds,
+                    (true, Some(mut mine), Some(theirs)) => { mine.extend(theirs); Some(mine) }
+                    _ => None,
+                };
+            }
+            self.equipment_added |= other.equipment_added;
             self.mask |= other.mask;
             self.claims |= other.claims;
             for (kind, days) in other.metrics {
@@ -401,10 +424,11 @@ impl View {
     pub(super) async fn refresh(db: &mut PgConnection, account: i64, previous: Option<(View, &part::Invalidates)>)
         -> Result<(Self, Deps)> {
         use part::*;
-        let (mut d, mask, kinds, claims, lookups) = match previous {
+        let (mut d, mask, kinds, claims, fact_kinds, equipment_added, lookups) = match previous {
             Some((view, changes)) => (view.d, changes.mask, Some(&changes.metrics), changes.claims,
+                changes.fact_kinds.as_ref(), changes.equipment_added,
                 (view.battle_lookup, view.equipment_lookup, view.mission_lookup)),
-            None => (Inputs::default(), ALL, None, true, Default::default()),
+            None => (Inputs::default(), ALL, None, true, None, false, Default::default()),
         };
         let mut changed = Deps::default();
         // A reloaded part is a change only when its data differs.
@@ -438,12 +462,27 @@ impl View {
                 d.heroes = heroes;
             }
         }
+        let equipment_row = |(slot, item, star, inventory): (i64, i64, i64, i64)|
+            json!({"SlotIndex":slot,"ItemIndex":item,"Star":star,"InventoryType":inventory});
+        // Pieces inserted since the view, when no other piece changed (see
+        // migrations/0016): their slots are above every slot it holds.
+        let mut added = Vec::new();
         if has(EQUIPMENT) {
             // Plain columns: building JSON per row in the database and parsing
-            // it here cost more than the rows (thousands per account).
-            update!(equipment, EQUIPMENT, crate::db::query_as::<(i64, i64, i64, i64)>("SELECT slot_index::bigint,item_index::bigint,star::bigint,inventory_type::bigint FROM equip_items WHERE account_id=$1")
-                .bind(account).fetch_all(&mut *db).await?.into_iter()
-                .map(|(slot, item, star, inventory)| json!({"SlotIndex":slot,"ItemIndex":item,"Star":star,"InventoryType":inventory})).collect::<Vec<_>>());
+            // it here cost more than the rows (thousands per account). In slot
+            // order, as inserted pieces are appended.
+            let mut rows = crate::db::query_as::<(i64, i64, i64, i64)>("SELECT slot_index::bigint,item_index::bigint,star::bigint,inventory_type::bigint FROM equip_items WHERE account_id=$1")
+                .bind(account).fetch_all(&mut *db).await?;
+            rows.sort_unstable();
+            update!(equipment, EQUIPMENT, rows.into_iter().map(equipment_row).collect::<Vec<_>>());
+        } else if equipment_added {
+            let last = d.equipment.last().map(|e| n(e, "SlotIndex")).unwrap_or(0);
+            added = crate::db::query_as::<(i64, i64, i64, i64)>("SELECT slot_index::bigint,item_index::bigint,star::bigint,inventory_type::bigint FROM equip_items WHERE account_id=$1 AND slot_index>$2 ORDER BY slot_index")
+                .bind(account).bind(last).fetch_all(&mut *db).await?;
+            if !added.is_empty() {
+                d.equipment.extend(added.iter().copied().map(equipment_row));
+                changed.mask |= EQUIPMENT;
+            }
         }
         if has(NPC) { update!(npc_friendly, NPC, crate::api::extensions::list(db, account, "npc").await?); }
         if has(GUILD_DAMAGE) {
@@ -554,7 +593,11 @@ impl View {
         // Equipment history is the owned equipment's item indices: reuse the
         // equipment rows when they were reloaded too.
         let owned = (has(EQUIPMENT) && has(HIST_EQUIP)).then(|| d.equipment.iter().map(|e| n(e, "ItemIndex")).collect());
-        changed.mask |= d.history.reload(db, account, mask, owned).await?;
+        changed.mask |= d.history.reload(db, account, mask, owned, fact_kinds).await?;
+        // New pieces only add item indices to the equipment history.
+        let before = d.history.equipment.len();
+        d.history.equipment.extend(added.iter().map(|row| row.1));
+        if d.history.equipment.len() != before { changed.mask |= HIST_EQUIP; }
         let (battle_lookup, equipment_lookup, mission_lookup) = lookups;
         Ok((Self {
             d,

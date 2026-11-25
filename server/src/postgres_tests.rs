@@ -188,9 +188,15 @@ async fn triggers_derive_the_recorded_rows() {
     let before = revision("progression", 1).await;
     sqlx::query("UPDATE arena_runs SET last_poll=9 WHERE account=1").execute(&db.pool).await.unwrap();
     sqlx::query("UPDATE user_info SET sword=1 WHERE account_id=1").execute(&db.pool).await.unwrap();
+    sqlx::query("UPDATE equip_items SET level=level+1,exp=7,locked=1 WHERE account_id=1").execute(&db.pool).await.unwrap();
     assert_eq!(revision("progression", 1).await, before, "unwatched columns must not bump");
     sqlx::query("UPDATE user_info SET team_level=3 WHERE account_id=1").execute(&db.pool).await.unwrap();
     assert_eq!(revision("progression", 1).await, before + 1);
+    // A new piece records its own part: the snapshot loads only new slots.
+    sqlx::query("INSERT INTO equip_items(account_id,item_index,star) VALUES(1,1003,1)").execute(&db.pool).await.unwrap();
+    let inserted: i64 = sqlx::query_scalar("SELECT revision FROM response_revision_parts WHERE scope='progression' AND account=1 AND part='equip_items:+'")
+        .fetch_one(&db.pool).await.unwrap();
+    assert_eq!(inserted, revision("progression", 1).await);
     let equipment = revision("equipment", 2).await;
     sqlx::query("UPDATE equip_items SET account_id=1 WHERE account_id=2").execute(&db.pool).await.unwrap();
     assert_eq!(revision("equipment", 2).await, equipment + 1, "moving a row bumps its old owner");

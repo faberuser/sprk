@@ -245,6 +245,14 @@ mod tests {
             ("unread extension kind", "INSERT INTO extension_state(account_id,kind,idx,data) VALUES($1,'stamina_recharges',1,'{\"Count\":1}') ON CONFLICT(account_id,kind,idx) DO UPDATE SET data='{\"Count\":2}'"),
             ("pet", "INSERT INTO extension_state(account_id,kind,idx,data) VALUES($1,'pet_misc',6,'{\"MiscValue\":2}') ON CONFLICT(account_id,kind,idx) DO UPDATE SET data='{\"MiscValue\":3}'"),
             ("play record", "INSERT INTO play_record_values(account_id,kind,idx,value) VALUES($1,'arena_wins',0,4) ON CONFLICT(account_id,kind,idx) DO UPDATE SET value=play_record_values.value+1"),
+            // Only the changed kind is reloaded; the others are kept.
+            ("other play record", "INSERT INTO play_record_values(account_id,kind,idx,value) VALUES($1,'arena_losses',0,1) ON CONFLICT(account_id,kind,idx) DO UPDATE SET value=play_record_values.value+1"),
+            // Inserted pieces load only the new slots (0016); others reload all.
+            ("new equipment", "INSERT INTO equip_items(account_id,item_index,star) VALUES($1,1001,3),($1,1001,1)"),
+            ("more equipment", "INSERT INTO equip_items(account_id,item_index,star) VALUES($1,1002,2)"),
+            ("equipment star", "UPDATE equip_items SET star=star+1 WHERE account_id=$1 AND item_index=1001"),
+            ("unread equipment level", "UPDATE equip_items SET level=level+1,exp=exp+5,locked=1 WHERE account_id=$1"),
+            ("deleted equipment", "DELETE FROM equip_items WHERE account_id=$1 AND item_index=1002"),
             ("eclipse", "INSERT INTO battle_state(account,kind,idx,data) VALUES($1,'eclipse_record',0,'{\"BestWave\":7}') ON CONFLICT(account,kind,idx) DO UPDATE SET data='{\"BestWave\":8}'"),
             ("login", "UPDATE progression_login SET days=days+1 WHERE account_id=$1"),
             ("entitlement", "INSERT INTO progression_entitlements(account_id,product_index,created_time) VALUES($1,1,sprk_datetime('now')) ON CONFLICT DO NOTHING"),
@@ -298,6 +306,26 @@ mod tests {
         let mut both = state::part::of("progression_metrics:ClearDungeon@2020-01-02").unwrap();
         both.merge(state::part::of("progression_metrics:ClearDungeon").unwrap());
         assert_eq!(both.metrics["ClearDungeon"], None, "a whole-kind change covers every day");
+    }
+    /// Play record parts reload only their kinds; an equipment insert only the
+    /// new slots, unless an update or delete also reloads every piece.
+    #[test]
+    fn play_record_and_new_equipment_parts_reload_only_what_changed() {
+        use state::part::{of, EQUIPMENT, FACTS};
+        let mut facts = of("play_record_values:arena_wins").unwrap();
+        assert_eq!((facts.mask, facts.fact_kinds.clone()), (FACTS, Some(["arena_wins".to_owned()].into())));
+        facts.merge(of("play_record_values:arena_losses").unwrap());
+        facts.merge(of("items").unwrap());
+        assert_eq!(facts.fact_kinds, Some(["arena_losses".to_owned(), "arena_wins".to_owned()].into()));
+        let mut whole = of("items").unwrap();
+        whole.merge(of("play_record_values").unwrap());
+        whole.merge(of("play_record_values:arena_wins").unwrap());
+        assert_eq!((whole.mask & FACTS, whole.fact_kinds), (FACTS, None), "a whole-table change reloads every kind");
+        let mut added = of("equip_items:+").unwrap();
+        assert!(added.equipment_added);
+        assert_eq!(added.mask & EQUIPMENT, 0);
+        added.merge(of("equip_items").unwrap());
+        assert!(added.mask & EQUIPMENT != 0, "an update or delete reloads every piece");
     }
     #[tokio::test]
     async fn cached_state_invalidates_for_commits_rollbacks_other_accounts_and_resets() {

@@ -167,8 +167,19 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
         },
     };
     match result {
-        Ok(v) => {
+        Ok(mut v) => {
+            // Battles nearly always change hero levels or drop gear: sync
+            // hero-level gear here rather than in a second transaction.
+            let synced = if action == "end_campaign" && v["Result"].as_str().is_none_or(|r| r == "Success")
+                && v["BaseResult"].as_str().is_none_or(|r| r == "Success") {
+                Some(item_level::settle(&mut tx, s, a, &mut v).await?)
+            } else {
+                None
+            };
             tx.commit().await?;
+            if let (Some(revision), Some(key)) = (synced, req.0.get("SessionKey").or(req.0.get("SessionId"))) {
+                item_level::remember(s, key, revision);
+            }
             if action.contains("room") && matches!(path.split('/').next(),Some("raid"|"party_dungeon")) {
                 if let Err(error)=party_messages::after_room_request(s,a,&req,action).await {
                     tracing::warn!(%error,"Room notification failed after commit");
@@ -197,6 +208,7 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
         }
     }
 }
+use crate::api::inventory::hero_level as item_level;
 fn rejected(s:&AppState,path:&str,a:i64,code:String)->Value {
     // Room keep-alives ignore their reply. Local rooms (the Dragon Raid
     // tutorial) have no server room, so their 30 s pings are expected misses.
