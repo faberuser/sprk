@@ -57,6 +57,7 @@ public class WorldBossRankerComponent : UIScrollItemBehaviour, NVespa.NPrefab2.I
 
 	private void SetHeroImage()
 	{
+		SprkProfileImage.Bind(HeroTex, rankerInfo.AccountId);
 		string iconPath = UIAvatarHelper.GetIconPath(rankerInfo.AvatarHeroIndex);
 		if (!String_Extension_Method.IsNullOrEmpty(iconPath))
 		{

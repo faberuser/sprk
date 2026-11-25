@@ -60,6 +60,7 @@ public class ChallengeRaidRankerComponent : UIScrollItemBehaviour, NVespa.NPrefa
 
 	private void SetHeroImage()
 	{
+		SprkProfileImage.Bind(HeroTex, rankerInfo.AccountId);
 		string iconPath = UIAvatarHelper.GetIconPath(rankerInfo.AvatarHeroIndex);
 		if (!String_Extension_Method.IsNullOrEmpty(iconPath))
 		{

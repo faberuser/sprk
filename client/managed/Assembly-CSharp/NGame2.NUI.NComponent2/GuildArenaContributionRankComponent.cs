@@ -97,6 +97,7 @@ public class GuildArenaContributionRankComponent : UIScrollItemBehaviour, NVespa
 
 	private void InitHeroImage()
 	{
+		SprkProfileImage.Bind(Texure_Hero, (_memberScoreInfo != null) ? _memberScoreInfo.AccountId : 0);
 		if (_memberScoreInfo != null)
 		{
 			string iconPath = UIAvatarHelper.GetIconPath(_memberScoreInfo.AvatarHeroIndex);

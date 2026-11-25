@@ -581,6 +581,20 @@ public sealed class SprkAutomation : MonoBehaviour
 				Write(reply);
 				return;
 			}
+			if (command.action == "profile-image-probe")
+			{
+				string profile = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+				if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Login" || string.IsNullOrEmpty(profile) || !profile.StartsWith("profile-image-"))
+				{
+					throw new InvalidOperationException("Profile image fixture requires isolated Login and profile-image profile");
+				}
+				string probeResult = (string)Assembly.Load("SprkProfileImage").GetType("SprkProfileImageProbe").GetMethod("Run")
+					.Invoke(null, new object[1] { command.text });
+				reply = Snapshot(command.id);
+				reply.materials.Add(probeResult);
+				Write(reply);
+				return;
+			}
 			if (command.action == "ticket-search-probe")
 			{
 				string environmentVariable9 = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");

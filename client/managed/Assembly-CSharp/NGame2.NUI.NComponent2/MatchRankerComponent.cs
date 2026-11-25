@@ -92,6 +92,7 @@ public class MatchRankerComponent : LinkFactoryComponent, NVespa.NPrefab2.InitOn
 		VisualTierRank visualTierRank = VisualTierRank.CreateFromServer(rankerInfo.Rank);
 		SetRank(visualTierRank, rankerInfo.MatchScore);
 		SetPortraitTexture(rankerInfo.UserInfo.AvatarHeroIndex);
+		SprkProfileImage.Bind(BundleTexPortrait, rankerInfo.UserInfo.AccountId);
 		SetScore(isGlobal, rankerInfo.MatchScore, rankerInfo.CountryCode);
 		if (rankerInfo.HeroInfos != null)
 		{

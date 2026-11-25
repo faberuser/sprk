@@ -1426,6 +1426,7 @@ public sealed class LobbyTopmostMenu : BaseWindow, IUserObserver<UserManager.Use
 	private void SetAvatarHero(int heroIndex)
 	{
 		string profileIconPath = SprkLobbyAvatar.GetProfileIconPath(heroIndex);
+		SprkProfileImage.Watch(ProfileUi.BundleTexMyHero);
 		UIHelper.SetBundleTexture(ProfileUi.BundleTexMyHero, profileIconPath);
 		SprkLobbyAvatar.WatchProfileIcon(this);
 	}

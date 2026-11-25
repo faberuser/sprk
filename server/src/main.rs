@@ -220,6 +220,11 @@ pub(crate) fn game_routes(state: AppState) -> Router {
         .route("/query/nick", post(api::account::nickname::query))
         .route("/user/change_nick", post(api::account::nickname::change))
         .route("/user/query_nick", post(api::account::nickname::query))
+        // SPRK custom profile pictures (SprkProfileImage, sent directly, not via WebServiceRequester).
+        .route("/sprk/profile_image/get", post(api::account::profile_image::get))
+        .route("/sprk/profile_image/list", post(api::account::profile_image::list))
+        .route("/sprk/profile_image/set", post(api::account::profile_image::set))
+        .route("/sprk/profile_image/remove", post(api::account::profile_image::remove))
         .route("/user/ping", post(api::account::client::ping))
         .route("/user/set_push_notification", post(api::account::client::set_push_notification))
         .route("/push_reward/get_push_reward", post(api::account::client::get_push_reward))
