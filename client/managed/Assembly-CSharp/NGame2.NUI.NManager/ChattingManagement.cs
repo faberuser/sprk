@@ -220,7 +220,7 @@ public class ChattingManagement : BaseManagement<ChattingManagement>, ChattingWi
 		ChatType chatType = chatInfo.ChatType;
 		if (!IsChatWindowOpened(chatType))
 		{
-			if (showPreview)
+			if (showPreview && SystemOptionData.Chat_ShouldShowPopup(chatType, chatInfo.IsSystem))
 			{
 				if (emoticon == EmotiType.None)
 				{

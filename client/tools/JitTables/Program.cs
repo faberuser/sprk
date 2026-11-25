@@ -524,17 +524,68 @@ sealed class JitTable
     // Key order of every dictionary part as stored in the input file.
     List<List<object>> originalKeyOrder;
 
+    // Element order of every list-valued dictionary entry in the input file, by
+    // part and key (for example GameOptionTable's rows per settings tab).
+    List<Dictionary<object, List<string>>> originalValueOrder;
+
     List<List<object>> OriginalKeyOrder()
     {
         if (originalKeyOrder == null)
         {
             originalKeyOrder = new List<List<object>>();
+            originalValueOrder = new List<Dictionary<object, List<string>>>();
             foreach (object part in Parts(LoadMaterialized()))
             {
-                originalKeyOrder.Add(DictionaryOf(part)?.Keys.Cast<object>().ToList());
+                IDictionary dic = DictionaryOf(part);
+                originalKeyOrder.Add(dic?.Keys.Cast<object>().ToList());
+                Dictionary<object, List<string>> values = null;
+                if (dic != null)
+                {
+                    values = new Dictionary<object, List<string>>();
+                    foreach (DictionaryEntry e in dic)
+                    {
+                        if (e.Value is IList list && !(e.Value is Array))
+                        {
+                            values[e.Key] = list.Cast<object>().Select(ElementId).ToList();
+                        }
+                    }
+                }
+                originalValueOrder.Add(values);
             }
         }
         return originalKeyOrder;
+    }
+
+    static string ElementId(object element) =>
+        element == null ? "null" : KeyOfRow(element) is string key ? "row:" + key : "value:" + Convert.ToString(element, CultureInfo.InvariantCulture);
+
+    // A container rebuilds list values (such as rows per tab) in row order, but the
+    // input may store them in another order. Put known elements back in the input's
+    // order; an element a patch adds follows the element before it in the rebuilt list.
+    static void RestoreListOrder(IList list, List<string> original)
+    {
+        var rank = new Dictionary<string, int>();
+        for (int i = 0; i < original.Count; i++)
+        {
+            rank.TryAdd(original[i], i);
+        }
+        var items = list.Cast<object>().ToList();
+        var keyed = new List<(double Rank, int Position, object Item)>();
+        double previous = -1;
+        for (int i = 0; i < items.Count; i++)
+        {
+            double r = previous + 0.5;
+            if (rank.TryGetValue(ElementId(items[i]), out int known))
+            {
+                r = previous = known;
+            }
+            keyed.Add((r, i, items[i]));
+        }
+        list.Clear();
+        foreach (var entry in keyed.OrderBy(k => k.Rank).ThenBy(k => k.Position))
+        {
+            list.Add(entry.Item);
+        }
     }
 
     static IDictionary DictionaryOf(object part) =>
@@ -580,6 +631,17 @@ sealed class JitTable
                 if (byKey.Remove(e.Key, out object value))
                 {
                     dic.Add(e.Key, value);
+                }
+            }
+            Dictionary<object, List<string>> values = originalValueOrder[i];
+            if (values != null)
+            {
+                foreach (DictionaryEntry e in entries)
+                {
+                    if (e.Value is IList list && !(e.Value is Array) && values.TryGetValue(e.Key, out List<string> original))
+                    {
+                        RestoreListOrder(list, original);
+                    }
                 }
             }
         }

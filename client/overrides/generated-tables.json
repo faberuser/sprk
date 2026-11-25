@@ -16,6 +16,7 @@
     "TableJit/CreatureTable.jit",
     "TableJit/EmoticonTable.jit",
     "TableJit/EquipItemTable.jit",
+    "TableJit/GameOptionTable.jit",
     "TableJit/HairCostumeTable.jit",
     "TableJit/HeroAnimationViewTable.jit",
     "TableJit/HeroFriendlyActionTable.jit",

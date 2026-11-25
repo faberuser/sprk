@@ -214,4 +214,7 @@ Known limits:
 
 If `verify` fails for a new table, compare with `rebuild` and `diffrows`. So
 far the causes were patched getters (the tool reads backing fields) and
-dictionary insertion order (the tool restores the input's key order).
+dictionary insertion order (the tool restores the input's key order), and the
+order of list values inside dictionaries, such as `GameOptionTable`'s rows per
+settings tab (the tool restores the input's element order; a row a patch adds
+follows the row before it in the patched table).

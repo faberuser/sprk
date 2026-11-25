@@ -66,6 +66,10 @@
       "sha256": "e32decfca6955e47b1880562d5780e28a9f821191a3493da1c238f40cf2e2dfd",
       "originalSha256": "a0664178e07ee5a1d0ec3e2bfdfb1d0bce7aba18b4861a06d50537716bdfe362"
     },
+    "TableJit/GameOptionTable.jit": {
+      "sha256": "7feed9e2c3b0f0febcbc74916b855d75b469755679b3327e7e4a3b7d048baa88",
+      "originalSha256": "378021c15302e08f5027631ce301aaf57452bc5ba6cb9e2a9552c8623edca872"
+    },
     "TableJit/GodkingTrialGroupTable.jit": {
       "sha256": "c5b32e18082bd8705100ff671d12ec4b4e07a564817a3967748fc0025a84f29a",
       "originalSha256": "c5b32e18082bd8705100ff671d12ec4b4e07a564817a3967748fc0025a84f29a"
