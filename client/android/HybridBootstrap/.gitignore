@@ -13,6 +13,8 @@
 # Game binaries and compiled SPRK assemblies are staged by sync_inputs.py, never committed.
 /Assets/Plugins/GameRuntime/
 /Assets/Plugins/GameRuntime.meta
+/Assets/Plugins/GameCode/
+/Assets/Plugins/GameCode.meta
 /Assets/StreamingAssets/
 /Assets/StreamingAssets.meta
 /HotUpdate/

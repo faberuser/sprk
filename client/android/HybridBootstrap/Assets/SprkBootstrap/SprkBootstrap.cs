@@ -42,9 +42,16 @@ public class SprkBootstrap : MonoBehaviour
 
     static string ProbeFile => Path.Combine(Application.persistentDataPath, "sprk-probe.txt");
 
+    /// <summary>The game's icon for the bootstrap screens (set in the boot scene by SprkAndroidBuild).</summary>
+    public Texture2D logo;
+
+    /// <summary>Shown with a spinner between the bootstrap's own screens and the game's first scene.</summary>
+    string loading = "Starting…";
+
     void Awake()
     {
         try { File.Delete(ProbeFile); } catch { }
+        SprkUi.Logo = logo;
     }
 
     string Override(string rel)
@@ -125,6 +132,20 @@ public class SprkBootstrap : MonoBehaviour
         Log($"server {hostName}: {host}");
         var aotNames = index.Where(l => l.StartsWith("aot:")).Select(l => l.Substring(4)).ToList();
         var hotNames = index.Where(l => l.StartsWith("hot:")).Select(l => l.Substring(4)).ToList();
+        // "mode:aot": IL2CPP compiled the game into this APK; nothing is interpreted.
+        bool compiledGame = index.Contains("mode:aot");
+        Dictionary<string, string> apkCode = null;
+        if (compiledGame)
+        {
+            byte[] codeBytes = null;
+            yield return Read("game-code.txt", b => codeBytes = b);
+            apkCode = SprkUpdate.ParseGameCode(codeBytes == null ? "" : Encoding.UTF8.GetString(codeBytes));
+            Log($"game compiled into the APK: {apkCode.Count} assemblies");
+            // Assemblies left by an interpreted APK or `dev.py hot` would never load again.
+            string staleHot = Path.Combine(Application.persistentDataPath, "sprk", "hot");
+            try { if (Directory.Exists(staleHot)) { Directory.Delete(staleHot, true); Log("removed hot assemblies of an interpreted APK"); } }
+            catch (Exception e) { Log("hot assemblies not removed: " + e.Message); }
+        }
 
         // Update code and platform-neutral data from the chosen server's signed release,
         // as SprkLauncher does on Windows. Unattended dev runs ("server:local") skip it:
@@ -133,7 +154,7 @@ public class SprkBootstrap : MonoBehaviour
         {
             byte[] keyBytes = null;
             yield return Read("update-public.pem", b => keyBytes = b);
-            try { updater = new SprkUpdater(updateUrl, keyBytes == null ? null : Encoding.UTF8.GetString(keyBytes), hotNames, (m, f) => Log(m, f)); }
+            try { updater = new SprkUpdater(updateUrl, keyBytes == null ? null : Encoding.UTF8.GetString(keyBytes), hotNames, apkCode, (m, f) => Log(m, f)); }
             catch (Exception e) { overlay = true; Log("update key: " + e.Message, true); yield break; }
             Log($"updating from {updateUrl}");
             // Run() returns only after a successful update or the player's "Play without updating";
@@ -144,6 +165,7 @@ public class SprkBootstrap : MonoBehaviour
             hotNames.AddRange(updater.ExtraHotNames);
             updater = null;
         }
+        loading = "Loading game…";
         var files = new Dictionary<string, byte[]>();
         var t0 = Time.realtimeSinceStartup;
         yield return ReadAll(aotNames.Select(n => $"aot/{n}.dll.bytes").Concat(hotNames.Select(n => $"hot/{n}.dll.bytes")).ToList(), files);
@@ -160,9 +182,23 @@ public class SprkBootstrap : MonoBehaviour
         }
         Log($"AOT metadata loaded: {aotOk}");
 
-        // 2. The game's own assemblies, unchanged from the Windows build.
+        // 2. The game's own assemblies, unchanged from the Windows build: already loaded when
+        // compiled into the APK, otherwise loaded from bytes by HybridCLR.
         t0 = Time.realtimeSinceStartup;
         var hot = new Dictionary<string, Assembly>();
+        if (compiledGame)
+        {
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                string name = assembly.GetName().Name;
+                if (apkCode.ContainsKey(name)) hot[name] = assembly;
+            }
+            foreach (var name in apkCode.Keys.Where(n => !hot.ContainsKey(n)))
+            {
+                try { hot[name] = Assembly.Load(name); }
+                catch (Exception e) { Log($"game {name}: {e.GetType().Name}: {e.Message}", true); }
+            }
+        }
         foreach (var name in hotNames)
         {
             byte[] dll = files[$"hot/{name}.dll.bytes"];
@@ -173,11 +209,16 @@ public class SprkBootstrap : MonoBehaviour
             try { hot[name] = Assembly.Load(dll); }
             catch (Exception e) { Log($"hot {name}: {e.GetType().Name}: {e.Message}", true); }
         }
-        Log($"hot assemblies loaded: {hot.Count} in {(Time.realtimeSinceStartup - t0):F2}s");
+        Log($"{(compiledGame ? "compiled" : "hot")} assemblies loaded: {hot.Count} in {(Time.realtimeSinceStartup - t0):F2}s");
+        // This coroutine runs for the whole session (FrameStats), so its locals stay alive:
+        // drop the assembly images (~25 MB). The hot ones stay referenced through SetData above.
+        files.Clear();
+        files = null;
 
-        // 3. Type resolution across the whole graph (forces every reference to bind).
+        // 3. Type resolution across the whole graph (forces every reference to bind). IL2CPP
+        // already bound a compiled game at build time.
         int types = 0;
-        foreach (var kv in hot)
+        foreach (var kv in compiledGame ? new Dictionary<string, Assembly>() : hot)
         {
             try { types += kv.Value.GetTypes().Length; }
             catch (ReflectionTypeLoadException e)
@@ -200,6 +241,7 @@ public class SprkBootstrap : MonoBehaviour
         string start = index.Where(l => l.StartsWith("start:")).Select(l => l.Substring(6)).FirstOrDefault();
         if (start == null || failures > 0)
         {
+            loading = null;
             Log(failures == 0 ? "RESULT: PASS" : $"RESULT: {failures} failure(s)");
             yield break;
         }
@@ -334,6 +376,7 @@ public class SprkBootstrap : MonoBehaviour
         var load = UnityEngine.SceneManagement.SceneManager.LoadSceneAsync(scene);
         if (load == null) { Log($"scene {scene}: not found in loaded bundles", true); yield break; }
         yield return load;
+        loading = null;
         Invoke(game, "NVespa.UnityStartup", "RuntimeInit_AfterSceneLoad");
         var loaded = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
         var sceneComps = loaded.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<Component>(true)).ToList();
@@ -453,6 +496,16 @@ public class SprkBootstrap : MonoBehaviour
     {
         if (picker != null) { picker.OnGUI(); return; }
         if (updater != null) { updater.OnGUI(); return; }
+        if (loading != null && !overlay)
+        {
+            SprkUi.Begin();
+            SprkUi.Backdrop();
+            var center = new Vector2(SprkUi.Width / 2f, SprkUi.Height / 2f);
+            SprkUi.Spinner(center, 46f);
+            GUI.Label(new Rect(center.x - 500f, center.y + 80f, 1000f, 60f), loading, SprkUi.Style("body"));
+            SprkUi.End();
+            return;
+        }
         if (!overlay) return;
         GUI.skin.label.fontSize = Mathf.Max(14, Screen.height / 45);
         GUILayout.BeginArea(new Rect(10, 10, Screen.width * 0.6f, Screen.height - 20));

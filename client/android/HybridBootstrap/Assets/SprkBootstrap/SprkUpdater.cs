@@ -29,6 +29,7 @@ public sealed class SprkUpdater
     readonly string manifestUrl;
     readonly RSAParameters? key;
     readonly ICollection<string> apkHot;
+    readonly IDictionary<string, string> apkCode;
     readonly Action<string, bool> log;
 
     string status = "Checking for updates…";
@@ -36,6 +37,9 @@ public sealed class SprkUpdater
     float progress = -1f;
     string error;
     bool canPlayAnyway, retry, playAnyway;
+    // A compiled-in game that differs from the server's code: ask for the new APK.
+    List<string> apkOutdated;
+    bool apkAnswered, apkDownloadOpened;
 
     public bool Done { get; private set; }
     /// <summary>Hot assemblies the release adds beyond the APK's list (new Sprk feature assemblies).</summary>
@@ -51,10 +55,14 @@ public sealed class SprkUpdater
     [Serializable] class HashStore { public List<CachedHash> files = new List<CachedHash>(); }
     [Serializable] class InstalledState { public string version; public string asset_set; }
 
-    public SprkUpdater(string manifestUrl, string publicKeyPem, ICollection<string> apkHotNames, Action<string, bool> log)
+    /// <param name="apkCode">For an APK with the game compiled in: its game assemblies'
+    /// SHA-256 (game-code.txt). The release's assemblies are then not installed; when they
+    /// differ, the player is asked to download the new APK. Null for interpreted code.</param>
+    public SprkUpdater(string manifestUrl, string publicKeyPem, ICollection<string> apkHotNames, IDictionary<string, string> apkCode, Action<string, bool> log)
     {
         this.manifestUrl = manifestUrl;
         apkHot = apkHotNames;
+        this.apkCode = apkCode;
         this.log = log;
         if (!string.IsNullOrWhiteSpace(publicKeyPem)) key = SprkUpdate.ParsePublicKey(publicKeyPem);
     }
@@ -98,14 +106,31 @@ public sealed class SprkUpdater
         catch (Exception e) { error = e.Message; yield break; }
         raw = null;
 
+        // The game code is part of this APK: a release with other code needs the new APK.
+        // Asked once per launch (a retry after a failed download does not ask again).
+        if (apkCode != null && !apkAnswered)
+        {
+            var differences = SprkUpdate.CodeDifferences(release, apkCode);
+            if (differences.Count > 0)
+            {
+                log($"APK update available: release {release.version} has other game code ({string.Join(", ", differences.Take(6))}{(differences.Count > 6 ? $", +{differences.Count - 6} more" : "")})", false);
+                apkOutdated = differences;
+                while (!apkAnswered) yield return null;
+                apkOutdated = null;
+                log("playing with this APK's game code", false);
+            }
+            apkAnswered = true;
+        }
+
+        bool installCode = apkCode == null;
         var plan = new List<(SprkUpdate.ReleaseFile file, string target)>();
         foreach (var f in release.files)
         {
-            string target = SprkUpdate.Target(f.path, apkHot);
+            string target = SprkUpdate.Target(f.path, apkHot, installCode);
             if (target != null) plan.Add((f, target));
         }
         var targets = new HashSet<string>(plan.Select(p => p.target), StringComparer.OrdinalIgnoreCase);
-        var removals = release.deleted_files.Select(p => SprkUpdate.Target(p, apkHot))
+        var removals = release.deleted_files.Select(p => SprkUpdate.Target(p, apkHot, installCode))
             .Where(t => t != null && !targets.Contains(t)).ToList();
         log($"release {release.version} ({release.asset_set}): {plan.Count} files for Android", false);
 
@@ -334,46 +359,57 @@ public sealed class SprkUpdater
         static void TryDelete(string path) { try { System.IO.File.Delete(path); } catch (IOException) { } }
     }
 
-    // Laid out like ServerPicker on a 1920x1080 canvas scaled to the screen.
+    // Drawn with SprkUi like the server picker.
     public void OnGUI()
     {
-        float scale = Mathf.Min(Screen.width / 1920f, Screen.height / 1080f);
-        GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
-        var w = 1100f;
-        var area = new Rect((Screen.width / scale - w) / 2f, 240f, w, error == null ? 420f : 620f);
-        var title = new GUIStyle(GUI.skin.label) { fontSize = 48, alignment = TextAnchor.MiddleCenter };
-        var label = new GUIStyle(GUI.skin.label) { fontSize = 32, alignment = TextAnchor.MiddleCenter, wordWrap = true };
-        var button = new GUIStyle(GUI.skin.button) { fontSize = 38 };
-        GUI.Box(area, GUIContent.none);
-        GUILayout.BeginArea(new Rect(area.x + 40, area.y + 30, w - 80, area.height - 60));
-        if (error == null)
+        SprkUi.Begin();
+        SprkUi.Backdrop();
+        bool dialog = apkOutdated != null || error != null;
+        var content = SprkUi.Panel(1180f, dialog ? 640f : 420f);
+        GUILayout.BeginArea(content);
+        if (apkOutdated != null)
         {
-            GUILayout.Label(status, title, GUILayout.Height(90));
-            GUILayout.Space(30);
-            var bar = GUILayoutUtility.GetRect(w - 80, 36);
-            GUI.Box(bar, GUIContent.none);
-            float shown = progress >= 0 ? progress : Mathf.PingPong(Time.realtimeSinceStartup * 0.5f, 0.8f);
-            var fill = progress >= 0 ? new Rect(bar.x, bar.y, bar.width * shown, bar.height)
-                                     : new Rect(bar.x + bar.width * shown, bar.y, bar.width * 0.2f, bar.height);
-            GUI.DrawTexture(fill, Texture2D.whiteTexture, ScaleMode.StretchToFill, false, 0, new Color(0.3f, 0.55f, 0.95f), 0, 0);
-            GUILayout.Space(20);
-            GUILayout.Label(detail, label);
-        }
-        else
-        {
-            GUILayout.Label("Update failed", title, GUILayout.Height(90));
-            GUILayout.Label(error, new GUIStyle(label) { normal = { textColor = new Color(1f, 0.6f, 0.5f) } }, GUILayout.Height(200));
+            GUILayout.Label("New version available", SprkUi.Style("title"), GUILayout.Height(80));
+            GUILayout.Space(16);
+            GUILayout.Label(apkDownloadOpened
+                ? "Install the downloaded APK over this app, then start the game again. Your downloaded game data and saved logins are kept."
+                : "This server runs a newer version of the game. Download the new APK and install it over this app. Your downloaded game data and saved logins are kept.",
+                SprkUi.Style("body"));
             GUILayout.FlexibleSpace();
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Retry", button, GUILayout.Height(120))) retry = true;
-            if (canPlayAnyway)
+            if (GUILayout.Button("Play anyway", SprkUi.Style("secondary"), GUILayout.Width(380f), GUILayout.Height(120))) apkAnswered = true;
+            GUILayout.Space(24);
+            if (GUILayout.Button(apkDownloadOpened ? "Open download again" : "Download", SprkUi.Style("primary"), GUILayout.Height(120)))
             {
-                GUILayout.Space(20);
-                if (GUILayout.Button("Play without updating", button, GUILayout.Height(120))) playAnyway = true;
+                apkDownloadOpened = true;
+                Application.OpenURL(SprkUpdate.ApkDownloadUrl);
             }
             GUILayout.EndHorizontal();
         }
+        else if (error == null)
+        {
+            GUILayout.Label(status, SprkUi.Style("title"), GUILayout.Height(80));
+            GUILayout.Space(40);
+            SprkUi.ProgressBar(GUILayoutUtility.GetRect(content.width, 28f, GUILayout.Height(28f)), progress);
+            GUILayout.Space(28);
+            GUILayout.Label(detail, SprkUi.Style("body"), GUILayout.Height(50));
+        }
+        else
+        {
+            GUILayout.Label("Update failed", SprkUi.Style("title"), GUILayout.Height(80));
+            GUILayout.Space(16);
+            GUILayout.Label(error, SprkUi.Style("error"));
+            GUILayout.FlexibleSpace();
+            GUILayout.BeginHorizontal();
+            if (canPlayAnyway)
+            {
+                if (GUILayout.Button("Play without updating", SprkUi.Style("secondary"), GUILayout.Width(500f), GUILayout.Height(120))) playAnyway = true;
+                GUILayout.Space(24);
+            }
+            if (GUILayout.Button("Retry", SprkUi.Style("primary"), GUILayout.Height(120))) retry = true;
+            GUILayout.EndHorizontal();
+        }
         GUILayout.EndArea();
-        GUI.matrix = Matrix4x4.identity;
+        SprkUi.End();
     }
 }

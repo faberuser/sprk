@@ -95,6 +95,13 @@ public class LoadingManager : GlobalAutoBehaviour<LoadingManager>, LoadingDefaul
 
 	private ESceneType _prevSceneType;
 
+	// SPRK: stuck-loading diagnostics (coLoadingWatchdog).
+	private static string _loadingStep = string.Empty;
+
+	private BaseScene.IPreload _currentPreload;
+
+	private int _moveSceneSerial;
+
 	public static int LoadSceneCount { get; private set; }
 
 	public static bool ApplicationQuit { get; private set; }
@@ -203,7 +210,51 @@ public class LoadingManager : GlobalAutoBehaviour<LoadingManager>, LoadingDefaul
 		_prevSceneType = CurrentSceneType;
 		CurrentSceneType = sceneType;
 		LastSceneData = lastSceneData;
+		_currentPreload = null;
+		_moveSceneSerial++;
+		StartCoroutine(coLoadingWatchdog(_moveSceneSerial, sceneType, DateTime.UtcNow));
 		StartVespaCoroutine(coMoveScene(sceneType, loadingType, resetEnvironment, onLoad));
+	}
+
+	// SPRK: a scene move waits on several callbacks (fades, preload, OnSceneLoaded, server
+	// responses) without a timeout, so one that never fires leaves the loading screen up
+	// for good. This reports where it waits, as errors (they reach logcat and the Android
+	// bootstrap's sprk-probe.txt). Started with StartCoroutine so StopAllVespaCoroutine
+	// does not stop it; it only reads state.
+	private IEnumerator coLoadingWatchdog(int serial, ESceneType sceneType, DateTime start)
+	{
+		float nextReport = 15f;
+		while (serial == _moveSceneSerial && IsSceneLoading)
+		{
+			yield return null;
+			float num = (float)(DateTime.UtcNow - start).TotalSeconds;
+			if (num < nextReport)
+			{
+				continue;
+			}
+			nextReport = num + 10f;
+			string text = "none";
+			BaseScene.IPreload currentPreload = _currentPreload;
+			if (currentPreload != null)
+			{
+				text = (currentPreload.IsEnd ? "end" : (currentPreload.Current + "/" + currentPreload.Total));
+			}
+			string text2 = "-";
+			try
+			{
+				text2 = SingletonUpdater<WebServiceRequester>.instance.DescribePending();
+			}
+			catch (Exception ex)
+			{
+				text2 = ex.GetType().Name;
+			}
+			VespaDebug.LogError("SPRK loading slow: scene=" + EnumTools.GetName(sceneType) + " from=" + EnumTools.GetName(_prevSceneType) + " elapsed=" + (int)num + "s step=\"" + _loadingStep + "\" bar=" + _loadingAmount.ToString("0.00") + " preload=" + text + " web=" + text2 + " active=" + SceneManager.GetActiveScene().name + " heap=" + (GC.GetTotalMemory(forceFullCollection: false) >> 20) + "MB");
+		}
+		float num2 = (float)(DateTime.UtcNow - start).TotalSeconds;
+		if (serial == _moveSceneSerial && num2 >= 15f)
+		{
+			VespaDebug.LogError("SPRK loading finished late: scene=" + EnumTools.GetName(sceneType) + " elapsed=" + (int)num2 + "s");
+		}
 	}
 
 	private void StopAllVespaCoroutine()
@@ -311,6 +362,7 @@ public class LoadingManager : GlobalAutoBehaviour<LoadingManager>, LoadingDefaul
 		{
 			DebugLog("[LoadingManager] baseScene.PreloadAsset()");
 			BaseScene.IPreload preload = baseScene.PreloadAsset();
+			_currentPreload = preload;
 			if (preload != null)
 			{
 				_loadingMsg = LocalizationManager.GetString(Loading.LOADING_MSG);
@@ -790,6 +842,7 @@ public class LoadingManager : GlobalAutoBehaviour<LoadingManager>, LoadingDefaul
 
 	private static void DebugLog(string log)
 	{
+		_loadingStep = log;
 		UnityEngine.Debug.Log(log);
 	}
 

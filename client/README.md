@@ -239,8 +239,10 @@ worker is built from the release too. Remove a line to manage a file again.
 ## Android
 
 `android/` builds the same code for Android: a small Unity 6000.0.53f1 player
-(`android/HybridBootstrap/`) loads the compiled game DLLs at startup and runs them with
-[HybridCLR](https://github.com/focus-creative-games/hybridclr). The game's built-in scenes
+(`android/HybridBootstrap/`) with the game DLLs compiled in by IL2CPP, like the original
+game. (`--interpreted` instead loads them at startup with
+[HybridCLR](https://github.com/focus-creative-games/hybridclr)'s interpreter: several times
+slower, but C# changes reach the device without a new APK.) The game's built-in scenes
 and Resources are repacked from the Windows client into Android bundles, and the device
 gets a patch folder with the Windows tables, localization and video plus the original
 Android asset bundles. It is a prototype; open work is listed in
@@ -255,6 +257,11 @@ Android asset bundles. It is a prototype; open work is listed in
   pinned original Android inputs: `kings-raid-4.88.8.apk` (for `content` only) and
   `Assetbundle/` (the original Android bundles, from `Documents/Patch/Android/Assetbundle`).
   `../sprk-android/build` is the maintained Android asset set built from them.
+- The release signing key in `../sprk-android/signing/` (`release.json` and the keystore).
+  Create it once with `python client/android/dev.py signing`, back it up, and copy that
+  folder to every machine that builds APKs: players can only install an APK over theirs
+  when both are signed with the same key (otherwise they must uninstall, losing the
+  downloaded game data and saved logins).
 - A device: BlueStacks with ADB enabled (`HD-Adb.exe`, serial `emulator-5554`, the
   default) or a phone over USB (`--adb <adb.exe> --serial <id>`, see `adb devices`).
 - The local server (`start_server.bat`).
@@ -265,10 +272,14 @@ Android asset bundles. It is a prototype; open work is listed in
 
 ```powershell
 python client/android/dev.py content --apk <path>\kings-raid-4.88.8.apk  # once, and after Windows player-data or repacker changes
-python client/android/dev.py build          # compile the game code, build the APK
+python client/android/dev.py signing        # once: create the release signing key
+python client/android/dev.py build          # compile the game code, build the APK (game compiled in)
+python client/android/dev.py build --release-code https://<server>/updates/stable/manifest.json
+                                            # an APK for players: the game DLLs of that release
 python client/android/dev.py test           # build, install, push missing device data, start on the local server
 python client/android/dev.py test --picker  # same, but choose the server on the device
-python client/android/dev.py hot            # compile, push the DLLs, restart (no APK rebuild)
+python client/android/dev.py test --interpreted  # HybridCLR build, so that `hot` works
+python client/android/dev.py hot            # compile, push the DLLs, restart (no APK rebuild; interpreted APK only)
                                             # test and hot also publish new asset versions when assets
                                             # changed (client/dev.py assets; --no-assets to skip)
 python client/android/dev.py connect        # restore the adb forwarding to the local server
@@ -276,7 +287,7 @@ python client/android/dev.py connect        # restore the adb forwarding to the 
 
 | Change                                       | Run                                             |
 | -------------------------------------------- | ----------------------------------------------- |
-| C# in `managed/`                             | `hot`                                           |
+| C# in `managed/`                             | `test` (or `hot` with an interpreted APK)       |
 | Bootstrap or Unity project (`android/...`)   | `test`                                          |
 | Repacker or the Windows client's player data | `content --apk ...`, then `test`                |
 | Tables or localization in the Windows client | `android/HybridBootstrap/push_patch.sh --force` |
@@ -300,11 +311,14 @@ Android the bootstrap sets it before any game code runs:
   in the app's private storage, and saved logins are kept per server.
 - Without it (`server:local` in the startup index, written by `dev.py test`), the app
   goes straight to Local, so unattended runs never wait for input.
-- After **Play**, the app updates the game code and platform-neutral data from that
-  server's signed release, like SprkLauncher (see
-  [docs/android.md](../docs/android.md#game-updates-and-assets-from-the-server)). An
-  added server can set its update URL; empty means `<origin>/updates/stable/manifest.json`.
-  Unattended runs skip the update, so files pushed by `dev.py hot` stay in place.
+- After **Play**, the app updates the platform-neutral data (and, in an interpreted APK,
+  the game code) from that server's signed release, like SprkLauncher (see
+  [docs/android.md](../docs/android.md#game-updates-and-assets-from-the-server)). When the
+  release's game DLLs differ from the ones compiled into the APK, it asks the player to
+  download the new APK (a fixed Google Drive link, `SprkUpdate.ApkDownloadUrl`) or play
+  anyway. An added server can set its update URL; empty means
+  `<origin>/updates/stable/manifest.json`. Unattended runs skip the update, so files
+  pushed by `dev.py hot` stay in place.
 
 **Local** is `http://127.0.0.1:8080/host.json` on the device, forwarded to this PC by
 `adb reverse` (emulator or USB). The forwarding is lost whenever adb restarts; if the

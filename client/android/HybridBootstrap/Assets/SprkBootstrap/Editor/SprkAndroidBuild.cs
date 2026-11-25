@@ -28,17 +28,58 @@ public static class SprkAndroidBuild
     // Build output lives with the other generated files: ../sprk-android/bootstrap (next to the repository, outside artifacts/).
     public static string ArtifactsDir => Path.GetFullPath(Path.Combine(ProjectDir, "..", "..", "..", "..", "sprk-android", "bootstrap"));
 
-    static List<string> HotNames() =>
+    // The game assemblies (Assembly-CSharp, Sprk*), staged by sync_inputs.py.
+    static List<string> GameNames() =>
         File.ReadAllLines(Path.Combine(ProjectDir, HotDir, "hot-update.txt")).Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
+
+    // "aot" (default): the game assemblies are plugins (Assets/Plugins/GameCode) that IL2CPP
+    // compiles into the player. "interpreted": HybridCLR loads them from bytes at runtime.
+    static bool CompiledGame()
+    {
+        string file = Path.Combine(ProjectDir, HotDir, "mode.txt");
+        return !File.Exists(file) || File.ReadAllText(file).Trim() != "interpreted";
+    }
+
+    static List<string> HotNames() => CompiledGame() ? new List<string>() : GameNames();
+
+    // Release signing, kept outside the repository (../sprk-android/signing/release.json, or
+    // the file SPRK_ANDROID_SIGNING names): every machine that builds APKs uses the same key,
+    // so a new APK installs over the old one and keeps the downloaded game data and logins.
+    [Serializable]
+    class Signing { public string keystore; public string storePassword; public string alias; public string keyPassword; }
+
+    static string SigningFile => Environment.GetEnvironmentVariable("SPRK_ANDROID_SIGNING") is string s && s.Length > 0
+        ? s : Path.GetFullPath(Path.Combine(ArtifactsDir, "..", "signing", "release.json"));
+
+    static void ApplySigning()
+    {
+        if (!File.Exists(SigningFile))
+            throw new Exception($"No release signing config at {SigningFile}; run `python client/android/dev.py signing` once, or copy it from the other build machine");
+        var signing = JsonUtility.FromJson<Signing>(File.ReadAllText(SigningFile));
+        string keystore = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(SigningFile), signing.keystore));
+        if (!File.Exists(keystore)) throw new Exception($"keystore missing: {keystore}");
+        PlayerSettings.Android.useCustomKeystore = true;
+        PlayerSettings.Android.keystoreName = keystore;
+        PlayerSettings.Android.keystorePass = signing.storePassword;
+        PlayerSettings.Android.keyaliasName = signing.alias;
+        PlayerSettings.Android.keyaliasPass = signing.keyPassword;
+    }
 
     public static void Configure()
     {
         var android = NamedBuildTarget.Android;
+        bool compiled = CompiledGame();
         PlayerSettings.companyName = "SPRK";
         // Same name and icon as the Windows game. The package id stays: changing it would be a
         // new app on the device and lose the installed patch data (8.6 GB) and saved logins.
         PlayerSettings.productName = "King's Raid";
         PlayerSettings.SetApplicationIdentifier(android, "com.sprk.hybridprobe");
+        // Android only installs an APK over one with the same or a lower version code.
+        // Minutes since 2025 keep every build newer than the last (until the year 6100).
+        var now = DateTime.UtcNow;
+        PlayerSettings.Android.bundleVersionCode = (int)((now - new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalMinutes);
+        PlayerSettings.bundleVersion = now.ToString("yyyy.MM.dd.HHmm") + (compiled ? "" : "-interpreted");
+        ApplySigning();
         ApplyAppIcon();
         // No "Made with Unity" splash (optional on Unity 6 Personal).
         PlayerSettings.SplashScreen.show = false;
@@ -56,8 +97,13 @@ public static class SprkAndroidBuild
         PlayerSettings.allowedAutorotateToPortrait = false;
         PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
         PlayerSettings.useAnimatedAutorotation = true;
-        PlayerSettings.gcIncremental = false; // HybridCLR: keep the simplest GC mode for the first proof
-        PlayerSettings.SetIl2CppCompilerConfiguration(android, Il2CppCompilerConfiguration.Release);
+        // Incremental GC spreads collections over frames instead of stopping the game for the
+        // whole managed heap (80 ms on a Snapdragon 870, longer on older phones). HybridCLR
+        // emits write barriers for interpreted stores when IL2CPP enables them.
+        PlayerSettings.gcIncremental = true;
+        // Master: the generated C++ (the compiled game, or the HybridCLR interpreter loop in
+        // the interpreted mode) gets full optimization and link-time optimization.
+        PlayerSettings.SetIl2CppCompilerConfiguration(android, Il2CppCompilerConfiguration.Master);
         PlayerSettings.SetIl2CppCodeGeneration(android, UnityEditor.Build.Il2CppCodeGeneration.OptimizeSize);
         EditorUserBuildSettings.buildAppBundle = false;
         // The original Android bundles (Unity 2018) only carry OpenGL ES shader variants;
@@ -68,12 +114,20 @@ public static class SprkAndroidBuild
         ApplyGameProjectSettings();
 
         var s = HybridCLRSettings.instance;
-        s.enable = true;
+        // Compiled game: plain IL2CPP, no interpreter.
+        s.enable = !compiled;
         s.hybridclrRepoURL = "https://github.com/focus-creative-games/hybridclr";
         s.il2cppPlusRepoURL = "https://github.com/focus-creative-games/il2cpp_plus";
         s.hotUpdateAssemblies = HotNames().ToArray();
         s.externalHotUpdateAssembliyDirs = new[] { HotDir };
+        // Inside the bootstrap's asmdef: a loose script in Assets would build Unity's own
+        // Assembly-CSharp, which clashes with the game's compiled Assembly-CSharp plugin.
+        s.outputAOTGenericReferenceFile = "SprkBootstrap/Generated/AOTGenericReferences.cs";
         HybridCLRSettings.Save();
+        foreach (var loose in new[] { "Assets/HybridCLR/Generate/AOTGenericReferences.cs" })
+        {
+            if (File.Exists(Path.Combine(ProjectDir, loose))) AssetDatabase.DeleteAsset(loose);
+        }
 
         WriteLinkXml();
         EnsureScene();
@@ -133,7 +187,10 @@ public static class SprkAndroidBuild
         string engineDir = Path.Combine(EditorApplication.applicationContentsPath, "Managed", "UnityEngine");
         var engine = Directory.GetFiles(engineDir, "UnityEngine*.dll").Select(Path.GetFileNameWithoutExtension)
             .Where(n => n != "UnityEngine" && !n.Contains("Editor")).OrderBy(n => n);
-        var xml = "<linker>\n" + string.Concat(plugins.Concat(engine).Select(n => $"  <assembly fullname=\"{n}\" preserve=\"all\"/>\n")) + "</linker>\n";
+        // A compiled game is kept whole too: it reaches much of itself through reflection
+        // (serializers, MonoBehaviour messages, the bootstrap's own lookups).
+        var game = CompiledGame() ? GameNames() : new List<string>();
+        var xml = "<linker>\n" + string.Concat(plugins.Concat(engine).Concat(game).Select(n => $"  <assembly fullname=\"{n}\" preserve=\"all\"/>\n")) + "</linker>\n";
         File.WriteAllText(Path.Combine(Application.dataPath, "SprkBootstrap/link.xml"), xml);
         AssetDatabase.ImportAsset("Assets/SprkBootstrap/link.xml");
     }
@@ -161,7 +218,7 @@ public static class SprkAndroidBuild
         cam.backgroundColor = Color.black;
         cam.cullingMask = 0;
         var go = new GameObject("SprkBootstrap");
-        go.AddComponent<SprkBootstrap>();
+        go.AddComponent<SprkBootstrap>().logo = AssetDatabase.LoadAssetAtPath<Texture2D>(IconPath);
         EditorSceneManager.SaveScene(scene, ScenePath);
         EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
     }
@@ -180,14 +237,22 @@ public static class SprkAndroidBuild
     public static void Build()
     {
         Configure();
-        InstallHybridCLR();
         if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android)
             throw new Exception("run with -buildTarget Android");
 
-        PrebuildCommand.GenerateAll();
+        if (!CompiledGame())
+        {
+            InstallHybridCLR();
+            PrebuildCommand.GenerateAll();
+        }
         StageStreamingAssets();
+        // Unity copies StreamingAssets into its cached Gradle project but never removes files
+        // that are gone from it (a compiled-game APK still carried the interpreted build's
+        // hot/ and aot/ DLLs), so the staged copy is rebuilt from scratch.
+        string gradleAssets = Path.Combine(ProjectDir, "Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/src/main/assets/sprk");
+        if (Directory.Exists(gradleAssets)) Directory.Delete(gradleAssets, true);
 
-        string apk = Path.Combine(ArtifactsDir, "apk", "sprk-hybrid-probe.apk");
+        string apk =Path.Combine(ArtifactsDir, "apk", "sprk-hybrid-probe.apk");
         Directory.CreateDirectory(Path.GetDirectoryName(apk));
         var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
         {
@@ -202,23 +267,28 @@ public static class SprkAndroidBuild
 
     static void StageStreamingAssets()
     {
-        string aotSrc = SettingsUtil.GetAssembliesPostIl2CppStripDir(BuildTarget.Android);
         string aotDst = Path.Combine(ProjectDir, Streaming, "aot");
         if (Directory.Exists(aotDst)) Directory.Delete(aotDst, true);
-        Directory.CreateDirectory(aotDst);
-
-        // Supplement metadata for every AOT assembly HybridCLR reports as needing it.
-        var patched = AOTGenericReferencesList();
         var aot = new List<string>();
-        foreach (var name in patched)
+        if (!CompiledGame())
         {
-            string src = Path.Combine(aotSrc, name + ".dll");
-            if (!File.Exists(src)) { Debug.LogWarning($"[SprkAndroidBuild] no stripped AOT dll for {name}"); continue; }
-            File.Copy(src, Path.Combine(aotDst, name + ".dll.bytes"), true);
-            aot.Add(name);
+            string aotSrc = SettingsUtil.GetAssembliesPostIl2CppStripDir(BuildTarget.Android);
+            Directory.CreateDirectory(aotDst);
+            // Supplement metadata for every AOT assembly HybridCLR reports as needing it.
+            foreach (var name in AOTGenericReferencesList())
+            {
+                string src = Path.Combine(aotSrc, name + ".dll");
+                if (!File.Exists(src)) { Debug.LogWarning($"[SprkAndroidBuild] no stripped AOT dll for {name}"); continue; }
+                File.Copy(src, Path.Combine(aotDst, name + ".dll.bytes"), true);
+                aot.Add(name);
+            }
         }
 
-        var index = aot.Select(n => "aot:" + n).Concat(HotNames().Select(n => "hot:" + n));
+        // The game assemblies' hashes: SprkUpdater compares them with a server's release and
+        // asks for a new APK when the compiled game differs from the server's code.
+        File.Copy(Path.Combine(ProjectDir, HotDir, "game-code.txt"), Path.Combine(ProjectDir, Streaming, "game-code.txt"), true);
+        var index = aot.Select(n => "aot:" + n).Concat(HotNames().Select(n => "hot:" + n))
+            .Concat(CompiledGame() ? new[] { "mode:aot" } : new string[0]);
         string bundles = Path.Combine(ProjectDir, HotDir, "bundles.txt");
         if (File.Exists(bundles)) index = index.Concat(File.ReadAllLines(bundles).Where(l => l.Trim().Length > 0).Select(l => "bundle:" + l.Trim()));
         // The repacked built-in content goes into the APK, so an installed APK starts the game

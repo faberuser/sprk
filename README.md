@@ -263,11 +263,14 @@ configuration, tests, the native battle worker and GM tools.
 python client/dev.py test # build and start a separate test copy of the game
 python client/dev.py install # build into your real game and publish a local release
 python client/dev.py clean # remove the sprk-client-test dir
+python client/android/dev.py signing # once: create the APK release signing key (../sprk-android/signing; back it up, copy it to every build machine)
 python client/android/dev.py test # Android build (prototype): build the APK, install it on BlueStacks or a phone, start it
 python client/android/dev.py test --picker # same, but you choose the server on the device
-python client/android/dev.py hot # C#-only changes: compile + push DLLs + restart, no APK rebuild
+python client/android/dev.py test --interpreted # slower HybridCLR build, so that `hot` works
+python client/android/dev.py hot # C#-only changes: compile + push DLLs + restart, no APK rebuild (interpreted APK only)
 python client/android/dev.py connect # fix "Cannot read Host files" after an ADB/BlueStacks restart
-python client/android/dev.py build # compile game code + build the APK
+python client/android/dev.py build # compile game code into the APK (IL2CPP, like the original game)
+python client/android/dev.py build --release-code https://<server>/updates/stable/manifest.json # APK for players: that release's game code
 ```
 
 [`client/README.md`](client/README.md) covers editing the game code, testing it

@@ -66,6 +66,20 @@ server added in the in-app list), reaches the lobby at the display's refresh rat
 
 ## Game code
 
+- **Compiled into the APK (default).** `sync_inputs.py --mode aot` stages the game DLLs as
+  Android plugins (`Assets/Plugins/GameCode`) and IL2CPP compiles them, like the original
+  game; HybridCLR is off. Measured before this change: with every game assembly run by the
+  HybridCLR interpreter, a Galaxy Note 10 averaged 33.6 fps on stage 1-17 (auto) with the
+  main thread at 100% of a core and the render thread at 16-58%; halving the resolution
+  did not help. `--interpreted` builds the old way (needed for `dev.py hot`).
+  - Unity runs `[RuntimeInitializeOnLoadMethod]` hooks of compiled assemblies at launch,
+    before the server picker; `SprkGradlePostprocess` removes the game's entries from
+    `RuntimeInitializeOnLoads.json` so SprkBootstrap still calls `UnityStartup` itself
+    after the update and content mount.
+  - The game's `Assembly-CSharp` plugin would clash with a Unity-built `Assembly-CSharp`,
+    so the project has no loose scripts (HybridCLR's generated references go to
+    `SprkBootstrap/Generated`, inside the bootstrap's asmdef).
+  - `link.xml` keeps the game assemblies whole (reflection, serializers).
 - **Embedded resources:** read them with `SprkEmbeddedResources.Read(assembly, name)`, never
   `Assembly.GetManifestResourceStream`. The game's assemblies are loaded from bytes by
   HybridCLR, and il2cpp looks for their resources in `Data/Resources/<name>-resources.dat`,
@@ -91,8 +105,15 @@ to, instead of `adb push`. Windows does this through SprkLauncher
 (`SprkUpdater`, rules in `SprkUpdate.cs`) installs from the server's signed release
 manifest, the same one SprkLauncher uses:
 
-- game assemblies (`Assembly-CSharp`, every `Sprk*.dll`) into `sprk/hot/`, so new
-  features (for example a new `Sprk*` assembly) need no new APK;
+- with the game compiled into the APK: no assemblies. The APK carries the SHA-256 of its
+  game DLLs (`game-code.txt`); when the release's `Assembly-CSharp`/`Sprk*.dll` differ
+  (changed, added or removed), the player is asked to download the new APK
+  (`SprkUpdate.ApkDownloadUrl`, a fixed Google Drive link) or to play anyway. No version
+  numbers to maintain: an APK for players must be built from the release's own DLLs
+  (`dev.py build --release-code <manifest URL>`), since a local compile need not be
+  byte-identical to CI's;
+- with an interpreted APK: game assemblies (`Assembly-CSharp`, every `Sprk*.dll`) into
+  `sprk/hot/`, so new features (for example a new `Sprk*` assembly) need no new APK;
 - tables, localization, video and the platform-neutral patch files SPRK changed into
   `Documents/Patch/StandaloneWindows/` (about 750 MB). A release carries only the
   `PlainAsset` files SPRK changed; the game's own `PlainAsset`, `LoginPresentation`,
@@ -149,8 +170,18 @@ removes such copies and only writes the dev index (start scene, `server:local`).
 
 ## Distribution
 
-- The package id is `com.sprk.hybridprobe` and the APK is debug-signed. Changing the id
-  makes a new app (the 8.6 GB patch folder and saved logins must be set up again).
+- The package id is `com.sprk.hybridprobe`. Changing it makes a new app (the 8.6 GB
+  patch folder and saved logins must be set up again).
+- APKs are signed with the release key in `../sprk-android/signing/` (`dev.py signing`
+  creates it; copy it to every build machine and keep a backup). Android only installs an
+  APK over one signed with the same key; APKs from before this key were debug-signed by
+  whichever PC built them, so players uninstall once to move to the first release-signed
+  APK. The version code is minutes since 2025 (each build installs over older ones); the
+  version name is the UTC build time.
+- Release flow: merge (CI publishes the release), `dev.py build --release-code
+  https://<server>/updates/stable/manifest.json`, upload the APK over the Google Drive
+  file (keep the same file so the link stays valid). Until then, players on the server
+  are asked to update and can play anyway on their current APK.
 - The APK carries the built-in content (about 440 MB, so a new APK is needed when
   `content` is rebuilt); code and data come from the server's release and asset bundles
   from its asset store. There is no CI build of the APK yet.

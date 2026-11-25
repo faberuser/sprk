@@ -38,6 +38,23 @@ foreach (var skipped in new[] { P + "Assetbundle/x.unity3d", P + "PatchInfo/patc
     Check(SprkUpdate.Target(skipped, hot) == null, "not installed on Android: " + skipped);
 Check(SprkUpdate.Target(P + "../../evil", hot) == null && SprkUpdate.Target(P + "a\\b", hot) == null, "unsafe paths are rejected");
 
+// A game compiled into the APK installs no assemblies, only data.
+Check(SprkUpdate.Target(M + "Assembly-CSharp.dll", hot, installCode: false) == null, "a compiled APK does not install game assemblies");
+Check(SprkUpdate.Target(M + "SprkNewFeature.dll", hot, installCode: false) == null, "nor new Sprk assemblies");
+Check(SprkUpdate.Target(P + "TableJit/x.jit", hot, installCode: false) == "Documents/Patch/StandaloneWindows/TableJit/x.jit", "a compiled APK still installs tables");
+
+// APK update check: the release's game code against the APK's (game-code.txt).
+string H(char c) => new string(c, 64);
+var apkCode = SprkUpdate.ParseGameCode($"Assembly-CSharp {H('a')}\r\nSprkOne {H('b')}\n\nbroken line\nSprkBad xyz\n");
+Check(apkCode.Count == 2 && apkCode["SprkOne"] == H('b'), "game-code.txt parses (CRLF, blank and invalid lines ignored)");
+SprkUpdate.ReleaseFile Dll(string name, char hash) => new SprkUpdate.ReleaseFile { path = M + name + ".dll", size = 1, sha256 = H(hash) };
+var same = new SprkUpdate.Release { files = { Dll("Assembly-CSharp", 'a'), Dll("SprkOne", 'b'), Dll("UnityEngine.CoreModule", 'f'),
+    new SprkUpdate.ReleaseFile { path = P + "TableJit/x.jit", sha256 = H('e') } } };
+Check(SprkUpdate.CodeDifferences(same, apkCode).Count == 0, "the same game code needs no new APK (engine DLLs and data ignored)");
+var newer = new SprkUpdate.Release { files = { Dll("Assembly-CSharp", 'c'), Dll("SprkTwo", 'd') } };
+Check(string.Join(";", SprkUpdate.CodeDifferences(newer, apkCode)) == "Assembly-CSharp changed;SprkOne removed;SprkTwo added",
+    "changed, added and removed game assemblies ask for a new APK");
+
 // Default update URL
 Check(SprkUpdate.DefaultManifestUrl("http://127.0.0.1:8080/host.json") == "http://127.0.0.1:8081/updates/stable/manifest.json", "local server uses the local update port");
 Check(SprkUpdate.DefaultManifestUrl("https://kr.example.com/host.json") == "https://kr.example.com/updates/stable/manifest.json", "remote server uses its own origin");

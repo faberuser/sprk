@@ -38,23 +38,35 @@ public static class SprkUpdate
         public List<string> deleted_files = new List<string>();
     }
 
+    /// <summary>Where players download a new APK (asked when the server's game code differs from the APK's).</summary>
+    public const string ApkDownloadUrl = "https://drive.google.com/file/d/19QNtN72zJrXBc_laAhVsaw55ArZDF-2-/view?usp=sharing";
+
     /// <summary>Hot-update assemblies the bootstrap loads: the APK's list plus any Sprk feature assembly.</summary>
     public static bool IsHotAssembly(string name, ICollection<string> apkHotNames) =>
         apkHotNames.Contains(name) || name.StartsWith("Sprk", StringComparison.Ordinal);
 
+    /// <summary>The game assembly name of a release path (Managed/Name.dll), or null.</summary>
+    public static string GameAssembly(string releasePath, ICollection<string> apkGameNames)
+    {
+        if (!SafeRelative(releasePath) || !releasePath.StartsWith(ManagedPrefix, StringComparison.Ordinal)) return null;
+        string file = releasePath.Substring(ManagedPrefix.Length);
+        if (file.Contains("/") || !file.EndsWith(".dll", StringComparison.Ordinal)) return null;
+        string name = file.Substring(0, file.Length - 4);
+        return IsHotAssembly(name, apkGameNames) ? name : null;
+    }
+
     /// <summary>
     /// Device path, relative to the app's files directory, for a release path; null when
-    /// Android does not use the file.
+    /// Android does not use the file. An APK with the game compiled in (installCode false)
+    /// takes no assemblies: it cannot replace its own code.
     /// </summary>
-    public static string Target(string releasePath, ICollection<string> apkHotNames)
+    public static string Target(string releasePath, ICollection<string> apkHotNames, bool installCode = true)
     {
         if (!SafeRelative(releasePath)) return null;
         if (releasePath.StartsWith(ManagedPrefix, StringComparison.Ordinal))
         {
-            string file = releasePath.Substring(ManagedPrefix.Length);
-            if (file.Contains("/") || !file.EndsWith(".dll", StringComparison.Ordinal)) return null;
-            string name = file.Substring(0, file.Length - 4);
-            return IsHotAssembly(name, apkHotNames) ? "sprk/hot/" + name + ".dll.bytes" : null;
+            string name = installCode ? GameAssembly(releasePath, apkHotNames) : null;
+            return name != null ? "sprk/hot/" + name + ".dll.bytes" : null;
         }
         if (releasePath.StartsWith(PatchPrefix, StringComparison.Ordinal))
         {
@@ -64,6 +76,43 @@ public static class SprkUpdate
             return "Documents/Patch/StandaloneWindows/" + inner;
         }
         return null;
+    }
+
+    /// <summary>
+    /// How the release's game code differs from the code compiled into the APK
+    /// (name → SHA-256, from game-code.txt): "Name changed", "Name added", "Name removed".
+    /// Empty when the APK runs exactly the server's code.
+    /// </summary>
+    public static List<string> CodeDifferences(Release release, IDictionary<string, string> apkCode)
+    {
+        var differences = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var f in release.files)
+        {
+            string name = GameAssembly(f.path, apkCode.Keys);
+            if (name == null) continue;
+            seen.Add(name);
+            if (!apkCode.TryGetValue(name, out var hash)) differences.Add(name + " added");
+            else if (!string.Equals(hash, f.sha256, StringComparison.OrdinalIgnoreCase)) differences.Add(name + " changed");
+        }
+        foreach (var name in apkCode.Keys)
+        {
+            if (!seen.Contains(name)) differences.Add(name + " removed");
+        }
+        differences.Sort(StringComparer.Ordinal);
+        return differences;
+    }
+
+    /// <summary>Parses game-code.txt: one "Name sha256" line per game assembly.</summary>
+    public static Dictionary<string, string> ParseGameCode(string text)
+    {
+        var code = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var raw in text.Split('\n'))
+        {
+            var parts = raw.Trim().Split(' ');
+            if (parts.Length == 2 && ValidSha256(parts[1])) code[parts[0]] = parts[1];
+        }
+        return code;
     }
 
     /// <summary>The same path rules as the update server and SprkLauncher.</summary>

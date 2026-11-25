@@ -85,6 +85,40 @@ public class WebServiceRequester : SingletonUpdater<WebServiceRequester>
 		StopCurrentRequest();
 	}
 
+	// SPRK: for LoadingManager's stuck-loading report ("2 [BattleEnd started 12s, ...]").
+	public string DescribePending()
+	{
+		List<WebServiceRequest> list = _serviceRequestList;
+		if (list == null || list.Count == 0)
+		{
+			return "0";
+		}
+		StringBuilder stringBuilder = new StringBuilder();
+		stringBuilder.Append(list.Count).Append(" [");
+		for (int i = 0; i < list.Count && i < 4; i++)
+		{
+			WebServiceRequest webServiceRequest = list[i];
+			if (i > 0)
+			{
+				stringBuilder.Append(", ");
+			}
+			stringBuilder.Append(webServiceRequest.ServiceName);
+			if (webServiceRequest.Started)
+			{
+				stringBuilder.Append(" started ").Append((int)(DateTime.UtcNow - webServiceRequest.RequestedTime).TotalSeconds).Append('s');
+			}
+			else
+			{
+				stringBuilder.Append(" queued");
+			}
+		}
+		if (_serviceDisablerList.Count > 0)
+		{
+			stringBuilder.Append(", disabled by ").Append(_serviceDisablerList.Count);
+		}
+		return stringBuilder.Append(']').ToString();
+	}
+
 	public void AddServiceDisabler(IServiceDisabler disabler)
 	{
 		if (!_serviceDisablerList.Contains(disabler))
