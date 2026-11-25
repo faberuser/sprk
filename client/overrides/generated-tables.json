@@ -24,6 +24,7 @@
     "TableJit/HeroSelectItemTable.jit",
     "TableJit/HeroVoiceTable.jit",
     "TableJit/ItemTable.jit",
+    "TableJit/RaidTable.jit",
     "TableJit/SelectItemTable.jit",
     "TableJit/SkillTable.jit",
     "TableJit/SoulWeaponNodeTreeTable.jit",

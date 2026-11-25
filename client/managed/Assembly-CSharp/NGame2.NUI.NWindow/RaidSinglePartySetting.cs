@@ -340,6 +340,7 @@ public class RaidSinglePartySetting : RaidPartySetting
 				break;
 			}
 		}
+		partySlotSpacing = SprkFieldRaidParty.Spacing(eSquardType, partySlotSpacing);
 		UIGrid mainEmptySlotGrid = _currentSquard.GetMainEmptySlotGrid();
 		if ((bool)mainEmptySlotGrid && partySlotSpacing != null)
 		{

@@ -394,6 +394,20 @@ public sealed class SprkAutomation : MonoBehaviour
 				Write(reply);
 				return;
 			}
+			if (command.action == "field-raid-party-probe")
+			{
+				string fieldRaidProfile = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+				if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Login" || string.IsNullOrEmpty(fieldRaidProfile) || !fieldRaidProfile.StartsWith("field-raid-"))
+				{
+					throw new InvalidOperationException("Field raid party fixture requires isolated Login and field-raid profile");
+				}
+				string fieldRaidResult = (string)Assembly.Load("SprkFieldRaidParty").GetType("SprkFieldRaidPartyProbe").GetMethod("Run")
+					.Invoke(null, new object[1] { command.text });
+				reply = Snapshot(command.id);
+				reply.materials.Add(fieldRaidResult);
+				Write(reply);
+				return;
+			}
 			if (command.action == "godking-background-probe")
 			{
 				reply = Snapshot(command.id);

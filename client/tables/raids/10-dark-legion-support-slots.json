@@ -1,0 +1,75 @@
+{
+  "table": "RaidTable",
+  "upsert": [
+    {
+      "Name": "NODE_FIELD_RAID_NAME_04",
+      "Type": "FieldRaidSingle",
+      "Step_Name": "TRIAL_STEP1",
+      "Step_HelpDesc": "FIELD_RAID_HELP_01",
+      "ChapterIndex": 9,
+      "DungeonIndex": 105,
+      "PreviewBg": "",
+      "PlayerCount": 1,
+      "DeckCount": 7,
+      "DeckCountPerPlayer": 7,
+      "AliveDuration": 604800,
+      "NodeTreePath": "",
+      "NodeTreeCode": "",
+      "RaidPoint": 7000,
+      "Tactic": "HARDRAID_INFO_TIP_BLACK_DESC",
+      "RecommendedHeroIndex": [
+        43,
+        27,
+        4
+      ],
+      "MainPartyCount": 4,
+      "SubPartyCount": 2,
+      "Index": 44,
+      "Level": 1,
+      "OpenCondition": [
+        9,
+        23
+      ],
+      "ReqHeroLevel": 60,
+      "IndividualReward": 961801,
+      "ClearRaidIndex": 34,
+      "RaidDesc": "",
+      "RaidInfoCustomIdle": ""
+    },
+    {
+      "Name": "NODE_FIELD_RAID_NAME_04",
+      "Type": "FieldRaidSingle",
+      "Step_Name": "TRIAL_STEP2",
+      "Step_HelpDesc": "FIELD_RAID_HELP_01",
+      "ChapterIndex": 9,
+      "DungeonIndex": 115,
+      "PreviewBg": "",
+      "PlayerCount": 1,
+      "DeckCount": 7,
+      "DeckCountPerPlayer": 7,
+      "AliveDuration": 604800,
+      "NodeTreePath": "",
+      "NodeTreeCode": "",
+      "RaidPoint": 9000,
+      "Tactic": "HARDRAID_INFO_TIP_BLACK_DESC",
+      "RecommendedHeroIndex": [
+        43,
+        27,
+        4
+      ],
+      "MainPartyCount": 4,
+      "SubPartyCount": 2,
+      "Index": 44,
+      "Level": 2,
+      "OpenCondition": [
+        9,
+        23
+      ],
+      "ReqHeroLevel": 60,
+      "IndividualReward": 961802,
+      "ClearRaidIndex": 34,
+      "RaidDesc": "",
+      "RaidInfoCustomIdle": ""
+    }
+  ]
+}

@@ -496,7 +496,8 @@ async fn field_and_technomagic_dispatch_infers_solo_raid_and_settles_flat_roster
 
 #[tokio::test]
 async fn field_and_technomagic_solo_subparty_is_counted_once() {
-    for (raid,total,sub) in [(41,4,0),(42,6,2),(43,6,2),(44,7,3),(301,7,3),(302,7,3),(303,7,3)] {
+    // Dark Legion (44) is 4+2 like the other field raids (archived RaidTable).
+    for (raid,total,sub) in [(41,4,0),(42,6,2),(43,6,2),(44,6,2),(301,7,3),(302,7,3),(303,7,3)] {
         let (s,u)=setup().await;let a=account(&u);unlock(&s,a).await;
         for hero in 1..=10 {
             crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES($1,$2,$3,100,5) ON CONFLICT DO NOTHING")
@@ -524,6 +525,11 @@ async fn field_and_technomagic_solo_subparty_is_counted_once() {
             ] {
                 assert_eq!(call(&s,&u,"campaign/begin_campaign",&invalid).await["Result"],"NotMatchHeroIndices","{invalid}");
                 assert_eq!(crate::db::query_scalar::<i64>("SELECT stamina FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap(),before);
+            }
+            if raid==44 {
+                // The old 4+3 Dark Legion roster is one support hero too many.
+                let old=format!("{prefix}&HeroIndices={}&AiHeroIndices=[5,6,7]",json!((1..=7).collect::<Vec<_>>()));
+                assert_eq!(call(&s,&u,"campaign/begin_campaign",&old).await["Result"],"NotMatchHeroIndices");
             }
             if sub>0 {
                 for invalid in [
