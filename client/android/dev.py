@@ -107,14 +107,20 @@ def publish_assets(args):
         run([sys.executable, REPO / "client/dev.py", "assets"])
 
 
+def fetch(url: str, timeout: int) -> bytes:
+    # Cloudflare in front of the update host rejects urllib's default User-Agent (error 1010).
+    request = urllib.request.Request(url, headers={"User-Agent": "sprk-dev/1.0"})
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return response.read()
+
+
 def release_code(manifest_url: str) -> Path:
     """The game DLLs (Assembly-CSharp, Sprk*) of a published release, hash-checked and
     signature-checked like the APK's updater does, in ARTIFACTS/release-code."""
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import padding
 
-    with urllib.request.urlopen(manifest_url, timeout=60) as response:
-        outer = json.loads(response.read())
+    outer = json.loads(fetch(manifest_url, 60))
     signature = outer.get("signature") or {}
     if not signature.get("payload"):
         raise SystemExit(f"{manifest_url} is not signed")
@@ -132,8 +138,7 @@ def release_code(manifest_url: str) -> Path:
         name = f["path"][len(prefix):] if f["path"].startswith(prefix) else ""
         if "/" in name or not name.endswith(".dll") or not (name == "Assembly-CSharp.dll" or name.startswith("Sprk")):
             continue
-        with urllib.request.urlopen(urllib.parse.urljoin(manifest_url, f["url"]), timeout=300) as response:
-            data = response.read()
+        data = fetch(urllib.parse.urljoin(manifest_url, f["url"]), 300)
         if len(data) != f["size"] or hashlib.sha256(data).hexdigest() != f["sha256"]:
             raise SystemExit(f"{f['path']}: does not match the release manifest")
         (out / name).write_bytes(data)
