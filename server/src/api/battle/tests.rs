@@ -2778,13 +2778,21 @@ async fn dragon_dispatch_infers_raid_and_settles_once() {
         assert_eq!(finish["Result"],"Success","{finish}");
         assert_eq!(finish["DispatchBattleInfo"]["WinCount"],2);
         assert_eq!(finish["TeamExpResult"]["AddValue"],2*cost*10);
-        if chapter == 905 {
-            let gear: Vec<crate::models::equip::EquipItemInfo> = read_value(finish["EquipItemResults"].clone()).unwrap();
-            assert!(!gear.is_empty());
-            assert!(gear.iter().all(|v| v.slot_index > 0 && !v.uid.is_empty()));
-        } else {
-            assert!(!finish["ItemResults"].as_array().unwrap().is_empty());
+        // Each win pays the stage's sealed raid box (drop and IndividualReward
+        // inside) plus any loot it leaves out, such as the dragons' MATERIAL_77.
+        let stage = s.tables.battle.find("CampaignDungeon", &[("ChapterIndex", chapter), ("DungeonIndex", dungeon)]).unwrap();
+        let sealed = dispatch::reward_box(&s, stage, 0).unwrap();
+        let added = |index: i64| -> i64 {
+            finish["ItemResults"].as_array().unwrap().iter()
+                .filter(|v| n(v, "ItemIndex") == index).map(|v| n(v, "AddCount")).sum()
+        };
+        assert_eq!(added(s.tables.get_item_index(sealed["Item"].as_str().unwrap()).unwrap() as i64), 2, "{finish}");
+        let direct = sealed["DirectItems"].as_array().cloned().unwrap_or_default();
+        assert_eq!(!direct.is_empty(), chapter == 905, "{sealed}");
+        for extra in direct {
+            assert_eq!(added(n(&extra, "ItemIndex")), 2 * n(&extra, "Count"), "{finish}");
         }
+        assert_eq!(finish["EquipItemResults"].as_array().map_or(0, Vec::len), 0, "{finish}");
         let mail_count: i64 = crate::db::query_scalar("SELECT count(*) FROM mails WHERE account_id=$1")
             .bind(a)
             .fetch_one(&s.db)

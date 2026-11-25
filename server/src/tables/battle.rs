@@ -28,6 +28,10 @@ impl BattleTable {
         // Royal Labyrinth towers, rather than independent tower requirements.
         let maze = serde_json::from_reader(std::fs::File::open(path.with_file_name("MazeClearRewardTable.json"))?)?;
         data.tables.insert("MazeClearReward".into(), maze);
+        // The native per-stage Dispatch Battle Loot boxes, recovered from the
+        // client tables by server/scripts/tables/build_dispatch_boxes.py.
+        let boxes = serde_json::from_reader(std::fs::File::open(path.with_file_name("DispatchRewardBoxes.json"))?)?;
+        data.tables.insert("DispatchRewardBox".into(), boxes);
         let missions: Value = serde_json::from_reader(std::fs::File::open(path.with_file_name("MissionCompletionSupport.json"))?)?;
         for name in ["MonthlyHero", "SubStoryUnlock", "MonsterArchive"] {
             data.tables.insert(name.into(), missions["Tables"][name].as_array()

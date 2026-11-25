@@ -188,6 +188,12 @@ async fn technomagic_dispatch_preserves_entry_gates_and_charges_and_rewards_only
         assert_eq!(stamina(&s, &u).await, 700);
         assert_eq!(done["TeamExpResult"]["AddValue"], 3000);
         assert_eq!(done["EquipItemInfos"], done["EquipItemResults"]);
+        // Each win is one sealed raid box; its IndividualReward is inside, not loose.
+        let stage = s.tables.battle.find("CampaignDungeon", &[("ChapterIndex", 10), ("DungeonIndex", dungeon)]).unwrap();
+        let sealed = dispatch::reward_box(&s, stage, 0).unwrap();
+        let box_index = s.tables.get_item_index(sealed["Item"].as_str().unwrap()).unwrap() as i64;
+        assert_eq!(boxes_received(&done, box_index), 3, "{done}");
+        assert_eq!(done["EquipItemResults"].as_array().map_or(0, Vec::len), 0, "{done}");
         let mail_after: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=$1")
             .bind(a)
             .fetch_one(&s.db)
@@ -251,12 +257,75 @@ async fn finish_now(s: &AppState, u: &Value, slot: i64) {
     job["FinishTimestamp"] = json!(now() - 1);
     put(&mut db, a, "dispatch", slot, &job).await.unwrap();
 }
+fn boxes_received(done: &Value, box_index: i64) -> i64 {
+    done["ItemResults"].as_array().into_iter().flatten()
+        .filter(|v| n(v, "ItemIndex") == box_index).map(|v| n(v, "AddCount")).sum()
+}
+#[test]
+fn every_dispatch_box_is_a_grantable_package_of_a_dispatchable_stage() {
+    let s = crate::tables::test_tables();
+    let rows = s.battle.rows("DispatchRewardBox");
+    assert!(rows.len() > 900, "missing DispatchRewardBoxes.json rows");
+    let mut keys = BTreeSet::new();
+    for row in rows {
+        let (c, d, diff) = (n(row, "ChapterIndex"), n(row, "DungeonIndex"), n(row, "Difficulty"));
+        assert!(keys.insert((c, d, diff)), "duplicate dispatch box row {row}");
+        let stage = s.battle.find("CampaignDungeon", &[("ChapterIndex", c), ("DungeonIndex", d)]).unwrap();
+        assert_ne!(campaign::field(stage, "DispatchType", diff), 0, "{row}");
+        let item = s.get_item_index(row["Item"].as_str().unwrap()).unwrap();
+        assert!(s.inventory.packages.contains_key(&item), "{row} is not an openable package");
+        assert!(s.get_reward(n(row, "RewardIndex") as i32).is_some(), "{row}");
+        for extra in row["DirectItems"].as_array().into_iter().flatten() {
+            assert_eq!(s.get_item_index(extra["Item"].as_str().unwrap()), Some(n(extra, "ItemIndex") as i32));
+            assert!(n(extra, "Count") > 0);
+        }
+    }
+    // Story Hard/Very Hard never had a native box and keep paying loose loot.
+    assert!(!keys.contains(&(1, 1, 2)) && !keys.contains(&(1, 1, 3)));
+}
+#[tokio::test]
+async fn dispatch_wins_pay_one_sealed_stage_box_each_that_opens_into_the_stage_loot() {
+    let (s, u) = fixture(true).await;
+    let a = account(&u);
+    let box_index = s.tables.get_item_index("DISPATCH_REWARD_BOX_CHAPTER_1_1").unwrap();
+    let job = start(&s, &u, 3).await;
+    let slot = n(&job, "SlotIndex");
+    let mut saved = job.clone();
+    saved["SimulationResults"] = json!([{"Outcome":1,"TimeMs":1000},{"Outcome":0,"TimeMs":1000},{"Outcome":1,"TimeMs":1000}]);
+    saved["StartTimestamp"] = json!(now() - 60);
+    saved["FinishTimestamp"] = json!(now() - 1);
+    put(&mut s.db.acquire().await.unwrap(), a, "dispatch", slot, &saved).await.unwrap();
+    let equipment = || async {
+        crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM equip_items WHERE account_id=$1")
+            .bind(a).fetch_one(&s.db).await.unwrap()
+    };
+    let before = equipment().await;
+    let done = call(&s, &u, "dispatch/request_complete_dispatch", &format!("SlotIndex={slot}")).await;
+    assert_eq!(done["Result"], "Success", "{done}");
+    assert_eq!(boxes_received(&done, box_index as i64), 2, "{done}");
+    assert_eq!(done["EquipItemResults"].as_array().map_or(0, Vec::len), 0, "{done}");
+    assert_eq!(equipment().await, before, "stage gear must stay sealed in the box");
+    let held: i32 = crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=$2")
+        .bind(a).bind(box_index).fetch_one(&s.db).await.unwrap();
+    assert_eq!(held, 2);
+    let open = Bytes::from(format!(
+        "SessionKey={}&ItemIndex={box_index}&ItemCount=2",
+        u["UserInfo"]["SessionKey"].as_str().unwrap()
+    ));
+    let opened = item::use_package_item(State(s.clone()), open).await.unwrap().0;
+    assert_eq!(opened["Result"], "Success", "{opened}");
+    // Each box always holds the stage's guaranteed EQUIP_CHAPTER1-1 drop.
+    assert!(equipment().await >= before + 2, "{opened}");
+}
 #[tokio::test]
 async fn dispatch_equipment_fills_inventory_and_mails_only_overflow_once() {
     for cancel in [false, true] {
         for spaces in [0, 1, 6] {
             let (mut s, u) = fixture(true).await;
             let a = account(&u);
+            // Loose loot is the path for stages without a native box (story Hard/Very Hard).
+            std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).battle)
+                .tables.insert("DispatchRewardBox".into(), vec![]);
             let dungeon = std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).battle)
                 .tables.get_mut("CampaignDungeon").unwrap().iter_mut()
                 .find(|d| n(d,"ChapterIndex")==1 && n(d,"DungeonIndex")==1).unwrap();

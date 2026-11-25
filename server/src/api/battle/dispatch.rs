@@ -27,6 +27,14 @@ fn dispatch_raid<'a>(s: &'a AppState, d: &Value) -> Result<Option<&'a Value>> {
     }
     Ok(Some(raid))
 }
+/// Native dispatch paid each won run as one sealed "Dispatch Battle Loot" box
+/// (a Package item) rather than loose loot: its claim responses have no
+/// equipment field. Stages without a box (story Hard/Very Hard) pay directly.
+pub(super) fn reward_box<'a>(s: &'a AppState, d: &Value, diff: i64) -> Option<&'a Value> {
+    s.tables.battle.find("DispatchRewardBox", &[
+        ("ChapterIndex", n(d, "ChapterIndex")), ("DungeonIndex", n(d, "DungeonIndex")), ("Difficulty", diff),
+    ])
+}
 pub(super) async fn ensure_available(
     db: &mut PgConnection,
     a: i64,
@@ -366,12 +374,14 @@ pub(super) async fn execute(
     }
     let req = request(&info);
     let heroes: Vec<i64> = read_json(info["HeroIndices"].as_str().unwrap_or("[]"))?;
+    let reward_box = reward_box(s, campaign::dungeon(s, &req)?, campaign::difficulty(&req)?);
     let mut out = if wins > 0 {
-        campaign::complete_dispatch(db, s, a, &req, &heroes, 3, wins).await?
+        campaign::complete_dispatch(db, s, a, &req, &heroes, 3, wins, reward_box).await?
     } else {
         item::success()
     };
-    if wins > 0 {
+    // A raid's box already holds its IndividualReward.
+    if wins > 0 && reward_box.is_none() {
         if let Some(raid) = dispatch_raid(s, campaign::dungeon(s, &req)?)? {
             let mut extra = Rewards::default();
             for _ in 0..wins {

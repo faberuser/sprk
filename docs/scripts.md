@@ -16,7 +16,7 @@ serve; CI and Docker orchestration files stay at the root.
 | `server/scripts/worker/`          | Battle worker preparation and image smoke checks                                                                       |
 | `server/scripts/performance/`     | HTTP latency measurements                                                                                              |
 | `server/scripts/docker/`          | Container entrypoints, health checks and image build steps                                                             |
-| `server/scripts/tables/`          | Generators for `server/tables/` data taken from client tables (Monster Index monsters per dungeon)                     |
+| `server/scripts/tables/`          | Generators for `server/tables/` data taken from client tables (Monster Index monsters, dispatch loot boxes per stage)  |
 
 Main entry points:
 
@@ -34,6 +34,7 @@ python client/scripts/release/sync_assets.py --help                 # upload the
 python client/scripts/automation/client_automation.py --help        # real-client tests
 python server/scripts/worker/linux_worker.py --help
 python server/scripts/tables/build_monster_archive.py --help       # client wave tables -> MonsterArchiveSupport.json
+python server/scripts/tables/build_dispatch_boxes.py --help        # client reward tables -> DispatchRewardBoxes.json
 python server/gm.py --help
 ```
 

@@ -562,7 +562,7 @@ async fn end_inner(
     }
     let mut out = if completed {
         let loot_percent = super::loot_booster::percent(db,s,a,&request,&entry).await?;
-        complete_inner(db, s, a, &request, &party, star, 1, party_loot_enabled(&entry), loot_percent).await?
+        complete_inner(db, s, a, &request, &party, star, 1, party_loot_enabled(&entry), loot_percent, None).await?
     } else {
         item::success()
     };
@@ -631,7 +631,7 @@ pub(super) async fn complete(
     count: i64,
 ) -> Result<Value> {
     let loot_percent = super::loot_booster::percent(db,s,a,r,&json!({})).await?;
-    complete_inner(db, s, a, r, party, star, count, true, loot_percent).await
+    complete_inner(db, s, a, r, party, star, count, true, loot_percent, None).await
 }
 
 pub(super) async fn complete_dispatch(
@@ -642,9 +642,10 @@ pub(super) async fn complete_dispatch(
     party: &[i64],
     star: i64,
     count: i64,
+    reward_box: Option<&Value>,
 ) -> Result<Value> {
     // Dispatch is excluded from loot boosters, even when one is active at claim.
-    complete_inner(db, s, a, r, party, star, count, true, 0).await
+    complete_inner(db, s, a, r, party, star, count, true, 0, reward_box).await
 }
 
 /// Only authenticated, server-saved party options can disable battle loot.
@@ -655,6 +656,7 @@ pub(super) fn party_loot_enabled(entry: &Value) -> bool {
 async fn complete_inner(
     db: &mut PgConnection, s: &AppState, a: i64, r: &Request,
     party: &[i64], star: i64, count: i64, grant_loot: bool, loot_percent: i64,
+    reward_box: Option<&Value>,
 ) -> Result<Value> {
     let d = dungeon(s, r)?;
     let c = n(d, "ChapterIndex");
@@ -663,9 +665,17 @@ async fn complete_inner(
     let mut p = progress(db, s, a, c, di).await?;
     let mut reward = Rewards { mail_overflow: true, ..Rewards::default() };
     for _ in 0..if grant_loot {count} else {0} {
-        let index = field(d, "DropRewardIndex", diff);
+        // A dispatch box replaces the run's loose loot; DirectItems are the
+        // stage loot the box leaves out.
+        let index = reward_box.map_or_else(|| field(d, "DropRewardIndex", diff), |b| n(b, "RewardIndex"));
         if index > 0 {
             item::reward_with_loot_bonus(db,s,a,index as i32,&mut reward,loot_percent).await?;
+        }
+        for extra in reward_box.and_then(|b| b["DirectItems"].as_array()).into_iter().flatten() {
+            let grant = crate::models::item::ItemGrant {
+                index: n(extra, "ItemIndex") as i32, count: n(extra, "Count") as i32, star: 0, custom: 0,
+            };
+            tutorial::grant_item(db, s, a, grant, &mut reward).await?;
         }
     }
     // Clear credit also unlocks later stages. Track actual loot claims separately
