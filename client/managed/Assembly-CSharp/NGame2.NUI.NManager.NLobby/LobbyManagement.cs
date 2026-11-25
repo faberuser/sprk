@@ -1032,6 +1032,7 @@ public class LobbyManagement : BaseManagement<LobbyManagement>, LobbyTopmostMenu
 	{
 		base.ChainUpdate();
 		CheckNewMailArrived();
+		NGameAsset.NPatch.AssetVersionWatcher.Tick();
 		RefreshRightAwayProductInfo();
 		GuildManager.RequestGuildInfo();
 		UpdateLobbyMenu();

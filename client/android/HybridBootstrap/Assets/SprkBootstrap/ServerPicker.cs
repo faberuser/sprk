@@ -87,77 +87,81 @@ public sealed class ServerPicker
         return dir.Call<string>("getAbsolutePath");
     }
 
-    // Laid out on a 1920x1080 canvas scaled to the screen, large enough for touch.
+    // Laid out on SprkUi's scaled canvas, large enough for touch.
     public void OnGUI()
     {
-        float scale = Mathf.Min(Screen.width / 1920f, Screen.height / 1080f);
-        GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
-        var w = 1100f;
-        var area = new Rect((Screen.width / scale - w) / 2f, 60f, w, 960f);
-        var title = new GUIStyle(GUI.skin.label) { fontSize = 56, alignment = TextAnchor.MiddleCenter };
-        var label = new GUIStyle(GUI.skin.label) { fontSize = 34 };
-        var small = new GUIStyle(GUI.skin.label) { fontSize = 26, wordWrap = true };
-        var button = new GUIStyle(GUI.skin.button) { fontSize = 38 };
-        // The default text field anchors text to the top; center it in the tall touch-sized box.
-        var field = new GUIStyle(GUI.skin.textField) { fontSize = 36, alignment = TextAnchor.MiddleLeft, padding = new RectOffset(16, 16, 0, 0) };
-        GUI.Box(area, GUIContent.none);
-        GUILayout.BeginArea(new Rect(area.x + 40, area.y + 30, w - 80, area.height - 60));
-        GUILayout.Label("Choose a server", title, GUILayout.Height(90));
+        SprkUi.Begin();
+        SprkUi.Backdrop();
+        var content = SprkUi.Panel(1240f, adding ? 900f : 860f, 160f);
+        GUILayout.BeginArea(content);
 
         if (!adding)
         {
-            scroll = GUILayout.BeginScrollView(scroll, GUILayout.Height(520));
+            GUILayout.Label("Choose a server", SprkUi.Style("titleLeft"), GUILayout.Height(70));
+            GUILayout.Label("Pick where to play, or add your community's server.", SprkUi.Style("bodyLeft"), GUILayout.Height(50));
+            GUILayout.Space(24);
+            scroll = GUILayout.BeginScrollView(scroll, false, false, GUIStyle.none, GUI.skin.verticalScrollbar, GUIStyle.none, GUILayout.Height(420));
             foreach (var p in All.ToList())
             {
-                GUILayout.BeginHorizontal();
                 bool selected = p.name == Selected.name;
-                var style = new GUIStyle(button) { alignment = TextAnchor.MiddleLeft, fontStyle = selected ? FontStyle.Bold : FontStyle.Normal };
-                if (GUILayout.Button((selected ? "● " : "○ ") + p.name + "\n" + p.url, new GUIStyle(style) { fontSize = 30 }, GUILayout.Height(110)))
+                var row = GUILayoutUtility.GetRect(content.width - 30f, 116f, GUILayout.Height(116f));
+                bool deletable = p.name != LocalName;
+                var pick = deletable ? new Rect(row.x, row.y, row.width - 196f, row.height) : row;
+                if (GUI.Button(pick, GUIContent.none, SprkUi.Style(selected ? "rowSelected" : "row")))
                 {
                     store.selected = p.name;
                     Save();
                 }
-                if (p.name != LocalName && GUILayout.Button("Delete", button, GUILayout.Width(190), GUILayout.Height(110)))
+                // Radio mark, name and address drawn over the row.
+                SprkUi.Radio(new Rect(pick.x + 34f, pick.y + pick.height / 2f - 18f, 36f, 36f), selected);
+                GUI.Label(new Rect(pick.x + 96f, pick.y + 14f, pick.width - 120f, 48f), p.name, SprkUi.Style("label"));
+                GUI.Label(new Rect(pick.x + 96f, pick.y + 60f, pick.width - 120f, 40f), p.url, SprkUi.Style("small"));
+                if (deletable && GUI.Button(new Rect(row.xMax - 180f, row.y, 180f, row.height), "Delete", SprkUi.Style("secondary")))
                 {
                     store.servers.Remove(p);
                     if (store.selected == p.name) store.selected = LocalName;
                     Save();
                 }
-                GUILayout.EndHorizontal();
-                GUILayout.Space(10);
+                GUILayout.Space(14);
             }
             GUILayout.EndScrollView();
-            GUILayout.Space(20);
+            GUILayout.FlexibleSpace();
+            if (Selected.name == LocalName)
+                GUILayout.Label("Local reaches the PC's local server through `adb reverse` (USB or emulator).", SprkUi.Style("small"));
+            GUILayout.Space(16);
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Add server", button, GUILayout.Height(120))) { adding = true; error = ""; }
-            GUILayout.Space(20);
-            if (GUILayout.Button("Play", button, GUILayout.Height(120)))
+            if (GUILayout.Button("Add server", SprkUi.Style("secondary"), GUILayout.Width(360f), GUILayout.Height(120))) { adding = true; error = ""; }
+            GUILayout.Space(24);
+            if (GUILayout.Button("Play", SprkUi.Style("primary"), GUILayout.Height(120)))
             {
                 Chosen = Selected;
                 Done = true;
             }
             GUILayout.EndHorizontal();
-            if (Selected.name == LocalName)
-                GUILayout.Label("Local reaches the PC's local server through `adb reverse` (USB or emulator).", small);
         }
         else
         {
-            GUILayout.Label("Name", label);
-            newName = GUILayout.TextField(newName, 40, field, GUILayout.Height(90));
+            var field = SprkUi.Style("field");
+            var label = SprkUi.Style("label");
+            var small = SprkUi.Style("small");
+            GUILayout.Label("Add a server", SprkUi.Style("titleLeft"), GUILayout.Height(70));
             GUILayout.Space(16);
-            GUILayout.Label("host.json URL", label);
-            newUrl = GUILayout.TextField(newUrl, 300, field, GUILayout.Height(90));
+            GUILayout.Label("Name", label, GUILayout.Height(44));
+            newName = GUILayout.TextField(newName, 40, field, GUILayout.Height(88));
+            GUILayout.Space(16);
+            GUILayout.Label("host.json URL", label, GUILayout.Height(44));
+            newUrl = GUILayout.TextField(newUrl, 300, field, GUILayout.Height(88));
             GUILayout.Label("https://your-server.example/host.json (plain http only for 127.0.0.1)", small);
-            GUILayout.Space(16);
-            GUILayout.Label("Update URL (optional)", label);
-            newUpdate = GUILayout.TextField(newUpdate, 300, field, GUILayout.Height(90));
+            GUILayout.Space(12);
+            GUILayout.Label("Update URL (optional)", label, GUILayout.Height(44));
+            newUpdate = GUILayout.TextField(newUpdate, 300, field, GUILayout.Height(88));
             GUILayout.Label("Empty: the server's /updates/stable/manifest.json", small);
-            if (error.Length > 0) GUILayout.Label(error, new GUIStyle(small) { normal = { textColor = new Color(1f, 0.5f, 0.4f) } });
+            if (error.Length > 0) GUILayout.Label(error, SprkUi.Style("errorLeft"));
             GUILayout.FlexibleSpace();
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Cancel", button, GUILayout.Height(120))) adding = false;
-            GUILayout.Space(20);
-            if (GUILayout.Button("Save", button, GUILayout.Height(120)))
+            if (GUILayout.Button("Cancel", SprkUi.Style("secondary"), GUILayout.Width(360f), GUILayout.Height(120))) adding = false;
+            GUILayout.Space(24);
+            if (GUILayout.Button("Save", SprkUi.Style("primary"), GUILayout.Height(120)))
             {
                 string url = Validate(newUrl), name = newName.Trim();
                 string update = newUpdate.Trim().Length == 0 ? "" : ValidateUpdate(newUpdate);
@@ -178,6 +182,6 @@ public sealed class ServerPicker
             GUILayout.EndHorizontal();
         }
         GUILayout.EndArea();
-        GUI.matrix = Matrix4x4.identity;
+        SprkUi.End();
     }
 }

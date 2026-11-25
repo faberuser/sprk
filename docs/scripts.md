@@ -16,6 +16,7 @@ serve; CI and Docker orchestration files stay at the root.
 | `server/scripts/worker/`          | Battle worker preparation and image smoke checks                                                                       |
 | `server/scripts/performance/`     | HTTP latency measurements                                                                                              |
 | `server/scripts/docker/`          | Container entrypoints, health checks and image build steps                                                             |
+| `server/scripts/tables/`          | Generators for `server/tables/` data taken from client tables (Monster Index monsters per dungeon)                     |
 
 Main entry points:
 
@@ -24,6 +25,7 @@ python client/dev.py --help                                         # build, tes
 python client/android/dev.py --help                                 # Android: content, build, test, hot (client/README.md)
 python client/scripts/build/build_managed_client.py --help          # compiler used by dev.py and CI
 python client/scripts/build/build_tables.py --help                  # table/text patches -> overrides (docs/jit-tables.md)
+python client/scripts/build/retarget_android_bundles.py --help      # Android bundle -> Windows override (client/overrides/README.md)
 python client/scripts/release/build_client_release.py --help        # complete signed release (CI)
 python client/scripts/release/publish_client_update.py --help       # local release from the installed client
 python client/scripts/release/publish_assets.py --help              # publish game assets for the patch downloader
@@ -31,6 +33,7 @@ python client/scripts/release/sync_assets.py --help                 # upload the
 # asset_overlay.py (no CLI): the release's signed asset overlay, built by build_client_release.py
 python client/scripts/automation/client_automation.py --help        # real-client tests
 python server/scripts/worker/linux_worker.py --help
+python server/scripts/tables/build_monster_archive.py --help       # client wave tables -> MonsterArchiveSupport.json
 python server/gm.py --help
 ```
 

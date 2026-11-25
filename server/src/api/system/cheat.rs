@@ -392,6 +392,10 @@ pub async fn gm_reset_account(
         .bind(account_id)
         .execute(&mut *tx)
         .await?;
+    crate::db::query("DELETE FROM monster_archive WHERE account_id = $1")
+        .bind(account_id)
+        .execute(&mut *tx)
+        .await?;
 
     crate::db::query("DELETE FROM tutorial_progress WHERE account_id = $1")
         .bind(account_id)

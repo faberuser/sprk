@@ -31,6 +31,7 @@ public class RenewSoulWeaponStatPopup : CommonRenewSoulWeaponStatPopup
 
 	public override void Close()
 	{
+		SprkSoulRenewUntil.Closing(this);
 		base.Close();
 		_iListener = null;
 	}
@@ -42,6 +43,7 @@ public class RenewSoulWeaponStatPopup : CommonRenewSoulWeaponStatPopup
 		SoulWeaponStatInfo.Open(base.SoulWeaponInfo);
 		SoulWeaponTotalStatInfo.Open(base.SoulWeaponInfo, isRenew: false);
 		SetStatProgressComponent(base.SoulWeaponInfo, ref _statProgressComponent, ref StatProgressRootTransform, isRenew: false, SoulWeaponStatProgressComponent.BgColorType.Brown);
+		SprkSoulRenewUntil.Opened(this);
 	}
 
 	public void OnClickRenewSoulWeaponStat()

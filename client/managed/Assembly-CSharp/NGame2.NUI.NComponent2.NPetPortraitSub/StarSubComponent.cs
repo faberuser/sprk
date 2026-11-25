@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using NVespa.NPrefab2;
+using UnityEngine;
 
 namespace NGame2.NUI.NComponent2.NPetPortraitSub;
 
@@ -11,10 +12,27 @@ public class StarSubComponent : BaseSubComponent<PetPortraitComponent>
 
 	public List<UIWidget> StarList = new List<UIWidget>();
 
+	private const float BottomStripHeight = 42f;
+
+	private const float BottomStripInset = 5f;
+
 	public override void Open(PetPortraitComponent owner)
 	{
 		base.Open(owner);
-		SetRootAnchor(base.Owner.GetRootGO(PetPortraitComponent.ESubComponent.PetStar));
+		GameObject rootGO = base.Owner.GetRootGO(PetPortraitComponent.ESubComponent.PetStar);
+		SetRootAnchor(rootGO);
+		if (base.Owner.WidgetThis != null && rootGO == base.Owner.WidgetThis.gameObject)
+		{
+			// No PetStar root (PetPortraitSmall): the stars, anchored 2 units inside
+			// the root's top and bottom, would stretch over the whole icon. Keep the
+			// root to a strip one star high along the bottom edge instead, as wide
+			// as the 5-star sprite so the 3-5 star rows keep their native width.
+			Root.leftAnchor.Set(0f, BottomStripInset);
+			Root.rightAnchor.Set(1f, 0f - BottomStripInset);
+			Root.bottomAnchor.Set(0f, 0f);
+			Root.topAnchor.Set(0f, BottomStripHeight);
+			Root.ResetAndUpdateAnchors();
+		}
 		UIWidget[] componentsInChildren = Root.GetComponentsInChildren<UIWidget>();
 		for (int i = 0; i < componentsInChildren.Length; i++)
 		{

@@ -48,6 +48,16 @@ public sealed class SprkShopSearchBar : MonoBehaviour
 
 	private readonly HashSet<Collider> hiddenColliders = new HashSet<Collider>();
 
+	private UISprite shareButton;
+
+	private UISprite importButton;
+
+	private bool laidOutBookmarks;
+
+	private const int ButtonWidth = 150;
+
+	private const float ButtonGap = 14f;
+
 	private string Current => (CurrentField.GetValue(shop) as string) ?? "";
 
 	public void Bind(PayShop window)
@@ -141,6 +151,8 @@ public sealed class SprkShopSearchBar : MonoBehaviour
 			UIButton uIButton = clear.AddComponent<UIButton>();
 			uIButton.tweenTarget = clear;
 			EventDelegate.Add(uIButton.onClick, Clear);
+			shareButton = MakeButton("Button_ShareBookmarks", SprkText.Get("Share"), ShareBookmarks);
+			importButton = MakeButton("Button_ImportBookmarks", SprkText.Get("Import"), ImportBookmarks);
 			Transform transform = shop.PayShopProductList.transform;
 			Transform transform2 = transform.GetComponentsInChildren<Transform>(includeInactive: true).FirstOrDefault((Transform t) => t.name == "DragScrollView");
 			hint = NGUITools.AddWidget<UILabel>(((transform2 != null) ? transform2.parent : transform).gameObject);
@@ -158,20 +170,62 @@ public sealed class SprkShopSearchBar : MonoBehaviour
 		}
 	}
 
+	private UISprite MakeButton(string name, string text, EventDelegate.Callback onClick)
+	{
+		GameObject gameObject = new GameObject(name);
+		gameObject.layer = bar.layer;
+		gameObject.transform.SetParent(bar.transform, worldPositionStays: false);
+		UISprite uISprite = gameObject.AddComponent<UISprite>();
+		uISprite.atlas = frame.atlas;
+		uISprite.spriteName = frame.spriteName;
+		uISprite.type = UIBasicSprite.Type.Sliced;
+		uISprite.width = ButtonWidth;
+		uISprite.height = field.height;
+		uISprite.depth = field.depth;
+		UILabel uILabel = NGUITools.AddWidget<UILabel>(gameObject);
+		uILabel.name = "Label";
+		Copy(tagLabel, uILabel);
+		uILabel.fontSize = Math.Max(18, tagLabel.fontSize - 4);
+		uILabel.pivot = UIWidget.Pivot.Center;
+		uILabel.alignment = NGUIText.Alignment.Center;
+		uILabel.overflowMethod = UILabel.Overflow.ShrinkContent;
+		uILabel.width = ButtonWidth - 20;
+		uILabel.height = 44;
+		uILabel.depth = uISprite.depth + 1;
+		uILabel.text = text;
+		uILabel.transform.localPosition = Vector3.zero;
+		gameObject.AddComponent<BoxCollider>().size = new Vector3(ButtonWidth, uISprite.height, 1f);
+		UIButton uIButton = gameObject.AddComponent<UIButton>();
+		uIButton.tweenTarget = gameObject;
+		EventDelegate.Add(uIButton.onClick, onClick);
+		return uISprite;
+	}
+
 	private void Layout()
 	{
 		Vector3[] worldCorners = frame.worldCorners;
 		Vector3 vector = tagRoot.InverseTransformPoint(worldCorners[0]);
 		Vector3 vector2 = tagRoot.InverseTransformPoint(worldCorners[2]);
 		Vector3 vector3 = new Vector3(vector.x, vector2.x, (vector.y + vector2.y) * 0.5f);
-		if (!(vector3 == laidOut))
+		bool flag = Current == "SprkBookmark";
+		if (!(vector3 == laidOut) || flag != laidOutBookmarks)
 		{
 			laidOut = vector3;
+			laidOutBookmarks = flag;
 			float z = vector3.z;
 			Vector3 localPosition = tagRoot.InverseTransformPoint(tagLabel.transform.position);
 			title.transform.localPosition = localPosition;
 			float num = localPosition.x + ((tagLabel.pivot == UIWidget.Pivot.Left) ? ((float)tagLabel.width) : ((tagLabel.pivot == UIWidget.Pivot.Right) ? 0f : ((float)tagLabel.width * 0.5f))) + 110f;
 			float num2 = vector2.x - 26f;
+			if (flag)
+			{
+				float num4 = num2 - (float)ButtonWidth * 0.5f;
+				importButton.transform.localPosition = new Vector3(num4, z, 0f);
+				shareButton.transform.localPosition = new Vector3(num4 - (float)ButtonWidth - ButtonGap, z, 0f);
+				num2 -= 2f * ((float)ButtonWidth + ButtonGap);
+			}
+			shareButton.gameObject.SetActive(flag);
+			importButton.gameObject.SetActive(flag);
 			int num3 = Math.Max(200, (int)(num2 - num));
 			field.transform.localPosition = new Vector3(num + (float)num3 * 0.5f, z, 0f);
 			field.width = num3;
@@ -298,6 +352,16 @@ public sealed class SprkShopSearchBar : MonoBehaviour
 				field.color = uISprite.color;
 				field.height = Math.Max(50, uISprite.height);
 				field.GetComponent<BoxCollider>().size = new Vector3(field.width, field.height, 1f);
+				UISprite[] array = new UISprite[2] { shareButton, importButton };
+				foreach (UISprite uISprite2 in array)
+				{
+					uISprite2.atlas = uISprite.atlas;
+					uISprite2.spriteName = uISprite.spriteName;
+					uISprite2.type = UIBasicSprite.Type.Sliced;
+					uISprite2.color = uISprite.color;
+					uISprite2.height = field.height;
+					uISprite2.GetComponent<BoxCollider>().size = new Vector3(ButtonWidth, field.height, 1f);
+				}
 				styled = true;
 			}
 		}
@@ -313,7 +377,14 @@ public sealed class SprkShopSearchBar : MonoBehaviour
 		if (SprkShopSearch.IsVirtual(current))
 		{
 			string text = input.value ?? "";
-			if (!(text == SprkShopSearch.Query(current)))
+			if (current == "SprkBookmark" && TryImport(text))
+			{
+				SprkShopSearch.SetQuery(current, "");
+				SetSilently("");
+				clear.SetActive(value: false);
+				Apply();
+			}
+			else if (!(text == SprkShopSearch.Query(current)))
 			{
 				SprkShopSearch.SetQuery(current, text);
 				clear.SetActive(text.Length > 0);
@@ -337,6 +408,71 @@ public sealed class SprkShopSearchBar : MonoBehaviour
 		SetSilently("");
 		clear.SetActive(value: false);
 		Apply();
+	}
+
+	private static void Notice(string message)
+	{
+		try
+		{
+			NGame2.NUI.NWindow.CenterMessage.Open(message);
+		}
+		catch (Exception exception)
+		{
+			Debug.LogException(exception);
+		}
+	}
+
+	private void ShareBookmarks()
+	{
+		string text = SprkShopSearch.ExportCode();
+		if (text == null)
+		{
+			Notice(SprkText.Get("No bookmarks to share yet."));
+			return;
+		}
+		try
+		{
+			NVespa.UnityCache.Clipboard = text;
+		}
+		catch (Exception exception)
+		{
+			Debug.LogException(exception);
+			Notice(SprkText.Get("Could not copy to the clipboard."));
+			return;
+		}
+		Notice(SprkText.Format("Bookmark code copied ({0} packages). Send it to other players.", SprkShopSearch.BookmarkCount));
+	}
+
+	private void ImportBookmarks()
+	{
+		string text = "";
+		try
+		{
+			text = NVespa.UnityCache.Clipboard ?? "";
+		}
+		catch (Exception exception)
+		{
+			Debug.LogException(exception);
+		}
+		if (TryImport(text))
+		{
+			Apply();
+		}
+		else
+		{
+			Notice(SprkText.Get("Copy a bookmark code first, then tap Import. You can also paste it into the filter box."));
+		}
+	}
+
+	private static bool TryImport(string text)
+	{
+		if (!SprkShopSearch.TryDecodeCode(text, out var order))
+		{
+			return false;
+		}
+		int num = SprkShopSearch.Import(order);
+		Notice((num > 0) ? SprkText.Format("Added {0} packages to your bookmarks.", num) : SprkText.Get("Every package in this code is already bookmarked."));
+		return true;
 	}
 
 	private void SetSilently(string value)
@@ -400,6 +536,7 @@ public sealed class SprkShopSearchBar : MonoBehaviour
 			if (flag)
 			{
 				bool flag2 = current == "SprkSearch";
+				input.characterLimit = (flag2 ? 40 : 0);
 				title.text = SprkText.Get((flag2 ? "SEARCH" : "SAVED"));
 				input.defaultText = (flag2 ? SprkText.Get("Search packages, items and descriptions") : SprkText.Get("Filter bookmarked packages"));
 				string text = SprkShopSearch.Query(current);

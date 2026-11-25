@@ -19,6 +19,7 @@ use sqlx::PgConnection;
 use crate::db::RowExt;
 use std::collections::BTreeSet;
 mod campaign;
+pub(crate) mod archive;
 pub(crate) mod entry_costs;
 mod contents;
 mod punishment;
@@ -39,6 +40,8 @@ mod special;
 mod tests;
 #[cfg(test)]
 mod entry_cost_tests;
+#[cfg(test)]
+mod archive_tests;
 #[cfg(test)]
 mod dispatch_tests;
 #[cfg(test)]
@@ -164,8 +167,19 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
         },
     };
     match result {
-        Ok(v) => {
+        Ok(mut v) => {
+            // Battles nearly always change hero levels or drop gear: sync
+            // hero-level gear here rather than in a second transaction.
+            let synced = if action == "end_campaign" && v["Result"].as_str().is_none_or(|r| r == "Success")
+                && v["BaseResult"].as_str().is_none_or(|r| r == "Success") {
+                Some(item_level::settle(&mut tx, s, a, &mut v).await?)
+            } else {
+                None
+            };
             tx.commit().await?;
+            if let (Some(revision), Some(key)) = (synced, req.0.get("SessionKey").or(req.0.get("SessionId"))) {
+                item_level::remember(s, key, revision);
+            }
             if action.contains("room") && matches!(path.split('/').next(),Some("raid"|"party_dungeon")) {
                 if let Err(error)=party_messages::after_room_request(s,a,&req,action).await {
                     tracing::warn!(%error,"Room notification failed after commit");
@@ -194,6 +208,7 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
         }
     }
 }
+use crate::api::inventory::hero_level as item_level;
 fn rejected(s:&AppState,path:&str,a:i64,code:String)->Value {
     // Room keep-alives ignore their reply. Local rooms (the Dragon Raid
     // tutorial) have no server room, so their 30 s pings are expected misses.
@@ -346,10 +361,15 @@ async fn list(db: &mut PgConnection, a: i64, kind: &str) -> Result<Vec<Value>> {
     };
     rows.iter().map(|v| read_json(v)).collect()
 }
+/// Fails with NoHero unless the account owns every hero, in one statement
+/// (a party entry took two statements per hero).
 async fn owned(db: &mut PgConnection, a: i64, heroes: &[i64]) -> Result<()> {
-    for h in heroes {
-        hero::info(db, a, *h as i32).await?;
-    }
+    let wanted: BTreeSet<i64> = heroes.iter().copied().collect();
+    if wanted.is_empty() { return Ok(()); }
+    let list = serde_json::to_string(&wanted).map_err(|e| ServerError::Internal(e.to_string()))?;
+    let found: i64 = crate::db::query_scalar("SELECT COUNT(DISTINCT hero_index) FROM heroes WHERE account_id=$1 AND hero_index IN (SELECT sprk_json_ints($2))")
+        .bind(a).bind(list).fetch_one(db).await?;
+    if found != wanted.len() as i64 { return Err(rule("NoHero")); }
     Ok(())
 }
 async fn claim(

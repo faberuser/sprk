@@ -228,6 +228,24 @@ public static class SprkForgeAwakenChanceProbe
 					Check(component.GetMaterialPublicAwakenItemIndexArray()[1] == 1, "leftmost stone stop must select one material");
 					componentInChildren.value = 1f;
 					EventDelegate.Execute(componentInChildren.onChange);
+					instance.InitItemInfos(new ItemInfo[1]
+					{
+						new ItemInfo
+						{
+							ItemIndex = itemData.Index,
+							Count = 27054
+						}
+					});
+					System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
+					component.RefreshItemList();
+					component.SetTargetItem(array2[0]);
+					stopwatch.Stop();
+					int stoneIcons = ((List<ItemIconComponent>)typeof(HeroEquipAwaken).GetField("_ListPublicAwakenItemComponents", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).GetValue(component)).Count;
+					int maxPoint = GameRoot.Instance.EquipAwakenRatioDataContainer.GetAllData().Max((EquipAwakenRatioData r) => r.AwakenPoint);
+					Check(stoneIcons == maxPoint / GameRoot.Instance.EquipAwakenPointDataContainer.GetData(itemData.AwakenStar).AwakenPoint + 1, "large stone stack built " + stoneIcons + " icons in " + stopwatch.ElapsedMilliseconds + " ms");
+					Check(Math.Min(100, (int)method.Invoke(component, null)) == 100, "capped stone stack cannot reach 100%");
+					Check(stopwatch.ElapsedMilliseconds < 2000, "large stone stack took " + stopwatch.ElapsedMilliseconds + " ms");
+					list.Add("27054 stones -> " + stoneIcons + " icons in " + stopwatch.ElapsedMilliseconds + " ms");
 					instance.InitItemInfos(new ItemInfo[0]);
 				}
 				list.Add(((category == 0) ? "normal" : ((category == 1) ? "UW" : "UT")) + "=" + row.Index + ": " + num4 + "%");

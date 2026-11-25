@@ -13,6 +13,8 @@
 # Game binaries and compiled SPRK assemblies are staged by sync_inputs.py, never committed.
 /Assets/Plugins/GameRuntime/
 /Assets/Plugins/GameRuntime.meta
+/Assets/Plugins/GameCode/
+/Assets/Plugins/GameCode.meta
 /Assets/StreamingAssets/
 /Assets/StreamingAssets.meta
 /HotUpdate/
@@ -21,3 +23,10 @@
 /Assets/SprkTemplate.meta
 /Assets/SprkBootstrap/Generated/
 /Assets/SprkBootstrap/Generated.meta
+
+# Rewritten by every SprkAndroidBuild run: the boot scene (EnsureScene) and HybridCLR's
+# generated AOT references and link.xml (GenerateAll). Their .meta files stay tracked
+# so the GUIDs are stable.
+/Assets/Scenes/Boot.unity
+/Assets/HybridCLR/Generate/*
+!/Assets/HybridCLR/Generate/*.meta

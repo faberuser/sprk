@@ -10,10 +10,14 @@ impl View {
             let parts: Option<Vec<&str>> = v.iter().map(Value::as_str).collect();
             parts?.concat().parse::<i64>().ok().filter(|v| *v > 0)
         });
-        let count = |metric: &str, chapters: &[i64], types: &[i64]| self.metrics_of(metric).iter()
-            .filter(|(_,k,c,d,_)| k == metric && (chapters.is_empty() || chapters.contains(c))
-                && (types.is_empty() || self.battle_type(s,*c,*d).is_some_and(|t|types.contains(&t))))
-            .map(|v|v.4).sum::<i64>();
+        let count = |metric: &str, chapters: &[i64], types: &[i64]| if chapters.is_empty() && !types.is_empty() {
+            self.typed_metric(s, metric).iter().filter(|((battle, _), _)| types.contains(battle)).map(|(_, v)| *v).sum::<i64>()
+        } else {
+            self.metrics_of(metric).iter()
+                .filter(|(_,k,c,d,_)| k == metric && (chapters.is_empty() || chapters.contains(c))
+                    && (types.is_empty() || self.battle_type(s,*c,*d).is_some_and(|t|types.contains(&t))))
+                .map(|v|v.4).sum::<i64>()
+        };
         let progress = |value: i64| {
             if n(row,"ReqProgress") > 0 { value }
             else { required().is_some_and(|target| value >= target) as i64 }

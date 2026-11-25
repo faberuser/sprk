@@ -146,6 +146,19 @@ this repository. The Unity player, assets and tables are never source.
   update service starts. Other asset changes are published with `publish_assets.py`
   and uploaded with `sync_assets.py`. Releases (SprkLauncher, Android bootstrap)
   carry code, tables and overrides only.
+- **Tell the user when an asset version needs uploading.** Whenever a task publishes
+  a new local asset version (`client-updates/assets/<platform>/current.txt` changes
+  for `StandaloneWindows` or `Android`, including through `client/dev.py install`,
+  `test` or `client/android/dev.py test`/`hot`) with files that are not in
+  `client/overrides/files/`, end the task by telling the user, for each platform: the
+  new version number, what changed, and that it reaches production only after they
+  upload it (`python client/scripts/release/sync_assets.py --dest <SPRK_UPDATES_DIR>/assets`,
+  or `<platform>/versions/<n>/` first, then `<platform>/current.txt`). Deploying or
+  merging does not upload it: the CI overlay only carries files the release itself
+  changes. Compare with production first: `<host>/updates/assets/<platform>/LastBuildVersion.txt`
+  gives its active version and `<host>/updates/assets/<platform>/<n>/patch.json` its
+  file list; if production already has a version `<n>` that differs, republish
+  locally under a new number instead of uploading over it.
 - `client/scripts/release/unmanaged_files.txt` keeps files out of releases
   without deleting players' copies. Add entries only when the user asks and the
   conditions in that file are met (including the native battle tests). Never

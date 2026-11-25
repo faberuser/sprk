@@ -88,6 +88,12 @@ fn chicken_cap_of(s: &AppState, team_level: i64, ids: &[i32]) -> Result<(i64, i6
     Ok((cap, n(team, "RechargeStaminaSec").max(1)))
 }
 pub(crate) async fn chicken(db: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
+    Ok(chicken_state(db, s, a).await?.result(0))
+}
+/// The stored Chicken balance after its recharge (`chicken` without the
+/// result), so a charge can report its new balance without reading it again.
+pub(crate) struct Chicken { pub added: i64, value: i64, anchor: i64, cap: i64, interval: i64, now: i64 }
+pub(crate) async fn chicken_state(db: &mut PgConnection, s: &AppState, a: i64) -> Result<Chicken> {
     // The balance, its level and the owned heroes (cap bonuses) in one read.
     let row = crate::db::query(
         "SELECT stamina,stamina_recharge_time,team_level,COALESCE((SELECT json_agg(hero_index) FROM heroes WHERE account_id=$1),'[]')::text AS heroes FROM user_info WHERE account_id=$1",
@@ -120,14 +126,24 @@ pub(crate) async fn chicken(db: &mut PgConnection, s: &AppState, a: i64) -> Resu
             .execute(db)
             .await?;
     }
-    let next = if value < cap {
-        interval - (now - anchor)
-    } else {
-        0
-    };
-    Ok(
-        json!({"Type":"Chicken","AddValue":added,"NewValue":value,"StaminaRechargeTime":chrono::DateTime::from_timestamp(anchor,0).unwrap().format("%Y-%m-%d %H:%M:%S").to_string(),"NextRechargeRemainTime":next,"FullRechargeRemainTime":if value<cap{next+(cap-value-1)*interval}else{0},"RechargeCount":0,"IsHide":false}),
-    )
+    Ok(Chicken { added, value, anchor, cap, interval, now })
+}
+impl Chicken {
+    /// The native result once `spent` more stamina is deducted, at the time
+    /// the balance was read. Deducting never completes a recharge step: the
+    /// anchor is already within one interval of that time, so reading the
+    /// balance again would recharge nothing and write nothing.
+    pub(crate) fn result(&self, spent: i64) -> Value {
+        let value = self.value - spent;
+        let (cap, interval, now) = (self.cap, self.interval, self.now);
+        let anchor = if value >= cap { now } else { self.anchor };
+        let next = if value < cap {
+            interval - (now - anchor)
+        } else {
+            0
+        };
+        json!({"Type":"Chicken","AddValue":if spent == 0 { self.added } else { 0 },"NewValue":value,"StaminaRechargeTime":chrono::DateTime::from_timestamp(anchor,0).unwrap().format("%Y-%m-%d %H:%M:%S").to_string(),"NextRechargeRemainTime":next,"FullRechargeRemainTime":if value<cap{next+(cap-value-1)*interval}else{0},"RechargeCount":0,"IsHide":false})
+    }
 }
 pub(crate) async fn snapshot(
     db: &mut PgConnection,

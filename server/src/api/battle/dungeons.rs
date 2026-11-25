@@ -90,12 +90,13 @@ pub(super) async fn charge_reserved(
         return crate::api::community::conquest_tickets(db,s,a,cost).await;
     }
     if kind == 1 {
-        let before = crate::api::account::stamina::chicken(db, s, a).await?;
+        let before = crate::api::account::stamina::chicken_state(db, s, a).await?;
         crate::db::query("UPDATE user_info SET stamina=stamina-$1 WHERE account_id=$2 AND stamina>=$3")
             .bind(cost).bind(a).bind(cost).execute(&mut *db).await?
             .rows_affected().eq(&1).then_some(()).ok_or_else(||rule("NotEnoughStamina"))?;
-        let mut result = crate::api::account::stamina::chicken(db, s, a).await?;
-        result["AddValue"] = json!(n(&before,"AddValue") - cost + n(&result,"AddValue"));
+        // The balance after the deduction, without reading it again.
+        let mut result = before.result(cost);
+        result["AddValue"] = json!(before.added - cost);
         return Ok(result);
     }
     if kind == 9 {

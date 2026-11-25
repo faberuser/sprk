@@ -33,6 +33,16 @@ downloaded, as in the shipped game.
 3. Each file is written to `<file>.part`, checked against length and MD5, then moved
    into place and recorded. A failed or corrupt download is retried and never replaces
    a file.
+4. The game checks only while logging in, and a running game (Android keeps it alive in
+   the background) would stay on the old version. From the lobby,
+   `NGameAsset.NPatch.AssetVersionWatcher` reads `LastBuildVersion.txt` when the game
+   resumes after more than 30 s and every 5 minutes; when a newer version is active it
+   offers to return to the title, which downloads it.
+
+The local record is `patch.bjs`; without it the game uses the root `patch.json` (on dev
+devices, the one `push_patch.sh` copies from Windows) as the record, so files that list
+names but the device lacks are not downloaded. Delete both to make a device download
+everything again.
 
 The client downloads only from this service (a CDN URL containing `/updates/assets/`).
 Installations carry the old live game's `PatchInfo/patch.json`, which the game reuses

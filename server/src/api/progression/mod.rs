@@ -157,6 +157,11 @@ thread_local! {
 fn evaluated() {
     EVALUATED.with(|c| c.set(c.get() + 1));
 }
+thread_local! {
+    /// Why sections were re-evaluated (what they read that changed), counted
+    /// per cause while the `sprk_progression` debug trace is on.
+    pub(super) static CAUSES: std::cell::RefCell<std::collections::BTreeMap<String, usize>> = const { std::cell::RefCell::new(std::collections::BTreeMap::new()) };
+}
 
 /// Evaluate a snapshot from `view`. With `previous` (built from the same
 /// tables on the same day) and what changed since, sections whose recorded
@@ -189,8 +194,13 @@ fn build(state: &AppState, view: View, previous: Option<(Sections, Value, &state
                     deps.push((*id, old_deps));
                     out.push(value);
                 }
-                _ => {
+                other => {
                     evaluated();
+                    if let (Some(((_, old_deps), _)), Some(changed)) = (&other, changed) {
+                        if tracing::enabled!(target: "sprk_progression", tracing::Level::DEBUG) {
+                            CAUSES.with(|c| { let mut c = c.borrow_mut(); for cause in old_deps.causes(changed) { *c.entry(cause).or_default() += 1; } });
+                        }
+                    }
                     let (value, read) = state::tracked(|| evaluate(*id, rows));
                     deps.push((*id, read));
                     out.push(value);

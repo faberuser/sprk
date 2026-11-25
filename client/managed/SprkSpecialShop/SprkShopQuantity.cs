@@ -116,7 +116,7 @@ public sealed class SprkShopQuantity : MonoBehaviour
 		input = uISprite.gameObject.AddComponent<UIInput>();
 		input.label = label;
 		input.validation = UIInput.Validation.Integer;
-		input.characterLimit = 3;
+		input.characterLimit = 4;
 		input.selectAllTextOnFocus = true;
 		EventDelegate.Add(input.onChange, delegate
 		{
@@ -169,7 +169,7 @@ public sealed class SprkShopQuantity : MonoBehaviour
 			obj2.trueTypeFont = popup.Label_Title.trueTypeFont;
 		}
 		long balance = SprkSpecialShop.Balance(GlobalAutoBehaviour<AccountManager>.instance.UserManager, Info.PriceType);
-		int num = 999;
+		int num = 1000;
 		if (Info.Count != null)
 		{
 			int[] count = Info.Count;

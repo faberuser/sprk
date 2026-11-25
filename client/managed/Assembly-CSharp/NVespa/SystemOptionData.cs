@@ -881,6 +881,7 @@ public static class SystemOptionData
 	{
 		Application.targetFrameRate = (int)Graphic_FrameControl;
 		QualitySettings.vSyncCount = 0;
+		FrameManager.ApplyDisplayRefreshRate(Application.targetFrameRate);
 	}
 
 	private static void ApplyDamageRender()

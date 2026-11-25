@@ -28,6 +28,22 @@ public class UnityTimeScaler
 
 	private static List<ScaleEntry> _scaleList = new List<ScaleEntry>();
 
+	// SPRK: multiplies the final scale (scale entries combine by minimum, so a
+	// slow-motion node would otherwise cancel a fast-forward request).
+	private static float _sprkFastForward = 1f;
+
+	public static float SprkFastForward => _sprkFastForward;
+
+	public static void SprkSetFastForward(float value)
+	{
+		value = Mathf.Clamp(value, 1f, 100f);
+		if (!Mathf.Approximately(_sprkFastForward, value))
+		{
+			_sprkFastForward = value;
+			UpdateUnityScale();
+		}
+	}
+
 	public static void Reset()
 	{
 		_scaleList.Clear();
@@ -132,6 +148,10 @@ public class UnityTimeScaler
 		else
 		{
 			Time.timeScale = num;
+		}
+		if (_sprkFastForward > 1f)
+		{
+			Time.timeScale = Mathf.Min(Time.timeScale * _sprkFastForward, 100f);
 		}
 	}
 }

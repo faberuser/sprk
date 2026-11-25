@@ -20,9 +20,12 @@ pub(crate) struct Lookup {
     table: Option<std::sync::Arc<crate::tables::ExtensionTable>>,
     // None denotes shared gear; Some(hero) denotes a single owning hero.
     items: std::sync::Arc<HashMap<i64, Option<i64>>>,
+    // `items` as a JSON object (item -> owning hero, or null), bound to the
+    // synchronizing statement.
+    json: std::sync::Arc<str>,
 }
 
-fn lookup(state: &AppState) -> std::sync::Arc<HashMap<i64, Option<i64>>> {
+fn lookup(state: &AppState) -> (std::sync::Arc<HashMap<i64, Option<i64>>>, std::sync::Arc<str>) {
     let mut cached = state.hero_equipment_lookup.lock().unwrap_or_else(|e| e.into_inner());
     if !cached.table.as_ref().is_some_and(|t| std::sync::Arc::ptr_eq(t, &state.tables.extensions)) {
         let mut details = HashMap::new();
@@ -39,10 +42,12 @@ fn lookup(state: &AppState) -> std::sync::Arc<HashMap<i64, Option<i64>>> {
                 .and_then(|a| a[0].as_i64());
             items.insert(index, owner);
         }
+        let json: serde_json::Map<String, Value> = items.iter().map(|(item, owner)| (item.to_string(), json!(owner))).collect();
         cached.table = Some(state.tables.extensions.clone());
         cached.items = std::sync::Arc::new(items);
+        cached.json = Value::Object(json).to_string().into();
     }
-    cached.items.clone()
+    (cached.items.clone(), cached.json.clone())
 }
 
 pub(crate) async fn synchronize(
@@ -50,53 +55,40 @@ pub(crate) async fn synchronize(
     state: &AppState,
     account: i64,
 ) -> Result<Vec<Value>> {
-    let heroes = crate::db::query("SELECT * FROM heroes WHERE account_id=$1")
-        .bind(account).fetch_all(&mut *db).await?;
-    let mut hero_levels = HashMap::<i64, i32>::new();
-    let mut equipped_levels = HashMap::<i32, i32>::new();
-    for hero in heroes {
-        let level: i32 = hero.get("level");
-        hero_levels.entry(hero.get("hero_index"))
-            .and_modify(|old| *old = (*old).max(level)).or_insert(level);
-        for part in 1..=10 {
-            let slot: i32 = hero.get(format!("equip_item_slot_index_{part}").as_str());
-            if slot > 0 {
-                equipped_levels.entry(slot)
-                    .and_modify(|old| *old = (*old).max(level)).or_insert(level);
-            }
-        }
+    let (items, lookup) = lookup(state);
+    if items.is_empty() {
+        return Ok(Vec::new());
     }
+    // One statement: it ran after every battle that dropped gear or gave hero
+    // EXP, and reading every hero and piece (1,600+ for active players) to
+    // compare them here took two reads and ~10 ms.
+    // UWs and UTs bound to exactly one hero (`owner`) must agree across all
+    // copies, including inventory/storage copies that have never been
+    // equipped; the highest level among that hero's rows wins. Class weapons
+    // and other shared gear (null owner) follow the highest-level hero
+    // wearing them.
     let rows = crate::db::query(
-        "SELECT slot_index,item_index,level FROM equip_items WHERE account_id=$1 ORDER BY slot_index"
-    ).bind(account).fetch_all(&mut *db).await?;
-    let equipment = lookup(state);
-    let mut updates = Vec::new();
-    for row in rows {
-        let item: i32 = row.get("item_index");
-        let Some(owner) = equipment.get(&(item as i64))
-        else {
-            continue;
-        };
-        let slot: i32 = row.get("slot_index");
-        // UWs and UTs bound to exactly one hero must agree across all copies,
-        // including inventory/storage copies that have never been equipped.
-        // Class weapons and other shared gear have no single owning hero.
-        let level = match owner {
-            Some(owner) => hero_levels.get(owner).copied(),
-            _ => equipped_levels.get(&slot).copied(),
-        };
-        let Some(level) = level else { continue; };
-        if level < 1 || level == row.get::<i32, _>("level") {
-            continue;
-        }
-        crate::db::query("UPDATE equip_items SET level=$1 WHERE account_id=$2 AND slot_index=$3")
-            .bind(level)
-            .bind(account)
-            .bind(slot)
-            .execute(&mut *db)
-            .await?;
-        updates.push(json!({"SlotIndex":slot,"ItemIndex":item,"Level":level}));
-    }
+        "WITH lookup AS (SELECT key::bigint AS item, value::bigint AS owner FROM jsonb_each_text($2::jsonb)), \
+         hero_level AS (SELECT hero_index, MAX(level) AS level FROM heroes WHERE account_id=$1 GROUP BY hero_index), \
+         worn_level AS (SELECT w.slot, MAX(h.level) AS level FROM heroes h CROSS JOIN LATERAL unnest(ARRAY[\
+         h.equip_item_slot_index_1, h.equip_item_slot_index_2, h.equip_item_slot_index_3, h.equip_item_slot_index_4, \
+         h.equip_item_slot_index_5, h.equip_item_slot_index_6, h.equip_item_slot_index_7, h.equip_item_slot_index_8, \
+         h.equip_item_slot_index_9, h.equip_item_slot_index_10]) AS w(slot) \
+         WHERE h.account_id=$1 AND w.slot > 0 GROUP BY w.slot), \
+         target AS (SELECT e.slot_index, COALESCE(hl.level, wl.level) AS level FROM equip_items e \
+         JOIN lookup l ON l.item = e.item_index \
+         LEFT JOIN hero_level hl ON l.owner IS NOT NULL AND hl.hero_index = l.owner \
+         LEFT JOIN worn_level wl ON l.owner IS NULL AND wl.slot = e.slot_index \
+         WHERE e.account_id=$1) \
+         UPDATE equip_items e SET level = t.level FROM target t \
+         WHERE e.account_id=$1 AND e.slot_index = t.slot_index AND t.level >= 1 AND t.level <> e.level \
+         RETURNING e.slot_index, e.item_index, e.level"
+    ).bind(account).bind(lookup.to_string()).fetch_all(&mut *db).await?;
+    let mut updates: Vec<(i64, i64, i64)> = rows.iter()
+        .map(|row| (row.get("slot_index"), row.get("item_index"), row.get("level"))).collect();
+    updates.sort_unstable();
+    let updates: Vec<Value> = updates.into_iter()
+        .map(|(slot, item, level)| json!({"SlotIndex":slot,"ItemIndex":item,"Level":level})).collect();
     // Unequipped shared gear retains its last level. Transferring it recalculates
     // that level, including when its new recipient has a lower hero level.
     Ok(updates)
@@ -123,6 +115,55 @@ fn update_snapshots(value: &mut Value, updates: &[Value]) {
             }
         }
         _ => {}
+    }
+}
+
+/// Add synchronized gear levels and unlocked Team Level buffs to a response.
+fn attach(value: &mut Value, updates: Vec<Value>, team_buffs: Vec<Value>) {
+    if !value.is_object() || (updates.is_empty() && team_buffs.is_empty()) { return; }
+    // Full equipment snapshots (e.g. applying presets) must agree with
+    // reserved updates regardless of the client's callback ordering.
+    update_snapshots(value, &updates);
+    let reserved = value
+        .as_object_mut()
+        .unwrap()
+        .entry("ReservedUpdatedEquipItemInfos")
+        .or_insert_with(|| json!([]));
+    if !reserved.is_array() {
+        *reserved = json!([]);
+    }
+    let array = reserved.as_array_mut().unwrap();
+    array.retain(|old| !updates.iter().any(|u| u["SlotIndex"] == old["SlotIndex"]));
+    array.extend(updates);
+    if !team_buffs.is_empty() {
+        let reserved = value.as_object_mut().unwrap().entry("ReserveTeamLevelBuffInfos")
+            .or_insert_with(|| json!([]));
+        if !reserved.is_array() { *reserved = json!([]); }
+        let array = reserved.as_array_mut().unwrap();
+        // Keep an endpoint's newer enhancement value if supplied.
+        for info in team_buffs {
+            if !array.iter().any(|old| old["OpenBuffLevel"] == info["OpenBuffLevel"]) { array.push(info); }
+        }
+    }
+}
+
+/// What `notify` does after the response, inside the endpoint's own
+/// transaction (the caller holds the account lock): saves `notify` a second
+/// write transaction after battles, which nearly always change hero levels or
+/// drop gear. Returns the equipment revision to `remember` after commit.
+pub(crate) async fn settle(db: &mut PgConnection, state: &AppState, account: i64, value: &mut Value) -> Result<i64> {
+    let updates = synchronize(db, state, account).await?;
+    let team_buffs = crate::api::extensions::buffs::unlock_team_buffs(db, state, account).await?;
+    attach(value, updates, team_buffs);
+    crate::api::system::revisions::get(db, "equipment", account).await
+}
+
+/// After `settle`'s transaction committed: `notify` then only checks that
+/// the equipment revision is still `revision`.
+pub(crate) fn remember(state: &AppState, session_key: &str, revision: i64) {
+    if let Some(session) = state.get_session(session_key) {
+        let tables = std::sync::Arc::as_ptr(&state.tables) as usize;
+        *session.equipment_revision.lock().unwrap_or_else(|e| e.into_inner()) = Some((revision, tables));
     }
 }
 
@@ -213,30 +254,7 @@ pub(crate) async fn notify(
             let Ok(mut value) = serde_json::from_slice::<Value>(&bytes) else {
                 return Response::from_parts(parts, Body::from(bytes));
             };
-            // Full equipment snapshots (e.g. applying presets) must agree with
-            // reserved updates regardless of the client's callback ordering.
-            update_snapshots(&mut value, &updates);
-            let reserved = value
-                .as_object_mut()
-                .unwrap()
-                .entry("ReservedUpdatedEquipItemInfos")
-                .or_insert_with(|| json!([]));
-            if !reserved.is_array() {
-                *reserved = json!([]);
-            }
-            let array = reserved.as_array_mut().unwrap();
-            array.retain(|old| !updates.iter().any(|u| u["SlotIndex"] == old["SlotIndex"]));
-            array.extend(updates);
-            if !team_buffs.is_empty() {
-                let reserved = value.as_object_mut().unwrap().entry("ReserveTeamLevelBuffInfos")
-                    .or_insert_with(|| json!([]));
-                if !reserved.is_array() { *reserved = json!([]); }
-                let array = reserved.as_array_mut().unwrap();
-                // Keep an endpoint's newer enhancement value if supplied.
-                for info in team_buffs {
-                    if !array.iter().any(|old| old["OpenBuffLevel"] == info["OpenBuffLevel"]) { array.push(info); }
-                }
-            }
+            attach(&mut value, updates, team_buffs);
             parts.headers.remove(axum::http::header::CONTENT_LENGTH);
             Response::from_parts(parts, Body::from(serde_json::to_vec(&value).unwrap()))
         }

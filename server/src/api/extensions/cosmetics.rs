@@ -134,6 +134,7 @@ pub(super) async fn execute(
             }
         }
         out["UnsetAccessoryCostumeIndices"] = json!(unset);
+        hero::apply_legend_look(state, &mut appearance);
     }
     let positions = positions(req.text("AccessoryCostumePositionInfo"))?;
     let mut result = vec![];

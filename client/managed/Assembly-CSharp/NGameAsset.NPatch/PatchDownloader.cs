@@ -674,6 +674,7 @@ public class PatchDownloader : GlobalAutoBehaviour<PatchDownloader>, DownloadHan
 			string text = num + "/" + archiveName;
 			string remoteArchiveUrl = remotePatchRootUrl + text;
 			int retryCount = 0;
+			bool isRawArchive = archiveInfo.ArchiveType == PatchArchiveType.Raw || archiveInfo.Name.EndsWith(".mp4", StringComparison.InvariantCultureIgnoreCase) || archiveInfo.Name.EndsWith(".webm", StringComparison.InvariantCultureIgnoreCase);
 			while (true)
 			{
 				int curDownloadCount = _coroutineIndexDownloadedCountPair[coroutineIndex];
@@ -691,7 +692,7 @@ public class PatchDownloader : GlobalAutoBehaviour<PatchDownloader>, DownloadHan
 				};
 				// SPRK: Raw archives (one file each, as the SPRK server publishes them)
 				// stream to disk with verification instead of being parsed as a pack.
-				bool flag = archiveInfo.ArchiveType == PatchArchiveType.Raw || archiveInfo.Name.EndsWith(".mp4", StringComparison.InvariantCultureIgnoreCase) || archiveInfo.Name.EndsWith(".webm", StringComparison.InvariantCultureIgnoreCase);
+				bool flag = isRawArchive;
 				WebRequest req;
 				try
 				{
@@ -762,7 +763,13 @@ public class PatchDownloader : GlobalAutoBehaviour<PatchDownloader>, DownloadHan
 			{
 				_completePriorityDownload(archiveName);
 			}
-			SingletonUpdater<GCManager>.instance.PendingCollect();
+			// SPRK: a raw archive streams to disk (WebRequestFile) and leaves nothing to
+			// collect. Collecting after each one ran Resources.UnloadUnusedAssets and a full
+			// GC every ~5 s for the whole download (1-2 s frames on phones).
+			if (!isRawArchive)
+			{
+				SingletonUpdater<GCManager>.instance.PendingCollect();
+			}
 		}
 		Vespa_System_Action_Extension_Method.fire(onDownloaded, EDownloadResponse.None, null);
 	}

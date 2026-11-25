@@ -15,7 +15,9 @@ slow, failing or locking game from the database and `sprk-game.log`.
   compensation audit), `0008` the gameplay triggers, `0009` the
   response-cache revision triggers, `0010` the reforge/enchant guarantees and
   `0011` the revision parts (which part of a player's progression changed)
-  and `0012` the row estimate of `sprk_json_ints`.
+  `0012` the row estimate of `sprk_json_ints`, `0013` the monster archive,
+  `0014` the Legend costume look repair, `0015` the removal of stored
+  dispatch settlement replies and `0016` the equipment progression parts.
 - **Roles.** `sprk_owner` owns the schema, runs migrations, backups and
   diagnostics. `sprk_app` is the game's role: data access only, not a
   superuser.
@@ -272,7 +274,13 @@ docker run -d --name sprk-diag -e POSTGRES_PASSWORD=diag -p 127.0.0.1:55440:5432
 docker exec sprk-diag pg_isready -h 127.0.0.1 -U postgres   # repeat until it accepts connections
 docker exec sprk-diag createdb -U postgres sprk
 docker exec -i sprk-diag pg_restore -U postgres -d sprk --no-owner --no-privileges --exit-on-error < sprk-<time>.dump
+docker exec sprk-diag vacuumdb -U postgres -d sprk --analyze-only
 ```
+
+Analyze before measuring: a restore carries no planner statistics, and some
+plans production never uses appear until autovacuum gets to the tables (an
+`IN (SELECT sprk_json_ints($2))` lookup of equipped pieces took 140 ms instead
+of 0.7 ms).
 
 `--no-owner --no-privileges` skip the production roles, which the scratch
 server does not have. The copy is at
@@ -412,6 +420,24 @@ Either flag can be used alone. The report prints:
   open mail, up to `OVERFLOW_MAIL_EQUIPMENT` (25) pieces; `item::free_slots`
   counts once per grant, and a batch that fills the bag stops counting.
   Claiming a mail needs room for all of its pieces.
+- **Campaign entry** checks party ownership in one statement.
+- **Hero-level gear.** After a request that changed the equipment revision
+  (every battle that drops gear or gives hero EXP), `hero_level::notify`
+  re-levels hero-bound and worn shared gear in one `UPDATE … RETURNING`
+  (the `MaxLevelByHero` items are bound as JSON), instead of reading every
+  hero and piece (1,700+ rows for active players) into the server.
+  `end_campaign` runs it in its own transaction (`hero_level::settle`) and
+  records the revision for the session, so `notify` only checks that revision
+  instead of opening a second write transaction.
+- **Battle-type counts.** About 200 missions count `ClearDungeon` by battle
+  type, and every battle changes that metric, so they are re-evaluated after
+  each one. `View::typed_metric` sums a kind by (battle type, day) once per
+  snapshot instead of each mission rescanning its rows. With
+  `sprk_progression=debug`, the incremental snapshot trace lists `causes`:
+  what the re-evaluated sections read that changed.
+- **Section tokens** hash each section in place, and a changed achievement
+  list's per-entry digests are computed once for the delta and the delivered
+  record.
 - **Hero snapshots** (`community::cached_hero`) fetch all ten equipped pieces
   in one statement. A whole-roster Hero preset writes one row per changed Hero;
   batch `break_equip` clears references once and grants summed materials once
@@ -465,6 +491,14 @@ Either flag can be used alone. The report prints:
     - Hero fields that battles change and no mission reads
       (`UNREAD_HERO_FIELDS`, flask progress) stay out of the view, so they never
       count as a hero change.
+    - Equipment (`0016`): only a piece's owner, slot, item, star and inventory
+      type invalidate the view, so level, EXP, lock and option changes do not.
+      An insert records `equip_items:+`, and `View::refresh` then loads only
+      the slots above the highest it holds (slots come from a non-cycling
+      sequence and an account's writers hold its lock), not every piece.
+      Updates and deletes still reload all of them.
+    - Play records reload only the changed kinds (`play_record_values:kind`),
+      not the 2,000+ rows of an active player.
 - **Per-type state reads.** The lobby's key, ticket, tower and dungeon-list
   snapshots read a `battle_state`/`extension_state`/`community_state` row per
   type. `system::prefetch` loads those kinds in one statement per table for one
@@ -521,7 +555,11 @@ Either flag can be used alone. The report prints:
   bag once, then subtracts its own pieces (`Rewards::bag_free`, recounted when
   other equipment joined the batch). Booster timers, the guild reward bonus,
   Chicken stamina and battle currencies each take one statement in the common
-  case; a ranked deck record is written only when it would rank.
+  case; a ranked deck record is written only when it would rank. A stamina
+  charge computes its new balance instead of reading it again, Team EXP is
+  added in the statement that reads the level (a level-up writes once more),
+  and a guild member's stamina rewards read today's coins with the guild lock
+  and the guild and member rows together.
   `crate::db` binds `bool` as `bigint`: compare it (`$3 <> 0`) in SQL.
 - **Mission sections in replies.** With `X-SPRK-Sections: 1` the client
   acknowledges each section by token (`X-SPRK-Achievements`, ...); an
@@ -540,8 +578,12 @@ Either flag can be used alone. The report prints:
   up to ~900 KB) is written once at start into its own `dispatch_snapshot`
   row (naming its job), so the job row stays small for every prepared repeat
   and revealed round; settlement deletes it. Rows saved with it inline move it
-  out on their next preparation. Neither it nor `CollectionResponse` (the
-  settlement reply) is sent to the client.
+  out on their next preparation. It is never sent to the client. Settlement
+  does not store its reply: a finished job only guards against a second
+  collection, and the replies earlier builds kept (`CollectionResponse`, up to
+  2.9 MB, 11 of the 12 MB of dispatch rows) were parsed for every job of the
+  player on each list poll, campaign entry and dispatch start (`0015` drops
+  them).
 - **Ordeal.** The node map (opponents' account snapshots, ~750 KB) lives in
   `battle_state` kind `ordeal_nodes`, written only when it is generated,
   refreshed or repaired; the `ordeal` row keeps the progress that every

@@ -163,6 +163,16 @@ pub(super) async fn execute(
                 if info["PendingRenew"] == true {
                     return Err(rule("UnconfirmedOption"));
                 }
+                if let Some(target) = RenewTarget::parse(req)? {
+                    if matches!(req.text("SprkPreview"), "1" | "true" | "True") {
+                        return renew_preview(db, account, slot, target).await;
+                    }
+                    renew_until(db, state, account, req, slot, &mut info, &mut out, target).await?;
+                    stats(state, &mut info)?;
+                    put(db, account, "soul", slot, &info).await?;
+                    out["ResultSoulWeaponInfo"] = info;
+                    return Ok(out);
+                }
                 let coupon = req.number("CouponItemIndex", 0)?;
                 if coupon > 0 {
                     if coupon
@@ -194,13 +204,7 @@ pub(super) async fn execute(
                     out["CurrencyResult"] = hero::currency(db, account, "Gem", -price).await?;
                     out["RemovedItemResultInfos"] = json!([]);
                 }
-                let first = rand::rng().random_range(300..=700);
-                info["RenewOptionRatio1"] = json!(first);
-                info["RenewOptionRatio2"] = json!(1000 - first);
-                for i in 1..=2 {
-                    info[format!("RenewOptionBonusRatio{i}")] =
-                        json!(rand::rng().random_range(0..=200));
-                }
+                set_renew(&mut info, RenewTarget::ANY.roll());
                 info["RenewOptionCount"] = json!(n(&info, "RenewOptionCount") + 1);
                 info["PendingRenew"] = json!(true);
                 super::super::progression::record(db, account, "SoulWeaponRenewOption", 0, 0, 1)
@@ -424,6 +428,206 @@ async fn auto_enhance(
     out["SprkAutoSuccesses"] = json!(successes);
     out["SprkAutoGold"] = json!(cost);
     out["SprkAutoStop"] = json!(stop);
+    Ok(())
+}
+
+/// A soul weapon stat roll: ATK share of the split and the two bonuses, in the
+/// stored 1/1000 units (HP's share is 1000 minus ATK's).
+type Roll = (i64, i64, i64);
+
+fn set_renew(info: &mut Value, (atk, atk_bonus, hp_bonus): Roll) {
+    info["RenewOptionRatio1"] = json!(atk);
+    info["RenewOptionRatio2"] = json!(1000 - atk);
+    info["RenewOptionBonusRatio1"] = json!(atk_bonus);
+    info["RenewOptionBonusRatio2"] = json!(hp_bonus);
+}
+
+/// SPRK "Rearrange until" target: ATK share within `atk_min..=atk_max` and each
+/// bonus at least its minimum (0 accepts any bonus). Every value of a roll is
+/// uniform and independent, so the odds are exact.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(super) struct RenewTarget {
+    atk_min: i64,
+    atk_max: i64,
+    atk_bonus: i64,
+    hp_bonus: i64,
+}
+
+/// The native roll ranges.
+const RATIO_MIN: i64 = 300;
+const RATIO_MAX: i64 = 700;
+const BONUS_MAX: i64 = 200;
+
+/// Most rolls one "rearrange until" request may make, and the latest the
+/// guarantee can land (rolls run in memory, so a long run is cheap).
+pub(super) const SOUL_RENEW_UNTIL_MAX_TRIES: i64 = 100_000;
+
+/// The guarantee lands at this many times the expected number of rolls for the
+/// target, at most `SOUL_RENEW_UNTIL_MAX_TRIES`.
+const SOUL_RENEW_PITY_FACTOR: i64 = 3;
+
+impl RenewTarget {
+    const ANY: Self = Self { atk_min: RATIO_MIN, atk_max: RATIO_MAX, atk_bonus: 0, hp_bonus: 0 };
+
+    /// `None` for a native request (no `SprkAtkMin`).
+    fn parse(req: &Request) -> Result<Option<Self>> {
+        if req.text("SprkAtkMin").is_empty() {
+            return Ok(None);
+        }
+        let target = Self {
+            atk_min: req.number("SprkAtkMin", -1)?,
+            atk_max: req.number("SprkAtkMax", -1)?,
+            atk_bonus: req.number("SprkAtkBonusMin", 0)?,
+            hp_bonus: req.number("SprkHpBonusMin", 0)?,
+        };
+        let valid = RATIO_MIN <= target.atk_min
+            && target.atk_min <= target.atk_max
+            && target.atk_max <= RATIO_MAX
+            && (0..=BONUS_MAX).contains(&target.atk_bonus)
+            && (0..=BONUS_MAX).contains(&target.hp_bonus);
+        if !valid {
+            return Err(rule("RenewOptionRaioFail"));
+        }
+        Ok(Some(target))
+    }
+
+    /// Winning outcomes and all outcomes; their ratio is the chance per roll.
+    fn odds(&self) -> (i64, i64) {
+        let hits = (self.atk_max - self.atk_min + 1)
+            * (BONUS_MAX - self.atk_bonus + 1)
+            * (BONUS_MAX - self.hp_bonus + 1);
+        let all = (RATIO_MAX - RATIO_MIN + 1) * (BONUS_MAX + 1) * (BONUS_MAX + 1);
+        (hits, all)
+    }
+
+    /// The roll that triggers the guarantee: `SOUL_RENEW_PITY_FACTOR` × the
+    /// expected rolls, rounded up, at most one run.
+    fn pity_limit(&self) -> i64 {
+        let (hits, all) = self.odds();
+        ((SOUL_RENEW_PITY_FACTOR * all + hits - 1) / hits).clamp(1, SOUL_RENEW_UNTIL_MAX_TRIES)
+    }
+
+    /// Saved with the guarantee progress: a different target starts over.
+    fn key(&self) -> String {
+        format!("{}_{}_{}_{}", self.atk_min, self.atk_max, self.atk_bonus, self.hp_bonus)
+    }
+
+    fn hits(&self, (atk, atk_bonus, hp_bonus): Roll) -> bool {
+        (self.atk_min..=self.atk_max).contains(&atk) && atk_bonus >= self.atk_bonus && hp_bonus >= self.hp_bonus
+    }
+
+    /// A uniform roll inside the target (the native roll for `ANY`).
+    fn roll(&self) -> Roll {
+        let mut rng = rand::rng();
+        (
+            rng.random_range(self.atk_min..=self.atk_max),
+            rng.random_range(self.atk_bonus..=BONUS_MAX),
+            rng.random_range(self.hp_bonus..=BONUS_MAX),
+        )
+    }
+}
+
+/// `SprkPreview=1`: the exact odds and guarantee progress, without charging.
+async fn renew_preview(db: &mut PgConnection, account: i64, slot: i64, target: RenewTarget) -> Result<Value> {
+    let (hits, all) = target.odds();
+    let mut out = item::success();
+    out["SprkHits"] = json!(hits);
+    out["SprkOutcomes"] = json!(all);
+    out["SprkPityMisses"] =
+        json!(equipment::pity_misses(db, account, slot as i32, "soul_renew", &target.key()).await?);
+    out["SprkPityLimit"] = json!(target.pity_limit());
+    Ok(out)
+}
+
+/// SPRK "Rearrange until": rearranges until the stats meet `target`.
+///
+/// Up to `SprkMaxTries` rolls run in memory, each paid like a native rearrange:
+/// a Rearrange ticket while any are left, then the gem price for the weapon's
+/// rearrange count. The run stops at the first hit or when the next roll is
+/// unaffordable. Costs are charged once and only the last roll is left pending,
+/// so the player keeps or takes it in the native confirmation.
+///
+/// Guarantee: misses add up across runs for this weapon and target
+/// (`sprk_target_pity`); the `RenewTarget::pity_limit`th accumulated roll lands
+/// inside the target.
+#[allow(clippy::too_many_arguments)]
+async fn renew_until(
+    db: &mut PgConnection,
+    state: &AppState,
+    account: i64,
+    req: &Request,
+    slot: i64,
+    info: &mut Value,
+    out: &mut Value,
+    target: RenewTarget,
+) -> Result<()> {
+    let max_tries = req.number("SprkMaxTries", 0)?;
+    if !(1..=SOUL_RENEW_UNTIL_MAX_TRIES).contains(&max_tries) {
+        return Err(rule("RenewOptionRaioFail"));
+    }
+    let ticket = state.tables.hero_shop.constant("SoulWeaponRenewTicketItemIndex", 2202);
+    let prices: Vec<i64> = state
+        .tables
+        .hero_shop
+        .constants
+        .get("SoulWeaponRenewGem")
+        .and_then(|p| serde_json::from_str(p).ok())
+        .filter(|p: &Vec<i64>| !p.is_empty())
+        .ok_or_else(|| rule("EmptyPriceInfo"))?;
+    let tickets = equipment::spendable_item(db, account, ticket).await?;
+    let mut gems = equipment::spendable_gem(db, account).await?;
+    let pity_limit = target.pity_limit();
+    let key = target.key();
+    let mut misses = equipment::pity_misses(db, account, slot as i32, "soul_renew", &key).await?;
+    let mut count = n(info, "RenewOptionCount");
+    let (mut tries, mut tickets_used, mut spent) = (0i64, 0i64, 0i64);
+    let (mut last, mut hit, mut guaranteed) = (None, false, false);
+    while tries < max_tries {
+        if tickets_used < tickets {
+            tickets_used += 1;
+        } else {
+            let price = prices[(count as usize).min(prices.len() - 1)];
+            if price > gems {
+                break;
+            }
+            gems -= price;
+            spent += price;
+        }
+        tries += 1;
+        count += 1;
+        guaranteed = misses + 1 >= pity_limit;
+        let roll = if guaranteed { target.roll() } else { RenewTarget::ANY.roll() };
+        last = Some(roll);
+        hit = target.hits(roll);
+        if hit {
+            misses = 0;
+            break;
+        }
+        misses += 1;
+    }
+    let Some(roll) = last else {
+        return Err(rule("NotEnoughGem"));
+    };
+    let mut removed = vec![];
+    if tickets_used > 0 {
+        removed.push(item::consume(db, account, ticket as i32, tickets_used as i32).await?);
+    }
+    out["RemovedItemResultInfos"] = json!(removed);
+    if spent > 0 {
+        out["CurrencyResult"] = hero::currency(db, account, "Gem", -spent).await?;
+    }
+    set_renew(info, roll);
+    info["RenewOptionCount"] = json!(count);
+    info["PendingRenew"] = json!(true);
+    out["SprkTries"] = json!(tries);
+    out["SprkHit"] = json!(hit);
+    out["SprkTicketsUsed"] = json!(tickets_used);
+    out["SprkGemsSpent"] = json!(spent);
+    out["SprkGuaranteed"] = json!(guaranteed);
+    out["SprkPityMisses"] = json!(misses);
+    out["SprkPityLimit"] = json!(pity_limit);
+    equipment::save_pity(db, account, slot as i32, "soul_renew", &key, misses).await?;
+    super::super::progression::record(db, account, "SoulWeaponRenewOption", 0, 0, tries).await?;
     Ok(())
 }
 

@@ -151,6 +151,11 @@ pub(super) mod part {
     pub const CLAIMS_ALL: u64 = 1 << 32;
     /// Every loaded part (metrics and claims are always loaded in full then).
     pub const ALL: u64 = (1 << 31) - 1;
+    /// Bit names, for the debug trace of why sections were re-evaluated.
+    pub const NAMES: [&str; 33] = ["heroes", "equipment", "npc", "guild_damage", "conquest_kills", "souls", "dungeons",
+        "login", "level", "costumes", "friends", "guild", "tutorials", "items", "entitlements", "arena", "battle",
+        "hist_equip", "facts", "guild_att", "guild_wins", "conquest", "guild_decks", "pet", "monthly", "linked",
+        "world_rank", "created", "attendance", "main_quest", "world_events", "metrics_all", "claims_all"];
 
     /// What a revision part (`table` or `table:kind`, `global:` for account 0;
     /// `progression_metrics:kind@day` for one day of a metric) invalidates.
@@ -165,9 +170,20 @@ pub(super) mod part {
             }
             return Some(out);
         }
+        // Only the play records of a changed kind are reloaded.
+        if let Some(kind) = name.strip_prefix("play_record_values:") {
+            out.mask = FACTS;
+            out.fact_kinds = Some([kind.to_owned()].into());
+            return Some(out);
+        }
+        // Equipment inserted, none updated or deleted (0016): only the new rows.
+        if name == "equip_items:+" {
+            out.equipment_added = true;
+            return Some(out);
+        }
         // These parts read every kind of their table.
         let name = match name.split_once(':') {
-            Some((table @ ("arena_runs" | "guild_battle_scores" | "play_record_values"), _)) => table,
+            Some((table @ ("arena_runs" | "guild_battle_scores"), _)) => table,
             _ => name,
         };
         out.mask = match name {
@@ -217,6 +233,10 @@ pub(super) mod part {
         pub mask: u64,
         pub metrics: std::collections::BTreeMap<String, Option<std::collections::BTreeSet<String>>>,
         pub claims: bool,
+        /// With FACTS: reload only these play record kinds (None: every kind).
+        pub fact_kinds: Option<std::collections::BTreeSet<String>>,
+        /// Equipment rows were inserted; without EQUIPMENT, none other changed.
+        pub equipment_added: bool,
     }
     impl Invalidates {
         /// Reload `day` of metric `kind` (every day with None).
@@ -229,6 +249,14 @@ pub(super) mod part {
         }
         /// Everything `other` invalidates as well.
         pub(in super::super) fn merge(&mut self, other: Invalidates) {
+            if other.mask & FACTS != 0 {
+                self.fact_kinds = match (self.mask & FACTS != 0, self.fact_kinds.take(), other.fact_kinds) {
+                    (false, _, kinds) => kinds,
+                    (true, Some(mut mine), Some(theirs)) => { mine.extend(theirs); Some(mine) }
+                    _ => None,
+                };
+            }
+            self.equipment_added |= other.equipment_added;
             self.mask |= other.mask;
             self.claims |= other.claims;
             for (kind, days) in other.metrics {
@@ -261,6 +289,16 @@ impl Deps {
             || self.claims.iter().any(|k| changed.claims.contains(k))
             || self.heroes.iter().any(|k| changed.heroes.contains(k))
             || self.stages.iter().any(|k| changed.stages.contains(k))
+    }
+    /// What in `changed` this evaluation read (debug trace only).
+    pub(super) fn causes(&self, changed: &Deps) -> Vec<String> {
+        let mut out: Vec<String> = (0..part::NAMES.len()).filter(|bit| self.mask & changed.mask & (1 << bit) != 0)
+            .map(|bit| part::NAMES[bit].to_owned()).collect();
+        out.extend(self.metrics.iter().filter(|k| changed.metrics.contains(*k)).map(|k| format!("metric:{k}")));
+        out.extend(self.claims.iter().filter(|k| changed.claims.contains(*k)).map(|k| format!("claim:{}", k.0)));
+        if self.heroes.iter().any(|k| changed.heroes.contains(k)) { out.push("hero".into()); }
+        if self.stages.iter().any(|k| changed.stages.contains(k)) { out.push("stage".into()); }
+        out
     }
 }
 
@@ -346,6 +384,8 @@ pub(super) struct View {
     // the table lookups (an incremental refresh uses the same tables). Tests
     // that edit a View in place reset these.
     pub(super) inventory_totals: OnceLock<InventoryTotals>,
+    /// Per metric kind: its values summed by (battle type of the stage, day).
+    typed_metrics: std::sync::Mutex<BTreeMap<String, std::sync::Arc<BTreeMap<(i64, String), i64>>>>,
     claim_index: OnceLock<ClaimIndex>,
     battle_lookup: OnceLock<BattleLookup>,
     equipment_lookup: OnceLock<BTreeMap<i64,(i64,i64,i64)>>,
@@ -384,10 +424,11 @@ impl View {
     pub(super) async fn refresh(db: &mut PgConnection, account: i64, previous: Option<(View, &part::Invalidates)>)
         -> Result<(Self, Deps)> {
         use part::*;
-        let (mut d, mask, kinds, claims, lookups) = match previous {
+        let (mut d, mask, kinds, claims, fact_kinds, equipment_added, lookups) = match previous {
             Some((view, changes)) => (view.d, changes.mask, Some(&changes.metrics), changes.claims,
+                changes.fact_kinds.as_ref(), changes.equipment_added,
                 (view.battle_lookup, view.equipment_lookup, view.mission_lookup)),
-            None => (Inputs::default(), ALL, None, true, Default::default()),
+            None => (Inputs::default(), ALL, None, true, None, false, Default::default()),
         };
         let mut changed = Deps::default();
         // A reloaded part is a change only when its data differs.
@@ -421,12 +462,27 @@ impl View {
                 d.heroes = heroes;
             }
         }
+        let equipment_row = |(slot, item, star, inventory): (i64, i64, i64, i64)|
+            json!({"SlotIndex":slot,"ItemIndex":item,"Star":star,"InventoryType":inventory});
+        // Pieces inserted since the view, when no other piece changed (see
+        // migrations/0016): their slots are above every slot it holds.
+        let mut added = Vec::new();
         if has(EQUIPMENT) {
             // Plain columns: building JSON per row in the database and parsing
-            // it here cost more than the rows (thousands per account).
-            update!(equipment, EQUIPMENT, crate::db::query_as::<(i64, i64, i64, i64)>("SELECT slot_index::bigint,item_index::bigint,star::bigint,inventory_type::bigint FROM equip_items WHERE account_id=$1")
-                .bind(account).fetch_all(&mut *db).await?.into_iter()
-                .map(|(slot, item, star, inventory)| json!({"SlotIndex":slot,"ItemIndex":item,"Star":star,"InventoryType":inventory})).collect::<Vec<_>>());
+            // it here cost more than the rows (thousands per account). In slot
+            // order, as inserted pieces are appended.
+            let mut rows = crate::db::query_as::<(i64, i64, i64, i64)>("SELECT slot_index::bigint,item_index::bigint,star::bigint,inventory_type::bigint FROM equip_items WHERE account_id=$1")
+                .bind(account).fetch_all(&mut *db).await?;
+            rows.sort_unstable();
+            update!(equipment, EQUIPMENT, rows.into_iter().map(equipment_row).collect::<Vec<_>>());
+        } else if equipment_added {
+            let last = d.equipment.last().map(|e| n(e, "SlotIndex")).unwrap_or(0);
+            added = crate::db::query_as::<(i64, i64, i64, i64)>("SELECT slot_index::bigint,item_index::bigint,star::bigint,inventory_type::bigint FROM equip_items WHERE account_id=$1 AND slot_index>$2 ORDER BY slot_index")
+                .bind(account).bind(last).fetch_all(&mut *db).await?;
+            if !added.is_empty() {
+                d.equipment.extend(added.iter().copied().map(equipment_row));
+                changed.mask |= EQUIPMENT;
+            }
         }
         if has(NPC) { update!(npc_friendly, NPC, crate::api::extensions::list(db, account, "npc").await?); }
         if has(GUILD_DAMAGE) {
@@ -537,11 +593,16 @@ impl View {
         // Equipment history is the owned equipment's item indices: reuse the
         // equipment rows when they were reloaded too.
         let owned = (has(EQUIPMENT) && has(HIST_EQUIP)).then(|| d.equipment.iter().map(|e| n(e, "ItemIndex")).collect());
-        changed.mask |= d.history.reload(db, account, mask, owned).await?;
+        changed.mask |= d.history.reload(db, account, mask, owned, fact_kinds).await?;
+        // New pieces only add item indices to the equipment history.
+        let before = d.history.equipment.len();
+        d.history.equipment.extend(added.iter().map(|row| row.1));
+        if d.history.equipment.len() != before { changed.mask |= HIST_EQUIP; }
         let (battle_lookup, equipment_lookup, mission_lookup) = lookups;
         Ok((Self {
             d,
             inventory_totals: OnceLock::new(),
+            typed_metrics: Default::default(),
             claim_index: OnceLock::new(),
             battle_lookup,
             equipment_lookup,
@@ -605,6 +666,24 @@ impl View {
         (self.d.heroes.len(), self.d.metrics.values().map(Vec::len).sum(), self.d.claims.len())
     }
 
+    /// `kind`'s values by (battle type of their stage, day), for counts over
+    /// battle types: about 200 missions count ClearDungeon by type, and each
+    /// rescanned every row (850 for an active player) after every battle.
+    /// Rows of stages without a battle type are left out. Reads the whole kind.
+    pub(super) fn typed_metric(&self, state: &AppState, kind: &str) -> std::sync::Arc<BTreeMap<(i64, String), i64>> {
+        let rows = self.metrics_of(kind);
+        let mut memo = self.typed_metrics.lock().unwrap_or_else(|e| e.into_inner());
+        memo.entry(kind.to_owned()).or_insert_with(|| {
+            let mut sums = BTreeMap::<(i64, String), i64>::new();
+            for (day, k, chapter, dungeon, value) in rows {
+                if k != kind { continue; }
+                let Some(battle) = self.battle_type(state, *chapter, *dungeon) else { continue; };
+                let sum = sums.entry((battle, day.clone())).or_default();
+                *sum = sum.wrapping_add(*value);
+            }
+            std::sync::Arc::new(sums)
+        }).clone()
+    }
     pub(super) fn battle_type(&self, state: &AppState, chapter: i64, dungeon: i64) -> Option<i64> {
         self.battle_lookup.get_or_init(|| BattleLookup::new(&state.tables.battle)).types.get(&(chapter,dungeon)).copied()
     }

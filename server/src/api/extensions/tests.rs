@@ -2254,12 +2254,12 @@ async fn artifact_awakening_accepts_native_material_forms_and_persists_once() {
         assert_eq!(result["Result"],"Success","{result}");
         assert_eq!(result["Success"],true);
         assert_eq!(result["ResultEquipItem"]["Star"],1);
-        assert_eq!(gold(&s).await,before-50000);
+        assert_eq!(gold(&s).await,before-100000);
         let saved:i64=crate::db::query_scalar("SELECT star FROM equip_items WHERE slot_index=$1").bind(x).fetch_one(&s.db).await.unwrap();
         assert_eq!(saved,1);
         assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM equip_items WHERE slot_index=$1").bind(y).fetch_one(&s.db).await.unwrap(),0);
         assert_ne!(call(&s,&u,"awaken_equip",&args).await["Result"],"Success");
-        assert_eq!(gold(&s).await,before-50000);
+        assert_eq!(gold(&s).await,before-100000);
     }
     let target=give(&s,a,1001,1).await.equipment[0].slot_index;
     give(&s,a,5301,1).await;
@@ -2275,7 +2275,7 @@ async fn assert_awakening_rejects_locked_material(item_index: i32, detail_type: 
     let detail = row(&s, "EquipItemDetail", &[("DetailIndex", n(data, "DetailIndex"))]).unwrap();
     assert_eq!(n(detail, "EquipItemDetailType"), detail_type);
     let price = row(&s, "EquipAwakenPrice", &[
-        ("DetailIndex", n(data, "DetailIndex")), ("Tier", n(data, "Tier")), ("Star", 0),
+        ("DetailIndex", n(data, "DetailIndex")), ("Tier", n(data, "Tier")), ("Star", 1),
     ]).unwrap();
     assert!(n(price, "ReqGold") > 0);
     let equips = give(&s, a, item_index, 3).await.equipment;
@@ -2335,7 +2335,8 @@ async fn assert_awakening_rejects_locked_material(item_index: i32, detail_type: 
     let out = call(&s, &u, "awaken_equip", &args).await;
     assert_eq!(out["Result"], "Success", "item {item_index}: {out}");
     assert_eq!(out["ResultEquipItem"]["Star"], 1);
-    assert_eq!(gold(&s).await, before_gold - n(price, "ReqGold"));
+    let material_count = 2 + i64::from(stone.is_some());
+    assert_eq!(gold(&s).await, before_gold - n(price, "ReqGold") * material_count);
     let remaining: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=$1 AND slot_index IN ($2,$3)")
         .bind(a).bind(unlocked).bind(locked).fetch_one(&s.db).await.unwrap();
     assert_eq!(remaining, 0);
@@ -2360,6 +2361,32 @@ async fn awakening_locked_unique_weapon_material_preserves_inventory_and_gold() 
 #[tokio::test]
 async fn awakening_locked_unique_treasure_material_preserves_inventory_and_gold() {
     assert_awakening_rejects_locked_material(102014, 14, 43).await;
+}
+
+#[tokio::test]
+async fn awakening_charges_next_star_price_per_material() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    crate::db::query("UPDATE user_info SET gold=10000000000 WHERE account_id=$1")
+        .bind(a).execute(&s.db).await.unwrap();
+    // Artifact prices differ per star, so the star used for the price shows.
+    let id = 150044;
+    let data = meta(&s, id).unwrap();
+    let price = |star: i64| n(row(&s, "EquipAwakenPrice", &[
+        ("DetailIndex", n(data, "DetailIndex")), ("Tier", n(data, "Tier")), ("Star", star),
+    ]).unwrap(), "ReqGold");
+    assert_ne!(price(1), price(2));
+    let equips = give(&s, a, id, 4).await.equipment;
+    let target = equips[0].slot_index;
+    crate::db::query("UPDATE equip_items SET star=1 WHERE slot_index=$1")
+        .bind(target).execute(&s.db).await.unwrap();
+    let before = gold(&s).await;
+    let out = call(&s, &u, "awaken_equip", &format!(
+        "EquipItemSlotIndex={target}&MaterialSlotIndices=[{},{},{}]",
+        equips[1].slot_index, equips[2].slot_index, equips[3].slot_index,
+    )).await;
+    assert_eq!(out["Result"], "Success", "{out}");
+    assert_eq!(gold(&s).await, before - price(2) * 3);
 }
 
 #[tokio::test]
@@ -2394,7 +2421,7 @@ async fn awakening_validates_materials_and_charges_once() {
     assert_eq!(r["Result"], "Success", "{r}");
     assert_eq!(r["Success"], true);
     assert_eq!(r["ResultEquipItem"]["Star"], 1);
-    assert_eq!(gold(&s).await, 99950000);
+    assert_eq!(gold(&s).await, 99900000);
     let r = call(
         &s,
         &u,
@@ -2403,7 +2430,7 @@ async fn awakening_validates_materials_and_charges_once() {
     )
     .await;
     assert_ne!(r["Result"], "Success");
-    assert_eq!(gold(&s).await, 99950000);
+    assert_eq!(gold(&s).await, 99900000);
 }
 #[tokio::test]
 async fn soul_weapon_advancement_ticket_unlocks_plain_weapon_and_persists() {
@@ -3042,6 +3069,25 @@ async fn native_equipment_grind_single_and_batch_persist_rewards_and_removal() {
 }
 
 #[tokio::test]
+async fn grinding_a_full_expanded_bag_succeeds_in_one_request() {
+    // The client grinds every selected piece in one request; above 1000 the
+    // server answered Fail, shown as a generic network error.
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let template=give(&s,a,1001,1).await.equipment.remove(0);
+    let slots:Vec<i64>=crate::db::query_scalar("INSERT INTO equip_items(account_id,item_index) SELECT $1,$2 FROM generate_series(1,1399) RETURNING slot_index")
+        .bind(a).bind(template.item_index).fetch_all(&s.db).await.unwrap();
+    let slots:Vec<i64>=std::iter::once(template.slot_index as i64).chain(slots).collect();
+    let started=std::time::Instant::now();
+    let r=call(&s,&u,"break_equip",&format!("EquipItemSlotIndices={}",json!(slots))).await;
+    eprintln!("ground 1400 pieces in {:?}",started.elapsed());
+    assert_eq!(r["Result"],"Success","{r}");
+    let left:i64=crate::db::query_scalar("SELECT count(*) FROM equip_items WHERE account_id=$1 AND slot_index IN (SELECT sprk_json_ints($2))")
+        .bind(a).bind(json!(slots).to_string()).fetch_one(&s.db).await.unwrap();
+    assert_eq!(left,0);
+}
+
+#[tokio::test]
 async fn native_equipment_grind_rejects_locked_duplicates_and_rolls_back_entire_batch() {
     let (s,u)=setup().await;
     let a=u.user_info.account_id;
@@ -3561,4 +3607,256 @@ async fn gift_only_xdd_mask_is_never_sold_but_its_item_grants_it() {
     let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
     assert_eq!(login.user_info.gem, 100000);
     assert!(login.player_accessory_costume_infos.iter().any(|v| v["HeroIndex"] == 1 && v["AccessoryCostumeIndex"] == 3102599));
+}
+
+#[tokio::test]
+async fn soul_weapon_rearrange_until_reports_exact_odds_pays_tickets_then_gems_and_guarantees() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let slot = give(&s, a, 1001, 1).await.equipment[0].slot_index;
+    give(&s, a, 111001, 1).await;
+    assert_eq!(call(&s, &u, "soul_weapon_liberation", &format!("EquipItemSlotIndex={slot}")).await["Result"], "Success");
+    let saved = || async { get(&mut s.db.acquire().await.unwrap(), a, "soul", slot as i64).await.unwrap() };
+    let gems = |v: i64| crate::db::query("UPDATE user_info SET gem=$1,pay_gem=0 WHERE account_id=$2").bind(v).bind(a);
+    let wallet = || async {
+        let gem: i64 = crate::db::query_scalar("SELECT gem FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap();
+        let tickets: i64 = crate::db::query_scalar("SELECT COALESCE(SUM(count)::bigint,0) FROM items WHERE account_id=$1 AND item_index=2202")
+            .bind(a).fetch_one(&s.db).await.unwrap();
+        (gem, tickets)
+    };
+    let renew = |target: &str, extra: &str| format!("EquipItemSlotIndex={slot}&{target}&{extra}");
+    // The bruiser example: ATK 53.0-57.0%, both bonuses at least 15.0%.
+    let bruiser = "SprkAtkMin=530&SprkAtkMax=570&SprkAtkBonusMin=150&SprkHpBonusMin=150";
+    // Exactly one outcome in 401 x 201 x 201.
+    let perfect = "SprkAtkMin=700&SprkAtkMax=700&SprkAtkBonusMin=200&SprkHpBonusMin=200";
+
+    // Targets outside the native ranges are refused before anything is charged.
+    gems(100000).execute(&s.db).await.unwrap();
+    let before = saved().await;
+    for bad in [
+        "SprkAtkMin=600&SprkAtkMax=550",
+        "SprkAtkMin=299&SprkAtkMax=700",
+        "SprkAtkMin=300&SprkAtkMax=701",
+        "SprkAtkMin=300&SprkAtkMax=700&SprkAtkBonusMin=201",
+        "SprkAtkMin=300&SprkAtkMax=700&SprkHpBonusMin=-1",
+    ] {
+        let r = call(&s, &u, "soul_weapon_renew_option", &renew(bad, "SprkMaxTries=5")).await;
+        assert_eq!(r["Result"], "RenewOptionRaioFail", "{bad}: {r}");
+    }
+    for tries in [0, soul::SOUL_RENEW_UNTIL_MAX_TRIES + 1] {
+        let r = call(&s, &u, "soul_weapon_renew_option", &renew(bruiser, &format!("SprkMaxTries={tries}"))).await;
+        assert_eq!(r["Result"], "RenewOptionRaioFail", "{tries}: {r}");
+    }
+    assert_eq!(saved().await, before);
+    assert_eq!(wallet().await, (100000, 0));
+
+    // Preview: exact odds and the scaled guarantee, nothing charged.
+    let p = call(&s, &u, "soul_weapon_renew_option", &renew(bruiser, "SprkPreview=1")).await;
+    assert_eq!(p["Result"], "Success", "{p}");
+    assert_eq!((n(&p, "SprkHits"), n(&p, "SprkOutcomes")), (41 * 51 * 51, 401 * 201 * 201));
+    assert_eq!((n(&p, "SprkPityMisses"), n(&p, "SprkPityLimit")), (0, 456), "ceil(3 / 0.658%)");
+    let p = call(&s, &u, "soul_weapon_renew_option", &renew(perfect, "SprkPreview=1")).await;
+    assert_eq!((n(&p, "SprkHits"), n(&p, "SprkPityLimit")), (1, soul::SOUL_RENEW_UNTIL_MAX_TRIES), "capped at one run");
+    assert_eq!(saved().await, before);
+    assert_eq!(wallet().await, (100000, 0));
+
+    // No tickets and too few gems: refused.
+    gems(199).execute(&s.db).await.unwrap();
+    let r = call(&s, &u, "soul_weapon_renew_option", &renew(perfect, "SprkMaxTries=5")).await;
+    assert_eq!(r["Result"], "NotEnoughGem", "{r}");
+    assert_eq!(saved().await, before);
+
+    // Two tickets, then one 200-gem roll; the next is unaffordable.
+    give(&s, a, 2202, 2).await;
+    gems(300).execute(&s.db).await.unwrap();
+    let r = call(&s, &u, "soul_weapon_renew_option", &renew(perfect, "SprkMaxTries=5")).await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!((n(&r, "SprkTries"), n(&r, "SprkTicketsUsed"), n(&r, "SprkGemsSpent")), (3, 2, 200), "{r}");
+    assert_eq!(r["SprkHit"], false);
+    assert_eq!((n(&r, "SprkPityMisses"), n(&r, "SprkPityLimit")), (3, soul::SOUL_RENEW_UNTIL_MAX_TRIES));
+    assert_eq!(r["CurrencyResult"]["AddValue"], -200);
+    assert_eq!(wallet().await, (100, 0));
+    let info = saved().await;
+    assert_eq!(&info, &r["ResultSoulWeaponInfo"]);
+    assert_eq!(info["PendingRenew"], true);
+    assert_eq!(info["RenewOptionCount"], 3);
+    assert_eq!((n(&info, "OptionRatio1"), n(&info, "OptionBonusRatio1")), (n(&before, "OptionRatio1"), n(&before, "OptionBonusRatio1")), "only pending changes");
+    let atk = n(&info, "RenewOptionRatio1");
+    assert!((300..=700).contains(&atk) && n(&info, "RenewOptionRatio2") == 1000 - atk, "{info}");
+
+    // An unconfirmed roll blocks the next run, and the native Keep restores it.
+    let r = call(&s, &u, "soul_weapon_renew_option", &renew(perfect, "SprkMaxTries=1")).await;
+    assert_eq!(r["Result"], "Fail", "{r}");
+    assert_eq!(wallet().await, (100, 0));
+    let kept = call(&s, &u, "soul_weapon_confirm_renew_option", &format!("EquipItemSlotIndex={slot}&IsNew=false")).await;
+    assert_eq!(kept["Result"], "Success", "{kept}");
+    assert_eq!(n(&saved().await, "OptionRatio1"), n(&before, "OptionRatio1"));
+
+    // Progress carries over: the 100,000th accumulated roll lands in the target.
+    crate::db::query("UPDATE sprk_target_pity SET misses=99998 WHERE account_id=$1 AND kind='soul_renew'")
+        .bind(a).execute(&s.db).await.unwrap();
+    gems(100000).execute(&s.db).await.unwrap();
+    let r = call(&s, &u, "soul_weapon_renew_option", &renew(perfect, "SprkMaxTries=5")).await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert!(n(&r, "SprkTries") <= 2, "{r}");
+    assert_eq!((r["SprkHit"].clone(), r["SprkGuaranteed"].clone()), (json!(true), json!(n(&r, "SprkTries") == 2)), "{r}");
+    assert_eq!(n(&r, "SprkPityMisses"), 0);
+    let info = &r["ResultSoulWeaponInfo"];
+    assert_eq!(
+        (n(info, "RenewOptionRatio1"), n(info, "RenewOptionRatio2"), n(info, "RenewOptionBonusRatio1"), n(info, "RenewOptionBonusRatio2")),
+        (700, 300, 200, 200)
+    );
+    let taken = call(&s, &u, "soul_weapon_confirm_renew_option", &format!("EquipItemSlotIndex={slot}&IsNew=true")).await;
+    assert_eq!(taken["Result"], "Success", "{taken}");
+    let info = saved().await;
+    assert_eq!((n(&info, "OptionRatio1"), n(&info, "OptionBonusRatio1"), n(&info, "OptionBonusRatio2")), (700, 200, 200));
+
+    // Another target starts its own progress; any outcome hits in one roll.
+    let r = call(&s, &u, "soul_weapon_renew_option", &renew(perfect, "SprkMaxTries=1")).await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    let p = call(&s, &u, "soul_weapon_confirm_renew_option", &format!("EquipItemSlotIndex={slot}&IsNew=false")).await;
+    assert_eq!(p["Result"], "Success", "{p}");
+    let p = call(&s, &u, "soul_weapon_renew_option", &renew(bruiser, "SprkPreview=1")).await;
+    assert_eq!(n(&p, "SprkPityMisses"), 0, "{p}");
+    let r = call(&s, &u, "soul_weapon_renew_option", &renew("SprkAtkMin=300&SprkAtkMax=700", "SprkMaxTries=50")).await;
+    assert_eq!((n(&r, "SprkTries"), r["SprkHit"].clone()), (1, json!(true)), "{r}");
+    let kept = call(&s, &u, "soul_weapon_confirm_renew_option", &format!("EquipItemSlotIndex={slot}&IsNew=false")).await;
+    assert_eq!(kept["Result"], "Success", "{kept}");
+
+    // Max ATK with only its own bonus maxed: 11 x 1 x 201 outcomes, so the
+    // guarantee is 3 x 7,328 rolls. With both bonuses maxed (the preset) the
+    // odds are 1 in ~1.47 million and the 100,000 cap applies.
+    let atk_only = "SprkAtkMin=690&SprkAtkMax=700&SprkAtkBonusMin=200&SprkHpBonusMin=0";
+    let p = call(&s, &u, "soul_weapon_renew_option", &renew(atk_only, "SprkPreview=1")).await;
+    assert_eq!((n(&p, "SprkHits"), n(&p, "SprkPityLimit")), (11 * 201, 21983), "{p}");
+    let max_atk = "SprkAtkMin=690&SprkAtkMax=700&SprkAtkBonusMin=200&SprkHpBonusMin=200";
+    let p = call(&s, &u, "soul_weapon_renew_option", &renew(max_atk, "SprkPreview=1")).await;
+    assert_eq!((n(&p, "SprkHits"), n(&p, "SprkPityLimit")), (11, soul::SOUL_RENEW_UNTIL_MAX_TRIES), "{p}");
+
+    // A full-length run finishes quickly and always lands by the guarantee.
+    gems(250_000_000).execute(&s.db).await.unwrap();
+    let started = std::time::Instant::now();
+    let r = call(&s, &u, "soul_weapon_renew_option", &renew(perfect, &format!("SprkMaxTries={}", soul::SOUL_RENEW_UNTIL_MAX_TRIES))).await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!(r["SprkHit"], true, "{r}");
+    let tries = n(&r, "SprkTries");
+    assert!((1..=soul::SOUL_RENEW_UNTIL_MAX_TRIES).contains(&tries), "{r}");
+    assert_eq!(n(&r, "SprkGemsSpent"), 200 * tries);
+    assert!(started.elapsed() < std::time::Duration::from_secs(5), "{:?}", started.elapsed());
+}
+
+// A Legend costume brings its own weapon and hair (Jane's spear, not her
+// Unique Weapon coffin). The native Dressing Room previews that but its
+// Apply form keeps the hero's previous HideUniqueWeapon=0, and the Costume
+// window's set_costume sends no weapon fields at all.
+#[tokio::test]
+async fn legend_costume_forces_basic_weapon_and_hair_on_every_equip_path() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let (jane, legend) = (25_i64, 2519_i64);
+    assert_eq!(n(&s.tables.hero_shop.costumes[&(legend as i32)], "CostumeType"), 2);
+    let normal = s.tables.hero_shop.costumes.values()
+        .find(|c| n(c, "HeroIndex") == jane && n(c, "CostumeType") != 2 && c["IsDefault"] != true)
+        .map(|c| n(c, "CostumeIndex")).unwrap();
+    crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,star) VALUES($1,9025,$2,5)")
+        .bind(a).bind(jane).execute(&s.db).await.unwrap();
+    for id in [legend, normal] {
+        crate::db::query("INSERT INTO costumes(account_id,costume_index) VALUES($1,$2)")
+            .bind(a).bind(id).execute(&s.db).await.unwrap();
+    }
+    let form = |args: String| Bytes::from(format!("SessionKey={}&{args}", u.user_info.session_key));
+    let save = |look: Value| { let s = s.clone(); async move {
+        hero::save_details(&mut s.db.acquire().await.unwrap(), a, jane as i32, &look).await.unwrap();
+    }};
+    let live = || { let s = s.clone(); async move {
+        let h = hero::info(&mut s.db.acquire().await.unwrap(), a, jane as i32).await.unwrap();
+        [n(&h, "CostumeIndex"), n(&h, "HideUniqueWeapon"), n(&h, "WeaponCostumeIndex"), n(&h, "HairCostumeIndex")]
+    }};
+    let showing_unique = json!({"CostumeIndex":normal,"HideUniqueWeapon":0,"WeaponCostumeIndex":0,"HairCostumeIndex":0});
+
+    // Dressing Room Apply, exactly as the native client sends it.
+    save(showing_unique.clone()).await;
+    let r = call(&s, &u, "hero/buy_customizing_costumes", &format!(
+        "HeroIndex={jane}&CostumeIndex={legend}&HairCostumeIndex=0&WeaponCostumeIndex=0&HideUniqueWeapon=0&BuyGold=0&BuyGem=0")).await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!(r["HeroCostumeResultInfo"]["HideUniqueWeapon"], 1);
+    assert_eq!(live().await, [legend, 1, 0, 0]);
+
+    // Costume window equip over a Unique Weapon, a weapon and a hair costume.
+    save(json!({"CostumeIndex":normal,"HideUniqueWeapon":0,"WeaponCostumeIndex":777,"HairCostumeIndex":888})).await;
+    let r = hero::set_costume(State(s.clone()), form(format!("HeroIndex={jane}&CostumeIndex={legend}"))).await.unwrap().0;
+    assert_eq!(r["Result"], "Success", "{r}");
+    for (key, value) in [("HideUniqueWeapon", 1), ("WeaponCostumeIndex", 0), ("HairCostumeIndex", 0)] {
+        assert_eq!(r["HeroCostumeResult"][key], value, "{key}");
+    }
+    assert_eq!(live().await, [legend, 1, 0, 0]);
+
+    // The Unique Weapon toggle cannot uncover it while the Legend is worn.
+    let r = hero::set_hide_hero_unique_weapon(State(s.clone()),
+        form(format!("HeroIndex={jane}&HideUniqueWeapon=0&WeaponCpstumeIndex=0"))).await.unwrap().0;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!(live().await, [legend, 1, 0, 0]);
+
+    // A preset saved before this fix is repaired when loaded.
+    crate::db::query("INSERT INTO costume_presets(account_id,hero_index,slot_index,data) VALUES($1,$2,1,$3)")
+        .bind(a).bind(jane).bind(json!({"HeroIndex":jane,"CostumeIndex":legend,"HideUniqueWeapon":0,
+            "WeaponCostumeIndex":777,"HairCostumeIndex":888,"CostumeStorageSlotIndex":1}).to_string())
+        .execute(&s.db).await.unwrap();
+    save(showing_unique.clone()).await;
+    let r = hero::set_costume_storage_slot(State(s.clone()), form(format!("HeroIndex={jane}&CostumeStorageSlotIndex=1"))).await.unwrap().0;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!(r["CostumeStorageSlotInfo"]["HideUniqueWeapon"], 1);
+    assert_eq!(live().await, [legend, 1, 0, 0]);
+
+    // Normal costumes keep the player's weapon choice.
+    let r = hero::set_costume(State(s.clone()), form(format!("HeroIndex={jane}&CostumeIndex={normal}"))).await.unwrap().0;
+    assert_eq!(r["Result"], "Success", "{r}");
+    let r = hero::set_hide_hero_unique_weapon(State(s.clone()),
+        form(format!("HeroIndex={jane}&HideUniqueWeapon=0&WeaponCpstumeIndex=0"))).await.unwrap().0;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!(live().await, [normal, 0, 0, 0]);
+}
+
+const LEGEND_REPAIR: &str = include_str!("../../../migrations/0014_legend_costume_look.sql");
+
+#[test]
+fn legend_repair_migration_lists_every_legend_costume() {
+    let tables = crate::tables::test_tables();
+    let mut legend: Vec<i64> = tables.hero_shop.costumes.values()
+        .filter(|c| n(c, "CostumeType") == 2).map(|c| n(c, "CostumeIndex")).collect();
+    legend.sort();
+    let list = LEGEND_REPAIR.split("INSERT INTO legend_costumes VALUES").nth(1).unwrap().split(';').next().unwrap();
+    let mut listed: Vec<i64> = list.split(|c: char| !c.is_ascii_digit()).filter_map(|v| v.parse().ok()).collect();
+    listed.sort();
+    assert_eq!(listed, legend);
+}
+
+// Heroes, presets and lobby avatars saved by earlier servers.
+#[tokio::test]
+async fn legend_repair_migration_fixes_stored_looks_only() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let bad = json!({"CostumeIndex":"2519","HideUniqueWeapon":0,"WeaponCostumeIndex":777,"HairCostumeIndex":888,"Level":60});
+    let normal = json!({"CostumeIndex":2510,"HideUniqueWeapon":0,"WeaponCostumeIndex":777,"HairCostumeIndex":888});
+    for (hero_index, look) in [(25, &bad), (26, &normal)] {
+        hero::save_details(&mut s.db.acquire().await.unwrap(), a, hero_index, look).await.unwrap();
+        crate::db::query("INSERT INTO costume_presets(account_id,hero_index,slot_index,data) VALUES($1,$2,1,$3)")
+            .bind(a).bind(hero_index).bind(look.to_string()).execute(&s.db).await.unwrap();
+    }
+    crate::db::query("INSERT INTO lobby_appearance(account_id,avatar_hero_index,costume_index,hair_costume_index,weapon_costume_index,hide_unique_weapon,snapshot) VALUES ($1,12519,2519,888,777,0,$2) ON CONFLICT(account_id) DO UPDATE SET costume_index=2519,hair_costume_index=888,weapon_costume_index=777,hide_unique_weapon=0,snapshot=excluded.snapshot")
+        .bind(a).bind(bad.to_string()).execute(&s.db).await.unwrap();
+    sqlx::raw_sql(LEGEND_REPAIR).execute(&s.db).await.unwrap();
+    let fixed = |v: &Value| [n(v, "HideUniqueWeapon"), n(v, "WeaponCostumeIndex"), n(v, "HairCostumeIndex")];
+    let details = hero::details(&mut s.db.acquire().await.unwrap(), a, 25).await.unwrap();
+    assert_eq!(fixed(&details), [1, 0, 0]);
+    assert_eq!(n(&details, "Level"), 60);
+    assert_eq!(hero::details(&mut s.db.acquire().await.unwrap(), a, 26).await.unwrap(), normal);
+    let presets: Vec<String> = crate::db::query_scalar("SELECT data FROM costume_presets WHERE account_id=$1 ORDER BY hero_index")
+        .bind(a).fetch_all(&s.db).await.unwrap();
+    assert_eq!(fixed(&serde_json::from_str(&presets[0]).unwrap()), [1, 0, 0]);
+    assert_eq!(serde_json::from_str::<Value>(&presets[1]).unwrap(), normal);
+    let row = crate::db::query("SELECT hide_unique_weapon,weapon_costume_index,hair_costume_index,snapshot FROM lobby_appearance WHERE account_id=$1")
+        .bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!([row.get::<i64, _>("hide_unique_weapon"), row.get("weapon_costume_index"), row.get("hair_costume_index")], [1, 0, 0]);
+    assert_eq!(fixed(&serde_json::from_str(&row.get::<String, _>("snapshot")).unwrap()), [1, 0, 0]);
 }

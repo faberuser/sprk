@@ -104,35 +104,56 @@ public static class SprkBatchGrind
 		{
 			return original;
 		}
+		// The popup label shrinks its text to fit, so keep the summary to a few
+		// short, color-coded lines instead of one line per value.
 		StringBuilder stringBuilder = new StringBuilder();
-		stringBuilder.Append(SprkText.Format("Grind {0} selected items?\n", total));
+		stringBuilder.Append("[b]").Append(SprkText.Format("Grind {0} selected items?\n", total).Trim()).Append("[/b]\n");
+		List<string> counts = new List<string>();
 		if (weapons > 0)
 		{
-			stringBuilder.Append(SprkText.Get("Unique Weapons: ")).Append(weapons).Append('\n');
+			counts.Add(Count(SprkText.Get("Unique Weapons: "), weapons));
 		}
 		if (treasures > 0)
 		{
-			stringBuilder.Append(SprkText.Get("Unique Treasures: ")).Append(treasures).Append('\n');
+			counts.Add(Count(SprkText.Get("Unique Treasures: "), treasures));
 		}
 		if (total > weapons + treasures)
 		{
-			stringBuilder.Append(SprkText.Get("Other gear: ")).Append(total - weapons - treasures).Append('\n');
+			counts.Add(Count(SprkText.Get("Other gear: "), total - weapons - treasures));
 		}
-		stringBuilder.Append(SprkText.Get("\nUnique item rewards:\n"));
+		stringBuilder.Append(string.Join(Separator, counts.ToArray())).Append('\n');
+		stringBuilder.Append(SprkText.Get("\nUnique item rewards:\n").Trim()).Append('\n');
+		int num = 0;
 		foreach (KeyValuePair<string, long[]> reward in rewards)
 		{
-			stringBuilder.Append(reward.Key).Append(": ").Append(reward.Value[0].ToString("N0"));
+			if (num > 0)
+			{
+				stringBuilder.Append((num % 2 == 0) ? "\n" : Separator);
+			}
+			stringBuilder.Append(reward.Key).Append(" [").Append(RewardColor).Append(']').Append(reward.Value[0].ToString("N0"));
 			if (reward.Value[0] != reward.Value[1])
 			{
 				stringBuilder.Append(" - ").Append(reward.Value[1].ToString("N0"));
 			}
-			stringBuilder.Append('\n');
+			stringBuilder.Append("[-]");
+			num++;
 		}
 		if (missing)
 		{
-			stringBuilder.Append(SprkText.Get("Some rewards cannot be previewed.\n"));
+			stringBuilder.Append('\n').Append(SprkText.Get("Some rewards cannot be previewed.\n").Trim());
 		}
-		stringBuilder.Append(SprkText.Get("\nAll selected items will be permanently destroyed.\nThis cannot be undone."));
+		stringBuilder.Append("\n\n[").Append(WarningColor).Append(']').Append(SprkText.Get("\nAll selected items will be permanently destroyed.\nThis cannot be undone.").Trim()).Append("[-]");
 		return stringBuilder.ToString();
+	}
+
+	private const string Separator = "     ";
+
+	private const string RewardColor = "1E7A34";
+
+	private const string WarningColor = "B3261E";
+
+	private static string Count(string label, int value)
+	{
+		return label + "[b]" + value.ToString("N0") + "[/b]";
 	}
 }

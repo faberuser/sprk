@@ -141,7 +141,10 @@ public class LocalPatchInfoWriter : SceneAutoBehaviour<LocalPatchInfoWriter>
 				Archives = new List<ArchiveInfo>(new ArchiveInfo[1] { archiveInfo })
 			});
 			byte[] bytes = MiniJSON.JsonBin.Serialize(dictionary);
-			JsonPool.instance.Release(dictionary);
+			// SPRK: the generated encoders allocate with `new`, not from JsonPool. Releasing
+			// them filled the pool with one cleared dictionary per asset on every write
+			// (every 3 s during a download, ~17k assets), which the pool keeps until the next
+			// scene change: the managed heap grew past 500 MB on phones and every GC stalled.
 			dictionary = null;
 			File.WriteAllBytes(downloadedAssetPath, bytes);
 		}, (Action)delegate

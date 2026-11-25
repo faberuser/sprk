@@ -6,7 +6,16 @@
                             reference bundles, original APK data, content repack
     python client/android/dev.py assets     build ../sprk-android/build: original Android bundles plus
                                             bundles converted from ../sprk-client (needs content)
-    python client/android/dev.py build      compile the game code and build the APK
+    python client/android/dev.py signing    one-time: create the release signing key
+                                            (../sprk-android/signing; copy that folder to every
+                                            machine that builds APKs, and back it up)
+    python client/android/dev.py build      compile the game code and build the APK. The game is
+                                            compiled into the APK (IL2CPP, like the original game);
+                                            --interpreted loads it with HybridCLR instead (slower,
+                                            but `hot` works). --release-code <manifest URL> builds
+                                            from a published release's game DLLs: an APK for players
+                                            must run exactly the server's code, or it asks them to
+                                            download a new APK
     python client/android/dev.py test       build, install on the device, push missing device
                                             data, publish new asset versions when the assets or
                                             client/overrides/files changed (client/dev.py assets;
@@ -14,7 +23,8 @@
                                             (--picker: choose the server on the device, as
                                             SprkLauncher does on Windows)
     python client/android/dev.py hot        compile, push the game DLLs, publish new asset versions
-                                            as test does, restart the game (no APK rebuild; the fast loop)
+                                            as test does, restart the game (no APK rebuild; the fast
+                                            loop; needs an APK built with --interpreted)
     python client/android/dev.py connect    restore adb port forwarding to the local server
 
 By default the game plays on the local server (start_server.bat) through `adb reverse`.
@@ -24,12 +34,17 @@ Unity Hub (Hub must be running and signed in for batch builds) or --unity / SPRK
 See client/README.md (Android) for setup; docs/android.md lists open work.
 """
 import argparse
+import base64
+import hashlib
 import json
 import os
 from pathlib import Path
+import secrets
 import shutil
 import subprocess
 import sys
+import urllib.parse
+import urllib.request
 
 REPO = Path(__file__).resolve().parents[2]
 PROJECT = REPO / "client/android/HybridBootstrap"
@@ -39,6 +54,10 @@ ORIGINAL_APK = REPO.parent / "sprk-android" / "base-apk" / "kings-raid-4.88.8.ap
 APK = ARTIFACTS / "apk/sprk-hybrid-probe.apk"
 UNITY_VERSION = "6000.0.53f1"
 DEFAULT_ADB = "C:/Program Files/BlueStacks_nxt/HD-Adb.exe"
+# Release signing (SprkAndroidBuild.ApplySigning): outside the repository, never committed.
+SIGNING = REPO.parent / "sprk-android" / "signing"
+MODE_FILE = PROJECT / "HotUpdate" / "mode.txt"
+MANAGED = Path("King's Raid_Data") / "Managed"
 
 
 def run(cmd, **kw):
@@ -88,9 +107,49 @@ def publish_assets(args):
         run([sys.executable, REPO / "client/dev.py", "assets"])
 
 
-def compile_code():
+def release_code(manifest_url: str) -> Path:
+    """The game DLLs (Assembly-CSharp, Sprk*) of a published release, hash-checked and
+    signature-checked like the APK's updater does, in ARTIFACTS/release-code."""
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import padding
+
+    with urllib.request.urlopen(manifest_url, timeout=60) as response:
+        outer = json.loads(response.read())
+    signature = outer.get("signature") or {}
+    if not signature.get("payload"):
+        raise SystemExit(f"{manifest_url} is not signed")
+    payload = base64.b64decode(signature["payload"])
+    key = serialization.load_pem_public_key((REPO / "config/client-update-public.pem").read_bytes())
+    key.verify(base64.b64decode(signature["value"]), payload, padding.PKCS1v15(), hashes.SHA256())
+    release = json.loads(payload)
+    out = ARTIFACTS / "release-code" / MANAGED
+    if out.exists():
+        shutil.rmtree(out)
+    out.mkdir(parents=True)
+    prefix = MANAGED.as_posix() + "/"
+    count = 0
+    for f in release["files"]:
+        name = f["path"][len(prefix):] if f["path"].startswith(prefix) else ""
+        if "/" in name or not name.endswith(".dll") or not (name == "Assembly-CSharp.dll" or name.startswith("Sprk")):
+            continue
+        with urllib.request.urlopen(urllib.parse.urljoin(manifest_url, f["url"]), timeout=300) as response:
+            data = response.read()
+        if len(data) != f["size"] or hashlib.sha256(data).hexdigest() != f["sha256"]:
+            raise SystemExit(f"{f['path']}: does not match the release manifest")
+        (out / name).write_bytes(data)
+        count += 1
+    print(f"release {release['version']}: {count} game assemblies")
+    return out.parents[1]
+
+
+def compile_code(args=None):
+    mode = "interpreted" if args is not None and args.interpreted else "aot"
+    if args is not None and args.release_code:
+        code = release_code(args.release_code)
+        run([sys.executable, PROJECT / "sync_inputs.py", "--mode", mode, "--code", code])
+        return
     run([sys.executable, REPO / "client/dev.py", "build"])
-    run([sys.executable, PROJECT / "sync_inputs.py"])
+    run([sys.executable, PROJECT / "sync_inputs.py", "--mode", mode])
 
 
 def cmd_content(args):
@@ -116,9 +175,41 @@ def cmd_assets(args):
 def cmd_build(args):
     if not (ARTIFACTS / "content/resources-map.json").is_file():
         raise SystemExit("No repacked content; run `content --apk ...` first")
-    compile_code()
+    if not (SIGNING / "release.json").is_file() and not os.environ.get("SPRK_ANDROID_SIGNING"):
+        raise SystemExit(f"No release signing key in {SIGNING}; run `signing` once, or copy that folder from the other build machine")
+    compile_code(args)
     unity(args, "SprkAndroidBuild.Build", "build.log")
     print(f"APK: {APK}")
+
+
+def cmd_signing(args):
+    # A PKCS12 keystore (what `keytool -genkeypair -storetype PKCS12` makes), without needing a JDK.
+    import datetime
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.hazmat.primitives.serialization import pkcs12
+    from cryptography.x509.oid import NameOID
+
+    config = SIGNING / "release.json"
+    if config.is_file():
+        raise SystemExit(f"{config} already exists; it signs every APK players have, never replace it")
+    SIGNING.mkdir(parents=True, exist_ok=True)
+    keystore = SIGNING / "sprk-release.keystore"
+    password = secrets.token_urlsafe(24)  # PKCS12: one password for the store and the key
+    key = rsa.generate_private_key(public_exponent=65537, key_size=4096)
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "SPRK")])
+    now = datetime.datetime.now(datetime.timezone.utc)
+    cert = (x509.CertificateBuilder().subject_name(name).issuer_name(name).public_key(key.public_key())
+            .serial_number(x509.random_serial_number()).not_valid_before(now)
+            .not_valid_after(now + datetime.timedelta(days=10000))
+            .sign(key, hashes.SHA256()))
+    keystore.write_bytes(pkcs12.serialize_key_and_certificates(
+        b"sprk", key, cert, None, serialization.BestAvailableEncryption(password.encode())))
+    config.write_text(json.dumps({"keystore": keystore.name, "storePassword": password, "alias": "sprk",
+                                  "keyPassword": password}, indent=2) + "\n", encoding="utf-8")
+    print(f"Release key created in {SIGNING}. Back up that folder and copy it to every machine that builds APKs:\n"
+          "a lost key means players must uninstall (losing their downloaded data) to install the next APK.")
 
 
 def cmd_test(args):
@@ -138,6 +229,9 @@ def cmd_test(args):
 
 
 def cmd_hot(args):
+    if not MODE_FILE.is_file() or MODE_FILE.read_text(encoding="utf-8").strip() != "interpreted":
+        raise SystemExit("The last APK has the game compiled in, which ignores pushed DLLs; "
+                         "use `test`, or `test --interpreted` once to use `hot`")
     run([sys.executable, REPO / "client/dev.py", "build"])
     script(args, "push_hot.sh")
     publish_assets(args)
@@ -150,7 +244,12 @@ def cmd_connect(args):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["content", "assets", "build", "test", "hot", "connect"])
+    ap.add_argument("command", choices=["content", "assets", "signing", "build", "test", "hot", "connect"])
+    ap.add_argument("--interpreted", action="store_true",
+                    help="build, test: run the game code in HybridCLR's interpreter (slower; enables `hot`)")
+    ap.add_argument("--release-code", metavar="MANIFEST_URL",
+                    help="build, test: compile a published release's game DLLs instead of a local build "
+                         "(e.g. https://<server>/updates/stable/manifest.json)")
     ap.add_argument("--only", help="assets: only bundles whose path starts with this (testing)")
     ap.add_argument("--apk", help=f"original Android APK (content; default {ORIGINAL_APK})")
     ap.add_argument("--unity", help=f"Unity {UNITY_VERSION} Unity.exe (default: from Unity Hub)")
@@ -160,10 +259,10 @@ def main():
     ap.add_argument("--picker", action="store_true", help="test: show the server picker at launch instead of using Local")
     ap.add_argument("--no-assets", action="store_true", help="test, hot: do not publish asset versions")
     args = ap.parse_args()
-    if not shutil.which(args.adb) and not Path(args.adb).is_file():
+    if args.command in ("test", "hot", "connect") and not shutil.which(args.adb) and not Path(args.adb).is_file():
         raise SystemExit(f"adb not found: {args.adb}")
-    {"content": cmd_content, "assets": cmd_assets, "build": cmd_build, "test": cmd_test, "hot": cmd_hot,
-     "connect": cmd_connect}[args.command](args)
+    {"content": cmd_content, "assets": cmd_assets, "signing": cmd_signing, "build": cmd_build, "test": cmd_test,
+     "hot": cmd_hot, "connect": cmd_connect}[args.command](args)
 
 
 if __name__ == "__main__":

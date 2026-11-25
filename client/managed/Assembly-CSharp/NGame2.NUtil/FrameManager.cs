@@ -251,16 +251,98 @@ public class FrameManager : GlobalAutoBehaviour<FrameManager>
 		{
 		case EFrameControl.Auto:
 			// "Auto" means the display rate. Desktop gets it from VSync; mobile ignores VSync
-			// and treats -1 as 30 fps, so ask for the display's refresh rate there.
-			Application.targetFrameRate = Application.isMobilePlatform ? Mathf.Max(30, (int)System.Math.Round(Screen.currentResolution.refreshRateRatio.value)) : (-1);
+			// and treats -1 as 30 fps, so ask for the display's fastest refresh rate there.
+			Application.targetFrameRate = Application.isMobilePlatform ? Mathf.Max(30, ApplyDisplayRefreshRate(0)) : (-1);
 			QualitySettings.vSyncCount = 1;
 			break;
 		case EFrameControl.AutoPlus:
 			Application.targetFrameRate = last.AutoPlus;
+			ApplyDisplayRefreshRate(last.AutoPlus);
 			break;
 		default:
 			Application.targetFrameRate = (int)SystemOptionData.Graphic_FrameControl;
+			ApplyDisplayRefreshRate(Application.targetFrameRate);
 			break;
+		}
+	}
+
+	private static int _requestedDisplayModeId;
+
+	// SPRK: Android keeps the panel at its default mode (often 60 Hz on 90/120/144 Hz
+	// devices; MIUI also drops to 60 Hz when no app asks for more) unless the app requests
+	// a mode, so a 144 fps choice could never pass 60. Request, through the window's
+	// preferredDisplayModeId, the slowest display mode of the current size that can show
+	// targetFps (at least 60 Hz, so touch stays responsive); targetFps <= 0 or above every
+	// mode asks for the fastest mode. (Screen.SetResolution with a refresh rate sends no
+	// request on such devices.) Returns that mode's refresh rate, or targetFps off Android.
+	public static int ApplyDisplayRefreshRate(int targetFps)
+	{
+		if (Application.platform != RuntimePlatform.Android)
+		{
+			return targetFps;
+		}
+		try
+		{
+			using AndroidJavaClass player = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
+			AndroidJavaObject activity = player.GetStatic<AndroidJavaObject>("currentActivity");
+			using AndroidJavaObject windowManager = activity.Call<AndroidJavaObject>("getWindowManager");
+			using AndroidJavaObject display = windowManager.Call<AndroidJavaObject>("getDefaultDisplay");
+			using AndroidJavaObject current = display.Call<AndroidJavaObject>("getMode");
+			int width = current.Call<int>("getPhysicalWidth");
+			int height = current.Call<int>("getPhysicalHeight");
+			int wanted = Mathf.Max(targetFps, 60);
+			int chosenId = 0, fastestId = 0;
+			float chosenRate = 0f, fastestRate = 0f;
+			foreach (AndroidJavaObject mode in display.Call<AndroidJavaObject[]>("getSupportedModes"))
+			{
+				using (mode)
+				{
+					if (mode.Call<int>("getPhysicalWidth") != width || mode.Call<int>("getPhysicalHeight") != height)
+					{
+						continue;
+					}
+					int id = mode.Call<int>("getModeId");
+					float rate = mode.Call<float>("getRefreshRate");
+					if (rate > fastestRate)
+					{
+						fastestRate = rate;
+						fastestId = id;
+					}
+					if (targetFps > 0 && rate + 0.5f >= wanted && (chosenId == 0 || rate < chosenRate))
+					{
+						chosenRate = rate;
+						chosenId = id;
+					}
+				}
+			}
+			if (chosenId == 0)
+			{
+				chosenId = fastestId;
+				chosenRate = fastestRate;
+			}
+			if (chosenId == 0)
+			{
+				return Mathf.Max(targetFps, 60);
+			}
+			if (chosenId != _requestedDisplayModeId)
+			{
+				_requestedDisplayModeId = chosenId;
+				int modeId = chosenId;
+				// Window attributes belong to the UI thread.
+				activity.Call("runOnUiThread", new AndroidJavaRunnable(delegate
+				{
+					using AndroidJavaObject window = activity.Call<AndroidJavaObject>("getWindow");
+					using AndroidJavaObject attributes = window.Call<AndroidJavaObject>("getAttributes");
+					attributes.Set("preferredDisplayModeId", modeId);
+					window.Call("setAttributes", attributes);
+				}));
+			}
+			return Mathf.RoundToInt(chosenRate);
+		}
+		catch (System.Exception e)
+		{
+			Debug.LogWarning("SPRK display refresh: " + e.Message);
+			return Mathf.Max(targetFps, 60);
 		}
 	}
 

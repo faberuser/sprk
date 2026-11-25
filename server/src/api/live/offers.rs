@@ -377,7 +377,7 @@ pub(super) async fn execute(
             let id = int(r, "Index")?;
             // Older clients omit Quantity and continue to buy one offer.
             let quantity = r.number("Quantity", 1)?;
-            if !(1..=999).contains(&quantity) {
+            if !(1..=1000).contains(&quantity) {
                 return Err(rule("InvalidValue"));
             }
             let base = products(s)

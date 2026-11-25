@@ -4185,3 +4185,21 @@ async fn campaign_hero_exp_result_matches_client_display_contract() {
     let total = |level: i64, local: i64| (1..level).map(|lv| levels.iter().find(|l| l.level as i64 == lv).unwrap().local_exp).sum::<i64>() + local;
     assert_eq!(total(n(r, "NewLevel"), n(r, "NewValue")) - total(n(r, "OldLevel"), n(r, "NewValue") - n(r, "AddValue")), gained);
 }
+
+#[tokio::test]
+async fn campaign_entry_checks_party_ownership_in_one_statement() {
+    let (s, u) = setup().await;
+    let a = account(&u);
+    let mut db = s.db.acquire().await.unwrap();
+    assert!(owned(&mut db, a, &[]).await.is_ok());
+    assert!(owned(&mut db, a, &[1]).await.is_ok());
+    // A repeated index needs the hero once.
+    assert!(owned(&mut db, a, &[1, 1]).await.is_ok());
+    assert!(matches!(owned(&mut db, a, &[1, 999_999]).await, Err(ServerError::InvalidRequest(code)) if code == "NoHero"));
+    drop(db);
+    let entry = "ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=1&HeroIndices=[1,999999]";
+    let refused = call(&s, &u, "campaign/begin_campaign", entry).await;
+    // NoHero, which this path has always reported as Fail.
+    assert_eq!(refused["Result"], "Fail", "{refused}");
+    assert_eq!(call(&s, &u, "campaign/begin_campaign", ENTRY).await["Result"], "Success");
+}

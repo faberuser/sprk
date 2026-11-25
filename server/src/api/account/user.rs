@@ -640,6 +640,13 @@ pub async fn login(
                 .map_err(|e|ServerError::Internal(e.to_string()))?);
         }
     }
+    // Monster Index: recorded monsters plus those of stages cleared before
+    // monster_archive existed.
+    let player_archive_infos = crate::api::battle::archive::login_infos(
+        &mut *state.db.acquire().await?, &state, account_id,
+        chapter_dungeons.iter().map(|d| (d.chapter_index as i64, d.dungeon_index as i64,
+            d.first_rewarded_diff as i64, d.scenario_complete != 0)),
+    ).await?;
     let mut live = crate::api::live::snapshot(&state,account_id).await?;
     let free_gacha=live.as_object_mut().unwrap().remove("freeEquipGachaInfos").unwrap_or_default();
     let gacha=live.as_object_mut().unwrap().remove("EquipGachaInfos").unwrap_or_default();
@@ -742,7 +749,7 @@ pub async fn login(
         under_prison_infos: battle["UnderPrisonInfos"].as_array().cloned().unwrap_or_default(),
         play_record_infos: progression["PlayRecordInfos"].as_array().cloned().unwrap_or_default(),
         login_daily_infos: progression["LoginDailyInfos"].as_array().cloned().unwrap_or_default(),
-        player_archive_infos: vec![],
+        player_archive_infos,
         player_currency_infos: battle["PlayerCurrencyInfos"].as_array().cloned().unwrap_or_default(),
         guild_point_info: serde_json::json!({"GuildPoint":community["GuildPoint"],"DailyAccGuildPoint":community["DailyAccGuildPoint"].as_i64().unwrap_or(0),"DailyAccGuildPointResetTime":(chrono::Utc::now().date_naive()+chrono::Duration::days(1)).format("%Y-%m-%d 00:00:00").to_string()}),
         newbie_mission_infos: progression["NewbieMissionInfos"].as_array().cloned().unwrap_or_default(),

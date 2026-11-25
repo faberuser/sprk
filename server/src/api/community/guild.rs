@@ -134,7 +134,10 @@ pub(super) async fn save_member(db: &mut PgConnection, a: i64, g: i64, v: &Value
 }
 /// Stored per-member guild state, with the weekly activity reset applied.
 pub(super) async fn member_state(db: &mut PgConnection, s: &AppState, a: i64, g: i64) -> Result<Value> {
-    let mut v = get(db, a, "guild_member", g).await?;
+    Ok(member_state_of(s, get(db, a, "guild_member", g).await?))
+}
+/// `member_state` from the stored row `v` (null when absent).
+pub(super) fn member_state_of(s: &AppState, mut v: Value) -> Value {
     if v.is_null() {
         v = json!({"AccActivityPoint":0,"AccSuppressPoint":0,"AccWood":0,"AccStone":0,"AccMetal":0,"ReqGuildSkill":0,"BidRaidIndex":0,"BidRaidRewardItemIndex":0,"BidRaidRewardTime":null});
     }
@@ -148,7 +151,7 @@ pub(super) async fn member_state(db: &mut PgConnection, s: &AppState, a: i64, g:
         }
         v["ActivityWeek"] = json!(week);
     }
-    Ok(v)
+    v
 }
 pub(super) async fn member(db: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
     let (g, role) = membership(db, a).await?;

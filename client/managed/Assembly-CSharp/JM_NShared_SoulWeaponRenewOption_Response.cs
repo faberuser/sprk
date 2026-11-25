@@ -22,6 +22,7 @@ public static class JM_NShared_SoulWeaponRenewOption_Response
 
 	public static NShared.SoulWeaponRenewOption.Response Parse(IDictionary d, NShared.SoulWeaponRenewOption.Response o)
 	{
+		SprkSoulRenewUntil.Capture(d, o);
 		o.CurrencyResult = BaseJsonMarshaler.ParseObject(d, "CurrencyResult", JM_NShared_CurrencyResultInfo3.Parse);
 		o.ResultSoulWeaponInfo = BaseJsonMarshaler.ParseObject(d, "ResultSoulWeaponInfo", JM_NShared_SoulWeaponInfo.Parse);
 		o.RemovedItemResultInfos = BaseJsonMarshaler.ParseArray(d, "RemovedItemResultInfos", JM_NShared_ItemResultInfo.Parse);

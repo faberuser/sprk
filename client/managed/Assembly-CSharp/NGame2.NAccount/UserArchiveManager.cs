@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using NShared;
 using NVespa;
+using NVespa.NSingleton;
 
 namespace NGame2.NAccount;
 
@@ -201,20 +202,29 @@ public class UserArchiveManager : NShared.UserArchiveManager
 
 	public int GetHeroArchiveCount(CreatureTagType creatureTagType)
 	{
-		int num = 0;
-		if (creatureTagType == CreatureTagType.None)
+		// The server sends no hero archive entries, so owned heroes also count
+		// (the same heroes the Hero Index shows in color).
+		HashSet<int> collected = new HashSet<int>();
+		foreach (KeyValuePair<CreatureTagType, List<int>> item in _heroArchiveDic)
 		{
-			foreach (KeyValuePair<CreatureTagType, List<int>> item in _heroArchiveDic)
+			if (creatureTagType == CreatureTagType.None || item.Key == creatureTagType)
 			{
-				num += item.Value.Count;
+				collected.UnionWith(item.Value);
 			}
-			return num;
 		}
-		if (_heroArchiveDic.ContainsKey(creatureTagType))
+		UserHeroManager heroManager = GlobalAutoBehaviour<AccountManager>.instance.HeroManager;
+		if (heroManager != null)
 		{
-			return _heroArchiveDic[creatureTagType].Count;
+			foreach (CachedHeroInfo hero in heroManager)
+			{
+				CreatureData creatureData = (hero == null) ? null : GameRoot.Instance.CreatureDataContainer.GetData(hero.HeroIndex);
+				if (creatureData != null && creatureData.OpenType != CreatureOpenType.None && creatureData.OpenType != CreatureOpenType.CommingSoon && (creatureTagType == CreatureTagType.None || creatureData.TagType == creatureTagType))
+				{
+					collected.Add(hero.HeroIndex);
+				}
+			}
 		}
-		return 0;
+		return collected.Count;
 	}
 
 	public int GetSubArchiveCount(ArchiveType archiveType)
@@ -243,22 +253,29 @@ public class UserArchiveManager : NShared.UserArchiveManager
 
 	public int GetPetArchiveCount(CreatureGrade grade)
 	{
-		if (grade == CreatureGrade.None)
+		// The server sends no pet archive entries, so collected pets also come
+		// from the pets the player owns (the same rows the book shows in color).
+		HashSet<int> collected = new HashSet<int>();
+		foreach (KeyValuePair<CreatureGrade, List<int>> item in _petArchiveDic)
 		{
-			int num = 0;
+			if (grade == CreatureGrade.None || item.Key == grade)
 			{
-				foreach (KeyValuePair<CreatureGrade, List<int>> item in _petArchiveDic)
-				{
-					num += item.Value.Count;
-				}
-				return num;
+				collected.UnionWith(item.Value);
 			}
 		}
-		if (_petArchiveDic.ContainsKey(grade))
+		UserPetManager petManager = GlobalAutoBehaviour<AccountManager>.instance.PetManager;
+		if (petManager != null)
 		{
-			return _petArchiveDic[grade].Count;
+			foreach (PetInfo pet in petManager)
+			{
+				CreatureData creatureData = pet?.CreatureData;
+				if (creatureData != null && creatureData.Race == CreatureRaceType.Pet && (grade == CreatureGrade.None || creatureData.CreatureGrade == grade))
+				{
+					collected.Add(pet.PetIndex);
+				}
+			}
 		}
-		return 0;
+		return collected.Count;
 	}
 
 	public List<int> GetPetList(CreatureGrade grade)
@@ -362,6 +379,10 @@ public class UserArchiveManager : NShared.UserArchiveManager
 
 	public bool IsContainItem(int itemIndex)
 	{
+		if (OwnedItemStars().ContainsKey(itemIndex))
+		{
+			return true;
+		}
 		if (__Extension_Method_ICollection__.IsNullOrEmpty(_itemArchiveDic))
 		{
 			return false;
@@ -378,21 +399,76 @@ public class UserArchiveManager : NShared.UserArchiveManager
 
 	public int GetItemAwake(int itemInex)
 	{
-		if (!_itemArchiveAwakeDic.ContainsKey(itemInex))
+		int value;
+		int num = (_itemArchiveAwakeDic.TryGetValue(itemInex, out value) ? value : 0);
+		int value2;
+		if (OwnedItemStars().TryGetValue(itemInex, out value2) && value2 > num)
 		{
-			return 0;
+			num = value2;
 		}
-		return _itemArchiveAwakeDic[itemInex];
+		return num;
 	}
 
 	public int GetItemCount()
 	{
-		int num = 0;
+		HashSet<int> collected = new HashSet<int>();
 		foreach (KeyValuePair<ArchiveSubType, List<int>> item in _itemArchiveDic)
 		{
-			List<int> value = item.Value;
-			num += value.Count;
+			collected.UnionWith(item.Value);
 		}
-		return num;
+		foreach (int key in OwnedItemStars().Keys)
+		{
+			ItemData data = GameRoot.Instance.ItemDataContainer.GetData(key);
+			if (data != null && data.IsArchive)
+			{
+				collected.Add(key);
+			}
+		}
+		return collected.Count;
+	}
+
+	[NonSerialized]
+	private Dictionary<int, int> _ownedItemStars;
+
+	[NonSerialized]
+	private int _ownedItemStarsFrame = -1;
+
+	// The server sends no item archive entries, so every item the account holds
+	// (inventory and equipment, including equipped gear) counts as collected,
+	// with the highest star among its copies. Rebuilt at most once per frame,
+	// since the Item Index asks per icon.
+	private Dictionary<int, int> OwnedItemStars()
+	{
+		int frameCount = UnityEngine.Time.frameCount;
+		if (_ownedItemStars != null && _ownedItemStarsFrame == frameCount)
+		{
+			return _ownedItemStars;
+		}
+		Dictionary<int, int> dictionary = new Dictionary<int, int>();
+		AccountManager instance = GlobalAutoBehaviour<AccountManager>.instance;
+		if (instance.EquipItemManager != null)
+		{
+			foreach (EquipItemInfo equip in instance.EquipItemManager)
+			{
+				if (equip != null && equip.ItemIndex > 0)
+				{
+					int value;
+					dictionary[equip.ItemIndex] = (dictionary.TryGetValue(equip.ItemIndex, out value) ? System.Math.Max(value, equip.Star) : equip.Star);
+				}
+			}
+		}
+		if (instance.ItemManager != null)
+		{
+			foreach (ItemInfo item in instance.ItemManager)
+			{
+				if (item != null && item.ItemIndex > 0 && item.Count > 0 && !dictionary.ContainsKey(item.ItemIndex))
+				{
+					dictionary[item.ItemIndex] = 0;
+				}
+			}
+		}
+		_ownedItemStars = dictionary;
+		_ownedItemStarsFrame = frameCount;
+		return dictionary;
 	}
 }

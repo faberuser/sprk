@@ -148,6 +148,7 @@ public class PurifyHeroRoom : FrameControlWindow, IUserObserver<NGame2.NAccount.
 		}
 		_isShortCut = isShortCut;
 		_playingAwakenAnimation = false;
+		SprkHeroPresentationSkip.AttachPurifyRoom(this);
 	}
 
 	public override void Reset()
@@ -380,6 +381,16 @@ public class PurifyHeroRoom : FrameControlWindow, IUserObserver<NGame2.NAccount.
 	{
 		UIHelper.EnableButton(Button_Purify, enable: false);
 		UIHelper.EnableButton(Button_MaxPurify, enable: false);
+		// SPRK: "Skip Animations" fills the gauge at once instead of the trail and fill.
+		if (SprkHeroPresentationSkip.SkipAnimations)
+		{
+			_purifyScene.PurifyAction(isReaction: true);
+			SetupPurifyButtons();
+			SetupPurifyCost();
+			UpdatePurifedFillAmount(resultPurified / (float)_maxPurified);
+			Vespa_System_Action_Extension_Method.fire(onEnd);
+			yield break;
+		}
 		HighlightTween.PlayForwardReset();
 		bool executeEnd = false;
 		_purifyScene.CreatePurifyTrail(delegate
