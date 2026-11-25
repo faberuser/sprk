@@ -6,7 +6,8 @@
       "SPRK_OPTION_SHOW_ALL": "Show All",
       "SPRK_OPTION_HIDE_ALL": "Hide All",
       "SPRK_OPTION_SHOW": "Show",
-      "SPRK_OPTION_HIDE": "Hide"
+      "SPRK_OPTION_HIDE": "Hide",
+      "SPRK_OPTION_SHOP_PACKAGE_TAB": "Special Shop Packages"
     },
     "Korean": {
       "SPRK_OPTION_CHAT_POPUP": "채팅 팝업",
@@ -14,7 +15,8 @@
       "SPRK_OPTION_SHOW_ALL": "모두 표시",
       "SPRK_OPTION_HIDE_ALL": "모두 숨김",
       "SPRK_OPTION_SHOW": "표시",
-      "SPRK_OPTION_HIDE": "숨김"
+      "SPRK_OPTION_HIDE": "숨김",
+      "SPRK_OPTION_SHOP_PACKAGE_TAB": "스페셜 상점 패키지"
     },
     "Japanese": {
       "SPRK_OPTION_CHAT_POPUP": "チャットポップアップ",
@@ -22,7 +24,8 @@
       "SPRK_OPTION_SHOW_ALL": "すべて表示",
       "SPRK_OPTION_HIDE_ALL": "すべて非表示",
       "SPRK_OPTION_SHOW": "表示",
-      "SPRK_OPTION_HIDE": "非表示"
+      "SPRK_OPTION_HIDE": "非表示",
+      "SPRK_OPTION_SHOP_PACKAGE_TAB": "スペシャルショップのパック"
     },
     "ChineseSimplified": {
       "SPRK_OPTION_CHAT_POPUP": "聊天弹窗",
@@ -30,7 +33,8 @@
       "SPRK_OPTION_SHOW_ALL": "全部显示",
       "SPRK_OPTION_HIDE_ALL": "全部隐藏",
       "SPRK_OPTION_SHOW": "显示",
-      "SPRK_OPTION_HIDE": "隐藏"
+      "SPRK_OPTION_HIDE": "隐藏",
+      "SPRK_OPTION_SHOP_PACKAGE_TAB": "特别商店礼包"
     },
     "ChineseTraditional": {
       "SPRK_OPTION_CHAT_POPUP": "聊天彈窗",
@@ -38,7 +42,8 @@
       "SPRK_OPTION_SHOW_ALL": "全部顯示",
       "SPRK_OPTION_HIDE_ALL": "全部隱藏",
       "SPRK_OPTION_SHOW": "顯示",
-      "SPRK_OPTION_HIDE": "隱藏"
+      "SPRK_OPTION_HIDE": "隱藏",
+      "SPRK_OPTION_SHOP_PACKAGE_TAB": "特別商店禮包"
     },
     "French": {
       "SPRK_OPTION_CHAT_POPUP": "Aperçu du chat",
@@ -46,7 +51,8 @@
       "SPRK_OPTION_SHOW_ALL": "Tout afficher",
       "SPRK_OPTION_HIDE_ALL": "Tout cacher",
       "SPRK_OPTION_SHOW": "Afficher",
-      "SPRK_OPTION_HIDE": "Cacher"
+      "SPRK_OPTION_HIDE": "Cacher",
+      "SPRK_OPTION_SHOP_PACKAGE_TAB": "Packs de la boutique spéciale"
     },
     "German": {
       "SPRK_OPTION_CHAT_POPUP": "Chat-Vorschau",
@@ -54,7 +60,8 @@
       "SPRK_OPTION_SHOW_ALL": "Alle anzeigen",
       "SPRK_OPTION_HIDE_ALL": "Alle verbergen",
       "SPRK_OPTION_SHOW": "Anzeigen",
-      "SPRK_OPTION_HIDE": "Verbergen"
+      "SPRK_OPTION_HIDE": "Verbergen",
+      "SPRK_OPTION_SHOP_PACKAGE_TAB": "Spezialshop-Pakete"
     },
     "Russian": {
       "SPRK_OPTION_CHAT_POPUP": "Всплывающий чат",
@@ -62,7 +69,8 @@
       "SPRK_OPTION_SHOW_ALL": "Показать все",
       "SPRK_OPTION_HIDE_ALL": "Скрыть все",
       "SPRK_OPTION_SHOW": "Показать",
-      "SPRK_OPTION_HIDE": "Скрыть"
+      "SPRK_OPTION_HIDE": "Скрыть",
+      "SPRK_OPTION_SHOP_PACKAGE_TAB": "Наборы в особом магазине"
     }
   }
 }

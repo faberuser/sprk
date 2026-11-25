@@ -145,6 +145,26 @@
       "ToolTipDesc": ""
     },
     {
+      "Index": 116,
+      "SaveValue": true,
+      "OptionName": "SPRK_OPTION_SHOP_PACKAGE_TAB",
+      "GameOptionComponent": "Toggle3",
+      "OptionDataType": "System.Boolean",
+      "ClassName": "NVespa.SystemOptionData",
+      "FieldName": "Shop_ShowPackageTab",
+      "PostProcessFunction": "",
+      "UIdefaultValue": "",
+      "ValueLocalKey1": "SPRK_OPTION_SHOW",
+      "Value1": "True",
+      "ValueLocalKey2": "SPRK_OPTION_HIDE",
+      "Value2": "False",
+      "ValueLocalKey3": "",
+      "Value3": "",
+      "ValueLocalKey4": "",
+      "Value4": "",
+      "ToolTipDesc": ""
+    },
+    {
       "Index": 130,
       "SaveValue": true,
       "OptionName": "OPTION_GAME_CUTSCEAN_CUSTOMIZE_ACCESSORY",
