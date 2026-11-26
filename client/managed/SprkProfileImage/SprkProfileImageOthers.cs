@@ -93,7 +93,8 @@ public static partial class SprkProfileImage
 	/// <summary>The player's picture if known; otherwise null, and it is looked up.</summary>
 	public static Texture2D PictureFor(long accountId)
 	{
-		if (accountId <= 0)
+		// Hidden in Settings: every portrait keeps its hero icon.
+		if (accountId <= 0 || !Shown)
 		{
 			return null;
 		}

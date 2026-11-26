@@ -346,6 +346,7 @@ public class GameOptionWindow : BaseWindow, GameOptionBaseComponent.Listener
 		}
 		SprkGraphicsOptions.Setup(this);
 		SprkBattleKeyboard.Setup(this);
+		SprkProfileImage.SetupSettings(this);
 	}
 
 	public void RefreshComponent(int index)
