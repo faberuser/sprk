@@ -1,0 +1,38 @@
+{
+  "localization": {
+    "German": {
+      "SKILL_DESC_60009120": "Erhöht im Kriegsgott-Zustand den Schaden bei Feinden, die keine Helden sind, um 10 %.",
+      "SKILL_DESC_60009121": "Erhöht im Kriegsgott-Zustand den Schaden an Helden um 5 % und verringert den von Helden zugefügten Schaden um 5 %. Erhält in den ersten 5 Sek. des Kriegsgott-Zustands Massenkontroll-Immunität.",
+      "SKILL_DESC_60009130": "Erhöht die Manakosten um 1 und den Schaden um 100 %.",
+      "SKILL_DESC_60009141": "Bei Nutzung innerhalb der Arena, wird Körp. Schaden in Höhe von 15 % der aktuellen LP des Ziels verursacht, der die VERT ignoriert, und [Mal des Kriegsgottes] zugefügt, das die Heilungsrate des Ziels um 2 % verringert. Dieser Effekt kann nicht entfernt werden und kann bis zu 10-mal gestapelt werden.",
+      "SKILL_DESC_60009151": "Erhöht alle VERT um 10 % des ANG.",
+      "SKILL_DESC_90000910": "Erhöht den eigenen Schaden an Gegnern um 4 %. Bei einem Krit. Treffer wird der Krit. Schaden für 5 Sek. um 20 % erhöht. Dieser Effekt kann bis zu 10-mal gestapelt werden und kann nicht entfernt werden.",
+      "SKILL_DESC_90000911": "Erhöht den eigenen Schaden an Gegnern um 6 %. Bei einem Krit. Treffer wird der Krit. Schaden für 5 Sek. um 24 % erhöht. Dieser Effekt kann bis zu 10-mal gestapelt werden und kann nicht entfernt werden.",
+      "SKILL_DESC_90000912": "Erhöht den eigenen Schaden an Gegnern um 8 %. Bei einem Krit. Treffer wird der Krit. Schaden für 5 Sek. um 29 % erhöht. Dieser Effekt kann bis zu 10-mal gestapelt werden und kann nicht entfernt werden.",
+      "SKILL_DESC_90000913": "Erhöht den eigenen Schaden an Gegnern um 10 %. Bei einem Krit. Treffer wird der Krit. Schaden für 5 Sek. um 35 % erhöht. Dieser Effekt kann bis zu 10-mal gestapelt werden und kann nicht entfernt werden.",
+      "SKILL_DESC_90000914": "Erhöht den eigenen Schaden an Gegnern um 12 %. Bei einem Krit. Treffer wird der Krit. Schaden für 5 Sek. um 42 % erhöht. Dieser Effekt kann bis zu 10-mal gestapelt werden und kann nicht entfernt werden.",
+      "SKILL_DESC_90000915": "Erhöht den eigenen Schaden an Gegnern um 15 %. Bei einem Krit. Treffer wird der Krit. Schaden für 5 Sek. um 50 % erhöht. Dieser Effekt kann bis zu 10-mal gestapelt werden und kann nicht entfernt werden.",
+      "SKILL_DESC_91009120": "[Ankunft des Kriegsgottes] erhöht während der Wirkungsdauer die ANG-GESCHW. um 100 und stapelt [Es wird schmerzhaft!] 1-mal beim Zufügen von zus. Körp. Schaden.",
+      "SKILL_DESC_91009121": "[Ankunft des Kriegsgottes] erhöht während der Wirkungsdauer die ANG-GESCHW. um 150 und stapelt [Es wird schmerzhaft!] 1-mal beim Zufügen von zus. Körp. Schaden.",
+      "SKILL_DESC_91009122": "[Ankunft des Kriegsgottes] erhöht während der Wirkungsdauer die ANG-GESCHW. um 200 und stapelt [Es wird schmerzhaft!] 1-mal beim Zufügen von zus. Körp. Schaden.",
+      "SKILL_DESC_91009123": "[Ankunft des Kriegsgottes] erhöht während der Wirkungsdauer die ANG-GESCHW. um 300 und stapelt [Es wird schmerzhaft!] 1-mal beim Zufügen von zus. Körp. Schaden.",
+      "SKILL_DESC_91009124": "[Ankunft des Kriegsgottes] erhöht während der Wirkungsdauer die ANG-GESCHW. um 400 und stapelt [Es wird schmerzhaft!] 1-mal beim Zufügen von zus. Körp. Schaden.",
+      "SKILL_DESC_91009125": "[Ankunft des Kriegsgottes] erhöht während der Wirkungsdauer die ANG-GESCHW. um 500 und stapelt [Es wird schmerzhaft!] 1-mal beim Zufügen von zus. Körp. Schaden.",
+      "SKILL_DESC_91009130": "[Ultimativschlag!] verringert Skill-Cooldown um 30 %, ignoriert feindliche Blockeffekte und erhöht den Schaden um 4 % bei jeder Aktivierung. Effekt kann sich bis zu max. 10-mal gestapelt werden.",
+      "SKILL_DESC_91009131": "[Ultimativschlag!] verringert Skill-Cooldown um 30 %, ignoriert feindliche Blockeffekte und erhöht den Schaden um 4.8 % bei jeder Aktivierung. Effekt kann sich bis zu max. 10-mal gestapelt werden.",
+      "SKILL_DESC_91009132": "[Ultimativschlag!] verringert Skill-Cooldown um 30 %, ignoriert feindliche Blockeffekte und erhöht den Schaden um 5.8 % bei jeder Aktivierung. Effekt kann sich bis zu max. 10-mal gestapelt werden.",
+      "SKILL_DESC_91009133": "[Ultimativschlag!] verringert Skill-Cooldown um 30 %, ignoriert feindliche Blockeffekte und erhöht den Schaden um 7 % bei jeder Aktivierung. Effekt kann sich bis zu max. 10-mal gestapelt werden.",
+      "SKILL_DESC_91009134": "[Ultimativschlag!] verringert Skill-Cooldown um 30 %, ignoriert feindliche Blockeffekte und erhöht den Schaden um 8.4 % bei jeder Aktivierung. Effekt kann sich bis zu max. 10-mal gestapelt werden.",
+      "SKILL_DESC_91009135": "[Ultimativschlag!] verringert Skill-Cooldown um 30 %, ignoriert feindliche Blockeffekte und erhöht den Schaden um 10 % bei jeder Aktivierung. Effekt kann sich bis zu max. 10-mal gestapelt werden.",
+      "SKILL_DESC_91009140": "[Es wird schmerzhaft!] erhöht den Schaden um 50 %. Ziel erleidet bei Aktivierung 10 Sek. lang 2 % erhöhten Körp. Schaden. Dieser Effekt kann bis zu 10-mal gestapelt werden.",
+      "SKILL_DESC_91009141": "[Es wird schmerzhaft!] erhöht den Schaden um 50 %. Ziel erleidet bei Aktivierung 10 Sek. lang 2.4 % erhöhten Körp. Schaden. Dieser Effekt kann bis zu 10-mal gestapelt werden.",
+      "SKILL_DESC_91009142": "[Es wird schmerzhaft!] erhöht den Schaden um 50 %. Ziel erleidet bei Aktivierung 10 Sek. lang 2.9 % erhöhten Körp. Schaden. Dieser Effekt kann bis zu 10-mal gestapelt werden.",
+      "SKILL_DESC_91009143": "[Es wird schmerzhaft!] erhöht den Schaden um 50 %. Ziel erleidet bei Aktivierung 10 Sek. lang 3.5 % erhöhten Körp. Schaden. Dieser Effekt kann bis zu 10-mal gestapelt werden.",
+      "SKILL_DESC_91009144": "[Es wird schmerzhaft!] erhöht den Schaden um 50 %. Ziel erleidet bei Aktivierung 10 Sek. lang 4.2 % erhöhten Körp. Schaden. Dieser Effekt kann bis zu 10-mal gestapelt werden.",
+      "SKILL_DESC_91009145": "[Es wird schmerzhaft!] erhöht den Schaden um 50 %. Ziel erleidet bei Aktivierung 10 Sek. lang 5 % erhöhten Körp. Schaden. Dieser Effekt kann bis zu 10-mal gestapelt werden.",
+      "SKILL_DESC_9120": "Entfernt alle eigenen negativen Effekte, fügt Gegnern in einem kleinen Umkreis {1} physischen Schaden zu und wird für 15 Sek. zum Kriegsgott. Dabei steigt der ANG um {2}; normale Angriffe lösen mit 30% Wahrscheinlichkeit einen Zusatzangriff mit {3} physischem Schaden aus. Nach erlittenem Magieschaden weicht er für 1 Sek. sämtlichem Magieschaden aus. Dieser Ausweicheffekt wird nur 1-mal alle 2 Sek. ausgelöst. Der Kriegsgott-Zustand kann nicht entfernt werden.",
+      "SKILL_DESC_9130": "Sammle Energie, um die Gegnerfront zu durchbrechen und verursache dabei [ffc800]{1}[-] Körp. Schaden an allen Gegnern im Umkreis, sowie Betäubung für 3 Sek. Wenn der Gegner ein Boss ist, ignoriert dieser Effekt die VERT und der Schaden wird um 100 % erhöht.",
+      "SKILL_DESC_9140": "Erhöht den Schaden bei Feinden, die keine Helden sind, um 5 %. Jedesmal, wenn Gladi ein einzelnes Ziel mit 4 normalen Angriffen attackierst, werden [ffc800]{1}[-] extra Schaden verursacht, die VERT ignorieren."
+    }
+  }
+}
