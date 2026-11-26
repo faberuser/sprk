@@ -106,7 +106,7 @@
       ],
       "TickTimeValue": [
         "0[3]",
-        "1000[1:2:4:5:6:7:8:9]"
+        "1000[1:2:4:5:6]"
       ],
       "AttrType": "Physical",
       "ClearStateType": [
@@ -165,35 +165,6 @@
       "OperationDurationMs6": 15000,
       "OperationState6": "9120_7",
       "OperationFlags6": [
-        "Disabled"
-      ],
-      "OperationType7": "ModAttackByRace",
-      "OperationValue7": [
-        "Hero",
-        "100",
-        "0",
-        "True"
-      ],
-      "OperationDurationMs7": 15000,
-      "OperationState7": "9120_4",
-      "OperationFlags7": [
-        "Disabled"
-      ],
-      "OperationType8": "ModAttackByRace",
-      "OperationValue8": [
-        "Hero",
-        "50",
-        "-50"
-      ],
-      "OperationDurationMs8": 15000,
-      "OperationState8": "9120_5",
-      "OperationFlags8": [
-        "Disabled"
-      ],
-      "OperationType9": "ImmuneCc",
-      "OperationDurationMs9": 5000,
-      "OperationState9": "9120_6",
-      "OperationFlags9": [
         "Disabled"
       ]
     },
@@ -508,39 +479,62 @@
       "Index": 60009120,
       "ReplaceNameKey": "",
       "ReplaceDescKey": "",
-      "TriggerType": "OnStart",
+      "TriggerType": "OnFireSkill",
       "TriggerRatio": 1000,
       "TargetCount": 1,
       "TargetCountState": "",
       "IgnoreBlock": true,
-      "OperationType1": "ModSkillEnabled",
-      "OperationValue1": [
-        "9120",
-        "7"
+      "TriggerValue": [
+        "9120"
       ],
-      "OperationState1": ""
+      "OperationType1": "ModAttackByRace",
+      "OperationValue1": [
+        "Hero",
+        "100",
+        "0",
+        "True"
+      ],
+      "OperationDurationMs1": 15000,
+      "OperationDelayMs1": [
+        1000,
+        0,
+        0
+      ],
+      "OperationState1": "9120_4"
     },
     {
       "Index": 60009121,
       "ReplaceNameKey": "",
       "ReplaceDescKey": "",
-      "TriggerType": "OnStart",
+      "TriggerType": "OnFireSkill",
       "TriggerRatio": 1000,
       "TargetCount": 1,
       "TargetCountState": "",
       "IgnoreBlock": true,
-      "OperationType1": "ModSkillEnabled",
+      "TriggerValue": [
+        "9120"
+      ],
+      "OperationType1": "ModAttackByRace",
       "OperationValue1": [
-        "9120",
-        "8"
+        "Hero",
+        "50",
+        "-50"
       ],
-      "OperationState1": "",
-      "OperationType2": "ModSkillEnabled",
-      "OperationValue2": [
-        "9120",
-        "9"
+      "OperationDurationMs1": 15000,
+      "OperationDelayMs1": [
+        1000,
+        0,
+        0
       ],
-      "OperationState2": ""
+      "OperationState1": "9120_5",
+      "OperationType2": "ImmuneCc",
+      "OperationDurationMs2": 5000,
+      "OperationDelayMs2": [
+        1000,
+        0,
+        0
+      ],
+      "OperationState2": "9120_6"
     },
     {
       "Index": 60009130,
