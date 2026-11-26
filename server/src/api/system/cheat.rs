@@ -49,6 +49,8 @@ fn admin_routes(state: AppState, key: String) -> axum::Router {
         .route("/cheat/reset", post(gm_reset_account))
         .route("/cheat/allheroes", post(gm_add_all_heroes))
         .route("/cheat/uwut", post(gm_add_all_uwut))
+        .route("/cheat/festivals", post(gm_festivals))
+        .route("/cheat/world-boss", post(gm_world_boss))
         .route_layer(middleware::from_fn_with_state(key, authorize))
         .with_state(state)
 }
@@ -102,6 +104,42 @@ pub async fn gm_players(State(state): State<AppState>, Form(req): Form<PlayerSea
     })).collect();
     let next = if players.len()==100 {players.last().map(|p|p["AccountId"].clone())} else {None};
     Ok(Json(serde_json::json!({"Players":players,"NextAfter":next})))
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all="PascalCase")]
+pub struct WorldBossOverride {
+    /// A global World Boss index, or 0 to follow the rotation; absent shows status.
+    pub index: Option<i64>,
+    pub hours: Option<i64>,
+}
+/// GM testing: show a chosen World Boss instead of the weekly rotation.
+pub async fn gm_world_boss(State(state): State<AppState>, Form(req): Form<WorldBossOverride>) -> Result<Json<serde_json::Value>> {
+    let mut tx = crate::database::begin(&state.db).await?;
+    let status = crate::api::battle::set_world_boss_override(&mut tx, &state, req.index, req.hours.unwrap_or(24)).await?;
+    tx.commit().await?;
+    Ok(Json(status))
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all="PascalCase")]
+pub struct FestivalOverride {
+    pub key: Option<String>,
+    pub mode: Option<String>,
+    pub hours: Option<i64>,
+}
+
+/// Festival schedule status; with Key and Mode (Open, Closed or Auto), a
+/// server-wide override for testing. Clients see a change at their next login.
+pub async fn gm_festivals(State(state): State<AppState>, Form(req): Form<FestivalOverride>) -> Result<Json<serde_json::Value>> {
+    let mut tx = crate::database::begin(&state.db).await?;
+    let festivals = match req.key.as_deref().filter(|k| !k.is_empty()) {
+        Some(key) => crate::api::festivals::set_override(&mut tx, &state, key,
+            req.mode.as_deref().unwrap_or("Auto"), req.hours.unwrap_or(24)).await?,
+        None => crate::api::festivals::Calendar::load(&mut tx, &state).await?.status(),
+    };
+    tx.commit().await?;
+    Ok(Json(serde_json::json!({"Festivals":festivals})))
 }
 
 /// Core hero indices from CreatureTable (index 1-102 + 111 Valance).

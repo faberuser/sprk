@@ -40,6 +40,7 @@ public class DropBonusEventManager : GlobalAutoBehaviour<DropBonusEventManager>
 		if (eventInfo != null && _list.Find((DropBonusEvent info) => info.Id == eventInfo.Id) == null)
 		{
 			_list.Add(eventInfo);
+			SprkRefreshWorldBossSkin();
 			_observerManager.AnnounceToObservers(new DropBonusEventChangeInfo
 			{
 				changeType = DropBonusEventChangeType.EventAdded,
@@ -54,6 +55,7 @@ public class DropBonusEventManager : GlobalAutoBehaviour<DropBonusEventManager>
 		if (dropBonusEvent != null)
 		{
 			_list.Remove(dropBonusEvent);
+			SprkRefreshWorldBossSkin();
 			_observerManager.AnnounceToObservers(new DropBonusEventChangeInfo
 			{
 				changeType = DropBonusEventChangeType.EventRemoved,
@@ -71,7 +73,15 @@ public class DropBonusEventManager : GlobalAutoBehaviour<DropBonusEventManager>
 			{
 				Add(infos[i]);
 			}
+			SprkRefreshWorldBossSkin();
 		}
+	}
+
+	private void SprkRefreshWorldBossSkin()
+	{
+		DateTime serverNow = GlobalAutoBehaviour<AccountManager>.instance.GetCurrentServerUTCTime();
+		SprkWorldBossSkin.Refresh(_list, serverNow);
+		SprkSquareLayout.Refresh(_list, serverNow);
 	}
 
 	public void ClearAllEffectCacheTime()

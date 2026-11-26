@@ -60,6 +60,9 @@ pub(super) async fn begin_party_for(
             // Only that guest's authenticated request can choose its entry cost.
             if use_stamina {
                 let d = campaign::dungeon(s,r)?;
+                if n(d,"ReqStaminaType") == super::super::dungeons::EVENT_TICKET {
+                    super::super::dungeons::set_event_ticket_chapter(db,a,n(d,"ChapterIndex")).await?;
+                }
                 let cost = campaign::stamina_cost(d,campaign::difficulty(r)?);
                 let stamina = super::super::entry_costs::charge(db,s,a,&mut entry,n(d,"ReqStaminaType"),cost).await?;
                 if !stamina.is_null() { out["StaminaResult"] = stamina; }

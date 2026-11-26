@@ -116,6 +116,7 @@ pub(super) async fn require_story_join_unlock(db: &mut PgConnection, s: &AppStat
     let ch=row(s,"CampaignChapter",&[("Index",c)])?;
     let d=row(s,"CampaignDungeon",&[("ChapterIndex",c),("DungeonIndex",di)])?;
     crate::api::episodes::require_battle(db, s, a, c, di, n(room,"DungeonDifficulty")).await?;
+    crate::api::festivals::require_chapter(db, s, a, c).await?;
     if ch["IsOpen"]!=true {return Err(rule("NotOpenedDungeon"));}
     let mut prerequisites=vec![(n(ch,"ReqChapterIndex"),n(ch,"ReqDungeonIndex"))];
     if c==50000 {prerequisites.push((97,2));if di==210 {prerequisites.push((50000,9));}}
@@ -153,6 +154,7 @@ async fn validate_inner(
     let ch = row(s, "CampaignChapter", &[("Index", c)])?;
     let diff = difficulty(r)?;
     crate::api::episodes::require_battle(db, s, a, c, n(d, "DungeonIndex"), diff).await?;
+    crate::api::festivals::require_chapter(db, s, a, c).await?;
     let restored_field = n(d, "BattleType") == 33
         && s.tables.battle.rules["EnableLegacyFieldRaids"] == true
         && s.tables.battle.find("Raid", &[("Index", int(r,"RaidIndex")?), ("Level", int(r,"RaidLevel")?)])
@@ -388,6 +390,9 @@ async fn begin_local_inner(
         return Err(rule("HeroNotFound"));
     }
     let d = dungeon(s, r)?;
+    if n(d, "ReqStaminaType") == dungeons::EVENT_TICKET {
+        dungeons::set_event_ticket_chapter(db, a, n(d, "ChapterIndex")).await?;
+    }
     let mut out = response(s, "campaign/begin_campaign");
     super::entry_costs::prepare(db,s,a,r,&mut entry,&mut out).await?;
     super::loot_booster::prepare(db,s,a,r,&mut entry,&mut out,party_use_stamina != Some(false)).await?;
@@ -584,6 +589,9 @@ async fn end_inner(
     rooms::finish(db, s, a, &request, completed, &mut out).await?;
     super::treasure::record_time(db, s, a, r, saved.get("started"), n(dungeon(s, &request)?, "BattleType"), &mut out).await?;
     if completed {crate::api::services::records::record_clear(db,a,&entry,r.number("PureBattleTime",elapsed)?).await?;}
+    // Thanksgiving Defense K.O. counts and Daily level rewards, won or lost.
+    crate::api::festivals::phase_step::finish(db, s, a, int(&request, "ChapterIndex")?, int(&request, "DungeonIndex")?,
+        crate::api::festivals::phase_step::kills(s, r), &mut out).await?;
     // Before the response is saved below: story and party retries replay it.
     super::archive::record(db, s, a, r, &mut out).await?;
     // Story and substory battles can submit the ending twice. Persist the
@@ -677,6 +685,9 @@ async fn complete_inner(
             };
             tutorial::grant_item(db, s, a, grant, &mut reward).await?;
         }
+    }
+    if grant_loot && reward_box.is_none() {
+        crate::api::festivals::dungeon_points(db, s, a, c, di, diff, count, &mut reward).await?;
     }
     // Clear credit also unlocks later stages. Track actual loot claims separately
     // so a free clear cannot consume the first reward of a later paid clear.

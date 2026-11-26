@@ -52,6 +52,7 @@ pub(crate) fn cosmetic(path: &str) -> bool {
     matches!(
         path,
         "/mission/sync_seen_categories"
+            | "/sprk/event_ticket"
             | "/hero/bookmark"
             | "/hero/bookmark_hero"
             | "/hero/set_hide_hero_unique_weapon"

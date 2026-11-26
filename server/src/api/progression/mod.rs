@@ -501,6 +501,7 @@ async fn execute(
             let mut rewards = Rewards::default();
             let mut stamina = vec![];
             let mut booster = None;
+            let mut daily_claims = 0;
             for (id, last_step) in ids.into_iter().zip(steps) {
                 // Native GetStepArray sends AchievementInfo.LastStep, not the
                 // next reward step. Match it against saved state before advancing.
@@ -547,6 +548,9 @@ async fn execute(
                     return Err(rule("AchievementNotCleared"));
                 }
                 claim(db, account, "achievement", id, step, &p).await?;
+                if n(row, "Type") == 2 {
+                    daily_claims += 1;
+                }
                 stamina.extend(
                     achievement_reward(db, state, account, row, &mut rewards, &mut booster).await?,
                 );
@@ -557,6 +561,13 @@ async fn execute(
             }
             if !rewards.heroes.is_empty() {
                 return Err(rule("InvalidRewardData"));
+            }
+            // Lakrak's Forge: daily missions also pay Orvel Castle Gold Coins.
+            if daily_claims > 0 {
+                let coins = crate::api::festivals::Calendar::load(db, state).await?.forge_daily_mission_coins();
+                if coins > 0 {
+                    rewards.currencies.push(hero::currency(db, account, "EventOrvelPoint", coins * daily_claims).await?);
+                }
             }
             let r = item::reward_response(db, state, account, rewards).await?;
             out["ItemTimeDurationInfo"] = json!(booster);

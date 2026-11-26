@@ -53984,6 +53984,45 @@
         "CompletedHatching",
         "ContentsDisabled"
       ]
+    },
+    "phase_step/get_phase_step_info": {
+      "Request": {
+        "ChapterIndex": "int",
+        "DungeonIndex": "int"
+      },
+      "Response": {
+        "DailyAchievementStep": "int",
+        "TotalAchievementStep": "int",
+        "TotalCount": "int"
+      },
+      "Results": [
+        "Fail",
+        "Success",
+        "RequiredValueEmpty",
+        "PhaseStepDataNotFound"
+      ]
+    },
+    "phase_step/recv_reward_phase_step": {
+      "Request": {
+        "ChapterIndex": "int",
+        "DungeonIndex": "int",
+        "Type": "string"
+      },
+      "Response": {
+        "AchievementStep": "int",
+        "CurrencyResults": "CurrencyResultInfo3[]",
+        "ItemResults": "ItemResultInfo[]",
+        "EquipItemResults": "EquipItemInfo[]",
+        "StaminaResultInfos": "StaminaResultInfo[]"
+      },
+      "Results": [
+        "Fail",
+        "Success",
+        "RequiredValueEmpty",
+        "PhaseStepDataNotFound",
+        "InvalidStep",
+        "EventDungeonClosed"
+      ]
     }
   },
   "Enums": {

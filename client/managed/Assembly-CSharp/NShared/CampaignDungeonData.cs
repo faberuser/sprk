@@ -7,6 +7,9 @@ namespace NShared;
 [JsonSerializable]
 public class CampaignDungeonData : IDataKeySelector<ChapterDungeonKey2>
 {
+	[IgnoreMember]
+	private HashString _sprkBattleField;
+
 	ChapterDungeonKey2 IDataKeySelector<ChapterDungeonKey2>.Key => new ChapterDungeonKey2(ChapterIndex, DungeonIndex);
 
 	[Key(0)]
@@ -16,7 +19,18 @@ public class CampaignDungeonData : IDataKeySelector<ChapterDungeonKey2>
 	public int DungeonIndex { get; set; }
 
 	[Key(2)]
-	public HashString BattleField { get; set; }
+	public HashString BattleField
+	{
+		// SprkWorldBossSkin: the Christmas field of the Protianus World Boss.
+		get
+		{
+			return SprkWorldBossSkin.Field(_sprkBattleField);
+		}
+		set
+		{
+			_sprkBattleField = value;
+		}
+	}
 
 	[Key(3)]
 	public bool IsExceededEntryChapter { get; set; }

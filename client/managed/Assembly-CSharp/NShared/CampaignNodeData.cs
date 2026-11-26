@@ -6,6 +6,12 @@ namespace NShared;
 [MessagePackObject(false)]
 public class CampaignNodeData : IDataKeySelector<ChapterDungeonKey2>
 {
+	[IgnoreMember]
+	private int _sprkUiPositionX;
+
+	[IgnoreMember]
+	private int _sprkUiPositionY;
+
 	public enum EMenuOpenCondition
 	{
 		None,
@@ -46,10 +52,32 @@ public class CampaignNodeData : IDataKeySelector<ChapterDungeonKey2>
 	public string[] Value { get; set; }
 
 	[Key(9)]
-	public int UiPositionX { get; set; }
+	public int UiPositionX
+	{
+		// SprkSquareLayout: open festival nodes ring the Orvel fountain.
+		get
+		{
+			return SprkSquareLayout.X(ChapterIndex, DungeonIndex, _sprkUiPositionX, _sprkUiPositionY);
+		}
+		set
+		{
+			_sprkUiPositionX = value;
+		}
+	}
 
 	[Key(10)]
-	public int UiPositionY { get; set; }
+	public int UiPositionY
+	{
+		// SprkSquareLayout: open festival nodes ring the Orvel fountain.
+		get
+		{
+			return SprkSquareLayout.Y(ChapterIndex, DungeonIndex, _sprkUiPositionX, _sprkUiPositionY);
+		}
+		set
+		{
+			_sprkUiPositionY = value;
+		}
+	}
 
 	[Key(11)]
 	public int[] NextNodeIndex { get; set; }

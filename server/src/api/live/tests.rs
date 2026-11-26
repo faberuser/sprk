@@ -744,9 +744,38 @@ async fn native_repeated_pet_arrays_start_exploration_and_upgrade_tier() {
     )
     .await);
 }
+/// These windows follow the festival calendar; force them open for the test.
+async fn open_festivals(s: &AppState, keys: &[&str]) {
+    let mut db = s.db.acquire().await.unwrap();
+    for key in keys {
+        crate::api::festivals::set_override(&mut db, s, key, "Open", 2).await.unwrap();
+    }
+}
+#[tokio::test]
+async fn event_features_close_outside_their_festival() {
+    let (s, u) = setup().await;
+    let mut db = s.db.acquire().await.unwrap();
+    for key in ["world-tree", "ophelia-summer", "ophelia-autumn", "ophelia-winter", "lakrak-forge"] {
+        crate::api::festivals::set_override(&mut db, &s, key, "Closed", 2).await.unwrap();
+    }
+    for (path, args) in [("event_step/get_event_step_info", ""), ("event_step/put_event_step", ""),
+        ("item/event_craft_item", "CraftIndex=1&CraftCount=1"),
+        ("item/reward_event_roulette", "RouletteIndex=1&RouletteCount=1"),
+        ("event_equip/event_forge", "EquipItemSlotIndex=1&UpgradeLevel=1&IsFixed=true")] {
+        assert_ne!(call(&s, &u, path, args).await["Result"], "Success", "{path}");
+    }
+    let calendar = call(&s, &u, "event/event_calendar", "EventCalendarVersion=").await;
+    ok(&calendar);
+    assert_eq!(calendar["NewEvent"], true);
+    assert!(calendar["EventCalendarDatas"].as_array().is_some_and(|v| !v.is_empty()));
+    let again = call(&s, &u, "event/event_calendar",
+        &format!("EventCalendarVersion={}", calendar["EventCalendarVersion"].as_str().unwrap())).await;
+    assert_eq!(again["NewEvent"], false);
+}
 #[tokio::test]
 async fn event_contributions_rewards_and_craft_rollback() {
     let (s, u) = setup().await;
+    open_festivals(&s, &["world-tree", "ophelia-summer"]).await;
     ok(&call(&s, &u, "shop/buy_payshop_product", "Index=920002").await);
     for _ in 0..2 {
         ok(&call(&s, &u, "event_step/put_event_step", "").await);
@@ -811,6 +840,7 @@ async fn event_contributions_rewards_and_craft_rollback() {
 #[tokio::test]
 async fn forge_validates_level_materials_and_exchange_replay() {
     let (s, u) = setup().await;
+    open_festivals(&s, &["lakrak-forge"]).await;
     let v = call(&s, &u, "shop/buy_payshop_product", "Index=920003").await;
     ok(&v);
     let eq = &v["EquipItemInfos"][0];

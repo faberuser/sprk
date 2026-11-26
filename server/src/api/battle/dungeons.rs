@@ -33,6 +33,29 @@ const KEYS: &[&str] = &[
     "TechnoEnchantKey",
     "PunishmentRaidKey",
 ];
+/// Event dungeon tickets (`EventDungeonTicket`) are kept per event chapter:
+/// each event dungeon has its own balance and daily recharge. The chapter in
+/// use is the event the player last entered or whose menu they opened.
+pub(crate) const EVENT_TICKET: i64 = 12;
+const EVENT_TICKET_CHAPTER: &str = "event_ticket_chapter";
+const EVENT_TICKET_SLOT: i64 = 1_000_000;
+
+pub(crate) async fn set_event_ticket_chapter(db: &mut PgConnection, a: i64, chapter: i64) -> Result<()> {
+    if chapter > 0 && get(db, a, EVENT_TICKET_CHAPTER, 0).await?["Chapter"].as_i64() != Some(chapter) {
+        put(db, a, EVENT_TICKET_CHAPTER, 0, &json!({"Chapter":chapter})).await?;
+    }
+    Ok(())
+}
+
+/// The `key` record of a dungeon key; event tickets use their chapter's.
+async fn key_slot(db: &mut PgConnection, a: i64, kind: i64) -> Result<i64> {
+    if kind != EVENT_TICKET {
+        return Ok(kind);
+    }
+    let chapter = get(db, a, EVENT_TICKET_CHAPTER, 0).await?["Chapter"].as_i64().unwrap_or(0);
+    Ok(if chapter > 0 { EVENT_TICKET_SLOT + chapter } else { kind })
+}
+
 pub(crate) async fn charge(
     db: &mut PgConnection,
     s: &AppState,
@@ -144,7 +167,8 @@ pub(super) async fn charge_reserved(
                 if v.len()==7 { Utc::now().weekday().num_days_from_sunday() as usize } else { 0 }
             )).and_then(Value::as_i64))
             .or_else(|| s.tables.battle.rules["DungeonKeyDailyDefaults"][name].as_i64()).unwrap_or(0);
-        let mut info = get(db, a, "key", kind).await?;
+        let slot = key_slot(db, a, kind).await?;
+        let mut info = get(db, a, "key", slot).await?;
         let stored = info.clone();
         let column = match kind { 11 => Some("world_boss_ticket"), 13 => Some("sword2"), _ => None };
         if let Some(column) = column {
@@ -160,7 +184,7 @@ pub(super) async fn charge_reserved(
                 crate::db::query(sqlx::AssertSqlSafe(format!("UPDATE user_info SET {column}=$1 WHERE account_id=$2")))
                     .bind(n(&info,"Count")).bind(a).execute(&mut *db).await?;
             }
-            put(db, a, "key", kind, &info).await?;
+            put(db, a, "key", slot, &info).await?;
         }
         return Ok(result);
     }
@@ -728,6 +752,13 @@ pub(super) async fn validate_inner(
     }
     if battle_type == 19 && int(r, "EventWorldBossIndex")? == 0 {
         return Err(rule("MissingEventWorldBossIndex"));
+    }
+    if battle_type == 19 {
+        let boss = int(r, "EventWorldBossIndex")?;
+        let calendar = crate::api::festivals::Calendar::load(db, s).await?;
+        if !calendar.bosses().contains(&boss) {
+            return Err(rule("NotOpenedDungeon"));
+        }
     }
     if matches!(battle_type, 21 | 25 | 30 | 32 | 33 | 40 | 41 | 42 | 45 | 46 | 47)
         && int(r, "RaidIndex")? == 0
@@ -1838,4 +1869,45 @@ pub(super) async fn punishment_clears(
                 .is_some_and(|def| n(def, "GroupIndex") == group)
         })
         .collect())
+}
+
+/// SPRK: event ticket balances for event menus. With `ChapterIndex`, that
+/// event's balance, and later key results show it. Without, every event's
+/// balance (the client keeps them to show a menu's count at once) and the
+/// event later key results belong to.
+pub(crate) async fn event_ticket(
+    axum::extract::State(s): axum::extract::State<AppState>,
+    body: axum::body::Bytes,
+) -> Result<axum::Json<Value>> {
+    let req = crate::api::system::request::Request::parse(&body)?;
+    let a = req.account(&s)?;
+    let chapter = req.number("ChapterIndex", 0)?;
+    let chapters: BTreeSet<i64> = s.tables.battle.rows("CampaignDungeon").iter()
+        .filter(|d| n(d, "ReqStaminaType") == EVENT_TICKET).map(|d| n(d, "ChapterIndex")).collect();
+    let mut tx = crate::database::begin(&s.db).await?;
+    let out = if chapter != 0 {
+        if !chapters.contains(&chapter) {
+            return Err(rule("InvalidChapterIndex"));
+        }
+        set_event_ticket_chapter(&mut tx, a, chapter).await?;
+        let ticket = crate::api::account::stamina::snapshot(&mut tx, &s, a, EVENT_TICKET).await?;
+        json!({"BaseResult":"Success","Result":"Success","StaminaResult":ticket})
+    } else {
+        let current = get(&mut tx, a, EVENT_TICKET_CHAPTER, 0).await?["Chapter"].as_i64().unwrap_or(0);
+        let mut tickets = vec![];
+        for c in &chapters {
+            set_event_ticket_chapter(&mut tx, a, *c).await?;
+            let ticket = crate::api::account::stamina::snapshot(&mut tx, &s, a, EVENT_TICKET).await?;
+            tickets.push(json!({"ChapterIndex":c,"StaminaResult":ticket}));
+        }
+        if current > 0 {
+            set_event_ticket_chapter(&mut tx, a, current).await?;
+        } else {
+            crate::db::query("DELETE FROM battle_state WHERE account=$1 AND kind=$2 AND idx=0")
+                .bind(a).bind(EVENT_TICKET_CHAPTER).execute(&mut *tx).await?;
+        }
+        json!({"BaseResult":"Success","Result":"Success","Current":current,"Tickets":tickets})
+    };
+    tx.commit().await?;
+    Ok(axum::Json(out))
 }

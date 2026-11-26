@@ -270,6 +270,11 @@ public class WorldBossGlobalRanking : LobbyFullWindow, WorldBossGlobalRankerComp
 		string creatureNamePrefix = string.Empty;
 		string visualInfo = bossWaveData?.BossVisualInfo;
 		GameRoot.Instance.CreatureVisualDataContainer.GetCreatureName(BossCreatureData, visualInfo, LocalizationManager.GetStringDirect, out creatureName, out creatureNamePrefix);
+		// SprkWorldBossSkin: an event form shows its full event name.
+		if (visualInfo != null && visualInfo.StartsWith("WorldBoss.Event") && !string.IsNullOrEmpty(creatureNamePrefix))
+		{
+			creatureName = creatureNamePrefix + " " + creatureName;
+		}
 		BossInfoUi.InitBossInfo(WorldBossData.BossInfoImage, creatureName);
 	}
 

@@ -324579,6 +324579,98 @@
         "HeroIndex": 28,
         "CostumeIndex": 0
       }
+    ],
+    "PhaseStepReward": [
+      {
+        "ChapterIndex": 30047,
+        "DungeonIndex": 1,
+        "Type": "Daily",
+        "Step": 1,
+        "ReqType": "KillMonster",
+        "ReqValue": 0,
+        "RewardIndex": 900199
+      },
+      {
+        "ChapterIndex": 30047,
+        "DungeonIndex": 1,
+        "Type": "Daily",
+        "Step": 2,
+        "ReqType": "KillMonster",
+        "ReqValue": 50,
+        "RewardIndex": 900200
+      },
+      {
+        "ChapterIndex": 30047,
+        "DungeonIndex": 1,
+        "Type": "Daily",
+        "Step": 3,
+        "ReqType": "KillMonster",
+        "ReqValue": 100,
+        "RewardIndex": 900201
+      },
+      {
+        "ChapterIndex": 30047,
+        "DungeonIndex": 1,
+        "Type": "Daily",
+        "Step": 4,
+        "ReqType": "KillMonster",
+        "ReqValue": 150,
+        "RewardIndex": 900202
+      },
+      {
+        "ChapterIndex": 30047,
+        "DungeonIndex": 1,
+        "Type": "Daily",
+        "Step": 5,
+        "ReqType": "KillMonster",
+        "ReqValue": 200,
+        "RewardIndex": 900203
+      },
+      {
+        "ChapterIndex": 30047,
+        "DungeonIndex": 1,
+        "Type": "General",
+        "Step": 1,
+        "ReqType": "KillMonster",
+        "ReqValue": 200,
+        "RewardIndex": 900204
+      },
+      {
+        "ChapterIndex": 30047,
+        "DungeonIndex": 1,
+        "Type": "General",
+        "Step": 2,
+        "ReqType": "KillMonster",
+        "ReqValue": 500,
+        "RewardIndex": 900205
+      },
+      {
+        "ChapterIndex": 30047,
+        "DungeonIndex": 1,
+        "Type": "General",
+        "Step": 3,
+        "ReqType": "KillMonster",
+        "ReqValue": 1000,
+        "RewardIndex": 900206
+      },
+      {
+        "ChapterIndex": 30047,
+        "DungeonIndex": 1,
+        "Type": "General",
+        "Step": 4,
+        "ReqType": "KillMonster",
+        "ReqValue": 1500,
+        "RewardIndex": 900207
+      },
+      {
+        "ChapterIndex": 30047,
+        "DungeonIndex": 1,
+        "Type": "General",
+        "Step": 5,
+        "ReqType": "KillMonster",
+        "ReqValue": 2000,
+        "RewardIndex": 900208
+      }
     ]
   },
   "Contracts": {

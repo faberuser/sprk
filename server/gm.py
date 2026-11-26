@@ -18,6 +18,9 @@ Usage (one-shot commands):
     python gm.py hero <HERO_ID> [--level N] [--star N]
     python gm.py level <LEVEL>
     python gm.py reset [--keep-heroes]
+    python gm.py festivals                   -- festival schedule status
+    python gm.py festival <KEY> open|closed|auto [--hours N]
+    python gm.py world-boss [protianus|mountain|xanadus|<INDEX>|auto] [--hours N]
 
 Config is saved to gm_config.json in the repository root.
 Set SPRK_GM_KEY in your environment or enter it at the hidden prompt. Keys are not saved.
@@ -367,6 +370,44 @@ def cmd_level(cfg, level):
     pretty(result)
 
 
+def cmd_festivals(cfg):
+    result = post(cfg, "/cheat/festivals", {})
+    for f in result.get("Festivals", []):
+        state = "OPEN  " if f.get("Open") else "closed"
+        when = f"until {f['End']}" if f.get("Open") else f"next {f.get('NextBegin')}"
+        forced = f"  [GM {f['Override']['Mode']}]" if f.get("Override") else ""
+        print(f"  {state} {f['Key']:<18} {when}{forced}")
+
+
+def cmd_festival(cfg, key, mode, hours=24):
+    """Server-wide override for testing; players see it at their next login."""
+    print(f"\n>> Festival {key}: {mode} ({hours} h) ...")
+    result = post(cfg, "/cheat/festivals", {"Key": key, "Mode": mode.capitalize(), "Hours": hours})
+    for f in result.get("Festivals", []):
+        if f.get("Key") == key:
+            pretty(f)
+
+
+WORLD_BOSSES = {"mountain": 3, "protianus": 4, "xanadus": 5}
+WORLD_BOSS_NAMES = {3: "Mountain Fortress", 4: "Protianus", 5: "Xanadus"}
+
+
+def cmd_world_boss(cfg, boss=None, hours=24):
+    """Show the World Boss, or force one over the weekly rotation for testing."""
+    payload = {}
+    if boss is not None:
+        index = 0 if boss == "auto" else WORLD_BOSSES.get(boss.lower())
+        if index is None:
+            index = int(boss)
+        payload = {"Index": index, "Hours": hours}
+    result = post(cfg, "/cheat/world-boss", payload)
+    name = lambda i: WORLD_BOSS_NAMES.get(i, f"#{i}")
+    forced = result.get("Forced")
+    print(f"  Active: {name(result.get('Active'))}" + (f"  [GM until {forced['Until']}]" if forced else "  (rotation)"))
+    print(f"  Rotation this week: {name(result.get('Rotation'))}")
+    print("  Players see a change the next time they open the World Boss.")
+
+
 def cmd_reset(cfg, keep_heroes=False):
     print(f"\n>> Reset account (keep_heroes={keep_heroes}) ...")
     result = post(cfg, "/cheat/reset", {
@@ -509,6 +550,14 @@ def build_parser() -> argparse.ArgumentParser:
     players.add_argument("--after", type=int, default=0)
     export = sub.add_parser("export-players", help="Export all player IDs, usernames, nicknames and online status")
     export.add_argument("--output", default="players.csv", help=".csv or .json output file, overwritten if it exists (default: players.csv)")
+    sub.add_parser("festivals", help="Show festival schedule status")
+    fest = sub.add_parser("festival", help="Force a festival open or closed for testing, or return it to its dates")
+    fest.add_argument("key")
+    fest.add_argument("mode", choices=["open", "closed", "auto"])
+    fest.add_argument("--hours", type=int, default=24)
+    wb = sub.add_parser("world-boss", help="Show the World Boss, or force one over the rotation for testing")
+    wb.add_argument("boss", nargs="?", help="protianus, mountain, xanadus, an index, or auto")
+    wb.add_argument("--hours", type=int, default=24)
     mh = sub.add_parser('maxheroes', help='Create a separate max-core-hero raid test database')
     mh.add_argument('--source-url', required=True, help='PostgreSQL URL of a database copy to clone')
     mh.add_argument('--output-db', required=True, help='Name of the new fixture database (same server)')
@@ -574,6 +623,16 @@ def main():
     if args.command == "export-players":
         if not cmd_export_players(cfg, args.output):
             sys.exit(1)
+        return
+
+    if args.command == "festivals":
+        cmd_festivals(cfg)
+        return
+    if args.command == "festival":
+        cmd_festival(cfg, args.key, args.mode, args.hours)
+        return
+    if args.command == "world-boss":
+        cmd_world_boss(cfg, args.boss, args.hours)
         return
 
     if args.command == 'maxheroes':

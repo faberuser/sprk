@@ -1920,3 +1920,26 @@ async fn ordeal_tower_normal_achievement_claim_uses_cleared_floor_access_proof()
     let login=relogin(&s).await;
     assert!(login.achievement_infos.iter().any(|v|v["AchievementIndex"]==511 && v["LastStep"]==1));
 }
+
+#[tokio::test]
+async fn daily_missions_pay_lakrak_coins_while_the_forge_runs() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    for (kind, value) in [("ClearDungeon", 5), ("BuyShopItem", 1)] {
+        record(&mut s.db.acquire().await.unwrap(), a, kind, 0, 0, value).await.unwrap();
+    }
+    let mut db = s.db.acquire().await.unwrap();
+    crate::api::festivals::set_override(&mut db, &s, "lakrak-forge", "Open", 2).await.unwrap();
+    let before = n(&hero::currency(&mut db, a, "EventOrvelPoint", 0).await.unwrap(), "NewValue");
+    drop(db);
+    let batch = "AchievementIndices=1101&Steps=0&AchievementIndices=1102&Steps=0&AchievementIndices=1104&Steps=0&AchievementIndices=1111&Steps=0&AchievementIndices=1112&Steps=0";
+    let v = call(&s, &u, "reward_achievement", batch).await;
+    assert_eq!(v["Result"], "Success");
+    let paid = v["CurrencyResults"].as_array().unwrap().iter()
+        .find(|c| c["CurrencyType"] == "EventOrvelPoint").expect("coin result");
+    // Five daily missions, five coins each.
+    assert_eq!(n(paid, "AddValue"), 25);
+    let mut db = s.db.acquire().await.unwrap();
+    assert_eq!(n(&hero::currency(&mut db, a, "EventOrvelPoint", 0).await.unwrap(), "NewValue"), before + 25);
+    crate::api::festivals::set_override(&mut db, &s, "lakrak-forge", "Closed", 2).await.unwrap();
+}

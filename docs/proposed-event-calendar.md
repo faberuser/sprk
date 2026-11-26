@@ -98,3 +98,116 @@ Sources checked: CampaignChapterTable, EventDungeonTable, EventDungeonGroupTable
 PortalTable, PortalRenewalTable, ShopTable, EventCraftTable, EventRouletteTable,
 EventForgeTable, EventStepTable, EventWorldBossTable, EventWorldBossSeasonTable,
 MonthlyHeroTable, KingsPassSeasonMissionTable and attendance definitions.
+
+## Implementation status
+
+The seasonal events and the other schedulable systems above run on the server
+from `Festivals` in `server/tables/LiveRules.json`
+(`server/src/api/festivals.rs`). Story and hero events, the 1,000 Days festival,
+hero birthdays and King's Pass are unchanged.
+
+How a window opens content: at login the server sends the native
+DropBonusEvents for open and upcoming runs (`LookaheadDays`). `EventNode`
+reveals the festival's hidden chapter-99 world-map node, `EventDungeon` and
+`EventShop` enable its NPC menus and Portal entries, and `EventCraft`,
+`EventRoulette` and `GrowWorldTree` carry the crafting groups, roulettes and
+World Tree. The server checks the same windows for battle entry, EventOnly
+shops, crafting, roulettes, the forge, World Tree contributions and event
+bosses. Clients see a change in schedule at their next login.
+
+Within each run:
+
+- All editions reachable in this client open together. Dungeon clears and
+  story progress are permanent.
+- Purchase limits of festival shops, Ophelia's craft counts and the World Tree
+  community total and steps start over in each run.
+- `ExpireCurrencies`/`ExpireItems` are cleared once the last overlapping
+  festival using them closes, for example `EventDungeonPoint` after 7 January
+  (Thanksgiving, World Tree and Christmas form one run). An account keeps a
+  balance it had before it first saw the schedule until that balance's next
+  run ends. Expired: `EventDungeonPoint`, `EventDungeonPoint2`,
+  `GrowWorldTreePoint` and Ophelia's `EVENTCRAFT_MATERIAL_1`–`6`.
+- Older chapters that define points per dungeon (30002, 30003, 30010, 30022,
+  30023, 30026) now award them; later chapters drop points from their rewards.
+- Weekend Hot Time: +50% EXP, +50% gold and +20% drops, Saturday and Sunday
+  UTC, for campaign, custom campaign, party, boss, event dungeon, side quest and
+  purchased dungeons. There is no upgrade discount.
+- The event bosses are the World Bosses in their event forms
+  (`client/managed/SprkWorldBossSkin`): neither this client nor the archive
+  has a standalone event-boss screen. While `christmas-boss` is open,
+  Protianus is The Unstoppable Lonely King (Christmas costume and field, its
+  event art and name); while `moon-rabbit` is open, Mountain Fortress is Moon
+  Rabbit LuLu. Stats, scoring, ranking and rewards stay the World Boss's, and
+  the form shows only in the weeks the rotation brings that boss. The server
+  signals the forms with the `EventShop` conditions `SprkWorldBossChristmas` and
+  `SprkWorldBossMoonRabbit`; no standalone event boss (EventWorldBossTable) is
+  scheduled, and battles of that type are refused.
+- Thanksgiving Defense (chapter 30047, the only `PhaseStepRewardTable`
+  dungeon) counts the K.O.s each battle reports. A battle's K.O.s reach a Daily
+  level (0, 50, 100, 150, 200); each level pays once per day with that battle's
+  loot. The run total unlocks the five milestones claimed in the K.O. rewards
+  window (`phase_step/*`). One battle counts at most `PhaseStepMaxKills` (500).
+- Lunar New Year (7 days before to 14 days after each date in `Around.Dates`,
+  listed to 2036) and Children's Rainbow (1–14 May) are participation events:
+  each day of the run an account logs in it is mailed the archived gift box
+  (`PACKAGE_EVENT_NEWYEAR_BOX1`, `PACKAGE_CHILDRENSRAINBOW_BOX`), and after 7
+  Lunar New Year days the New Year's Gratitude Gift (`PACKAGE_EVENT_NEWYEAR_BOX2`).
+  Their shops stay closed: the archive has no items for them.
+
+GM testing: `python server/gm.py world-boss protianus|mountain|xanadus|auto
+[--hours N]` shows a chosen World Boss instead of the weekly rotation (to see
+an event form, also open its festival); `python server/gm.py festivals` lists every festival and its current
+or next run; `python server/gm.py festival <key> open|closed|auto --hours N`
+overrides one server-wide until the time passes.
+
+Not scheduled, because this client cannot reach the content or the archive has
+none:
+
+| Proposal row | Reason |
+| --- | --- |
+| Lunar New Year shop and New Year's Fortune points | No ShopItemTable rows to spend them on (the gifts above run instead) |
+| Children's Rainbow shop and chapter 30004 | Shop has no items; the chapter has no dungeons (the gift above runs instead) |
+| `HalloweenShop`, `ChristmasShop`, `ThanksgivingShop`, `SummerShop` | No ShopItemTable rows |
+| Chapter 30001, `HalloweenShop` NPC | `NormalShop_Holloween` is not placed on any node |
+| Chapter 30020 | `Square_Cristmas_2018_1` is not placed on any node |
+| Chapters 30028, 30032, 30033 and `2019_*` shops replaced by `2021_*` editions | Their reruns (30044, 30048, 30049) replaced them on the world map |
+| Attendance campaigns | The archive keeps their titles but not their rewards; the existing 28-day attendance is unchanged |
+
+Client support (`client/tables/festivals/`):
+
+- Portal shortcuts (Orvel): one per festival node, titled with the native
+  event names, each shown only while its festival is open.
+- The client places the Square's nodes at run time
+  (`client/managed/SprkSquareLayout`): the side-quest node (41) and every
+  festival node open now (revealed by `EventNode` "99,<node>") are spaced
+  evenly on a ring around the central fountain, the side-quest node on the
+  left and the festival nodes clockwise in node order, however many are open.
+- Orvel's "EVENT" bubbles (WorldMapPropTable `UI.EventPopup*`) stay hidden
+  (`SprkOrvelVisuals`): with several festivals open they crowd the town and
+  cover the nodes. Orvel switches to the festival's own town map
+  while it is open (`SprkSquareLayout.Map`): Christmas `Town_Christmas` (the
+  snowy town with the snow globe; it wins over the World Tree from Dec 15),
+  World Tree `Town2_WorldTree`, Halloween `Town_Halloween` and Orvel Foundation
+  Day `Town_OrvelDays`, Lunar New Year `Town2_NewYear2022` ("2022" on its
+  banners; the event announces a marker shop, `SprkLunarNewYear`, so the client
+  can tell it is open). `Town_1000Days` and `Town2_NewYear2020/2021` are unused; `Town` and `Town_NewYear` are the
+  old, smaller Orvel layout.
+- Event dungeon tickets (`EventDungeonTicket`, 2 a day) are kept per event:
+  every event chapter has its own balance and recharge. The server uses the
+  chapter of the event battle being started. After login the client loads
+  every event's balance (`/sprk/event_ticket` without a chapter) and keeps
+  each one current from later ticket results, so an event's menu or dungeon
+  list shows its own count at once; opening it also tells the server which
+  event is in use and refreshes the count (`SprkEventTicket`).
+- Lakrak's Forge: while it runs, each daily mission claimed also pays
+  `DailyMissionCoins` (5) Orvel Castle Gold Coins, as the archived event text
+  describes ("earned through Daily Missions"; the archive has no amounts). A
+  failed enhancement pays a third of that level's Guaranteed Enhancement
+  remnants (rounded up), a break half (at least 1). The coins, ores and
+  remnants expire with the run.
+- Event dungeon stages of Christmas 2017 (30002) and Summer (30003) carried
+  the fixed open dates of their 2018/2019 runs (`OpenCheckTime`), so every
+  stage showed Closed; the table patch drops those dates and keeps the
+  clear-the-previous-stage rule (`40-event-dungeon-open-times.json`).
+- The 2017 Christmas dungeon's menu (`Square2`, missing from the archive too)
+  uses the 2018 Christmas square's background, music and NPC.

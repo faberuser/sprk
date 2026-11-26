@@ -218,8 +218,10 @@ static int Build(string inputDir, string patchDir, string outDir)
                 added++;
             }
         }
+        // List-only containers (PortalRenewalTable) never index rows by key, and
+        // the original tables repeat keys there.
         var keys = rows.Where(r => r.Key != null).GroupBy(r => r.Key).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
-        if (keys.Count > 0)
+        if (keys.Count > 0 && !t.IsListOnly)
         {
             throw new InvalidOperationException($"{group.Key}: duplicate keys after patching: {string.Join(", ", keys)}");
         }
@@ -407,6 +409,21 @@ sealed class JitTable
 
     public byte[] Original { get; private set; }
 
+    public bool IsListOnly
+    {
+        get
+        {
+            for (Type t = containerType; t != null; t = t.BaseType)
+            {
+                if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(JitDataContainerListOnly<>))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
     JitTable(Type containerType)
     {
         this.containerType = containerType;
@@ -425,7 +442,9 @@ sealed class JitTable
     {
         ["CostumeTable"] = new[] { "IsOpen", "PreviewableWhenOwned", "IsShow" },
         // SPRK sells every accessory except gift-only ones (AccessoryCostumeData.IsSprkGiftOnly).
-        ["AccessoryCostumeTable"] = new[] { "IsOpen", "IsBuy", "PreviewableWhenOwned" }
+        ["AccessoryCostumeTable"] = new[] { "IsOpen", "IsBuy", "PreviewableWhenOwned" },
+        // SPRK shows the Pet portal rows as windows (SprkPetPresentation.Shape).
+        ["PortalRenewalTable"] = new[] { "SubComponentShape" }
     };
 
     // True when the rebuilt bytes decode to the same rows, in the same order, apart from the given fields.
