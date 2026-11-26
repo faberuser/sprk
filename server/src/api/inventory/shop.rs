@@ -23,7 +23,7 @@ endpoints!(
     get_all_shop_item_purchase_count,
     buy_shop_item
 );
-fn period(row: &Value, now: i64, revision: i64, rotating: bool) -> String {
+fn period(row: &Value, now: i64, revision: i64, rotating: bool, festival: Option<i64>) -> String {
     if rotating {
         return format!("stock:{revision}");
     }
@@ -45,7 +45,8 @@ fn period(row: &Value, now: i64, revision: i64, rotating: bool) -> String {
             }
         }
     }
-    "all".into()
+    // Lifetime limits of a festival shop restart with each festival run.
+    festival.map_or_else(|| "all".into(), |season| format!("festival:{season}"))
 }
 fn kind(cost: i64) -> Result<&'static str> {
     match cost {
@@ -203,9 +204,13 @@ async fn execute(
     let id = item::item_index(req, "ShopIndex")?;
     let table = &state.tables.hero_shop;
     let shop = table.shops.get(&id).ok_or_else(|| rule("NoShopData"))?;
-    if n(shop, "EventOnly") != 0 {
-        return Err(rule("ContentsDisabled"));
-    }
+    // EventOnly shops open with their festival run (LiveRules.json Festivals).
+    let festival = if n(shop, "EventOnly") != 0 {
+        let calendar = crate::api::festivals::Calendar::load(db, state).await?;
+        let season = calendar.shop(id as i64).ok_or_else(|| rule("ContentsDisabled"))?.season();
+        crate::api::festivals::expire(db, state, account, &calendar).await?;
+        Some(season)
+    } else { None };
     let guild_level = if matches!(n(shop, "BuyCostType"), 4 | 17) {
         Some(crate::api::community::validate_shop(db, state, account, id as i64).await?)
     } else { None };
@@ -246,7 +251,7 @@ async fn execute(
         if rotating && count != 1 {
             return Err(rule("InvalidValue"));
         }
-        let period = period(row, now, revision, rotating);
+        let period = period(row, now, revision, rotating, festival);
         let old = purchased(db, account, id, index, &period).await?;
         let max = n(row, "PurchasableCount");
         if max > 0 && old + count > max {
@@ -376,7 +381,7 @@ async fn execute(
                 .into_iter().map(|(index, period, count)| ((index, period), count)).collect();
         let mut result = vec![];
         for row in rows {
-            let period = period(&row, now, revision, rotating);
+            let period = period(&row, now, revision, rotating, festival);
             let count = purchases.get(&(n(&row, "Index"), period)).copied().unwrap_or(0);
             let max = n(&row, "PurchasableCount");
             let sold=if max>0&&count>=max {1}else{0};

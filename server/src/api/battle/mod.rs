@@ -584,5 +584,9 @@ fn read_value<T: serde::de::DeserializeOwned>(value: Value) -> Result<T> {
 }
 
 pub(crate) use dungeons::charge as charge_key;
+pub(crate) use dungeons::event_ticket;
+#[cfg(test)]
+pub(crate) use dungeons::set_event_ticket_chapter;
 
 pub(crate) use campaign::end_authoritative;
+pub(crate) use seasons::set_world_boss_override;

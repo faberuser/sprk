@@ -97,6 +97,38 @@ class GmTests(unittest.TestCase):
                     self.assertEqual(post.call_args.args[2], {"AccountId": 43, "Gold": 10, "Gem": 0, "Stamina": 0})
                 self.assertEqual(gm.load_config()["account_id"], 42)
 
+    def test_festival_commands_need_no_player_and_send_the_override(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(gm, "CONFIG_FILE", Path(directory) / "config.json"):
+                status = {"Festivals": [{"Key": "halloween", "Open": True, "End": "2026-11-08 00:00:00",
+                                         "Override": {"Mode": "Open"}}]}
+                with patch.object(gm, "post", return_value=status) as post, contextlib.redirect_stdout(io.StringIO()) as out:
+                    with patch("sys.argv", ["gm.py", "festival", "halloween", "open", "--hours", "3"]):
+                        gm.main()
+                    self.assertEqual(post.call_args.args[1:], ("/cheat/festivals", {"Key": "halloween", "Mode": "Open", "Hours": 3}))
+                    with patch("sys.argv", ["gm.py", "festivals"]):
+                        gm.main()
+                    self.assertEqual(post.call_args.args[1:], ("/cheat/festivals", {}))
+                self.assertIn("OPEN   halloween", out.getvalue())
+                self.assertIn("[GM Open]", out.getvalue())
+
+    def test_world_boss_command_forces_by_name_and_resets(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(gm, "CONFIG_FILE", Path(directory) / "config.json"):
+                status = {"Active": 4, "Rotation": 5, "Forced": {"Until": "2026-11-27 00:00:00"}}
+                with patch.object(gm, "post", return_value=status) as post, contextlib.redirect_stdout(io.StringIO()) as out:
+                    with patch("sys.argv", ["gm.py", "world-boss", "protianus", "--hours", "6"]):
+                        gm.main()
+                    self.assertEqual(post.call_args.args[1:], ("/cheat/world-boss", {"Index": 4, "Hours": 6}))
+                    with patch("sys.argv", ["gm.py", "world-boss", "auto"]):
+                        gm.main()
+                    self.assertEqual(post.call_args.args[2]["Index"], 0)
+                    with patch("sys.argv", ["gm.py", "world-boss"]):
+                        gm.main()
+                    self.assertEqual(post.call_args.args[1:], ("/cheat/world-boss", {}))
+                self.assertIn("Active: Protianus  [GM until", out.getvalue())
+                self.assertIn("Rotation this week: Xanadus", out.getvalue())
+
     def test_lookup_needs_no_player_target_and_key_is_header_only(self):
         class Response:
             def __enter__(self): return self

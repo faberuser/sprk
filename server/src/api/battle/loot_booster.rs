@@ -557,6 +557,7 @@ pub(super) async fn percent(
     let battle = campaign::dungeon(s, r)?["BattleType"].clone();
     let timers = item::active_boosters(db, s, a, true).await?;
     let mut percent = if active(entry) { 100_i64 } else { 0 };
+    percent += crate::api::festivals::Calendar::load(db, s).await?.bonus("BonusItem", battle.as_i64().unwrap_or(0));
     for id in timers {
         if let Some(b) = s.tables.inventory.booster_effect(id) {
             if n(b,"Type") == 2 && b["IsOnetime"] != true

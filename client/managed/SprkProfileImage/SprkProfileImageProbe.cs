@@ -6,11 +6,14 @@ using System.Linq;
 using NGame2.NUI;
 using NGame2.NUI.NComponent2;
 using NGame2.NUI.NAtlasAssignComponent;
+using NGame2.NUI.NManager;
 using NGame2.NUI.NWindow;
 using NGameAsset;
 using NNguiExtension;
+using NShared;
 using NShared.NJit;
 using NVespa;
+using NVespa.NSingleton;
 using UnityEngine;
 
 /// <summary>
@@ -33,6 +36,16 @@ public static class SprkProfileImageProbe
 		{
 			othersResult = null;
 			SprkProfileImage.Runner.StartCoroutine(Guard(CheckOthers(delegate(string r)
+			{
+				othersResult = "PASS " + r;
+			})));
+			return "started";
+		}
+		if (mode == "settings" || mode == "settings-show")
+		{
+			othersResult = null;
+			bool keep = mode == "settings-show";
+			SprkProfileImage.Runner.StartCoroutine(Guard(CheckSettings(keep, delegate(string r)
 			{
 				othersResult = "PASS " + r;
 			})));
@@ -175,6 +188,113 @@ public static class SprkProfileImageProbe
 			UnityEngine.Object.Destroy(gameObject);
 			UnityEngine.Object.Destroy(texture2D);
 			UnityEngine.Object.Destroy(texture2D2);
+		}
+	}
+
+	/// <summary>
+	/// Settings > Game > Profile Pictures: the row exists once with Show/Hide,
+	/// and Hide brings back the hero icon everywhere except the Profile tab preview.
+	/// </summary>
+	private static IEnumerator CheckSettings(bool keep, Action<string> done)
+	{
+		bool initial = SprkProfileImage.Shown;
+		GameObject gameObject = new GameObject("SprkProfileSettingsFixture");
+		Texture2D texture2D = Fixture();
+		Texture2D texture2D2 = Fixture();
+		Texture2D texture2D3 = new Texture2D(4, 4);
+		try
+		{
+			SprkProfileImage.Shown = true;
+			UITexture uITexture = gameObject.AddComponent<UITexture>();
+			uITexture.mainTexture = texture2D3;
+			SprkProfileImage.SetRemotePicture(900011L, texture2D);
+			SprkProfileImage.Bind(uITexture, 900011L);
+			GameObject child = new GameObject("Watched");
+			child.transform.SetParent(gameObject.transform, worldPositionStays: false);
+			UIBundleLoader uIBundleLoader = child.AddComponent<UIBundleLoader>();
+			uIBundleLoader.SetUITexture(child.AddComponent<UITexture>());
+			GameObject child2 = new GameObject("Preview");
+			child2.transform.SetParent(gameObject.transform, worldPositionStays: false);
+			UIBundleLoader uIBundleLoader2 = child2.AddComponent<UIBundleLoader>();
+			uIBundleLoader2.SetUITexture(child2.AddComponent<UITexture>());
+			SprkProfileImage.Watch(uIBundleLoader);
+			SprkProfileImage.WatchPreview(uIBundleLoader2);
+			SprkProfileImage.SetPicture(texture2D2);
+			yield return null;
+			Check(uITexture.mainTexture == texture2D, "shown: player picture missing");
+			Check(SprkProfileImage.TryApply(uIBundleLoader) && SprkProfileImage.TryApply(uIBundleLoader2), "shown: own picture not applied");
+			// Open the real Settings window from the Login screen.
+			LoginAccountInfo instance = SceneAutoBehaviour<LoginManagement>.instance.GetInstance<LoginAccountInfo>();
+			Check(instance != null, "no login window");
+			SprkLoginSettings.Configure(instance);
+			UIButton componentInChildren = instance.LanguageButtonRoot.GetComponentInChildren<UIButton>(includeInactive: true);
+			EventDelegate.Execute(componentInChildren.onClick);
+			yield return new WaitForSecondsRealtime(1f);
+			GameOptionWindow settings = SceneAutoBehaviour<LoginManagement>.instance.GetInstance<GameOptionWindow>();
+			Check(settings != null && settings.IsOpen(), "settings did not open");
+			settings.SetupOptionGrids();
+			yield return null;
+			GameOptionToggle4Component[] array = (from r in settings.GetComponentsInChildren<GameOptionToggle4Component>(includeInactive: true)
+				where r.name == SprkProfileImage.SettingsRowName
+				select r).ToArray();
+			Check(array.Length == 1, "settings rows: " + array.Length);
+			GameOptionToggle4Component row = array[0];
+			GameOptionWindow.TabUIInfo tabUIInfo = settings.MainTabs.First((GameOptionWindow.TabUIInfo t) => t.GameOptionTab == GameOptionTab.Game);
+			Check(row.transform.IsChildOf(tabUIInfo.GameOptionGrid.transform), "row not in the Game tab");
+			Check(row.ParentRoot.Label_OptionName.text == SprkText.Get("Profile Pictures"), "row label " + row.ParentRoot.Label_OptionName.text);
+			UIToggle toggle = row.toggleInfo.Toggle1;
+			UIToggle toggle2 = row.toggleInfo.Toggle2;
+			Check(toggle.gameObject.activeSelf && toggle2.gameObject.activeSelf && !row.toggleInfo.Toggle3.gameObject.activeSelf && !row.toggleInfo.Toggle4.gameObject.activeSelf, "choices");
+			Check(toggle.GetComponentInChildren<UILabel>(includeInactive: true).text == SprkText.Get("Show") && toggle2.GetComponentInChildren<UILabel>(includeInactive: true).text == SprkText.Get("Hide"), "choice labels");
+			Check(toggle.value && !toggle2.value, "Show not selected initially");
+			string layout = "choices at x=" + toggle.transform.localPosition.x + "," + toggle2.transform.localPosition.x;
+			// Choose Hide like a click does.
+			toggle2.Set(state: true);
+			yield return null;
+			Check(!SprkProfileImage.Shown && !toggle.value && toggle2.value, "Hide not applied");
+			Check(uITexture.mainTexture == texture2D3, "hidden: player picture still shown");
+			Check(SprkProfileImage.PictureFor(900011L) == null, "hidden: picture still looked up");
+			Check(!SprkProfileImage.TryApply(uIBundleLoader), "hidden: own picture on a portrait");
+			Check(SprkProfileImage.TryApply(uIBundleLoader2), "hidden: preview lost the picture");
+			// Clicking the selected choice again keeps it selected.
+			toggle2.Set(state: false);
+			yield return null;
+			Check(toggle2.value && !SprkProfileImage.Shown, "deselecting the selected choice");
+			Check(SprkProfileImage.SetupSettings(settings) == row && !SprkProfileImage.Shown && toggle2.value, "setup again changed the row");
+			toggle.Set(state: true);
+			yield return null;
+			Check(SprkProfileImage.Shown && toggle.value && !toggle2.value, "Show not applied");
+			Check(SprkProfileImage.TryApply(uIBundleLoader), "shown again: own picture missing");
+			SprkProfileImage.SetRemotePicture(900011L, Fixture());
+			yield return null;
+			Check(uITexture.mainTexture != texture2D3, "shown again: player picture missing");
+			if (keep)
+			{
+				SprkProfileImage.Shown = false;
+				tabUIInfo.Toggle.Set(state: true);
+				settings.OnToggleMainTab();
+				UIScrollView componentInParent = row.GetComponentInParent<UIScrollView>();
+				if (componentInParent != null)
+				{
+					componentInParent.SetDragAmount(0f, 1f, updateScrollbars: true);
+				}
+				done("settings: " + layout + ", left open with Hide selected");
+				yield break;
+			}
+			settings.Close();
+			done("settings: row once in Game tab, Show/Hide, " + layout + ", hide restores icons except preview");
+		}
+		finally
+		{
+			if (!keep)
+			{
+				SprkProfileImage.Shown = initial;
+			}
+			SprkProfileImage.Unwatch(gameObject.GetComponentsInChildren<UIBundleLoader>().FirstOrDefault());
+			SprkProfileImage.SetPicture(null);
+			SprkProfileImage.SetRemotePicture(900011L, null);
+			UnityEngine.Object.Destroy(gameObject);
+			UnityEngine.Object.Destroy(texture2D3);
 		}
 	}
 

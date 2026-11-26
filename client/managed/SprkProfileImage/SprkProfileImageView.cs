@@ -118,7 +118,7 @@ public sealed class SprkProfileImageView : MonoBehaviour
 		view.UploadButton = Button(transform8, gameObject2, "Button_UploadPicture", SprkText.Get("Upload Picture"), new Vector3(110f, -250f, 0f), view.OnUpload);
 		view.RemoveButton = Button(transform8, gameObject2, "Button_RemovePicture", SprkText.Get("Remove Picture"), new Vector3(420f, -250f, 0f), view.OnRemove);
 		gameObject2.SetActive(value: false);
-		SprkProfileImage.Watch(view.Preview);
+		SprkProfileImage.WatchPreview(view.Preview);
 		return view;
 	}
 

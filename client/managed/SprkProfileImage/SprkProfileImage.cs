@@ -100,7 +100,7 @@ public static partial class SprkProfileImage
 	/// <summary>Called by <see cref="UIBundleLoader"/> before it loads its asset.</summary>
 	public static bool TryApply(UIBundleLoader loader)
 	{
-		if (picture == null || loader == null || !watched.Contains(loader))
+		if (picture == null || loader == null || !watched.Contains(loader) || !ShowsOn(loader))
 		{
 			return false;
 		}

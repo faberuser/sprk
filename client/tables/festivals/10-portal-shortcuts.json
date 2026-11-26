@@ -1,0 +1,453 @@
+{
+  "table": "PortalRenewalTable",
+  "append": [
+    {
+      "Category": "Orvel",
+      "SubCategory": "EventNode",
+      "ContentsShowIndex": 11,
+      "MenuButtonLocalkey": "",
+      "TitleLocalKey": "19CHRISTMAS_BUFF_TITLE",
+      "SubComponentShape": "Small",
+      "MainImagePath": "Portal_Orvel_Christmas2019",
+      "DescLocalKey": "",
+      "ShowCondition": [
+        "EventShop",
+        "2021_Christmas_Shop"
+      ],
+      "OpenConditionLocalKey": "",
+      "EventBuffCondition": [
+        "EventShop",
+        "2021_Christmas_Shop"
+      ],
+      "VisualChapterIndex": "",
+      "MoveTaskType": "MoveToNode",
+      "MoveTaskValue": [
+        "99",
+        "36",
+        "true",
+        "true",
+        "true"
+      ]
+    },
+    {
+      "Category": "Orvel",
+      "SubCategory": "EventNode",
+      "ContentsShowIndex": 12,
+      "MenuButtonLocalkey": "",
+      "TitleLocalKey": "19CHRISTMAS_PRESENT_DUNGEON",
+      "SubComponentShape": "Small",
+      "MainImagePath": "Portal_Orvel_Christmas2019_Special",
+      "DescLocalKey": "",
+      "ShowCondition": [
+        "EventShop",
+        "2021_Christmas_Shop"
+      ],
+      "OpenConditionLocalKey": "",
+      "EventBuffCondition": [
+        "EventShop",
+        "2021_Christmas_Shop"
+      ],
+      "VisualChapterIndex": "",
+      "MoveTaskType": "MoveToNode",
+      "MoveTaskValue": [
+        "99",
+        "37",
+        "true",
+        "true",
+        "true"
+      ]
+    },
+    {
+      "Category": "Orvel",
+      "SubCategory": "EventNode",
+      "ContentsShowIndex": 13,
+      "MenuButtonLocalkey": "",
+      "TitleLocalKey": "SPRK_PORTAL_CHRISTMAS_2018",
+      "SubComponentShape": "Small",
+      "MainImagePath": "Portal_Orvel_Christmas2019",
+      "DescLocalKey": "",
+      "ShowCondition": [
+        "EventShop",
+        "2021_Christmas_Shop"
+      ],
+      "OpenConditionLocalKey": "",
+      "EventBuffCondition": [
+        "EventShop",
+        "2021_Christmas_Shop"
+      ],
+      "VisualChapterIndex": "",
+      "MoveTaskType": "MoveToNode",
+      "MoveTaskValue": [
+        "99",
+        "21",
+        "true",
+        "true",
+        "true"
+      ]
+    },
+    {
+      "Category": "Orvel",
+      "SubCategory": "EventNode",
+      "ContentsShowIndex": 14,
+      "MenuButtonLocalkey": "",
+      "TitleLocalKey": "SPRK_PORTAL_CHRISTMAS_2017",
+      "SubComponentShape": "Small",
+      "MainImagePath": "Portal_Orvel_Christmas2019",
+      "DescLocalKey": "",
+      "ShowCondition": [
+        "EventShop",
+        "2021_Christmas_Shop"
+      ],
+      "OpenConditionLocalKey": "",
+      "EventBuffCondition": [
+        "EventShop",
+        "2021_Christmas_Shop"
+      ],
+      "VisualChapterIndex": "",
+      "MoveTaskType": "MoveToNode",
+      "MoveTaskValue": [
+        "99",
+        "12",
+        "true",
+        "true",
+        "true"
+      ]
+    },
+    {
+      "Category": "Orvel",
+      "SubCategory": "EventNode",
+      "ContentsShowIndex": 15,
+      "MenuButtonLocalkey": "",
+      "TitleLocalKey": "EVENT_GROW_WORLD_TREE_TITLE",
+      "SubComponentShape": "Small",
+      "MainImagePath": "Portal_Orvel_GrowWorldTree_Button",
+      "DescLocalKey": "",
+      "ShowCondition": [
+        "EventShop",
+        "2021_WorldTree_Shop"
+      ],
+      "OpenConditionLocalKey": "",
+      "EventBuffCondition": [
+        "EventShop",
+        "2021_WorldTree_Shop"
+      ],
+      "VisualChapterIndex": "",
+      "MoveTaskType": "MoveToNode",
+      "MoveTaskValue": [
+        "99",
+        "56",
+        "true",
+        "true",
+        "true"
+      ]
+    },
+    {
+      "Category": "Orvel",
+      "SubCategory": "EventNode",
+      "ContentsShowIndex": 16,
+      "MenuButtonLocalkey": "",
+      "TitleLocalKey": "21THANKSGIVING_EVENT_NAME_BUTTON",
+      "SubComponentShape": "Small",
+      "MainImagePath": "Portal_Orvel_21Thanksgiving_Button",
+      "DescLocalKey": "",
+      "ShowCondition": [
+        "EventShop",
+        "EVENT_21THANKSGIVING"
+      ],
+      "OpenConditionLocalKey": "",
+      "EventBuffCondition": [
+        "EventShop",
+        "EVENT_21THANKSGIVING"
+      ],
+      "VisualChapterIndex": "",
+      "MoveTaskType": "MoveToNode",
+      "MoveTaskValue": [
+        "99",
+        "55",
+        "true",
+        "true",
+        "true"
+      ]
+    },
+    {
+      "Category": "Orvel",
+      "SubCategory": "EventNode",
+      "ContentsShowIndex": 17,
+      "MenuButtonLocalkey": "",
+      "TitleLocalKey": "19HALLOWEEN_EVENT_NAME",
+      "SubComponentShape": "Small",
+      "MainImagePath": "Portal_Orvel_2021Halloween",
+      "DescLocalKey": "",
+      "ShowCondition": [
+        "EventShop",
+        "2021_Halloween_Shop"
+      ],
+      "OpenConditionLocalKey": "",
+      "EventBuffCondition": [
+        "EventShop",
+        "2021_Halloween_Shop"
+      ],
+      "VisualChapterIndex": "",
+      "MoveTaskType": "MoveToNode",
+      "MoveTaskValue": [
+        "99",
+        "32",
+        "true",
+        "true",
+        "true"
+      ]
+    },
+    {
+      "Category": "Orvel",
+      "SubCategory": "EventNode",
+      "ContentsShowIndex": 18,
+      "MenuButtonLocalkey": "",
+      "TitleLocalKey": "HALLOWEEN_DUNGEON_TITLE",
+      "SubComponentShape": "Small",
+      "MainImagePath": "Portal_Orvel_2021Halloween",
+      "DescLocalKey": "",
+      "ShowCondition": [
+        "EventShop",
+        "2018_Halloween_Shop"
+      ],
+      "OpenConditionLocalKey": "",
+      "EventBuffCondition": [
+        "EventShop",
+        "2018_Halloween_Shop"
+      ],
+      "VisualChapterIndex": "",
+      "MoveTaskType": "MoveToNode",
+      "MoveTaskValue": [
+        "99",
+        "19",
+        "true",
+        "true",
+        "true"
+      ]
+    },
+    {
+      "Category": "Orvel",
+      "SubCategory": "EventNode",
+      "ContentsShowIndex": 19,
+      "MenuButtonLocalkey": "",
+      "TitleLocalKey": "21AUTUMNSPORTSDAY_EVENT_NAME",
+      "SubComponentShape": "Small",
+      "MainImagePath": "Portal_Orvel_21Autumnsportsday_Button",
+      "DescLocalKey": "",
+      "ShowCondition": [
+        "EventShop",
+        "21AUTUMNSPORTSDAY_SHOP"
+      ],
+      "OpenConditionLocalKey": "",
+      "EventBuffCondition": [
+        "EventShop",
+        "21AUTUMNSPORTSDAY_SHOP"
+      ],
+      "VisualChapterIndex": "",
+      "MoveTaskType": "MoveToNode",
+      "MoveTaskValue": [
+        "99",
+        "53",
+        "true",
+        "true",
+        "true"
+      ]
+    },
+    {
+      "Category": "Orvel",
+      "SubCategory": "EventNode",
+      "ContentsShowIndex": 20,
+      "MenuButtonLocalkey": "",
+      "TitleLocalKey": "EVENT_NAME_20SUMMER",
+      "SubComponentShape": "Small",
+      "MainImagePath": "Portal_Orvel_2021Summer",
+      "DescLocalKey": "",
+      "ShowCondition": [
+        "EventShop",
+        "2021_Summer_Shop"
+      ],
+      "OpenConditionLocalKey": "",
+      "EventBuffCondition": [
+        "EventShop",
+        "2021_Summer_Shop"
+      ],
+      "VisualChapterIndex": "",
+      "MoveTaskType": "MoveToNode",
+      "MoveTaskValue": [
+        "99",
+        "42",
+        "true",
+        "true",
+        "true"
+      ]
+    },
+    {
+      "Category": "Orvel",
+      "SubCategory": "EventNode",
+      "ContentsShowIndex": 21,
+      "MenuButtonLocalkey": "",
+      "TitleLocalKey": "19SUMMER_EVENT_NAME",
+      "SubComponentShape": "Small",
+      "MainImagePath": "Portal_Orvel_2019Summer",
+      "DescLocalKey": "",
+      "ShowCondition": [
+        "EventShop",
+        "2021_Summer_Shop"
+      ],
+      "OpenConditionLocalKey": "",
+      "EventBuffCondition": [
+        "EventShop",
+        "2021_Summer_Shop"
+      ],
+      "VisualChapterIndex": "",
+      "MoveTaskType": "MoveToNode",
+      "MoveTaskValue": [
+        "99",
+        "29",
+        "true",
+        "true",
+        "true"
+      ]
+    },
+    {
+      "Category": "Orvel",
+      "SubCategory": "EventNode",
+      "ContentsShowIndex": 22,
+      "MenuButtonLocalkey": "",
+      "TitleLocalKey": "SUMMER_DUNGEON",
+      "SubComponentShape": "Small",
+      "MainImagePath": "Portal_Orvel_2021Summer",
+      "DescLocalKey": "",
+      "ShowCondition": [
+        "EventShop",
+        "2021_Summer_Shop"
+      ],
+      "OpenConditionLocalKey": "",
+      "EventBuffCondition": [
+        "EventShop",
+        "2021_Summer_Shop"
+      ],
+      "VisualChapterIndex": "",
+      "MoveTaskType": "MoveToNode",
+      "MoveTaskValue": [
+        "99",
+        "13",
+        "true",
+        "true",
+        "true"
+      ]
+    },
+    {
+      "Category": "Orvel",
+      "SubCategory": "EventNode",
+      "ContentsShowIndex": 23,
+      "MenuButtonLocalkey": "",
+      "TitleLocalKey": "EVENT_OPHELIA_WORKSHOP_NODE_BUTTON",
+      "SubComponentShape": "Small",
+      "MainImagePath": "Portal_Ophelia_Workshop",
+      "DescLocalKey": "",
+      "ShowCondition": [
+        "EventShop",
+        "EventCraft"
+      ],
+      "OpenConditionLocalKey": "",
+      "EventBuffCondition": [
+        "EventShop",
+        "EventCraft"
+      ],
+      "VisualChapterIndex": "",
+      "MoveTaskType": "MoveToNode",
+      "MoveTaskValue": [
+        "99",
+        "50",
+        "true",
+        "true",
+        "true"
+      ]
+    },
+    {
+      "Category": "Orvel",
+      "SubCategory": "EventNode",
+      "ContentsShowIndex": 24,
+      "MenuButtonLocalkey": "",
+      "TitleLocalKey": "EVENT_LAKRAK_FORGE",
+      "SubComponentShape": "Small",
+      "MainImagePath": "Portal_Lakrak_Forge",
+      "DescLocalKey": "",
+      "ShowCondition": [
+        "EventShop",
+        "Lakrak_Forge_Shop"
+      ],
+      "OpenConditionLocalKey": "",
+      "EventBuffCondition": [
+        "EventShop",
+        "Lakrak_Forge_Shop"
+      ],
+      "VisualChapterIndex": "",
+      "MoveTaskType": "MoveToNode",
+      "MoveTaskValue": [
+        "99",
+        "51",
+        "true",
+        "true",
+        "true"
+      ]
+    },
+    {
+      "Category": "Orvel",
+      "SubCategory": "EventNode",
+      "ContentsShowIndex": 25,
+      "MenuButtonLocalkey": "",
+      "TitleLocalKey": "EVENT_NAME_21ORVEL",
+      "SubComponentShape": "Small",
+      "MainImagePath": "Portal_Orvel_21Orvel_Button",
+      "DescLocalKey": "",
+      "ShowCondition": [
+        "EventShop",
+        "2021_Orvel_Shop"
+      ],
+      "OpenConditionLocalKey": "",
+      "EventBuffCondition": [
+        "EventShop",
+        "2021_Orvel_Shop"
+      ],
+      "VisualChapterIndex": "",
+      "MoveTaskType": "MoveToNode",
+      "MoveTaskValue": [
+        "99",
+        "47",
+        "true",
+        "true",
+        "true"
+      ]
+    },
+    {
+      "Category": "Orvel",
+      "SubCategory": "EventNode",
+      "ContentsShowIndex": 26,
+      "MenuButtonLocalkey": "",
+      "TitleLocalKey": "20SPRING_FESTIVAL_DUNGEON",
+      "SubComponentShape": "Small",
+      "MainImagePath": "Portal_Orvel_Valentine01_Button",
+      "DescLocalKey": "",
+      "ShowCondition": [
+        "EventShop",
+        "2020_Valentine_Shop"
+      ],
+      "OpenConditionLocalKey": "",
+      "EventBuffCondition": [
+        "EventShop",
+        "2020_Valentine_Shop"
+      ],
+      "VisualChapterIndex": "",
+      "MoveTaskType": "MoveToNode",
+      "MoveTaskValue": [
+        "99",
+        "38",
+        "true",
+        "true",
+        "true"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "localization": {
+    "English": {
+      "SPRK_PORTAL_CHRISTMAS_2017": "Christmas Dungeon 2017",
+      "SPRK_PORTAL_CHRISTMAS_2018": "Christmas Dungeon 2018"
+    },
+    "Korean": {
+      "SPRK_PORTAL_CHRISTMAS_2017": "크리스마스 던전 2017",
+      "SPRK_PORTAL_CHRISTMAS_2018": "크리스마스 던전 2018"
+    },
+    "Japanese": {
+      "SPRK_PORTAL_CHRISTMAS_2017": "クリスマスダンジョン 2017",
+      "SPRK_PORTAL_CHRISTMAS_2018": "クリスマスダンジョン 2018"
+    },
+    "ChineseSimplified": {
+      "SPRK_PORTAL_CHRISTMAS_2017": "圣诞地下城 2017",
+      "SPRK_PORTAL_CHRISTMAS_2018": "圣诞地下城 2018"
+    },
+    "ChineseTraditional": {
+      "SPRK_PORTAL_CHRISTMAS_2017": "聖誕地下城 2017",
+      "SPRK_PORTAL_CHRISTMAS_2018": "聖誕地下城 2018"
+    },
+    "French": {
+      "SPRK_PORTAL_CHRISTMAS_2017": "Donjon de Noël 2017",
+      "SPRK_PORTAL_CHRISTMAS_2018": "Donjon de Noël 2018"
+    },
+    "German": {
+      "SPRK_PORTAL_CHRISTMAS_2017": "Weihnachtsdungeon 2017",
+      "SPRK_PORTAL_CHRISTMAS_2018": "Weihnachtsdungeon 2018"
+    },
+    "Russian": {
+      "SPRK_PORTAL_CHRISTMAS_2017": "Рождественское подземелье 2017",
+      "SPRK_PORTAL_CHRISTMAS_2018": "Рождественское подземелье 2018"
+    }
+  }
+}

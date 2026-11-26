@@ -5,6 +5,7 @@ pub mod battle;
 pub mod community;
 pub mod extensions;
 pub(crate) mod episodes;
+pub(crate) mod festivals;
 pub mod heroes;
 pub mod inventory;
 pub mod progression;

@@ -62,9 +62,17 @@
       "sha256": "4c4413170b8f421b669a36451cf51eeb1e3fd3fa3e2e1065d5a18958f88a30d4",
       "originalSha256": "909e11ee86037c1a107d38cf2962fa8a3d1a88a795c7daa03d84327c0dd8fe77"
     },
+    "TableJit/EntryMenuSettingTable.jit": {
+      "sha256": "271f96a636d448a38df08a6aefcd343c413f14b532a2b5b6c0482b2929d0a386",
+      "originalSha256": "70f8dad846b6a02bd30a758032ffa2923ac729d0e37bf0a4b403d3b3ebb0d18a"
+    },
     "TableJit/EquipItemTable.jit": {
       "sha256": "e32decfca6955e47b1880562d5780e28a9f821191a3493da1c238f40cf2e2dfd",
       "originalSha256": "a0664178e07ee5a1d0ec3e2bfdfb1d0bce7aba18b4861a06d50537716bdfe362"
+    },
+    "TableJit/EventDungeonTable.jit": {
+      "sha256": "9f8b22f5dd2e5a7c7a619705bffa55d7bbc6cd48d4f84d3c19e64e6c96625fcd",
+      "originalSha256": "05fb25af64ae45c27f6408406aea87460014494604c9fece50396326b101a1e6"
     },
     "TableJit/GameOptionTable.jit": {
       "sha256": "27cc3fdc711fd80ea2b2d15bc67ca6ddc727434af0299755d02653faf9961947",
@@ -139,7 +147,7 @@
       "originalSha256": "84669507a5f5e0b729bae7d4d860effdf8a4771805376b5c11695daeb960751a"
     },
     "TableJit/PortalRenewalTable.jit": {
-      "sha256": "60d0ade5608d18e9e8668de5e030051543b984227bd48293a280c5f7872a5fb2",
+      "sha256": "de5742bbd15a3de25b8d4babf7eb83f72c3891aaca672b8823048af4f7aac2eb",
       "originalSha256": "69a81846676ab716f9a87c2fd65376984a7eefc38dc261092136eddb42fdba54"
     },
     "TableJit/PortalTable.jit": {

@@ -92,6 +92,7 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
         "pet" => pets::execute(&mut tx, s, a, &r, action).await,
         "equip_gacha" => summons::execute(&mut tx, s, a, &r, action).await,
         "shop" => offers::execute(&mut tx, s, a, &r, action).await,
+        "phase_step" => crate::api::festivals::phase_step::execute(&mut tx, s, a, &r, action).await,
         _ => events::execute(&mut tx, s, a, &r, action).await,
     };
     match result {
@@ -295,10 +296,12 @@ pub(crate) async fn snapshot(s: &AppState, a: i64) -> Result<Value> {
     item::init(&mut tx, s, a).await?;
     let mut out = summons::snapshot(&mut tx, s, a).await?;
     merge(&mut out, pets::snapshot(&mut tx, s, a).await?);
+    // Craft counts belong to the open Ophelia's Workshop run.
+    let craft = crate::api::festivals::Calendar::load(&mut tx, s).await?.craft().map(|(_, season)| season);
     out["EventCraftItemInfos"] = json!(list(&mut tx, a, "event_craft")
         .await?
         .into_iter()
-        .filter(|v| n(v, "Season") == n(&s.tables.live.rules["Events"], "Season"))
+        .filter(|v| Some(n(v, "Season")) == craft)
         .collect::<Vec<_>>());
     out["PlayerProductPurchaseInfos"] = json!(offers::purchases(&mut tx, s, a).await?);
     tx.commit().await?;

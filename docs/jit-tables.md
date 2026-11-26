@@ -208,6 +208,11 @@ Known limits:
   values, so `build` accepts this table when the rebuilt rows decode to the
   original rows apart from those three fields (`JitTable.ForcedGetterFields`);
   any other difference still refuses the patch.
+- `PortalRenewalTable` likewise: `SprkPetPresentation.Shape` forces
+  `SubComponentShape` of the Pet rows, so its rebuild is accepted apart from
+  that field. Its container is list-only (`JitDataContainerListOnly`), so rows
+  may share a key (the archive's Orvel `EventNode` shortcuts do); `build` allows
+  duplicate keys only in such tables.
 - Tables whose containers need a running game are not listed; `dump` reports
   `Unknown table`.
 - Only hashed localization packers are supported (all shipped languages are).

@@ -787,6 +787,8 @@ public class UserManager
 			SetStaminaRechargeTime(info.Type, info.StaminaRechargeTime);
 			SetStaminaRechargeCount(info.Type, info.RechargeCount);
 			_staminaManager.ApplyExpectedRechargeTime(info.Type, info.NextRechargeRemainTime, info.FullRechargeRemainTime);
+			// SprkEventTicket: keep each event's own ticket balance.
+			SprkEventTicket.Observe(info);
 		}
 	}
 

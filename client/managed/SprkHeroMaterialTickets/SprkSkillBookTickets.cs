@@ -114,15 +114,10 @@ public static class SprkSkillBookTickets
 		public int Value;
 	}
 
+	// Redeems a selection ticket (directly or through a nested selector) into a material, then runs `next`.
 	public sealed class UseBook : SelectionItemUsePopup.IListener, SprkHeroMaterialTickets.ITicketPrefill
 	{
-		private readonly HeroSkillDesc.Listener listener;
-
-		private readonly HeroSkillDesc desc;
-
-		private readonly int slot;
-
-		private readonly int extend;
+		private readonly Action next;
 
 		public readonly int material;
 
@@ -146,14 +141,11 @@ public static class SprkSkillBookTickets
 
 		public int Via => via;
 
-		public UseBook(HeroSkillDesc.Listener listener, HeroSkillDesc desc, int slot, int extend, int material, int required)
+		public UseBook(int material, int required, Action next)
 		{
-			this.listener = listener;
-			this.desc = desc;
-			this.slot = slot;
-			this.extend = extend;
 			this.material = material;
 			this.required = required;
+			this.next = next;
 		}
 
 		public void Show(Route route)
@@ -245,24 +237,11 @@ public static class SprkSkillBookTickets
 						else
 						{
 							Finish(popup, keepOpen: false);
-							Continue();
+							next?.Invoke();
 						}
 					}
 				}
 			});
-		}
-
-		private void Continue()
-		{
-			if (!(desc == null) && desc.HeroInfo != null)
-			{
-				desc.Refresh();
-				Helper.SkillBookInfo skillBookInfo = Helper.GetSkillBookInfo(desc.HeroInfo, slot);
-				if (skillBookInfo.BookItemData != null && skillBookInfo.BookItemData.Index == material && skillBookInfo.CurItemCount >= required)
-				{
-					listener.ExtendSkill(slot, extend, isEnoughItem: true);
-				}
-			}
 		}
 
 		private void Finish(SelectionItemUsePopup popup, bool keepOpen)
@@ -566,24 +545,49 @@ public static class SprkSkillBookTickets
 			listener.ExtendSkill(slot, extend, isEnoughItem: true);
 			return;
 		}
-		List<Route> list = Routes(skillBookInfo.BookItemData.Index);
-		if (list.Count == 0)
+		int book = skillBookInfo.BookItemData.Index;
+		if (!Offer(skillBookInfo.BookItemData, extendItemCount, SprkText.Get("Skill Book Tickets"), delegate
+		{
+			if (!(desc == null) && desc.HeroInfo != null)
+			{
+				desc.Refresh();
+				Helper.SkillBookInfo skillBookInfo2 = Helper.GetSkillBookInfo(desc.HeroInfo, slot);
+				if (skillBookInfo2.BookItemData != null && skillBookInfo2.BookItemData.Index == book && skillBookInfo2.CurItemCount >= extendItemCount)
+				{
+					listener.ExtendSkill(slot, extend, isEnoughItem: true);
+				}
+			}
+		}))
 		{
 			listener.ExtendSkill(slot, extend, isEnoughItem: false);
-			return;
 		}
-		UseBook use = new UseBook(listener, desc, slot, extend, skillBookInfo.BookItemData.Index, extendItemCount);
+	}
+
+	// Opens the ticket popup for `material`, prefilled with the shortfall. With several matching tickets the
+	// player chooses one first. `next` runs after a successful redemption. Returns false when no ticket matches.
+	public static bool Offer(ItemData material, int required, string title, Action next)
+	{
+		if (material == null || required <= 0)
+		{
+			return false;
+		}
+		List<Route> list = Routes(material.Index);
+		if (list.Count == 0)
+		{
+			return false;
+		}
+		UseBook use = new UseBook(material.Index, required, next);
 		if (list.Count == 1)
 		{
 			use.Show(list[0]);
-			return;
+			return true;
 		}
 		List<Tuple<ItemData, int>> list2 = new List<Tuple<ItemData, int>>();
 		foreach (Route item in list)
 		{
 			list2.Add(new Tuple<ItemData, int>(item.Ticket, item.Count));
 		}
-		SelectItemMessagePopup.Open2(SprkText.Get("Skill Book Tickets"), SprkText.Format("Choose a ticket for {0}.", skillBookInfo.BookItemData.Name), list2, delegate(SelectItemMessagePopup popup, int index, int count)
+		SelectItemMessagePopup.Open2(title, SprkText.Format("Choose a ticket for {0}.", material.Name), list2, delegate(SelectItemMessagePopup popup, int index, int count)
 		{
 			foreach (Route item2 in Routes(use.material))
 			{
@@ -594,5 +598,6 @@ public static class SprkSkillBookTickets
 				}
 			}
 		});
+		return true;
 	}
 }

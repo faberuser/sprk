@@ -29,7 +29,21 @@ public class CampaignChapterData : IDataKeySelector<int>
 	public string Name { get; set; }
 
 	[Key(7)]
-	public string Map { get; set; }
+	public string Map
+	{
+		// SprkSquareLayout: Orvel's festival maps.
+		get
+		{
+			return SprkSquareLayout.Map(Index, _sprkMap);
+		}
+		set
+		{
+			_sprkMap = value;
+		}
+	}
+
+	[IgnoreMember]
+	private string _sprkMap;
 
 	[Key(8)]
 	public int MapSizeX { get; set; }

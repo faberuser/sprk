@@ -69,6 +69,7 @@ public class GlobalUpdateBehaviour : MonoBehaviour
 	private void Update()
 	{
 		SprkMissionHistory.Tick();
+		SprkEventTicket.Tick();
 		SprkImageRecovery.TickGlobal();
 		SprkStoryAuto.Tick();
 		SprkConquest.Tick();

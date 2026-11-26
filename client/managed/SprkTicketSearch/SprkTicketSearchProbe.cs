@@ -1117,9 +1117,49 @@ public static class SprkTicketSearchProbe
 		return "PASS: native ticket input/Max/Plus/Minus/OK and ownership at 100000; material prefill; package cap 1000, ownership and special limits. No account items consumed.";
 	}
 
+	// Technomagic Enhancement: stones plus stone selection tickets decide whether Enhance stays usable.
+	private static string TechnomagicStoneTest()
+	{
+		EnsureAccount();
+		NGame2.NAccount.UserItemManager items = GlobalAutoBehaviour<AccountManager>.instance.ItemManager;
+		ItemData stone = GameRoot.Instance.ItemDataContainer.GetDataByCode("TECHNOMAGIC_UPGRADE_KNIGHT");
+		ItemData ticket = GameRoot.Instance.ItemDataContainer.GetDataByCode("PACKAGE_BOX_TECHNOMAGIC_REINFORCE_SELECT_1");
+		Check(stone != null && ticket != null && ticket.Type == ItemType.PackageSelectItem, "stone and stone selection ticket exist");
+		items.Set(new ItemInfo[2]
+		{
+			new ItemInfo { ItemIndex = stone.Index, Count = 195 },
+			new ItemInfo { ItemIndex = ticket.Index, Count = 0 }
+		});
+		ItemInfo owned = items.Get(stone.Index);
+		ItemInfo tickets = items.Get(ticket.Index);
+		ValanceAwakenData data = new ValanceAwakenData { ItemCode1 = stone.Code, ItemCount1 = 465, ReqGold = 0 };
+		Check(!SprkTechnomagicStoneTickets.Coverable(data), "195/465 stones and no tickets stays disabled");
+		Check(SprkSkillBookTickets.Routes(stone.Index).All(r => r.Ticket.Index != ticket.Index), "no route without tickets");
+		tickets.Count = 269;
+		Check(!SprkTechnomagicStoneTickets.Coverable(data), "195 stones + 269 tickets is one short");
+		tickets.Count = 270;
+		Check(SprkTechnomagicStoneTickets.Coverable(data), "195 stones + 270 tickets covers 465");
+		Check(SprkSkillBookTickets.Routes(stone.Index).Any(r => r.Ticket.Index == ticket.Index && r.Via == 0 && r.Count == 270), "direct route through the stone selection ticket");
+		Check(SprkHeroMaterialTickets.InitialCount(465, 195, 270) == 270, "popup prefill is the shortfall");
+		Check(SprkHeroMaterialTickets.InitialCount(465, 195, 5000) == 270, "popup prefill does not exceed the shortfall");
+		tickets.Locked = 1;
+		Check(!SprkTechnomagicStoneTickets.Coverable(data), "locked tickets are ignored");
+		tickets.Locked = 0;
+		owned.Count = 465;
+		tickets.Count = 0;
+		Check(SprkTechnomagicStoneTickets.Coverable(data), "enough stones needs no tickets");
+		Check(!SprkTechnomagicStoneTickets.Coverable(null), "no enhancement selected");
+		owned.Count = 0;
+		return "PASS: stone selection ticket found; Enhance coverage at 195+269 (off), 195+270 (on), locked ticket (off), stones only (on); prefill = shortfall.";
+	}
+
 	public static string Run(string mode)
 	{
 		Prepare();
+		if (mode == "technomagic-stone-test")
+		{
+			return TechnomagicStoneTest();
+		}
 		if (mode == "inventory-bulk-test")
 		{
 			return InventoryBulkTest();

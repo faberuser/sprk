@@ -2,48 +2,247 @@
   "Description": "Local non-cash definitions. Prices, schedules, pity and missing pet rules are configurable approximations, not recovered live-server rules. Begin/End use UTC Unix seconds; zero is unbounded.",
   "Events": {
     "Enabled": true,
-    "Season": 1,
-    "Version": "local-1",
     "Begin": 0,
     "End": 0,
-    "CraftGroups": [
-      "210608_1",
-      "210928_1",
-      "210928_2",
-      "211221_1",
-      "211221_2"
-    ],
-    "RouletteIndices": [
-      1,
-      2,
-      3,
-      4
-    ],
-    "ForgeEnabled": true,
     "Contribution": 1000,
-    "DailyContributionLimit": 10000,
-    "Calendar": [
+    "DailyContributionLimit": 10000
+  },
+  "Festivals": {
+    "Description": "Local annual schedule from docs/proposed-event-calendar.md, in UTC. Annual ranges are inclusive MM-DD days and an end before its start runs into the next year; Monthly Days are an inclusive day range; Weekly runs Days days from each From weekday. Nodes are hidden chapter-99 world-map nodes, Shops map native EventShop condition codes to ShopTable indices (0 opens only the client condition). ExpireCurrencies and ExpireItems are cleared when the last overlapping festival using them closes. Around runs Before..After days around each listed date (holidays that move, such as Lunar New Year; extend Dates for later years). Gifts mail the Daily item on each day of a run an account logs in and the Final item once after Days such days. Shops SprkWorldBossChristmas and SprkWorldBossMoonRabbit only signal the client to show the Protianus and Mountain Fortress World Bosses in their event forms (SprkWorldBossSkin). Bosses would schedule a standalone event boss; none has a client entry. GM overrides: python server/gm.py festival.",
+    "Enabled": true,
+    "LookaheadDays": 45,
+    "Events": [
       {
-        "Id": 1,
-        "BonusType": 0,
-        "Regular": 0,
-        "Color": "FFFFFF",
-        "BeginYear": 2026,
-        "BeginMonth": 1,
-        "BeginDay": 1,
-        "EndYear": 2099,
-        "EndMonth": 12,
-        "EndDay": 31,
-        "DayOfWeek": "",
-        "Show": 1,
-        "LocalInfo": {
-          "Language": "en",
-          "Title": "Local crafting and World Tree event",
-          "SimpleDescription": "Craft, forge and contribute to the World Tree.",
-          "Description": "Local server event rules.",
-          "Nametag": "Local",
-          "NoticeUrl": ""
+        "Key": "lunar-new-year",
+        "Title": "Lunar New Year",
+        "Description": "Greet Orvel's New Year: log in each day for a Happy New Year Gift, and on 7 days for a New Year's Gratitude Gift.",
+        "Color": "E8483B",
+        "Around": {
+          "Dates": ["2026-02-17", "2027-02-06", "2028-01-26", "2029-02-13", "2030-02-03", "2031-01-23", "2032-02-11", "2033-01-31", "2034-02-19", "2035-02-08", "2036-01-28"],
+          "Before": 7,
+          "After": 14
+        },
+        "Shops": {
+          "SprkLunarNewYear": 0
+        },
+        "Gifts": {
+          "Daily": {"Item": "PACKAGE_EVENT_NEWYEAR_BOX1", "Count": 1, "Title": "Happy New Year Gift", "Content": "A gift for those who greeted Orvel's New Year together."},
+          "Days": 7,
+          "Final": {"Item": "PACKAGE_EVENT_NEWYEAR_BOX2", "Count": 1, "Title": "New Year's Gratitude Gift", "Content": "A gift for those who celebrated Orvel's New Year together."}
         }
+      },
+      {
+        "Key": "childrens-rainbow",
+        "Title": "Children's Rainbow",
+        "Description": "Log in each day for a Children's Rainbow gift box.",
+        "Color": "7FC8F8",
+        "Annual": [["05-01", "05-14"]],
+        "Gifts": {
+          "Daily": {"Item": "PACKAGE_CHILDRENSRAINBOW_BOX", "Count": 1, "Title": "Children's Rainbow Gift", "Content": "A gift for Children's Day in Orvel."}
+        }
+      },
+      {
+        "Key": "valentine",
+        "Title": "Spring Festival",
+        "Description": "Valentine's edition event dungeon and shop.",
+        "Color": "FF8FB1",
+        "Annual": [["02-01", "02-28"]],
+        "Nodes": [38],
+        "Chapters": [30034],
+        "Shops": {"2020_Valentine_Shop": 33},
+        "ExpireCurrencies": ["EventDungeonPoint", "EventDungeonPoint2"]
+      },
+      {
+        "Key": "semester",
+        "Title": "Exciting New Semester",
+        "Color": "8FD3FF",
+        "Annual": [["03-01", "03-21"]],
+        "Nodes": [24],
+        "Chapters": [30022],
+        "Shops": {"2019_Semester_Shop": 25},
+        "ExpireCurrencies": ["EventDungeonPoint"]
+      },
+      {
+        "Key": "orvel-foundation",
+        "Title": "Orvel Foundation Day",
+        "Color": "FFD36B",
+        "Annual": [["03-15", "03-31"]],
+        "Nodes": [47],
+        "Chapters": [30042],
+        "Shops": {"2021_Orvel_Shop": 36},
+        "ExpireCurrencies": ["EventDungeonPoint"]
+      },
+      {
+        "Key": "outing-spring",
+        "Title": "Outing Event",
+        "Color": "9BE38F",
+        "Annual": [["04-01", "04-21"]],
+        "Nodes": [25],
+        "Chapters": [30023],
+        "Shops": {"2019_Picnic_Shop": 26},
+        "ExpireCurrencies": ["EventDungeonPoint"]
+      },
+      {
+        "Key": "cooking",
+        "Title": "Juno's Cooking Quest",
+        "Color": "FFB36B",
+        "Annual": [["06-01", "06-21"]],
+        "Nodes": [31],
+        "Chapters": [30027],
+        "Shops": {"2021_CookingLord_Shop": 41},
+        "ExpireCurrencies": ["EventDungeonPoint", "EventDungeonPoint2"]
+      },
+      {
+        "Key": "summer",
+        "Title": "Summer Festival",
+        "Description": "Summer Festival, Orvel Beach and Orvel Water Park.",
+        "Color": "4FC3F7",
+        "Annual": [["07-01", "08-31"]],
+        "Nodes": [13, 29, 42],
+        "Chapters": [30003, 30025, 30038],
+        "Shops": {"2021_Summer_Shop": 40},
+        "ExpireCurrencies": ["EventDungeonPoint", "EventDungeonPoint2"]
+      },
+      {
+        "Key": "outing-autumn",
+        "Title": "Outing Event (second edition)",
+        "Color": "C5E38F",
+        "Annual": [["09-01", "09-21"]],
+        "Nodes": [30],
+        "Chapters": [30026],
+        "Shops": {"2019_Picnic2_Shop": 28},
+        "ExpireCurrencies": ["EventDungeonPoint"]
+      },
+      {
+        "Key": "moon-rabbit",
+        "Title": "Moon Rabbit LuLu",
+        "Color": "D7C4FF",
+        "Annual": [["09-15", "10-05"]],
+        "Description": "Moon Rabbit LuLu: the Mountain Fortress World Boss in its event form.",
+        "Shops": {"SprkWorldBossMoonRabbit": 0}
+      },
+      {
+        "Key": "sports-day",
+        "Title": "Fall Sports Day: Muscle Festival",
+        "Color": "FF7043",
+        "Annual": [["10-01", "10-21"]],
+        "Nodes": [53],
+        "Chapters": [30045],
+        "Shops": {"21AUTUMNSPORTSDAY_SHOP": 44},
+        "ExpireCurrencies": ["EventDungeonPoint"]
+      },
+      {
+        "Key": "halloween",
+        "Title": "Halloween",
+        "Description": "Halloween and Haunted Mansion Adventure.",
+        "Color": "FF9800",
+        "Annual": [["10-15", "11-07"]],
+        "Nodes": [19, 32],
+        "Chapters": [30010, 30044],
+        "Shops": {"2018_Halloween_Shop": 24, "2021_Halloween_Shop": 43},
+        "ExpireCurrencies": ["EventDungeonPoint"]
+      },
+      {
+        "Key": "thanksgiving",
+        "Title": "Thanksgiving Defense",
+        "Color": "C68B59",
+        "Annual": [["11-15", "11-30"]],
+        "Nodes": [55],
+        "Chapters": [30047],
+        "Shops": {"EVENT_21THANKSGIVING": 0},
+        "ExpireCurrencies": ["EventDungeonPoint"]
+      },
+      {
+        "Key": "world-tree",
+        "Title": "Grow Baby World Tree",
+        "Color": "66BB6A",
+        "Annual": [["12-01", "12-20"]],
+        "Nodes": [56],
+        "Shops": {"2021_WorldTree_Shop": 45},
+        "WorldTree": true,
+        "ExpireCurrencies": ["EventDungeonPoint", "GrowWorldTreePoint"]
+      },
+      {
+        "Key": "christmas",
+        "Title": "Christmas",
+        "Description": "Troublesome Wish Box and the Unexpected Present Dungeon.",
+        "Color": "E53935",
+        "Annual": [["12-15", "01-07"]],
+        "Nodes": [12, 21, 36, 37],
+        "Chapters": [30002, 30021, 30048, 30049],
+        "Shops": {"2021_Christmas_Shop": 46},
+        "ExpireCurrencies": ["EventDungeonPoint"]
+      },
+      {
+        "Key": "christmas-boss",
+        "Title": "The Unstoppable Lonely King Protianus",
+        "Color": "B71C1C",
+        "Annual": [["12-15", "01-07"]],
+        "Description": "The Unstoppable Lonely King: the Protianus World Boss in its Christmas form.",
+        "Shops": {"SprkWorldBossChristmas": 0}
+      },
+      {
+        "Key": "ophelia-summer",
+        "Title": "Ophelia's Lucky Workshop",
+        "Color": "AB47BC",
+        "Annual": [["06-01", "06-21"]],
+        "Nodes": [50],
+        "Shops": {"EventCraft": 0, "EventRoulette": 0},
+        "Craft": ["210608_1"],
+        "Roulettes": [1, 2, 3, 4],
+        "ExpireItems": ["EVENTCRAFT_MATERIAL_1", "EVENTCRAFT_MATERIAL_2", "EVENTCRAFT_MATERIAL_3", "EVENTCRAFT_MATERIAL_4", "EVENTCRAFT_MATERIAL_5", "EVENTCRAFT_MATERIAL_6"]
+      },
+      {
+        "Key": "ophelia-autumn",
+        "Title": "Ophelia's Lucky Workshop",
+        "Color": "AB47BC",
+        "Annual": [["09-22", "10-12"]],
+        "Nodes": [50],
+        "Shops": {"EventCraft": 0, "EventRoulette": 0},
+        "Craft": ["210928_1", "210928_2"],
+        "Roulettes": [1, 2, 3, 4],
+        "ExpireItems": ["EVENTCRAFT_MATERIAL_1", "EVENTCRAFT_MATERIAL_2", "EVENTCRAFT_MATERIAL_3", "EVENTCRAFT_MATERIAL_4", "EVENTCRAFT_MATERIAL_5", "EVENTCRAFT_MATERIAL_6"]
+      },
+      {
+        "Key": "ophelia-winter",
+        "Title": "Ophelia's Lucky Workshop",
+        "Color": "AB47BC",
+        "Annual": [["12-15", "01-07"]],
+        "Nodes": [50],
+        "Shops": {"EventCraft": 0, "EventRoulette": 0},
+        "Craft": ["211221_1", "211221_2"],
+        "Roulettes": [1, 2, 3, 4],
+        "ExpireItems": ["EVENTCRAFT_MATERIAL_1", "EVENTCRAFT_MATERIAL_2", "EVENTCRAFT_MATERIAL_3", "EVENTCRAFT_MATERIAL_4", "EVENTCRAFT_MATERIAL_5", "EVENTCRAFT_MATERIAL_6"]
+      },
+      {
+        "Key": "lakrak-forge",
+        "Title": "Enhancement Lab Challenge",
+        "Description": "Lakrak's Forge. Each daily mission completed while it runs pays DailyMissionCoins Orvel Castle Gold Coins (the archived event text: earned through Daily Missions). A failed enhancement pays FailRemnantShare of that level's Guaranteed Enhancement remnants, a break BreakRemnantShare.",
+        "Color": "8D6E63",
+        "Monthly": {"Months": [2, 5, 8, 11], "Days": [1, 14]},
+        "Nodes": [51],
+        "Shops": {"Lakrak_Forge_Shop": 37},
+        "Forge": true,
+        "DailyMissionCoins": 5,
+        "FailRemnantShare": [1, 3],
+        "BreakRemnantShare": [1, 2],
+        "ExpireCurrencies": ["EventOrvelPoint"],
+        "ExpireItems": ["EVENT_MATERIAL_REINFORCE_1", "EVENT_MATERIAL_REINFORCE_BROKEN_1"]
+      },
+      {
+        "Key": "may-shop",
+        "Title": "May's Special Shop",
+        "Calendar": false,
+        "Monthly": {"Days": [1, 7]},
+        "Shops": {"MaiGemShop": 13}
+      },
+      {
+        "Key": "hot-time",
+        "Title": "Weekend Hot Time",
+        "Calendar": false,
+        "Weekly": {"From": "Sat", "Days": 2},
+        "BattleTypes": [1, 2, 9, 10, 18, 28, 39],
+        "Bonuses": {"BonusExp": 50, "BonusGold": 50, "BonusItem": 20}
       }
     ]
   },

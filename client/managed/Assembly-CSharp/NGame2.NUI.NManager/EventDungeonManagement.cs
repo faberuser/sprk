@@ -59,6 +59,7 @@ public class EventDungeonManagement : BaseManagement<EventDungeonManagement>, Ev
 
 	public void OpenEventDungeonSelect(int chapterindex, params int[] eventDungeonGroupIndices)
 	{
+		SprkEventTicket.Show(chapterindex);
 		EventDungeonManagement.eventDungeonGroupIndices = eventDungeonGroupIndices;
 		GetInstance<EventDungeonSelect>().Open(this, chapterindex, eventDungeonGroupIndices);
 	}
@@ -70,6 +71,7 @@ public class EventDungeonManagement : BaseManagement<EventDungeonManagement>, Ev
 
 	public void OpenEventDungeonList(int chapterIndex, int[] dungeonIndices = null, EventDungeonGroupData eventDungeonGroupData = null)
 	{
+		SprkEventTicket.Show(chapterIndex);
 		if (!skipDungeonList)
 		{
 			_eventDungeonGroupData = eventDungeonGroupData;

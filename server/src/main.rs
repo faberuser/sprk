@@ -384,6 +384,7 @@ pub(crate) fn game_routes(state: AppState) -> Router {
         .route("/quest/progress_client_main_quest", post(api::progression::progress_client_main_quest))
         .route("/clear_mission/get_clear_mission_reward", post(api::progression::get_clear_mission_reward))
         .route("/mission/sync_seen_categories", post(api::progression::mission_history_sync::sync))
+        .route("/sprk/event_ticket", post(api::battle::event_ticket))
         .route("/newbie_mission/get_newbie_mission_reward", post(api::progression::get_newbie_mission_reward))
         .route("/campaign/reward_clear_chapter", post(api::progression::reward_clear_chapter))
         .route("/world_map/receive_completed_reward", post(api::progression::receive_completed_reward))
