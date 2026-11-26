@@ -1,0 +1,12 @@
+{
+  "localization": {
+    "German": {
+      "SKILL_DESC_60008211": "Verringert den Krit. Widerstand von Gegnern im [Brand] Zustand um 500.",
+      "SKILL_DESC_60008220": "Verringert die gegn. MP pro Treffer um {1}. Bei Bossen werden die MP stattdessen um 500 verringert.",
+      "SKILL_DESC_60008230": "[Flammensturm] verringert die MP des Ziels pro Treffer um 100.",
+      "SKILL_DESC_8240": "Isolet erhöht den Krit. Schaden um [64ff64]{2}[-] % und regeneriert bei jede Aktivierung der Skills [64ff64]{3}[-] MP.\nErzeugt eine [64ffff][Explosionsreaktion][-] und erhöht den eigenen ANG um [64ff64]{4}[-] %. Dieser Effekt kann bis zu [64ffff]{5}[-]-mal gestapelt werden und kann nicht entfernt werden.\nErzeugt ein [64ff64][Flammensturm][-] und verringert den erhaltenen Mag. Schaden aller Verbündete um [64ff64]{6}[-] %. Dieser Effekt kann bis zu [64ffff]{7}[-]-mal gestapelt werden und kann nicht entfernt werden.",
+      "SKILL_DESC_91008240": "[Technomagie-Essenz] erhöht die max. Stapelungen von [Explosionsreaktion] um {1} und die max. Stapelungen von [Flammensturm] um {2}. Krit. Schaden erhöht sich um {3} %. Jede erzeugte [Explosionsreaktion] stapelt 1-mal zusätzlich.",
+      "SKILL_DESC_93008202": "Erhöht den Schaden von Isolet gegen Feinde, die keine Helden sind, um {1} % und verringert jede Sek. den Cooldown ihrer aktiven Skills um 1 Sek. während der Seelen-Wirkungsdauer."
+    }
+  }
+}
