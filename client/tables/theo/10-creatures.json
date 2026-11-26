@@ -1,0 +1,172 @@
+{
+  "table": "CreatureTable",
+  "upsert": [
+    {
+      "Index": 40,
+      "ReplaceNameKey": "",
+      "CodeName": "Hero.Theo",
+      "ModelCode": "",
+      "ModelPrefix": "",
+      "OpenType": "Opened",
+      "OpenDate": 171109,
+      "Race": "Hero",
+      "TagType": "Warrior",
+      "AttrType": [
+        "Magical"
+      ],
+      "ArchiveStory": "",
+      "AttackWeakType": [
+        "Fire"
+      ],
+      "PositionType": "Forward",
+      "PositionWeight": 600,
+      "SizeMm": 500,
+      "HeightMm": 1850,
+      "IgnoreCc": [
+        "False"
+      ],
+      "GradeStoneItemCode": "SKILLBOOK_WARRIOR_1",
+      "StarStoneItemCode": "NO_ITEM",
+      "BaseSkillIndex": 4000,
+      "SkillIndex1": 4010,
+      "SkillIndex2": 4020,
+      "SkillIndex3": 4030,
+      "SkillIndex4": 4040,
+      "SkillExtend1": [
+        4011,
+        4012,
+        4013
+      ],
+      "SkillExtend2": [
+        4021,
+        4022,
+        4023
+      ],
+      "SkillExtend3": [
+        4031,
+        4032,
+        4033
+      ],
+      "SkillExtend4": [
+        4041,
+        4042,
+        4043
+      ],
+      "ExtraSkill": [
+        4014,
+        4015,
+        4024,
+        4034,
+        4044,
+        4003,
+        4045,
+        4025,
+        4046
+      ],
+      "GetTranscendSkillPoint": [
+        10,
+        15,
+        15,
+        15,
+        25
+      ],
+      "TranscendSkill1": [
+        60000001,
+        60000002,
+        60000003,
+        60000004,
+        60000033
+      ],
+      "ReqSkillPoint1": [
+        10,
+        10,
+        10,
+        10,
+        10
+      ],
+      "TranscendSkill2": [
+        60000009,
+        60000010,
+        60000011,
+        60000012,
+        60000035
+      ],
+      "ReqSkillPoint2": [
+        15,
+        15,
+        15,
+        15,
+        15
+      ],
+      "TranscendSkill3": [
+        60004010,
+        60004011,
+        60004020,
+        60004021,
+        60004030,
+        60004031,
+        60004040,
+        60004041
+      ],
+      "ReqSkillPoint3": [
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15
+      ],
+      "TranscendSkill5": [
+        60004050,
+        60004051
+      ],
+      "ReqSkillPoint5": [
+        15,
+        15
+      ],
+      "StartHeroStar": 3,
+      "ReplaceDescKey": "",
+      "ReplaceTitleKey": "",
+      "ClearTip": "",
+      "AddStamina": 1,
+      "HeroPositionIcon1": "icon_raidmacro_attack",
+      "HeroPositionText1": "HERO_POSITION_15",
+      "HeroPositionIcon2": "icon_raidmacro_state",
+      "HeroPositionText2": "HERO_POSITION_57",
+      "HeroPositionIcon3": "icon_raidmacro_state",
+      "HeroPositionText3": "HERO_POSITION_39",
+      "HeroPositionIcon4": "Img_Position",
+      "HeroPositionText4": "HERO_TYPE_FRONT",
+      "TranscendRecommend1": [
+        60000001,
+        60000033,
+        60000009,
+        60004040,
+        60004050,
+        60004051
+      ],
+      "TranscendRecommend3": [
+        60000001,
+        60000002,
+        60000010,
+        60004040,
+        60004020,
+        60004050
+      ],
+      "EquipoptionRecommend1": [
+        "STAT_TYPE.PHYSICAL_CRITICAL_CHANCE",
+        "STAT_TYPE.PHYSICAL_CRITICAL_POWER",
+        "STAT_TYPE.ATTACK_SPEED"
+      ],
+      "EquipoptionRecommend3": [
+        "STAT_TYPE.PHYSICAL_CRITICAL_CHANCE",
+        "OPERATION_TYPE.MOD_TOUGHNESS",
+        "STAT_TYPE.ATTACK_SPEED"
+      ],
+      "SoulWeaponBasicSkillIndex": 93004000,
+      "PlayableCharacter": true
+    }
+  ]
+}

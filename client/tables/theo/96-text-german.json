@@ -1,0 +1,37 @@
+{
+  "localization": {
+    "German": {
+      "SKILL_DESC_4010": "Greift den Gegner 16 Mal für insgesamt[ffc800]{1}[-] Mag. Schaden an. Bei jedem Krit. Schlag erhöht sich der Krit. Schaden um 3 % für 20 Sek. Außerdem 30 %ige Chance [ffc800]{2}[-] zusätzlichen Mag. Schaden zu verursachen und für 0,3 Sek. zu betäuben. Krit. Schaden kann sich bis zu 30 Mal kumulieren..",
+      "SKILL_DESC_4020": "Versetzt bei Aktivierung in den „Blitzgott“ Zustand. Wirft einen Speer aus Blitzen auf den Gegner, um[ffc800]{1}[-] Mag. Schaden zu verursachen. Der getroffenen Gegner erleidet für [64ffff]{2}[-] Sek. [ffc800]{3} %[-] erhöhten Mag. Schaden. Im „Blitzgott“ Zustand wird [64ffff]{4}[-] Sek. lang die „Für Jane“ Aktivierungsrate um 40 % und ANG um [64ff64]{5}[-] erhöht. Der „Blitzgott“ Zustand kann nicht entfernt werden.",
+      "SKILL_DESC_4030": "Springt zu einem Gegner und rammt einen Speer in den Boden, der das Ziel und umstehende Gegner 5 Mal für [ffc800]{1}[-] Mag. Schaden trifft und sie 3 Sek. lang betäubt. Wenn der Gegner ein Boss ist, ignoriert der Angriff die VERT und betäubt stattdessen 5 Sek. lang.",
+      "SKILL_DESC_4040": "Erhöht Krit. Chance um 100 und Lebensraub um 200. Jeder normale Angriff verursacht mit 20% Wahrscheinlichkeit {1} Magieschaden und betäubt für 0.7 Sek.",
+      "SKILL_DESC_60004010": "Erhält während der Nutzung Massenkontroll-Immunität.",
+      "SKILL_DESC_60004011": "Betäubungszeit ist um 0,2 Sek. erhöht.",
+      "SKILL_DESC_60004020": "Erhöht im Blitzgott-Status den Schaden an Helden um 10 %.",
+      "SKILL_DESC_60004021": "Erhöht im Blitzgott-Status den Bossmonstern zugefügten Schaden um 10 %.",
+      "SKILL_DESC_60004030": "Erhöht Schaden um 100 %, wenn nur 1 Feind auf dem Schlachtfeld ist.",
+      "SKILL_DESC_60004031": "Entfernt positive Effekte von getroffenen Gegnern.",
+      "SKILL_DESC_60004040": "Erhöht Schaden um 100 %, wenn nur 1 Feind auf dem Schlachtfeld ist.",
+      "SKILL_DESC_60004041": "Schaden ist um 40 % erhöht und Betäubungszeit ist um 0,3 Sek. erhöht.",
+      "SKILL_DESC_60004051": "Erhält bei Angriffen [Ehre des Ritters], wodurch der Schaden bei Feinden, die keine Helden sind, um 1 % erhöht wird. Dieser Effekt kann nicht entfernt werden und kann bis zu 20-mal gestapelt werden.",
+      "SKILL_DESC_90000400": "Mit jedem Normal-Angriff und mit jedem Skill-Angriff wird „Blitz“ gestapelt. Wenn 50 Stapel erreicht sind, wird „Blitzschlag, Legios“ aktiviert, was für {1} Sek. ANG-GESCHW. um 300, Krit. Schaden um 100 % und VERT-Durchdr. um 300 erhöht. „Blitz“ wird auch im „Blitzschlag, Legios“ Zustand gestapelt. Dieser Effekt kann nicht entfernt werden.",
+      "SKILL_DESC_90000401": "Mit jedem Normal-Angriff und mit jedem Skill-Angriff wird „Blitz“ gestapelt. Wenn 50 Stapel erreicht sind, wird „Blitzschlag, Legios“ aktiviert, was für {1} Sek. ANG-GESCHW. um 360, Krit. Schaden um 120 % und VERT-Durchdr. um 360 erhöht. „Blitz“ wird auch im „Blitzschlag, Legios“ Zustand gestapelt. Dieser Effekt kann nicht entfernt werden.",
+      "SKILL_DESC_90000402": "Mit jedem Normal-Angriff und mit jedem Skill-Angriff wird „Blitz“ gestapelt. Wenn 50 Stapel erreicht sind, wird „Blitzschlag, Legios“ aktiviert, was für {1} Sek. ANG-GESCHW. um 430, Krit. Schaden um 144 % und VERT-Durchdr. um 430 erhöht. „Blitz“ wird auch im „Blitzschlag, Legios“ Zustand gestapelt. Dieser Effekt kann nicht entfernt werden.",
+      "SKILL_DESC_90000403": "Mit jedem Normal-Angriff und mit jedem Skill-Angriff wird „Blitz“ gestapelt. Wenn 50 Stapel erreicht sind, wird „Blitzschlag, Legios“ aktiviert, was für {1} Sek. ANG-GESCHW. um 520, Krit. Schaden um 173 % und VERT-Durchdr. um 520 erhöht. „Blitz“ wird auch im „Blitzschlag, Legios“ Zustand gestapelt. Dieser Effekt kann nicht entfernt werden.",
+      "SKILL_DESC_90000404": "Mit jedem Normal-Angriff und mit jedem Skill-Angriff wird „Blitz“ gestapelt. Wenn 50 Stapel erreicht sind, wird „Blitzschlag, Legios“ aktiviert, was für {1} Sek. ANG-GESCHW. um 620, Krit. Schaden um 208 % und VERT-Durchdr. um 620 erhöht. „Blitz“ wird auch im „Blitzschlag, Legios“ Zustand gestapelt. Dieser Effekt kann nicht entfernt werden.",
+      "SKILL_DESC_90000405": "Mit jedem Normal-Angriff und mit jedem Skill-Angriff wird „Blitz“ gestapelt. Wenn 50 Stapel erreicht sind, wird „Blitzschlag, Legios“ aktiviert, was für {1} Sek. ANG-GESCHW. um 750, Krit. Schaden um 250 % und VERT-Durchdr. um 750 erhöht. „Blitz“ wird auch im „Blitzschlag, Legios“ Zustand gestapelt. Dieser Effekt kann nicht entfernt werden.",
+      "SKILL_DESC_91004020": "[Blitzgott] erhöht die ANG-GESCHW. während der Wirkungsdauer um 300 und die Aktivierungschance von 'Für Jane' wird um zus. 10 % erhöht.",
+      "SKILL_DESC_91004021": "[Blitzgott] erhöht die ANG-GESCHW. während der Wirkungsdauer um 300 und die Aktivierungschance von 'Für Jane' wird um zus. 12.5 % erhöht.",
+      "SKILL_DESC_91004022": "[Blitzgott] erhöht die ANG-GESCHW. während der Wirkungsdauer um 300 und die Aktivierungschance von 'Für Jane' wird um zus. 15.5 % erhöht.",
+      "SKILL_DESC_91004023": "[Blitzgott] erhöht die ANG-GESCHW. während der Wirkungsdauer um 300 und die Aktivierungschance von 'Für Jane' wird um zus. 20 % erhöht.",
+      "SKILL_DESC_91004024": "[Blitzgott] erhöht die ANG-GESCHW. während der Wirkungsdauer um 300 und die Aktivierungschance von 'Für Jane' wird um zus. 25 % erhöht.",
+      "SKILL_DESC_91004025": "[Blitzgott] erhöht die ANG-GESCHW. während der Wirkungsdauer um 300 und die Aktivierungschance von 'Für Jane' wird um zus. 30 % erhöht.",
+      "SKILL_DESC_91004040": "[Für Jane] erhöht die Aktivierungschance um 20 % und die eigene ANG-GESCHW. zu Beginn jedes Kampfes für 30 Sek. um 500. Dieser Effekt kann nicht entfernt werden.",
+      "SKILL_DESC_91004041": "[Für Jane] erhöht die Aktivierungschance um 24 % und die eigene ANG-GESCHW. zu Beginn jedes Kampfes für 30 Sek. um 500. Dieser Effekt kann nicht entfernt werden.",
+      "SKILL_DESC_91004042": "[Für Jane] erhöht die Aktivierungschance um 29 % und die eigene ANG-GESCHW. zu Beginn jedes Kampfes für 30 Sek. um 500. Dieser Effekt kann nicht entfernt werden.",
+      "SKILL_DESC_91004043": "[Für Jane] erhöht die Aktivierungschance um 35 % und die eigene ANG-GESCHW. zu Beginn jedes Kampfes für 30 Sek. um 500. Dieser Effekt kann nicht entfernt werden.",
+      "SKILL_DESC_91004044": "[Für Jane] erhöht die Aktivierungschance um 42 % und die eigene ANG-GESCHW. zu Beginn jedes Kampfes für 30 Sek. um 500. Dieser Effekt kann nicht entfernt werden.",
+      "SKILL_DESC_91004045": "[Für Jane] erhöht die Aktivierungschance um 50 % und die eigene ANG-GESCHW. zu Beginn jedes Kampfes für 30 Sek. um 500. Dieser Effekt kann nicht entfernt werden."
+    }
+  }
+}
