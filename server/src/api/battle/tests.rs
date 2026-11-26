@@ -4195,6 +4195,39 @@ async fn campaign_hero_exp_result_matches_client_display_contract() {
 }
 
 #[tokio::test]
+async fn campaign_flask_holders_below_cap_earn_no_level_exp() {
+    let (s, u) = setup().await;
+    let a = account(&u);
+    let d = s.tables.battle.find("CampaignDungeon", &[("ChapterIndex", 1), ("DungeonIndex", 1)]).unwrap();
+    assert!(campaign::field(d, "CreatureExp", 1) > 0);
+    crate::db::query("UPDATE heroes SET level=1,exp=10 WHERE account_id=$1 AND hero_index=1").bind(a).execute(&s.db).await.unwrap();
+    // 40004 is an EXP flask (25000 capacity), 40101 a ruby flask that fills from stamina.
+    for flask in [40004, 40101] {
+        crate::db::query("INSERT INTO hero_details(account_id,hero_index,data) VALUES($1,1,$2) \
+            ON CONFLICT(account_id,hero_index) DO UPDATE SET data=excluded.data")
+            .bind(a).bind(json!({"FlaskItemIndex":flask,"FlaskExp":0}).to_string())
+            .execute(&s.db).await.unwrap();
+        assert_eq!(call(&s, &u, "campaign/begin_campaign", ENTRY).await["Result"], "Success");
+        let result = call(&s, &u, "campaign/end_campaign", END).await;
+        assert_eq!(result["Result"], "Success", "{result}");
+        let r = &result["HeroExpResults"][0];
+        assert_eq!((n(r, "OldLevel"), n(r, "NewLevel"), n(r, "NewValue"), n(r, "AddValue")), (1, 1, 10, 0), "flask {flask}: {r}");
+        let (level, exp): (i32, i64) = crate::db::query_as("SELECT level,exp FROM heroes WHERE account_id=$1 AND hero_index=1")
+            .bind(a).fetch_one(&s.db).await.unwrap();
+        assert_eq!((level, exp), (1, 10), "flask {flask}");
+        let exp_flask: Vec<_> = result["FlaskResults"].as_array().unwrap().iter()
+            .filter(|f| f["Info"]["ItemIndex"] == 40004).collect();
+        if flask == 40004 {
+            assert_eq!(exp_flask.len(), 1, "{result}");
+            assert!(n(&exp_flask[0]["Info"], "AddExp") > 0, "{result}");
+            assert_eq!(exp_flask[0]["Info"]["NewExp"], exp_flask[0]["Info"]["AddExp"]);
+        } else {
+            assert!(exp_flask.is_empty(), "{result}");
+        }
+    }
+}
+
+#[tokio::test]
 async fn campaign_entry_checks_party_ownership_in_one_statement() {
     let (s, u) = setup().await;
     let a = account(&u);

@@ -753,7 +753,10 @@ async fn complete_inner(
             .unwrap_or(old)
             .max(old);
         let exp = base_exp + base_exp * exp_boost / 100;
-        let (level, new_exp) = if old >= cap {
+        // A capped hero, or one holding a flask, earns no level EXP; an EXP
+        // flask collects it instead.
+        let blocked = old >= cap || super::super::extensions::consumables::holds_flask(s, &details);
+        let (level, new_exp) = if blocked {
             (old, n(&h, "Exp"))
         } else {
             crate::tables::add_exp(
@@ -777,7 +780,7 @@ async fn complete_inner(
         let old_exp = n(&h, "Exp");
         h["Level"] = json!(level);
         h["Exp"] = json!(new_exp);
-        if old >= cap && grant_loot {
+        if blocked && grant_loot {
             if let Some((f, items)) =
                 super::super::extensions::consumables::fill_flask_with(db, s, a, *id as i32, exp, &mut details).await?
             {
@@ -793,7 +796,7 @@ async fn complete_inner(
         // tutorial result builder. AddValue is therefore the local-EXP delta
         // (negative after level-ups), not the base gain; otherwise level-ups
         // inflate the label and the booster share is never shown.
-        let (add_value, booster) = if old >= cap { (0, 0) } else { (new_exp - old_exp, exp - base_exp) };
+        let (add_value, booster) = if blocked { (0, 0) } else { (new_exp - old_exp, exp - base_exp) };
         hero_exp.push(json!({"HeroIndex":id,"OldLevel":old,"NewLevel":level,"NewValue":new_exp,"AddValue":add_value,"AddBoosterValue":booster,"AddTeamLevelValue":0}));
     }
     // A repeated party slot saves its last details, as one save per slot did.
