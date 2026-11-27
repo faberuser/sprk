@@ -122,7 +122,7 @@ services:
         done
     environment:
       SPRK_R2_BUCKET: ${SPRK_R2_BUCKET:-}
-      SPRK_R2_SYNC_SECONDS: ${SPRK_R2_SYNC_SECONDS:-600}
+      SPRK_R2_SYNC_SECONDS: ${SPRK_R2_SYNC_SECONDS:-3600}
       RCLONE_CONFIG_R2_TYPE: s3
       RCLONE_CONFIG_R2_PROVIDER: Cloudflare
       RCLONE_CONFIG_R2_ENDPOINT: https://${SPRK_R2_ACCOUNT_ID:-unset}.r2.cloudflarestorage.com

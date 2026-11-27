@@ -169,7 +169,7 @@ How it works:
   check, is served locally and checked again a minute later, so a new asset
   version works before it is uploaded.
 - The `assets-mirror` service in `docker-compose.yml` runs `rclone copy` every
-  `SPRK_R2_SYNC_SECONDS` (default 600), uploading only objects R2 does not have.
+  `SPRK_R2_SYNC_SECONDS` (default 3600), uploading only objects R2 does not have.
   It never deletes: objects pruned locally stay on R2, which is cheap and keeps
   older clients working.
 

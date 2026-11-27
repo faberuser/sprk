@@ -18,6 +18,21 @@ public static class SprkGuildDonateProbe
 
 	private static SprkGuildDonate donate;
 
+	private static Color normalColor;
+
+	private static void CheckLit(GameObject root)
+	{
+		UIButton button = root.GetComponent<UIButton>();
+		Check(button.isEnabled, root.name + " disabled");
+		foreach (UIWidget widget in root.GetComponentsInChildren<UIWidget>(includeInactive: true))
+		{
+			Check(!widget.isGrayscale, root.name + " grey: " + widget.name);
+		}
+		Check(button.defaultColor == normalColor, root.name + " normal colour " + button.defaultColor + ", Max button's " + normalColor);
+		UIWidget target = (button.tweenTarget == null ? root : button.tweenTarget).GetComponent<UIWidget>();
+		Check(target == null || target.color == normalColor, root.name + " shows " + (target == null ? "" : target.color.ToString()));
+	}
+
 	private static void Check(bool value, string message)
 	{
 		if (!value)
@@ -47,6 +62,11 @@ public static class SprkGuildDonateProbe
 		Transform grid = window.Grid_ProgressBars.GetComponentInChildren<UIGrid>(includeInactive: true).transform;
 		GameObject row = UnityEngine.Object.Instantiate(VespaResource.Load<GameObject>(ProgressComponent.PrefabPath), grid, worldPositionStays: false);
 		row.SetActive(value: true);
+		// Members without construction authority see a disabled, greyed Max button; the
+		// Donate button cloned from it must still look enabled.
+		ProgressComponent progress = row.GetComponent<ProgressComponent>();
+		normalColor = progress.Button_Max.defaultColor;
+		UIHelper.EnableButton(progress.Button_Max, enable: false, grayscaleIfDisable: true);
 		SprkGuildDonate.Attach(window, show: true);
 		donate = window.GetComponent<SprkGuildDonate>();
 		Check(donate != null && donate.ButtonRoot != null, "no Donate button");
@@ -100,6 +120,11 @@ public static class SprkGuildDonateProbe
 		Check(button.size.y <= member.size.y, "button taller than the member box");
 		Check(!Overlaps(button, tabs), "button overlaps the tabs");
 		Check(MinDepth(buttonRoot) > MinDepth(window.Label_NumMember.transform.parent.gameObject), "button drawn under the member box");
+		CheckLit(buttonRoot);
+		foreach (GameObject choice in donate.Choices)
+		{
+			CheckLit(choice);
+		}
 		Check(donate.Choices.Count == 3, "choices " + donate.Choices.Count);
 		foreach (GameObject choice in donate.Choices)
 		{

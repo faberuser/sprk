@@ -230,9 +230,45 @@ public sealed class SprkGuildDonate : MonoBehaviour
 			cloneButton = clone.GetComponentInChildren<UIButton>(includeInactive: true);
 		}
 		cloneButton.onClick.Clear();
+		RestoreNormalLook(template, clone);
 		NGUITools.SetLayer(clone, parent.gameObject.layer);
 		NGUITools.MarkParentAsChanged(clone);
 		return clone;
+	}
+
+	/// <summary>
+	/// The Max button is disabled (grey tint, grayscale, disabled sprite) for members
+	/// without construction authority. A clone made in that state would record the grey
+	/// look as its normal one and keep it even when enabled, so give every cloned button
+	/// the template's real normal colour and sprite and clear grayscale.
+	/// </summary>
+	private static void RestoreNormalLook(GameObject template, GameObject clone)
+	{
+		UIButtonColor[] from = template.GetComponentsInChildren<UIButtonColor>(includeInactive: true);
+		UIButtonColor[] to = clone.GetComponentsInChildren<UIButtonColor>(includeInactive: true);
+		for (int i = 0; i < from.Length && i < to.Length; i++)
+		{
+			Color normal = from[i].defaultColor;
+			UIWidget target = (to[i].tweenTarget == null) ? to[i].GetComponent<UIWidget>() : to[i].tweenTarget.GetComponent<UIWidget>();
+			if (target != null)
+			{
+				target.color = normal;
+			}
+			if (from[i] is UIButton fromButton && to[i] is UIButton toButton)
+			{
+				string sprite = fromButton.normalSprite;
+				if (!string.IsNullOrEmpty(sprite) && target is UISprite targetSprite)
+				{
+					targetSprite.spriteName = sprite;
+				}
+				toButton.normalSprite = sprite;
+			}
+			to[i].defaultColor = normal;
+		}
+		foreach (UIWidget widget in clone.GetComponentsInChildren<UIWidget>(includeInactive: true))
+		{
+			widget.isGrayscale = false;
+		}
 	}
 
 	/// <summary>Draw the buttons above the member box and the window header.</summary>
