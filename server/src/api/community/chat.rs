@@ -291,7 +291,7 @@ async fn announce_guild_raid(state: &AppState, account: i64, content: &Value) ->
     let raid = super::warfare::raid_list(&mut db, state, guild_id).await?.into_iter()
         .find(|r| integer(&r["ChapterIndex"]) == Some(chapter) && integer(&r["IsOngoing"]) == Some(1))
         .ok_or_else(|| ServerError::InvalidRequest("No active guild raid".into()))?;
-    let nick: String = crate::db::query_scalar("SELECT nick FROM accounts WHERE account_id=$1")
+    let nick: String = crate::db::query_scalar("SELECT sprk_display_nick(account_id,nick) FROM accounts WHERE account_id=$1")
         .bind(account).fetch_one(&mut *db).await?;
     drop(db);
     let message = notification(account, "Guild", &[], "GuildRaidOpen", json!({"Nick":nick,"OpenedGuildRaidInfo":raid}));
@@ -339,8 +339,9 @@ async fn send_chat(
     {
         return Err(ServerError::InvalidRequest("Invalid chat message".into()));
     }
-    let clean = text.to_string();
-    let user = crate::db::query("SELECT a.nick, u.avatar_hero_index, u.team_level FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id = $1 AND a.is_banned = 0")
+    // Name-tag markers are server-owned: a pasted one must not fake a badge.
+    let clean = crate::api::account::name_tag::strip_markers(text.to_string());
+    let user = crate::db::query("SELECT sprk_display_nick(a.account_id,a.nick) AS nick, u.avatar_hero_index, u.team_level FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id = $1 AND a.is_banned = 0")
         .bind(account).fetch_one(&state.db).await?;
     let guild_id = if group == "Guild" {
         guild(state, account).await?
@@ -351,7 +352,7 @@ async fn send_chat(
         return Err(ServerError::InvalidRequest("No guild".into()));
     }
     let target_name: Option<String> = if group == "None" {
-        crate::db::query_scalar("SELECT nick FROM accounts WHERE account_id = $1 AND is_banned = 0")
+        crate::db::query_scalar("SELECT sprk_display_nick(account_id,nick) FROM accounts WHERE account_id = $1 AND is_banned = 0")
             .bind(target)
             .fetch_optional(&state.db)
             .await?

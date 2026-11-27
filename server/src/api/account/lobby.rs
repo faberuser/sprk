@@ -50,7 +50,7 @@ pub async fn first_lobby(
     let session = state.get_session(&session_id)
         .ok_or(ServerError::SessionExpired)?;
     
-    if let Some(nick) = req.nick {
+    if let Some(nick) = req.nick.map(crate::api::account::name_tag::strip_markers) {
         // Update nickname
         crate::db::query("UPDATE accounts SET nick = $1 WHERE account_id = $2")
             .bind(&nick)
@@ -188,7 +188,7 @@ async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: boo
         (None, Vec::new(), Vec::new())
     } else {
         // Legacy API consumers can still request the full account snapshot.
-        let account_row = crate::db::query("SELECT nick FROM accounts WHERE account_id = $1")
+        let account_row = crate::db::query("SELECT sprk_display_nick(account_id,nick) AS nick FROM accounts WHERE account_id = $1")
             .bind(account_id)
             .fetch_optional(&state.db)
             .await?

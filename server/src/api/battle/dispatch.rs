@@ -657,7 +657,7 @@ async fn drop_snapshot(db: &mut PgConnection, a: i64, slot: i64, info: &mut Valu
 
 pub(super) async fn simulation_snapshot(db: &mut PgConnection, s: &AppState, a: i64, info: &Value) -> Result<Value> {
     let mut account = crate::api::community::conquest::combat_buffs(db, s, a).await?;
-    let user = crate::db::query("SELECT a.nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=$1")
+    let user = crate::db::query("SELECT sprk_display_nick(a.account_id,a.nick) AS nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=$1")
         .bind(a).fetch_one(&mut *db).await?;
     account["UserInfo"] = json!({"AccountId":a,"Nick":user.get::<String,_>("nick"),"TeamLevel":user.get::<i64,_>("team_level"),"AvatarHeroIndex":user.get::<i64,_>("avatar_hero_index")});
     let heroes: Vec<i64> = read_json(info["HeroIndices"].as_str().unwrap_or("[]"))?;

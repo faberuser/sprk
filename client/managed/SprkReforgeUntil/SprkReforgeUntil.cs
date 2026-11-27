@@ -22,8 +22,24 @@ using Math = System.Math;
 /// that line until the target appears. The server runs the rolls (see
 /// `renew_until` in the server); the last roll is confirmed through the game's
 /// normal reforge result screen.
+///
+/// Technomagic Reforge sends the same request and gets the same feature: a
+/// "Target Stat" button beside its Change Option button opens the pool inside
+/// the window's option list, and Change Option on the selected line runs the
+/// rolls; the native Technomagic result screen confirms the last one.
 public static class SprkReforgeUntil
 {
+	/// Sends a reforge request through the hosting window's normal flow and
+	/// calls back once the response has been applied.
+	public delegate void Sender(NShared.RenewEquipOption.Request request, Action<NShared.RenewEquipOption.Response> onApplied);
+
+	private enum HostKind
+	{
+		None,
+		Normal,
+		Technomagic
+	}
+
 	private sealed class Ask
 	{
 		public int Target;
@@ -262,6 +278,85 @@ public static class SprkReforgeUntil
 
 	private static StatGaugeComponent poolPanel;
 
+	private static HostKind host;
+
+	private static ValanceOptionRenewWindow tmWindow;
+
+	private static StatGaugeComponent tmStats;
+
+	private static StatGaugeComponent tmSkills;
+
+	private static StatGaugeComponent tmPool;
+
+	private static UIButton tmButton;
+
+	private static UILabel tmButtonLabel;
+
+	// Where the option list was scrolled when the pool opened, restored on closing.
+	private static UIScrollView tmScrollView;
+
+	private static Vector3 tmScrollPosition;
+
+	private static Vector2 tmClipOffset;
+
+	/// Sends a Technomagic skill reroll through the window's normal flow.
+	public delegate void SkillSender(NShared.RenewEquipSkill.Request request, Action<NShared.RenewEquipSkill.Response> onApplied);
+
+	/// One additional skill a Technomagic skill line can roll. Several option rows
+	/// can show the same skill (type and value); the pool lists it once.
+	private sealed class SkillEntry
+	{
+		public int Option;
+
+		public OperationType Type;
+
+		public int Value;
+
+		public string Text;
+	}
+
+	private static readonly List<SkillEntry> SkillEntries = new List<SkillEntry>();
+
+	private static readonly ConditionalWeakTable<NShared.RenewEquipSkill.Request, Ask> SkillAsks = new ConditionalWeakTable<NShared.RenewEquipSkill.Request, Ask>();
+
+	private static readonly ConditionalWeakTable<NShared.RenewEquipSkill.Response, Extras> SkillCaptured = new ConditionalWeakTable<NShared.RenewEquipSkill.Response, Extras>();
+
+	// The targeted skill, as one of its option rows (0 = none).
+	private static int skillTarget;
+
+	private static int skillTargetEquipSlot;
+
+	private static bool explainedSkill;
+
+	private static StatGaugeComponent tmSkillPool;
+
+	internal static StatGaugeComponent TechnomagicSkillPool => tmSkillPool;
+
+	internal static int SkillTarget => skillTarget;
+
+	internal static int SkillPoolCount => SkillEntries.Count;
+
+	internal static UIButton TechnomagicButton => tmButton;
+
+	internal static StatGaugeComponent TechnomagicPool => tmPool;
+
+	internal static OperationType Target => target;
+
+	internal static int PoolCount => Entries.Count;
+
+	/// For probes: skip the one-time explanation popups.
+	internal static void SkipExplanations()
+	{
+		explained = true;
+		explainedOwned = true;
+		explainedSkill = true;
+	}
+
+	internal static void ToggleTargetView()
+	{
+		TogglePoolView();
+	}
+
 	public static void Encode(Dictionary<string, object> json, NShared.RenewEquipOption.Request request)
 	{
 		if (json == null || request == null || !Asks.TryGetValue(request, out var ask))
@@ -279,13 +374,50 @@ public static class SprkReforgeUntil
 		}
 	}
 
-	public static void Capture(IDictionary json, NShared.RenewEquipOption.Response response)
+	public static void EncodeSkill(Dictionary<string, object> json, NShared.RenewEquipSkill.Request request)
 	{
-		if (json == null || response == null || (!json.Contains("SprkHitWeight") && !json.Contains("SprkTries")))
+		if (json == null || request == null || !SkillAsks.TryGetValue(request, out var ask))
 		{
 			return;
 		}
-		Extras extras = new Extras
+		json["SprkTargetSkillOption"] = ask.Target.ToString();
+		if (ask.Preview)
+		{
+			json["SprkPreview"] = "1";
+		}
+		else
+		{
+			json["SprkMaxTries"] = ask.MaxTries.ToString();
+		}
+	}
+
+	public static void Capture(IDictionary json, NShared.RenewEquipOption.Response response)
+	{
+		Extras extras = ParseExtras(json);
+		if (extras != null && response != null)
+		{
+			Captured.Remove(response);
+			Captured.Add(response, extras);
+		}
+	}
+
+	public static void CaptureSkill(IDictionary json, NShared.RenewEquipSkill.Response response)
+	{
+		Extras extras = ParseExtras(json);
+		if (extras != null && response != null)
+		{
+			SkillCaptured.Remove(response);
+			SkillCaptured.Add(response, extras);
+		}
+	}
+
+	private static Extras ParseExtras(IDictionary json)
+	{
+		if (json == null || (!json.Contains("SprkHitWeight") && !json.Contains("SprkTries")))
+		{
+			return null;
+		}
+		return new Extras
 		{
 			HitWeight = Number(json, "SprkHitWeight"),
 			TotalWeight = Number(json, "SprkTotalWeight"),
@@ -297,8 +429,6 @@ public static class SprkReforgeUntil
 			Guaranteed = json.Contains("SprkGuaranteed") && json["SprkGuaranteed"] is bool && (bool)json["SprkGuaranteed"],
 			Hit = json.Contains("SprkHit") && json["SprkHit"] is bool && (bool)json["SprkHit"]
 		};
-		Captured.Remove(response);
-		Captured.Add(response, extras);
 	}
 
 	private static long Number(IDictionary json, string key)
@@ -371,6 +501,7 @@ public static class SprkReforgeUntil
 	public static void PoolBuilt(EquipOptionRenew renewWindow, int equipSlot)
 	{
 		window = renewWindow;
+		host = HostKind.Normal;
 		poolView = false;
 		if (target != OperationType.None && (equipSlot != targetEquipSlot || !Entries.Exists((Entry e) => e.Type == target)))
 		{
@@ -442,32 +573,89 @@ public static class SprkReforgeUntil
 		}
 	}
 
+	private static EquipItemInfo CurrentItem()
+	{
+		switch (host)
+		{
+		case HostKind.Normal:
+			return (window == null) ? null : window.SelectedEquipItemInfo;
+		case HostKind.Technomagic:
+			return (tmWindow == null) ? null : tmWindow.EquipItemInfo;
+		default:
+			return null;
+		}
+	}
+
 	private static void TogglePoolView()
 	{
-		if (busy || window == null)
+		if (busy || CurrentItem() == null)
 		{
 			return;
 		}
-		poolView = !poolView && Entries.Count > 0;
+		poolView = !poolView && (Entries.Count > 0 || SkillEntries.Count > 0);
 		Paint();
 	}
 
-	private static void Pick(OperationType type)
+	private static SkillEntry SkillOf(int option)
 	{
-		if (busy || window == null || window.SelectedEquipItemInfo == null || !poolView)
+		EquipOptionData data = GameRoot.Instance.EquipOptionDataContainer.GetData(option);
+		if (data == null)
+		{
+			return null;
+		}
+		EquipItemInfo item = CurrentItem();
+		int value = data.GetOptionValueMax((item == null) ? 5 : item.Star);
+		return SkillEntries.Find((SkillEntry e) => e.Option == option || (e.Type == data.OptionType && e.Value == value));
+	}
+
+	internal static string SkillName(int option)
+	{
+		SkillEntry entry = SkillOf(option);
+		return (entry == null) ? option.ToString() : entry.Text;
+	}
+
+	private static void PickSkill(int option)
+	{
+		EquipItemInfo item = CurrentItem();
+		if (busy || item == null || !poolView)
 		{
 			return;
 		}
 		poolView = false;
-		if (target == type && targetEquipSlot == window.SelectedEquipItemInfo.SlotIndex)
+		if (skillTarget == option && skillTargetEquipSlot == item.SlotIndex)
+		{
+			skillTarget = 0;
+			skillTargetEquipSlot = 0;
+			Paint();
+			return;
+		}
+		skillTarget = option;
+		skillTargetEquipSlot = item.SlotIndex;
+		Paint();
+		if (!explainedSkill)
+		{
+			explainedSkill = true;
+			MessagePopup.Open(Title, SprkText.Format("Target: {0}\n\nTap Change Option on an additional skill line to reroll it until this skill appears.\nTo reroll normally again, open the target button and tap {0} again.", SkillName(option)));
+		}
+	}
+
+	private static void Pick(OperationType type)
+	{
+		EquipItemInfo item = CurrentItem();
+		if (busy || item == null || !poolView)
+		{
+			return;
+		}
+		poolView = false;
+		if (target == type && targetEquipSlot == item.SlotIndex)
 		{
 			ClearTarget();
 			return;
 		}
 		target = type;
-		targetEquipSlot = window.SelectedEquipItemInfo.SlotIndex;
+		targetEquipSlot = item.SlotIndex;
 		Paint();
-		if (!explainedOwned && HasStat(window.SelectedEquipItemInfo, type))
+		if (!explainedOwned && HasStat(item, type))
 		{
 			explainedOwned = true;
 			MessagePopup.Open(Title, SprkText.Format("Target: {0}\n\nThis item already has {0}. Tap Change Option on its {0} line to reforge until {0} rolls a higher value (up to its maximum).\nOther lines cannot roll {0}: an item cannot have the same stat twice.", StatName(type)));
@@ -622,6 +810,11 @@ public static class SprkReforgeUntil
 
 	private static void Paint()
 	{
+		if (host == HostKind.Technomagic)
+		{
+			PaintTechnomagic();
+			return;
+		}
 		if (window == null)
 		{
 			return;
@@ -644,10 +837,473 @@ public static class SprkReforgeUntil
 		}
 	}
 
+	/// Technomagic Reforge built its stat panels for `EquipItemInfo` (or none).
+	/// Its pool is the item's option list plus option groups, as the server rolls them.
+	public static void TechnomagicBuilt(ValanceOptionRenewWindow renewWindow, StatGaugeComponent stats, StatGaugeComponent skills)
+	{
+		if (renewWindow == null)
+		{
+			return;
+		}
+		if (tmWindow != renewWindow)
+		{
+			TechnomagicReleasing(tmWindow);
+		}
+		tmWindow = renewWindow;
+		tmStats = stats;
+		tmSkills = skills;
+		host = HostKind.Technomagic;
+		poolView = false;
+		Entries.Clear();
+		EquipItemInfo item = renewWindow.EquipItemInfo;
+		ItemData<EquipItemData> data = (item == null) ? null : GameRoot.Instance.ItemDataContainer.GetData<EquipItemData>(item.ItemIndex);
+		if (data != null && data.SubData != null && stats != null)
+		{
+			if (data.SubData.OptionIndex != null)
+			{
+				foreach (int optionIndex in data.SubData.OptionIndex)
+				{
+					AddTechnomagicEntry(optionIndex, item.Star);
+				}
+			}
+			if (data.SubData.OptionGroupIndex != null)
+			{
+				foreach (int groupIndex in data.SubData.OptionGroupIndex)
+				{
+					EquipOptionGroupData group = GameRoot.Instance.EquipOptionGroupDataContainer.GetData(groupIndex);
+					if (group != null && group.OptionIndex != null)
+					{
+						foreach (int optionIndex2 in group.OptionIndex)
+						{
+							AddTechnomagicEntry(optionIndex2, item.Star);
+						}
+					}
+				}
+			}
+		}
+		if (target != OperationType.None && (item == null || item.SlotIndex != targetEquipSlot || !Entries.Exists((Entry e) => e.Type == target)))
+		{
+			target = OperationType.None;
+			targetEquipSlot = 0;
+		}
+		// The skill panel exists only for identified items, whose skill lines can be rerolled.
+		SkillEntries.Clear();
+		if (data != null && data.SubData != null && skills != null)
+		{
+			List<int> indices = new List<int>(data.SubData.UniqueOptionIndex ?? new int[0]);
+			foreach (int groupIndex in data.SubData.UniqueOptionGroupIndex ?? new int[0])
+			{
+				EquipOptionGroupData group = GameRoot.Instance.EquipOptionGroupDataContainer.GetData(groupIndex);
+				if (group != null && group.OptionIndex != null)
+				{
+					indices.AddRange(group.OptionIndex);
+				}
+			}
+			foreach (int optionIndex in indices)
+			{
+				AddSkillEntry(optionIndex, item.Star);
+			}
+		}
+		if (skillTarget != 0 && (item == null || item.SlotIndex != skillTargetEquipSlot || SkillOf(skillTarget) == null))
+		{
+			skillTarget = 0;
+			skillTargetEquipSlot = 0;
+		}
+		EnsureTechnomagicButton();
+		Paint();
+	}
+
+	private static void AddSkillEntry(int optionIndex, int star)
+	{
+		EquipOptionData data = GameRoot.Instance.EquipOptionDataContainer.GetData(optionIndex);
+		if (data == null || data.Ratio <= 0)
+		{
+			return;
+		}
+		int value = data.GetOptionValueMax(star);
+		if (SkillEntries.Exists((SkillEntry e) => e.Type == data.OptionType && e.Value == value))
+		{
+			return;
+		}
+		SkillEntries.Add(new SkillEntry
+		{
+			Option = optionIndex,
+			Type = data.OptionType,
+			Value = value,
+			Text = StatData.GetOptionDisplay(data.OptionType, value, opened: true, 0, appendColor: false)
+		});
+	}
+
+	private static void AddTechnomagicEntry(int optionIndex, int star)
+	{
+		EquipOptionData data = GameRoot.Instance.EquipOptionDataContainer.GetData(optionIndex);
+		if (data != null && data.Ratio > 0)
+		{
+			AddPoolEntry(data.OptionType, data.GetOptionValueMin(star), data.GetOptionValueMax(star));
+		}
+	}
+
+	/// Called before Technomagic Reforge releases its stat panels: the pool view
+	/// hides them and must hand them back visible.
+	public static void TechnomagicReleasing(ValanceOptionRenewWindow renewWindow)
+	{
+		if (renewWindow == null || renewWindow != tmWindow)
+		{
+			return;
+		}
+		poolView = false;
+		DestroyTechnomagicPool();
+		tmStats = null;
+		tmSkills = null;
+		Entries.Clear();
+		SkillEntries.Clear();
+		if (tmButton != null)
+		{
+			tmButton.gameObject.SetActive(value: false);
+		}
+	}
+
+	public static void TechnomagicClosing(ValanceOptionRenewWindow renewWindow)
+	{
+		if (renewWindow == null || renewWindow != tmWindow)
+		{
+			return;
+		}
+		TechnomagicReleasing(renewWindow);
+		target = OperationType.None;
+		targetEquipSlot = 0;
+		skillTarget = 0;
+		skillTargetEquipSlot = 0;
+		tmWindow = null;
+		host = HostKind.None;
+	}
+
+	/// A copy of the window's "Change Option" button, above it.
+	private static void EnsureTechnomagicButton()
+	{
+		UIButton renew = (tmWindow == null) ? null : tmWindow.Button_Renew;
+		if (renew == null)
+		{
+			return;
+		}
+		if (tmButton == null || tmButton.transform.parent != renew.transform.parent)
+		{
+			GameObject gameObject = UnityEngine.Object.Instantiate(renew.gameObject, renew.transform.parent, worldPositionStays: false);
+			gameObject.name = "SprkReforgeUntilTarget";
+			// Drop localizers (they would restore "Change Option") and the event ribbon.
+			foreach (MonoBehaviour behaviour in gameObject.GetComponentsInChildren<MonoBehaviour>(includeInactive: true))
+			{
+				if (behaviour != null && behaviour.GetType().Name.Contains("Localize"))
+				{
+					UnityEngine.Object.DestroyImmediate(behaviour);
+				}
+			}
+			Transform ribbon = gameObject.transform.Find("EventButtonImage");
+			if (ribbon != null)
+			{
+				UnityEngine.Object.DestroyImmediate(ribbon.gameObject);
+			}
+			tmButton = gameObject.GetComponent<UIButton>();
+			tmButton.onClick.Clear();
+			EventDelegate.Add(tmButton.onClick, TogglePoolView);
+			tmButtonLabel = gameObject.GetComponentInChildren<UILabel>(includeInactive: true);
+			if (tmButtonLabel != null)
+			{
+				tmButtonLabel.overflowMethod = UILabel.Overflow.ShrinkContent;
+			}
+			float height = NGUIMath.CalculateRelativeWidgetBounds(renew.transform).size.y;
+			gameObject.transform.localPosition = renew.transform.localPosition + new Vector3(0f, height + 12f, 0f);
+		}
+		// Change Option is disabled until a line is selected; this button is not. A copy
+		// made while Change Option was disabled took its gray tint and sprite as "normal"
+		// (NGUI reads them from the widget on init), so restore Change Option's own.
+		foreach (UIButtonColor color in tmButton.GetComponentsInChildren<UIButtonColor>(includeInactive: true))
+		{
+			Transform source = (color.transform == tmButton.transform) ? renew.transform : renew.transform.Find(PathFrom(tmButton.transform, color.transform));
+			UIButtonColor original = (source == null) ? null : source.GetComponent<UIButtonColor>();
+			if (original != null)
+			{
+				color.defaultColor = original.defaultColor;
+				UIButton copyButton = color as UIButton;
+				UIButton originalButton = original as UIButton;
+				if (copyButton != null && originalButton != null && !string.IsNullOrEmpty(originalButton.normalSprite))
+				{
+					copyButton.normalSprite = originalButton.normalSprite;
+				}
+			}
+		}
+		foreach (UIWidget widget in tmButton.GetComponentsInChildren<UIWidget>(includeInactive: true))
+		{
+			widget.isGrayscale = false;
+		}
+		tmButton.isEnabled = true;
+		tmButton.gameObject.SetActive(tmWindow.EquipItemInfo != null && tmStats != null && (Entries.Count > 0 || SkillEntries.Count > 0));
+		if (tmButton.gameObject.activeInHierarchy)
+		{
+			foreach (UIButtonColor color2 in tmButton.GetComponentsInChildren<UIButtonColor>(includeInactive: true))
+			{
+				color2.SetState(UIButtonColor.State.Normal, instant: true);
+			}
+		}
+		NGUITools.MarkParentAsChanged(tmButton.gameObject);
+	}
+
+	private static string PathFrom(Transform root, Transform child)
+	{
+		string path = child.name;
+		for (Transform parent = child.parent; parent != null && parent != root; parent = parent.parent)
+		{
+			path = parent.name + "/" + path;
+		}
+		return path;
+	}
+
+	private static void PaintTechnomagic()
+	{
+		if (tmWindow == null)
+		{
+			return;
+		}
+		if (poolView)
+		{
+			BuildTechnomagicPool();
+		}
+		else
+		{
+			DestroyTechnomagicPool();
+		}
+		if (tmButtonLabel != null)
+		{
+			string text;
+			if (poolView)
+			{
+				text = SprkText.Get("Back");
+			}
+			else if (target != OperationType.None && skillTarget != 0)
+			{
+				text = SprkText.Format("Targets: {0}", 2);
+			}
+			else if (target != OperationType.None)
+			{
+				text = SprkText.Format("Target:\n{0}", StatName(target));
+			}
+			else if (skillTarget != 0)
+			{
+				text = SprkText.Format("Target:\n{0}", SkillName(skillTarget));
+			}
+			else
+			{
+				text = SprkText.Get("Target\nStat");
+			}
+			tmButtonLabel.text = text.Replace("\n", " ");
+		}
+	}
+
+	private static UITable TechnomagicTable()
+	{
+		return (tmStats == null || tmStats.transform.parent == null) ? null : tmStats.transform.parent.GetComponent<UITable>();
+	}
+
+	private static void RestoreTechnomagicScroll()
+	{
+		UIScrollView scrollView = tmScrollView;
+		tmScrollView = null;
+		if (scrollView == null)
+		{
+			return;
+		}
+		scrollView.DisableSpring();
+		scrollView.currentMomentum = Vector3.zero;
+		scrollView.transform.localPosition = tmScrollPosition;
+		if (scrollView.panel != null)
+		{
+			scrollView.panel.clipOffset = tmClipOffset;
+		}
+		scrollView.UpdateScrollbars(recalculateBounds: true);
+	}
+
+	private static void DestroyTechnomagicPool()
+	{
+		bool shown = tmPool != null || tmSkillPool != null;
+		if (tmPool != null)
+		{
+			tmPool.gameObject.SetActive(value: false);
+			UnityEngine.Object.Destroy(tmPool.gameObject);
+		}
+		tmPool = null;
+		if (tmSkillPool != null)
+		{
+			tmSkillPool.gameObject.SetActive(value: false);
+			UnityEngine.Object.Destroy(tmSkillPool.gameObject);
+		}
+		tmSkillPool = null;
+		if (tmStats != null)
+		{
+			tmStats.gameObject.SetActive(value: true);
+		}
+		if (tmSkills != null)
+		{
+			tmSkills.gameObject.SetActive(value: true);
+		}
+		if (shown)
+		{
+			UITable table = TechnomagicTable();
+			if (table != null)
+			{
+				table.Reposition();
+			}
+			RestoreTechnomagicScroll();
+		}
+	}
+
+	/// The stat pool as rows of the window's own stat panel ("+min / +max"), in a
+	/// copy of that panel placed in the window's scrolling option list, with the
+	/// item's stat and skill panels hidden meanwhile.
+	/// A copy of one of the window's panels in its option list, emptied of rows.
+	private static StatGaugeComponent CopyPanel(StatGaugeComponent source, UITable table, string name, string title)
+	{
+		if (source == null || source.GaugeGrid == null || source.GaugeTemplate == null)
+		{
+			return null;
+		}
+		GameObject gameObject = UnityEngine.Object.Instantiate(source.gameObject, table.transform, worldPositionStays: false);
+		gameObject.name = name;
+		StatGaugeComponent copy = gameObject.GetComponent<StatGaugeComponent>();
+		foreach (StatGaugeInfo row in copy.GaugeGrid.GetComponentsInChildren<StatGaugeInfo>(includeInactive: true))
+		{
+			if (row != copy.GaugeTemplate)
+			{
+				UnityEngine.Object.DestroyImmediate(row.gameObject);
+			}
+		}
+		copy.SetTitle(title);
+		return copy;
+	}
+
+	private static void FinishPoolRows(StatGaugeComponent panel, int count, Func<int, bool> selected, UIScrollView scrollView)
+	{
+		for (int i = 0; i < count; i++)
+		{
+			StatGaugeInfo row = panel.GetStatGaugeInfo(i);
+			if (row == null)
+			{
+				continue;
+			}
+			row.SelectRoot(selected(i) ? StatGaugeInfo.StateType.Selected : StatGaugeInfo.StateType.None);
+			if (scrollView != null)
+			{
+				foreach (Collider collider in row.GetComponentsInChildren<Collider>(includeInactive: true))
+				{
+					UIDragScrollView drag = collider.GetComponent<UIDragScrollView>();
+					if (drag == null)
+					{
+						drag = collider.gameObject.AddComponent<UIDragScrollView>();
+					}
+					drag.scrollView = scrollView;
+				}
+			}
+		}
+		panel.gameObject.SetActive(value: true);
+		panel.GaugeGrid.Reposition();
+	}
+
+	/// The stat pool and the skill pool as rows of the window's own panels, in
+	/// copies placed in the window's scrolling option list, with the item's stat
+	/// and skill panels hidden meanwhile.
+	private static void BuildTechnomagicPool()
+	{
+		DestroyTechnomagicPool();
+		UITable table = TechnomagicTable();
+		if (table == null)
+		{
+			return;
+		}
+		UIScrollView scrollView = NGUITools.FindInParents<UIScrollView>(table.gameObject);
+		if (Entries.Count > 0)
+		{
+			tmPool = CopyPanel(tmStats, table, "SprkReforgeUntilPool", SprkText.Get("Stat Pool"));
+		}
+		if (tmPool != null)
+		{
+			foreach (Entry entry in Entries)
+			{
+				OperationType type = entry.Type;
+				tmPool.AddStat(type, entry.Min, entry.Max, 0, 1, "/", delegate
+				{
+					Pick(type);
+				});
+			}
+			FinishPoolRows(tmPool, Entries.Count, (int i) => Entries[i].Type == target, scrollView);
+		}
+		if (SkillEntries.Count > 0)
+		{
+			tmSkillPool = CopyPanel(tmSkills, table, "SprkReforgeUntilSkillPool", SprkText.Get("Skill Pool"));
+		}
+		if (tmSkillPool != null)
+		{
+			SkillEntry wanted = (skillTarget == 0) ? null : SkillOf(skillTarget);
+			foreach (SkillEntry entry2 in SkillEntries)
+			{
+				int option = entry2.Option;
+				tmSkillPool.AddExtraSkill(entry2.Text, delegate
+				{
+					PickSkill(option);
+				});
+			}
+			FinishPoolRows(tmSkillPool, SkillEntries.Count, (int i) => SkillEntries[i] == wanted, scrollView);
+		}
+		if (tmPool == null && tmSkillPool == null)
+		{
+			return;
+		}
+		if (scrollView != null)
+		{
+			tmScrollView = scrollView;
+			tmScrollPosition = scrollView.transform.localPosition;
+			tmClipOffset = (scrollView.panel == null) ? Vector2.zero : scrollView.panel.clipOffset;
+		}
+		tmStats.gameObject.SetActive(value: false);
+		if (tmSkills != null)
+		{
+			tmSkills.gameObject.SetActive(value: false);
+		}
+		table.Reposition();
+		NGUITools.MarkParentAsChanged(table.gameObject);
+		if (scrollView != null)
+		{
+			// Opens where the item's panels were (top); the stat target in view (one row of context above it).
+			scrollView.UpdateScrollbars(recalculateBounds: true);
+			int targetRow = Entries.FindIndex((Entry e) => e.Type == target);
+			if (tmPool != null && targetRow > 1 && tmPool.GaugeGrid.cellHeight > 0f)
+			{
+				scrollView.MoveRelative(new Vector3(0f, tmPool.GaugeGrid.cellHeight * (float)(targetRow - 1), 0f));
+				scrollView.RestrictWithinBounds(instant: true);
+			}
+		}
+	}
+
 	/// Replaces the normal reforge when a target is selected for this item.
 	public static bool TryStart(BlacksmithManagement manager, int equipSlot, int optionSlot)
 	{
-		if (target == OperationType.None || targetEquipSlot != equipSlot || manager == null)
+		return manager != null && host == HostKind.Normal && TryStart(manager.SprkSendRenewEquipOption, equipSlot, optionSlot);
+	}
+
+	/// Replaces the Technomagic reforge when a target is selected for this item.
+	public static bool TryStartTechnomagic(ValanceWebManager manager, int equipSlot, int optionSlot)
+	{
+		return manager != null && host == HostKind.Technomagic && TryStart(manager.SprkSendValanceOptionRenew, equipSlot, optionSlot);
+	}
+
+	/// True when Change Option on this Technomagic item runs "reforge until"
+	/// (the window then skips its own confirmation; the count popup asks instead).
+	public static bool IsTechnomagicArmed(int equipSlot)
+	{
+		return host == HostKind.Technomagic && target != OperationType.None && targetEquipSlot == equipSlot;
+	}
+
+	private static bool TryStart(Sender send, int equipSlot, int optionSlot)
+	{
+		if (target == OperationType.None || targetEquipSlot != equipSlot || send == null)
 		{
 			return false;
 		}
@@ -656,7 +1312,8 @@ public static class SprkReforgeUntil
 			return true;
 		}
 		OperationType wanted = target;
-		string blocked = BlockedReason((window != null && window.SelectedEquipItemInfo != null && window.SelectedEquipItemInfo.SlotIndex == equipSlot) ? window.SelectedEquipItemInfo : null, optionSlot, wanted);
+		EquipItemInfo item = CurrentItem();
+		string blocked = BlockedReason((item != null && item.SlotIndex == equipSlot) ? item : null, optionSlot, wanted);
 		if (blocked != null)
 		{
 			MessagePopup.Open(Title, blocked);
@@ -694,7 +1351,7 @@ public static class SprkReforgeUntil
 			}
 			else if (Captured.TryGetValue(response, out var value) && value.TotalWeight > 0 && value.HitWeight > 0)
 			{
-				Confirm(manager, equipSlot, optionSlot, wanted, (double)value.HitWeight / (double)value.TotalWeight, Remaining(value.PityMisses, value.PityLimit));
+				Confirm(send, equipSlot, optionSlot, wanted, (double)value.HitWeight / (double)value.TotalWeight, Remaining(value.PityMisses, value.PityLimit));
 			}
 		});
 		return true;
@@ -866,11 +1523,11 @@ public static class SprkReforgeUntil
 		return (limit > 0) ? SprkText.Format("\nGuarantee progress: {0}/{1}.", misses, limit) : string.Empty;
 	}
 
-	private static string Describe(OperationType wanted, double chance, Budget budget, int tries, long remaining)
+	private static string Describe(string wanted, double chance, Budget budget, int tries, long remaining)
 	{
 		StringBuilder stringBuilder = new StringBuilder();
 		stringBuilder.Append(SprkText.Format("{0}: {1} per try; chance for {2} attempt(s): {3}",
-			StatName(wanted), Percent(chance), tries, Percent(Within(chance, tries, remaining))));
+			wanted, Percent(chance), tries, Percent(Within(chance, tries, remaining))));
 		List<string> list = new List<string>();
 		int num = Math.Min(tries, budget.Coupons);
 		if (num > 0)
@@ -914,7 +1571,7 @@ public static class SprkReforgeUntil
 		return (transform == null) ? null : transform.GetComponent<UILabel>();
 	}
 
-	private static void Confirm(BlacksmithManagement manager, int equipSlot, int optionSlot, OperationType wanted, double chance, long remaining)
+	private static void Confirm(Sender send, int equipSlot, int optionSlot, OperationType wanted, double chance, long remaining)
 	{
 		EquipItemInfo equipItemInfo = GlobalAutoBehaviour<AccountManager>.instance.EquipItemManager.Get(equipSlot);
 		if (equipItemInfo == null)
@@ -922,6 +1579,15 @@ public static class SprkReforgeUntil
 			return;
 		}
 		Budget budget = ReadBudget(equipItemInfo, optionSlot);
+		OpenConfirm(StatName(wanted), budget, chance, remaining, SprkText.Get("Not enough reforge coupons or rubies."), delegate(int tries)
+		{
+			Run(send, equipSlot, optionSlot, wanted, tries);
+		});
+	}
+
+	/// The count popup for a run: tries, odds and costs; `run` gets the chosen tries.
+	private static void OpenConfirm(string wanted, Budget budget, double chance, long remaining, string notEnough, Action<int> run)
+	{
 		// Tries past the guarantee can never be used: the run stops at the hit.
 		if (remaining > 0 && budget.MaxTries > remaining)
 		{
@@ -929,7 +1595,7 @@ public static class SprkReforgeUntil
 		}
 		if (budget.MaxTries <= 0)
 		{
-			MessagePopup.Open(Title, SprkText.Get("Not enough reforge coupons or rubies."));
+			MessagePopup.Open(Title, notEnough);
 			return;
 		}
 		int num = ((budget.Coupons > 0) ? Math.Min(budget.Coupons, budget.MaxTries) : Math.Min(budget.MaxTries, Math.Max(1, (int)Math.Ceiling(1.0 / chance))));
@@ -937,7 +1603,7 @@ public static class SprkReforgeUntil
 		CountMessagePopup popup = CountMessagePopup.Open(Title, string.Empty, SprkText.Get("Reforge"), 1, budget.MaxTries, num, delegate(int tries)
 		{
 			edit.Restore();
-			Run(manager, equipSlot, optionSlot, wanted, Mathf.Clamp(tries, 1, budget.MaxTries));
+			run(Mathf.Clamp(tries, 1, budget.MaxTries));
 		}, delegate
 		{
 			edit.Restore();
@@ -954,6 +1620,12 @@ public static class SprkReforgeUntil
 		edit.Set(PopupLabel(popup, "Panel/Root/Button_Ok/Label_Action"), SprkText.Get("Reforge"));
 		edit.Set(message, Describe(wanted, chance, budget, num, remaining));
 		edit.Set(price, Rubies(budget, num).ToString("N0"));
+		// Items without a ruby price (Technomagic) hide the always-zero ruby total.
+		if (budget.Prices.Length == 0)
+		{
+			Transform value = popup.transform.Find("Panel/Root/Value (1)");
+			edit.SetActive((value == null) ? null : value.gameObject, active: false);
+		}
 		// Even spacing between title, message, count row, Max and the buttons
 		// (the prefab is laid out for a one-line message).
 		Transform title = popup.transform.Find("Panel/Root/Title/Label_Title");
@@ -969,9 +1641,9 @@ public static class SprkReforgeUntil
 		edit.Mirror.PriceText = (int n) => Rubies(budget, Mathf.Clamp(n, 1, budget.MaxTries)).ToString("N0");
 	}
 
-	private static void Run(BlacksmithManagement manager, int equipSlot, int optionSlot, OperationType wanted, int tries)
+	private static void Run(Sender send, int equipSlot, int optionSlot, OperationType wanted, int tries)
 	{
-		if (busy || manager == null)
+		if (busy || send == null)
 		{
 			return;
 		}
@@ -985,31 +1657,173 @@ public static class SprkReforgeUntil
 			Target = (int)wanted,
 			MaxTries = tries
 		});
-		manager.SprkSendRenewEquipOption(request, delegate(NShared.RenewEquipOption.Response response)
+		send(request, delegate(NShared.RenewEquipOption.Response response)
 		{
 			if (Captured.TryGetValue(response, out var value))
 			{
-				StringBuilder stringBuilder = new StringBuilder();
-				stringBuilder.Append(SprkText.Format(value.Hit ? "{0} found. Attempts: {1}." : "{0} not found. Attempts: {1}.", StatName(wanted), value.Tries));
-				if (!value.Hit)
+				ShowSummary(StatName(wanted), value);
+			}
+		});
+	}
+
+	private static void ShowSummary(string wanted, Extras value)
+	{
+		StringBuilder stringBuilder = new StringBuilder();
+		stringBuilder.Append(SprkText.Format(value.Hit ? "{0} found. Attempts: {1}." : "{0} not found. Attempts: {1}.", wanted, value.Tries));
+		if (!value.Hit)
+		{
+			stringBuilder.Append(SprkText.Get("\nThe last roll is shown."));
+		}
+		List<string> list = new List<string>();
+		if (value.CouponsUsed > 0)
+		{
+			list.Add(SprkText.Format("Coupons: {0}", value.CouponsUsed));
+		}
+		if (value.GemsSpent > 0)
+		{
+			list.Add(SprkText.Format("Rubies: {0}", value.GemsSpent.ToString("N0")));
+		}
+		if (list.Count > 0)
+		{
+			stringBuilder.Append(SprkText.Format("\nUsed {0}.", string.Join(", ", list.ToArray())));
+		}
+		stringBuilder.Append(PityResult(value.Hit, value.Guaranteed, value.PityMisses, value.PityLimit));
+		MessagePopup.Open(Title, stringBuilder.ToString());
+	}
+
+	/// True when Change Option on this Technomagic item's skill line runs "reroll until".
+	public static bool IsTechnomagicSkillArmed(int equipSlot)
+	{
+		return host == HostKind.Technomagic && skillTarget != 0 && skillTargetEquipSlot == equipSlot;
+	}
+
+	/// Replaces the Technomagic skill reroll when a skill target is selected for this item.
+	public static bool TryStartTechnomagicSkill(ValanceWebManager manager, int equipSlot, int skillSlot)
+	{
+		if (manager == null || !IsTechnomagicSkillArmed(equipSlot))
+		{
+			return false;
+		}
+		if (busy)
+		{
+			return true;
+		}
+		int wanted = skillTarget;
+		string name = SkillName(wanted);
+		SkillSender send = manager.SprkSendValanceSkillRenew;
+		EquipItemInfo item = CurrentItem();
+		if (item != null && item.SlotIndex == equipSlot && SameSkill(CurrentSkill(item, skillSlot), wanted))
+		{
+			MessagePopup.Open(Title, SprkText.Format("This line already has {0}.", name));
+			return true;
+		}
+		NShared.RenewEquipSkill.Request request = new NShared.RenewEquipSkill.Request
+		{
+			EquipItemSlotIndex = equipSlot,
+			SkillSlotIndex = skillSlot
+		};
+		SkillAsks.Add(request, new Ask
+		{
+			Target = wanted,
+			Preview = true
+		});
+		busy = true;
+		SingletonUpdater<WebServiceManager>.instance.Requester.Request(request, delegate(NShared.RenewEquipSkill.Response response)
+		{
+			busy = false;
+			if (response == null)
+			{
+				return;
+			}
+			if (response.BaseResult != BaseResultType.Success)
+			{
+				MessagePopup.OpenError(response.BaseResult);
+			}
+			else if (response.Result == NShared.RenewEquipSkill.ResultType.NoAvailableOption)
+			{
+				MessagePopup.Open(Title, SprkText.Format("{0} cannot appear on this line.", name));
+			}
+			else if (response.Result != NShared.RenewEquipSkill.ResultType.Success)
+			{
+				MessagePopup.OpenError(response.Result);
+			}
+			else if (SkillCaptured.TryGetValue(response, out var value) && value.TotalWeight > 0 && value.HitWeight > 0)
+			{
+				EquipItemInfo current = GlobalAutoBehaviour<AccountManager>.instance.EquipItemManager.Get(equipSlot);
+				if (current != null)
 				{
-					stringBuilder.Append(SprkText.Get("\nThe last roll is shown."));
+					OpenConfirm(name, SkillBudget(current), (double)value.HitWeight / (double)value.TotalWeight, Remaining(value.PityMisses, value.PityLimit), SprkText.Get("Not enough skill reroll materials."), delegate(int tries)
+					{
+						RunSkill(send, equipSlot, skillSlot, wanted, name, tries);
+					});
 				}
-				List<string> list = new List<string>();
-				if (value.CouponsUsed > 0)
-				{
-					list.Add(SprkText.Format("Coupons: {0}", value.CouponsUsed));
-				}
-				if (value.GemsSpent > 0)
-				{
-					list.Add(SprkText.Format("Rubies: {0}", value.GemsSpent.ToString("N0")));
-				}
-				if (list.Count > 0)
-				{
-					stringBuilder.Append(SprkText.Format("\nUsed {0}.", string.Join(", ", list.ToArray())));
-				}
-				stringBuilder.Append(PityResult(value.Hit, value.Guaranteed, value.PityMisses, value.PityLimit));
-				MessagePopup.Open(Title, stringBuilder.ToString());
+			}
+		});
+		return true;
+	}
+
+	private static int CurrentSkill(EquipItemInfo item, int skillSlot)
+	{
+		foreach (EquipItemOptionInfo info in item.GetExtraOptionInfoList())
+		{
+			if (info != null && info.SlotIndex == skillSlot)
+			{
+				return info.OptionIndex;
+			}
+		}
+		return 0;
+	}
+
+	private static bool SameSkill(int option, int wanted)
+	{
+		if (option == 0)
+		{
+			return false;
+		}
+		SkillEntry a = SkillOf(option);
+		return a != null && a == SkillOf(wanted);
+	}
+
+	/// Skill rerolls cost only the skill reroll material, per try.
+	private static Budget SkillBudget(EquipItemInfo item)
+	{
+		Budget result = new Budget
+		{
+			PerTryItems = new List<KeyValuePair<int, int>>(),
+			Prices = new int[0]
+		};
+		EquipItemData equipItemData = item.EquipItemData;
+		EquipItemDetailData detail = ((equipItemData == null) ? null : GameRoot.Instance.EquipItemDetailDataContainer.GetData(equipItemData.DetailIndex));
+		if (detail == null || detail.ExtraSkillRenewItemCount <= 0)
+		{
+			return result;
+		}
+		result.PerTryItems.Add(new KeyValuePair<int, int>(detail.ExtraSkillRenewItemIndex, detail.ExtraSkillRenewItemCount));
+		result.MaxTries = Math.Min(MaxTries, Count(detail.ExtraSkillRenewItemIndex) / detail.ExtraSkillRenewItemCount);
+		return result;
+	}
+
+	private static void RunSkill(SkillSender send, int equipSlot, int skillSlot, int wanted, string name, int tries)
+	{
+		if (busy || send == null)
+		{
+			return;
+		}
+		NShared.RenewEquipSkill.Request request = new NShared.RenewEquipSkill.Request
+		{
+			EquipItemSlotIndex = equipSlot,
+			SkillSlotIndex = skillSlot
+		};
+		SkillAsks.Add(request, new Ask
+		{
+			Target = wanted,
+			MaxTries = tries
+		});
+		send(request, delegate(NShared.RenewEquipSkill.Response response)
+		{
+			if (SkillCaptured.TryGetValue(response, out var value))
+			{
+				ShowSummary(name, value);
 			}
 		});
 	}

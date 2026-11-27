@@ -441,7 +441,7 @@ pub(crate) async fn cached_hero(db: &mut PgConnection, a: i64, id: i64) -> Resul
     Ok(h)
 }
 async fn user(db: &mut PgConnection, a: i64) -> Result<Value> {
-    let r=crate::db::query("SELECT a.nick,a.last_login,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u ON u.account_id=a.account_id WHERE a.account_id=$1").bind(a).fetch_optional(db).await?.ok_or_else(||rule("GuildMemberNotFound"))?;
+    let r=crate::db::query("SELECT sprk_display_nick(a.account_id,a.nick) AS nick,a.last_login,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u ON u.account_id=a.account_id WHERE a.account_id=$1").bind(a).fetch_optional(db).await?.ok_or_else(||rule("GuildMemberNotFound"))?;
     Ok(
         json!({"AccountId":a,"Nick":r.get::<String,_>("nick"),"TeamLevel":r.get::<i64,_>("team_level"),"AvatarHeroIndex":r.get::<i64,_>("avatar_hero_index"),"LastLoginTime":r.get::<Option<String>,_>("last_login"),"MatchScore":0,"SeasonWin":0,"SeasonLose":0}),
     )

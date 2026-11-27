@@ -136,7 +136,7 @@ async fn finish(s: &AppState, run: &mut Run) -> Result<bool> {
         Ok(start) => {
             run.payload["RetryVote"] = Value::Null;
             send_all(s, run, format!("Restart|{id}|{start}"));
-            let _ = s.conquest.send_worker("WorkerCancel", json!({"RunId":run.id})).await;
+            let _ = s.conquest.send_worker(&run.worker, "WorkerCancel", json!({"RunId":run.id})).await;
             // Keep the old run unreachable: its result can no longer settle.
             run.result = Some(json!({"Retried":true}));
             s.conquest.runs.remove(&run.id);

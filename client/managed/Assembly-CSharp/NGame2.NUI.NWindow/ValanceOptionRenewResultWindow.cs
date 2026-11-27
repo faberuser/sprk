@@ -329,6 +329,19 @@ public class ValanceOptionRenewResultWindow : ValanceEnhanceResultBase
 
 	public void OnClickRenewAgain()
 	{
+		// SPRK: with a "reforge until" target, its count popup is the confirmation.
+		if (_listener != null && _renewType == ERenewType.Option && SprkReforgeUntil.IsTechnomagicArmed(base.EquipItemInfo.SlotIndex))
+		{
+			_selectResult = OptionSelectResult.None;
+			_listener.AgainOptionRenew(base.EquipItemInfo.SlotIndex, _renewSlotIndex);
+			return;
+		}
+		if (_listener != null && _renewType == ERenewType.Skill && SprkReforgeUntil.IsTechnomagicSkillArmed(base.EquipItemInfo.SlotIndex))
+		{
+			_selectResult = OptionSelectResult.None;
+			_listener.AgainSkillRenew(base.EquipItemInfo.SlotIndex, _renewSlotIndex);
+			return;
+		}
 		string stringDirect = LocalizationManager.GetStringDirect("EQUIP_OPTION_RENEW.ASK_RENEW_OPTION_TITLE");
 		string stringDirect2 = LocalizationManager.GetStringDirect("VALANCE_RENEW_CONFIRM_POPUP");
 		MessagePopup.Open(stringDirect, stringDirect2, delegate

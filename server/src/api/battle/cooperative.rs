@@ -24,23 +24,46 @@ pub(super) use party::begin_party;
 
 type Packet=(String,Value);
 type Sender=mpsc::Sender<Packet>;
-struct Worker {id:String,sender:Sender,arena_version:i64,challenge_version:i64,dispatch_version:i64}
+pub(super) struct Worker {id:String,sender:Sender,arena_version:i64,challenge_version:i64,dispatch_version:i64}
 struct Peer {id:String,run:String,sender:Sender}
 pub(crate) struct BattleHub {
-    worker:RwLock<Option<Worker>>,
+    /// Authenticated native workers. Each simulates its runs on its own Unity
+    /// main thread, so live fights and dispatch spread across processes.
+    workers:RwLock<Vec<Worker>>,
+    max_workers:usize,
     dispatch:Mutex<std::collections::HashMap<String,dispatch_worker::Pending>>,
     peers:DashMap<i64,Peer>,
     disconnects:DashMap<String,tokio::sync::watch::Sender<bool>>,
     heartbeats:DashMap<i64,(i64,i64)>, // account -> (room, latest observed time)
     runs:DashMap<String,Arc<Mutex<Run>>>,
+    /// Connection id -> live packets held back while that connection receives
+    /// its log history outside the run lock. Flushed in order after the replay.
+    replays:DashMap<String,Vec<Packet>>,
     pub port:u16,
     pub address:String,
 }
+/// How far behind the server's battle clock players replay, sent in
+/// BattleLoginRes so the server decides it for every platform. Logs are
+/// applied at the player's own clock, so headroom keeps late-arriving logs
+/// from landing later than the worker applied them. The client allows 0-200.
+fn replay_buffer_ms(arena:bool)->i64 {
+    let name=if arena {"SPRK_ARENA_REPLAY_BUFFER_MS"} else {"SPRK_COOP_REPLAY_BUFFER_MS"};
+    std::env::var(name).ok().and_then(|v|v.trim().parse().ok()).unwrap_or(100_i64).clamp(0,200)
+}
+/// Number of native worker processes started and accepted (`BATTLE_WORKERS`).
+pub(crate) fn worker_count()->usize {
+    std::env::var("BATTLE_WORKERS").ok().and_then(|v|v.trim().parse().ok()).unwrap_or(1_usize).clamp(1,64)
+}
+/// Live packets a reconnecting player may accumulate while its history replays.
+const REPLAY_BACKLOG:usize=20000;
 impl Default for BattleHub {
-    fn default()->Self {Self{worker:RwLock::new(None),dispatch:Mutex::new(std::collections::HashMap::new()),peers:DashMap::new(),disconnects:DashMap::new(),heartbeats:DashMap::new(),runs:DashMap::new(),
+    fn default()->Self {Self{workers:RwLock::new(vec![]),max_workers:worker_count(),dispatch:Mutex::new(std::collections::HashMap::new()),peers:DashMap::new(),disconnects:DashMap::new(),heartbeats:DashMap::new(),runs:DashMap::new(),replays:DashMap::new(),
         port:std::env::var("BATTLE_PORT").ok().and_then(|v|v.parse().ok()).unwrap_or(9002),
         address:crate::websocket::public_url("battle")}}
 }
+/// What a new run or dispatch simulation is placed by.
+#[derive(Clone,Copy,PartialEq)]
+pub(super) enum Placement {Live,Dispatch}
 struct Run {
     id:String,worker:String,master:i64,room:i64,members:Vec<i64>,payload:Value,
     entered:BTreeSet<i64>,ready:BTreeSet<i64>,sent:BTreeSet<i64>,
@@ -50,17 +73,52 @@ struct Run {
 }
 impl BattleHub {
     pub(crate) async fn readiness(&self) -> axum::http::StatusCode {
-        let worker = self.worker.read().await;
-        if worker.as_ref().is_some_and(|w| !w.sender.is_closed() && w.challenge_version >= 1 && w.arena_version >= 1 && w.dispatch_version >= 1) {
+        let workers = self.workers.read().await;
+        if workers.iter().any(|w| !w.sender.is_closed() && w.challenge_version >= 1 && w.arena_version >= 1 && w.dispatch_version >= 1) {
             axum::http::StatusCode::OK
         } else {
             axum::http::StatusCode::SERVICE_UNAVAILABLE
         }
     }
-    async fn send_worker(&self,name:&str,body:Value)->Result<()> {
-        let worker=self.worker.read().await;
-        let worker=worker.as_ref().ok_or_else(||rule("BattleServerNotFound"))?;
+    /// Sends to the worker that owns a run. Runs never move between workers:
+    /// a worker's in-memory engine is the only copy of its battles.
+    async fn send_worker(&self,worker:&str,name:&str,body:Value)->Result<()> {
+        let workers=self.workers.read().await;
+        let worker=workers.iter().find(|w|w.id==worker).ok_or_else(||rule("BattleServerNotFound"))?;
         worker.sender.try_send((name.into(),body)).map_err(|_|rule("BattleServerNotFound"))
+    }
+    /// Unfinished live runs per worker. This never waits: placement can happen
+    /// while the caller holds a run lock (Party Retry), so a run that is busy
+    /// at this instant is left out of the estimate.
+    fn live_runs(&self)->std::collections::HashMap<String,usize> {
+        let mut counts=std::collections::HashMap::new();
+        for entry in self.runs.iter() {
+            if let Ok(run)=entry.value().try_lock() {
+                if run.result.is_none() {*counts.entry(run.worker.clone()).or_insert(0)+=1;}
+            }
+        }
+        counts
+    }
+    /// Chooses the least loaded worker that satisfies `eligible`.
+    /// Live fights go where the fewest live fights and then the fewest
+    /// dispatch simulations run. Dispatch prefers the worker with the fewest
+    /// live fights and, among equals, the last one, so with several workers
+    /// background simulations stay away from the worker live fights start on.
+    pub(super) async fn pick_worker(&self,placement:Placement,eligible:impl Fn(&Worker)->bool)->Option<(String,Sender,i64)> {
+        let live=self.live_runs();
+        let mut dispatch=std::collections::HashMap::<String,usize>::new();
+        for pending in self.dispatch.lock().await.values() {*dispatch.entry(pending.worker.clone()).or_insert(0)+=1;}
+        let workers=self.workers.read().await;
+        let candidates=workers.iter().enumerate().filter(|(_,w)|!w.sender.is_closed() && eligible(w));
+        let load=|w:&Worker|(live.get(&w.id).copied().unwrap_or(0),dispatch.get(&w.id).copied().unwrap_or(0));
+        let chosen=match placement {
+            Placement::Live => candidates.min_by_key(|(index,w)|(load(w),*index)),
+            Placement::Dispatch => candidates.min_by_key(|(index,w)|(load(w).0,std::cmp::Reverse(*index))),
+        };
+        chosen.map(|(_,w)|(w.id.clone(),w.sender.clone(),w.dispatch_version))
+    }
+    pub(super) async fn worker_active(&self,worker:&str)->bool {
+        self.workers.read().await.iter().any(|w|w.id==worker && !w.sender.is_closed())
     }
     fn notify(&self,run:&Run,name:&str,body:Value) {
         for a in &run.members {
@@ -68,6 +126,14 @@ impl BattleHub {
         }
     }
     fn deliver(&self,peer:&Peer,name:&str,body:Value)->bool {
+        if let Some(mut held)=self.replays.get_mut(&peer.id) {
+            // Keep live packets behind the history this connection is receiving.
+            if held.len()<REPLAY_BACKLOG {held.push((name.into(),body));return true;}
+            drop(held);
+            tracing::warn!(run=%peer.run, protocol=name, "Battle replay backlog full; reconnect required");
+            if let Some(close)=self.disconnects.get(&peer.id) {let _=close.send(true);}
+            return false;
+        }
         if peer.sender.try_send((name.into(),body)).is_ok() {return true;}
         // Never continue a live replay after silently losing an ordered log.
         // Close only this connection; authenticated reconnect replays its history.
@@ -144,7 +210,7 @@ pub(super) async fn begin(db:&mut PgConnection,s:&AppState,a:i64,r:&Request)->Re
         return Err(rule("AlreadyOnBattleHero"));
     }
     if a!=master || n(&room,"Status")!=0 {return Err(rule("WrongMember"));}
-    let worker_id={let worker=s.conquest.worker.read().await;worker.as_ref().ok_or_else(||rule("BattleServerNotFound"))?.id.clone()};
+    let worker_id=s.conquest.pick_worker(Placement::Live,|_|true).await.ok_or_else(||rule("BattleServerNotFound"))?.0;
     let members:Vec<i64>=if solo {vec![a]} else {crate::db::query_scalar("SELECT account FROM battle_room_members WHERE room=$1 ORDER BY joined,account")
         .bind(room_id).fetch_all(&mut *db).await?};
     if members.is_empty() || members.len()>3 || ids(r,"MultiplayMemberIds",3)?.into_iter().collect::<BTreeSet<_>>() != members.iter().copied().collect() {
@@ -196,7 +262,7 @@ pub(super) async fn begin(db:&mut PgConnection,s:&AppState,a:i64,r:&Request)->Re
         // Validate balances before anyone is charged. The actual debit occurs
         // together, only once all players have loaded the combat scene.
         if n(&conquest::tickets(db,s,*member,0).await?,"NewValue")<ticket_cost {return Err(rule("NotEnoughDungeonKey"));}
-        let user=crate::db::query("SELECT a.nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=$1")
+        let user=crate::db::query("SELECT sprk_display_nick(a.account_id,a.nick) AS nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=$1")
             .bind(member).fetch_one(&mut *db).await?;
         let mut account=conquest::combat_buffs(db,s,*member).await?;
         account["UserInfo"]=json!({"AccountId":member,"Nick":user.get::<String,_>("nick"),"TeamLevel":user.get::<i64,_>("team_level"),"AvatarHeroIndex":user.get::<i64,_>("avatar_hero_index")});
@@ -329,10 +395,12 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
                         let key=s.battle_service_key.as_ref().as_ref().ok_or_else(||rule("Unauthorized"))?;
                         let supplied=body["Key"].as_str().unwrap_or("");
                         if key.len()!=supplied.len() || !key.as_bytes().iter().zip(supplied.as_bytes()).fold(0_u8,|v,(a,b)|v|(a^b)).eq(&0) {return Err(rule("Unauthorized"));}
-                        let mut active=s.conquest.worker.write().await;
-                        if active.is_some() {return Err(rule("AlreadyOnBattleHero"));}
-                        *active=Some(Worker{id:connection_id.clone(),sender:tx.clone(),arena_version:number(&body,"ArenaVersion"),challenge_version:number(&body,"ChallengeRaidVersion"),dispatch_version:number(&body,"DispatchVersion")});worker=true;
-                        tracing::info!(arena_version=number(&body,"ArenaVersion"), challenge_raid_version=number(&body,"ChallengeRaidVersion"), "Native battle worker authenticated");
+                        let mut active=s.conquest.workers.write().await;
+                        active.retain(|w|!w.sender.is_closed());
+                        if active.len()>=s.conquest.max_workers {return Err(rule("AlreadyOnBattleHero"));}
+                        active.push(Worker{id:connection_id.clone(),sender:tx.clone(),arena_version:number(&body,"ArenaVersion"),challenge_version:number(&body,"ChallengeRaidVersion"),dispatch_version:number(&body,"DispatchVersion")});worker=true;
+                        let workers=active.len();drop(active);
+                        tracing::info!(arena_version=number(&body,"ArenaVersion"), challenge_raid_version=number(&body,"ChallengeRaidVersion"), workers, "Native battle worker authenticated");
                         tx.send(("WorkerLoginRes".into(),json!({"Result":"Success"}))).await.map_err(|_|rule("InvalidValue"))?;
                     } else if name=="BattleLoginReq" {
                         let session=s.get_session(body["SessionKey"].as_str().unwrap_or("")).ok_or_else(||rule("SessionExpired"))?;
@@ -367,14 +435,23 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
                             dashmap::mapref::entry::Entry::Vacant(peer) => {peer.insert(Peer{id:connection_id.clone(),run:id.clone(),sender:tx.clone()});}
                         }
                         battle_run=Some(id.to_owned());
-                        tx.send(("BattleLoginRes".into(),json!({"Result":"Success","RequestId":body["RequestId"]}))).await.map_err(|_|rule("InvalidValue"))?;
+                        tx.send(("BattleLoginRes".into(),json!({"Result":"Success","RequestId":body["RequestId"],"ReplayBufferMs":replay_buffer_ms(match_uid>0)}))).await.map_err(|_|rule("InvalidValue"))?;
                         if honor::drafting(&run) {
                             tx.send(("BattleBanPickStartNot".into(),json!({}))).await.map_err(|_|rule("InvalidValue"))?;
                         }
                     } else {return Err(rule("Unauthorized"));}
                 } else if worker {
+                    let run_id=body["RunId"].as_str().map(str::to_owned);
                     if let Err(error) = worker_packet(&s,&connection_id,&name,body).await {
-                        tracing::warn!(%error, protocol=%name, "Native battle worker packet rejected"); return Err(error);
+                        // One run's bad packet or failed settlement ends that run
+                        // only; every other battle on this worker keeps going.
+                        let Some(run_id)=run_id else {
+                            tracing::warn!(%error, protocol=%name, "Native battle worker packet rejected"); return Err(error);
+                        };
+                        tracing::warn!(%error, protocol=%name, run=%run_id, "Native battle worker packet rejected; ending that run");
+                        if let Err(error)=fail_run(&s,&connection_id,&run_id).await {
+                            tracing::warn!(%error, run=%run_id, "Ending the rejected run failed");
+                        }
                     }
                 } else {
                     if !s.conquest.peers.get(&account).is_some_and(|peer|peer.id==connection_id) {return Err(rule("WrongMember"));}
@@ -392,9 +469,7 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
         _=close_rx.changed()=>Err(rule("InvalidValue")),
     };
     if worker {
-        let mut current=s.conquest.worker.write().await;
-        if current.as_ref().is_some_and(|v|v.id==connection_id) {*current=None;}
-        drop(current);
+        s.conquest.workers.write().await.retain(|v|v.id!=connection_id);
         let handles:Vec<_>=s.conquest.runs.iter().map(|v|v.value().clone()).collect();
         for handle in handles {let run=handle.lock().await;if run.worker==connection_id && run.result.is_none() {let _=cancel(&s,&run).await;}}
     } else if account>0 {
@@ -415,8 +490,22 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
             });
         }
     }
-    s.conquest.disconnects.remove(&connection_id);
+    s.conquest.disconnects.remove(&connection_id);s.conquest.replays.remove(&connection_id);
     writer_task.abort();outcome
+}
+/// Ends one run after its worker sent something the server cannot accept,
+/// refunding entries exactly like any other cancellation.
+async fn fail_run(s:&AppState,worker:&str,id:&str)->Result<()> {
+    if id.starts_with("dispatch:") {
+        // Dropping the reply makes that repeat retry on a later turn.
+        let mut pending=s.conquest.dispatch.lock().await;
+        if pending.get(id).is_some_and(|p|p.worker==worker) {pending.remove(id);}
+        return Ok(());
+    }
+    let Some(handle)=s.conquest.runs.get(id).map(|v|v.value().clone()) else {return Ok(());};
+    let run=handle.lock().await;
+    if run.worker!=worker || run.result.is_some() {return Ok(());}
+    cancel(s,&run).await
 }
 #[cfg(test)]
 async fn player_packet(s:&AppState,a:i64,name:&str,body:Value,tx:&Sender)->Result<()> {
@@ -433,6 +522,8 @@ async fn player_packet_for_run(s:&AppState,a:i64,id:&str,name:&str,body:Value,tx
     if matches!(name,"PingReq"|"PingIdleReq") {honor::tick(s,&mut run).await?;}
     let response_name=if matches!(name,"ReserveOnSkillReq"|"ReserveOffSkillReq"|"FireNextSkillReq"|"SetManualTargetReq"|"SetManualMoveReq") {"BaseCreatureActionRes".into()}else{name.strip_suffix("Req").map(|n|format!("{n}Res")).ok_or_else(||rule("InvalidRequest"))?};
     let mut reply=json!({"Result":"Success","RequestId":body["RequestId"]});
+    // History to send once the run lock is released: (connection, packets).
+    let mut replay:Option<(Option<String>,Vec<Packet>)>=None;
     match name {
         "BattleEnterReq" => {
             if honor::drafting(&run) {reply["Result"]=json!("Fail");}
@@ -444,7 +535,12 @@ async fn player_packet_for_run(s:&AppState,a:i64,id:&str,name:&str,body:Value,tx
                 if pending { return Err(rule("NotCompletedBattle")); }
             }
             // Replay only this participant's current battle, never another room.
-            for (name,body) in &run.logs {tx.send((name.clone(),body.clone())).await.map_err(|_|rule("InvalidValue"))?;}
+            // A long fight's history can take seconds to reach a slow player,
+            // so it is copied here and sent after the lock is released. Live
+            // packets for this connection are held until it has been sent.
+            let connection=s.conquest.peers.get(&a).filter(|peer|peer.run==id).map(|peer|peer.id.clone());
+            if let Some(connection)=&connection {s.conquest.replays.insert(connection.clone(),vec![]);}
+            let mut history=run.logs.clone();
             run.entered.insert(a);
             run.offline.remove(&a);
             run.disconnect_cutoffs.remove(&a);
@@ -454,10 +550,11 @@ async fn player_packet_for_run(s:&AppState,a:i64,id:&str,name:&str,body:Value,tx
                 if let Some(result)=run.result.as_ref() {
                     // A reconnect must receive the terminal notification after
                     // its log replay even if the old socket received it too.
-                    tx.send(("BattleResultNot".into(),arena::player_result(&run,a,result))).await.map_err(|_|rule("InvalidValue"))?;
+                    history.push(("BattleResultNot".into(),arena::player_result(&run,a,result)));
                     run.sent.insert(a);
                 }
             }
+            replay=Some((connection,history));
             }
         }
         "BattleStartReq" => {
@@ -469,7 +566,7 @@ async fn player_packet_for_run(s:&AppState,a:i64,id:&str,name:&str,body:Value,tx
         }
         "BattleWaveResumeReq"=>{
             if honor::drafting(&run) {reply["Result"]=json!("Fail");}
-            else {s.conquest.send_worker("WorkerResume",json!({"RunId":id})).await?;}
+            else {s.conquest.send_worker(&run.worker,"WorkerResume",json!({"RunId":id})).await?;}
         }
         "BattleMessageReq" if body["Message"].as_str().is_some_and(|v|v.starts_with(retry::PREFIX)) => {
             // Party Retry votes share the native battle message transport.
@@ -512,7 +609,7 @@ async fn player_packet_for_run(s:&AppState,a:i64,id:&str,name:&str,body:Value,tx
             if run.result.is_none() && !run.departed.contains(&a) && !honor::drafting(&run) {
                 let action=json!({"RunId":id,"AccountId":a,"Name":name,"Body":body,"QueuedAtUnixMs":chrono::Utc::now().timestamp_millis()});
                 if run.started || (run.prepared && run.payload.get("ReplayWaveIndex").is_some()) {
-                    s.conquest.send_worker("WorkerCommand",action).await?;
+                    s.conquest.send_worker(&run.worker,"WorkerCommand",action).await?;
                 }
                 else {
                     if run.pending_actions.len()>=512 {return Err(rule("InvalidValue"));}
@@ -533,7 +630,27 @@ async fn player_packet_for_run(s:&AppState,a:i64,id:&str,name:&str,body:Value,tx
         "BattleLeaveReq"|"BattleEndReq"=>{depart_player(s,&mut run,a).await?;},
         _=>return Err(rule("InvalidRequest")),
     }
+    // Never wait on this player's socket while holding the match lock: the
+    // worker and every other participant need it for the next packet.
+    drop(run);
+    if let Some((connection,history))=replay {
+        let sent=send_replay(s,connection.as_deref(),history,tx).await;
+        if sent.is_err() {if let Some(connection)=&connection {s.conquest.replays.remove(connection);}}
+        sent?;
+    }
     tx.send((response_name,reply)).await.map_err(|_|rule("InvalidValue"))?;Ok(())
+}
+/// Sends a copied history, then the live packets held for this connection
+/// meanwhile, in order. The hold ends atomically once nothing is left, so a
+/// later live packet can never overtake a held one.
+async fn send_replay(s:&AppState,connection:Option<&str>,history:Vec<Packet>,tx:&Sender)->Result<()> {
+    for packet in history {tx.send(packet).await.map_err(|_|rule("InvalidValue"))?;}
+    let Some(connection)=connection else {return Ok(());};
+    loop {
+        if s.conquest.replays.remove_if(connection,|_,held|held.is_empty()).is_some() {return Ok(());}
+        let held=match s.conquest.replays.get_mut(connection) {Some(mut held)=>std::mem::take(&mut *held),None=>return Ok(())};
+        for packet in held {tx.send(packet).await.map_err(|_|rule("InvalidValue"))?;}
+    }
 }
 
 /// The original roster remains authoritative for ownership and settlement.
@@ -543,12 +660,12 @@ async fn prepare_wave(s:&AppState,run:&mut Run)->Result<()> {
     if honor::drafting(run) {return Ok(());}
     let active:Vec<_>=run.members.iter().filter(|a|!run.departed.contains(a) && !run.offline.contains(a)).collect();
     if active.is_empty() || !active.iter().all(|a|run.entered.contains(a)) {return Ok(());}
-    s.conquest.send_worker("WorkerPrepare",run.payload.clone()).await?;
+    s.conquest.send_worker(&run.worker,"WorkerPrepare",run.payload.clone()).await?;
     run.prepared=true;
     // Preserve the original heroes and settlement roster. Departures recorded
     // before preparation must reach the worker after it has created the run.
     for a in &run.departed {
-        s.conquest.send_worker("WorkerWithdraw",json!({"RunId":run.id,"AccountId":a})).await?;
+        s.conquest.send_worker(&run.worker,"WorkerWithdraw",json!({"RunId":run.id,"AccountId":a})).await?;
     }
     Ok(())
 }
@@ -591,9 +708,9 @@ async fn start_wave(s:&AppState,run:&mut Run)->Result<()> {
         run.cancelled.extend(cancelled);
         }
     }
-    s.conquest.send_worker("WorkerStart",json!({"RunId":run.id})).await?;
+    s.conquest.send_worker(&run.worker,"WorkerStart",json!({"RunId":run.id})).await?;
     run.started=true;run.wave_started=true;
-    for action in std::mem::take(&mut run.pending_actions) {s.conquest.send_worker("WorkerCommand",action).await?;}
+    for action in std::mem::take(&mut run.pending_actions) {s.conquest.send_worker(&run.worker,"WorkerCommand",action).await?;}
     Ok(())
 }
 
@@ -604,7 +721,7 @@ async fn depart_player(s:&AppState,run:&mut Run,a:i64)->Result<()> {
     if run.result.is_none() && !run.departed.contains(&a) {
         let who=retry::nick(run,a);retry::cancel_vote(s,run,"Left",&who);
         // The existing native worker hands this player's heroes to AI.
-        if run.prepared {s.conquest.send_worker("WorkerWithdraw",json!({"RunId":run.id,"AccountId":a})).await?;}
+        if run.prepared {s.conquest.send_worker(&run.worker,"WorkerWithdraw",json!({"RunId":run.id,"AccountId":a})).await?;}
         run.departed.insert(a);
         run.pending_actions.retain(|action|number(action,"AccountId")!=a);
         if !run.started && run.members.iter().all(|a|run.departed.contains(a)) {return cancel(s,run).await;}
@@ -649,7 +766,7 @@ async fn worker_packet(s:&AppState,worker:&str,name:&str,body:Value)->Result<()>
             run.payload["ReplayWaveIndex"] = json!(number(&packet,"WaveIndex"));
             // Inputs received while heroes were loading are now safe to apply;
             // waiting for WorkerStart would hide reservations until combat.
-            for action in std::mem::take(&mut run.pending_actions) {s.conquest.send_worker("WorkerCommand",action).await?;}
+            for action in std::mem::take(&mut run.pending_actions) {s.conquest.send_worker(&run.worker,"WorkerCommand",action).await?;}
         }
         if name=="BattleLogNot" {
             run.time_ms=number(&packet,"ServerTimeMs");
@@ -740,7 +857,7 @@ async fn cancel(s:&AppState,run:&Run)->Result<()> {
         .bind(now()).bind(run.room).execute(&mut *db).await?;
     db.commit().await?;
     s.conquest.notify(run,"BattleEndNot",json!({"Reason":"MasterLogOff"}));
-    let _=s.conquest.send_worker("WorkerCancel",json!({"RunId":run.id})).await;s.conquest.runs.remove(&run.id);Ok(())
+    let _=s.conquest.send_worker(&run.worker,"WorkerCancel",json!({"RunId":run.id})).await;s.conquest.runs.remove(&run.id);Ok(())
 }
 
 async fn cancel_abandoned(s:&AppState,id:&str,disconnected:Option<i64>)->Result<()> {
@@ -814,11 +931,11 @@ mod tests {
         let hub = BattleHub::default();
         assert_eq!(hub.readiness().await, StatusCode::SERVICE_UNAVAILABLE);
         let (sender, receiver) = mpsc::channel(1);
-        *hub.worker.write().await = Some(Worker { id: "health-test".into(), sender,
+        *hub.workers.write().await=vec!(Worker { id: "health-test".into(), sender,
             arena_version: 1, challenge_version: 0, dispatch_version:0 });
         assert_eq!(hub.readiness().await, StatusCode::SERVICE_UNAVAILABLE);
-        hub.worker.write().await.as_mut().unwrap().challenge_version = 1;
-        hub.worker.write().await.as_mut().unwrap().dispatch_version = 1;
+        hub.workers.write().await.first_mut().unwrap().challenge_version = 1;
+        hub.workers.write().await.first_mut().unwrap().dispatch_version = 1;
         assert_eq!(hub.readiness().await, StatusCode::OK);
         drop(receiver);
         assert_eq!(hub.readiness().await, StatusCode::SERVICE_UNAVAILABLE);
@@ -840,7 +957,7 @@ mod tests {
             }
             crate::db::query("UPDATE heroes SET level=100 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
             let (tx,mut worker)=mpsc::channel(100);
-            *s.conquest.worker.write().await=Some(Worker{id:"solo-worker".into(),sender:tx,arena_version:0,challenge_version:0,dispatch_version:0});
+            *s.conquest.workers.write().await=vec!(Worker{id:"solo-worker".into(),sender:tx,arena_version:0,challenge_version:0,dispatch_version:0});
             let prefix=format!("SessionKey={}&ChapterIndex=9900&DungeonIndex=101&DungeonDifficulty=0&RaidIndex=90001&RaidLevel=101&MultiplayMasterId={a}&MultiplayMemberIds=[{a}]&AccountIds=[{a},{a},{a}]",u["UserInfo"]["SessionKey"].as_str().unwrap());
             for invalid in ["HeroIndices=[1,2,3,4]&AiHeroIndices=[5,6]","HeroIndices=[1,2,3]&AiHeroIndices=[3,4,5]","HeroIndices=[1,2,3]&AiHeroIndices=[4,5,99999]","HeroIndices=[1,2,3]&AiHeroIndices=[4,5,6]&GroupHeroIndices=[4]"] {
                 let out=crate::api::battle::execute_request(&s,"campaign/begin_campaign",Bytes::from(format!("{prefix}&{invalid}"))).await.unwrap();
@@ -900,7 +1017,7 @@ mod tests {
             let mut db=s.db.acquire().await.unwrap();
             put(&mut db,*a,"party_member",1,&json!({"IsBattleReady":true,"DeckHeros":{(i+1).to_string():{"HeroIndex":i+1}},"SubDeckHeros":{}})).await.unwrap();
         }
-        let (worker,rx)=mpsc::channel(100);*s.conquest.worker.write().await=Some(Worker{id:"test-worker".into(),sender:worker,arena_version:0,challenge_version:0,dispatch_version:0});
+        let (worker,rx)=mpsc::channel(100);*s.conquest.workers.write().await=vec!(Worker{id:"test-worker".into(),sender:worker,arena_version:0,challenge_version:0,dispatch_version:0});
         let mut db=crate::database::begin(&s.db).await.unwrap();
         let args=request(json!({"RaidRoomNo":1,"RaidIndex":90001,"RaidLevel":level,"ChapterIndex":9900,"DungeonIndex":level,"DungeonDifficulty":0,
             "MultiplayMasterId":members[0],"MultiplayMemberIds":members,"HeroIndices":if level>100 {vec![1,2,3]}else{vec![1,4]},
@@ -1021,7 +1138,9 @@ mod tests {
         for (i,user) in users.iter().enumerate() {
             let mut client=Client::connect(&server,"battle").await;
             client.send("BattleLoginReq",json!({"AccountId":n(&user["UserInfo"],"AccountId"),"SessionKey":user["UserInfo"]["SessionKey"],"MasterId":master,"RequestId":1})).await;
-            assert_eq!(client.recv("BattleLoginRes").await["Result"],"Success");
+            let login=client.recv("BattleLoginRes").await;assert_eq!(login["Result"],"Success");
+            // Co-op players get the server's replay headroom (default 100 ms).
+            assert_eq!(login["ReplayBufferMs"],100);
             if i>0 {
                 client.send("BattleEnterReq",json!({"RequestId":2})).await;
                 assert_eq!(client.recv("BattleEnterRes").await["Result"],"Success");
@@ -1232,7 +1351,7 @@ mod tests {
         let (mut s,users,g,_worker,_clients)=fixture_level(level).await;
         Arc::make_mut(&mut Arc::make_mut(&mut s.tables).arena_guild).rules["NativeConquestCapturePath"]=json!(format!("target/conquest-lab/native-result-{level}.json"));
         let key=uuid::Uuid::new_v4().to_string();s.battle_service_key=Arc::new(Some(key.clone()));
-        *s.conquest.worker.write().await=None;s.conquest.peers.clear();
+        s.conquest.workers.write().await.clear();s.conquest.peers.clear();
         let listener=TcpListener::bind("127.0.0.1:0").await.unwrap();let port=listener.local_addr().unwrap().port();
         let server=tokio::spawn(serve(listener,s.clone()));
         let executable=std::env::var("CONQUEST_NATIVE_EXECUTABLE").expect("CONQUEST_NATIVE_EXECUTABLE");
@@ -1244,10 +1363,10 @@ mod tests {
         #[cfg(windows)] {use std::os::windows::process::CommandExt;command.creation_flags(0x08000000);}
         let _native=Native(command.spawn().unwrap());
         tokio::time::timeout(std::time::Duration::from_secs(90),async {
-            while s.conquest.worker.read().await.is_none(){tokio::time::sleep(std::time::Duration::from_millis(100)).await;}
+            while s.conquest.workers.read().await.is_empty(){tokio::time::sleep(std::time::Duration::from_millis(100)).await;}
         }).await.expect("Native worker did not authenticate");
         let handle=s.conquest.runs.iter().next().unwrap().value().clone();
-        handle.lock().await.worker=s.conquest.worker.read().await.as_ref().unwrap().id.clone();
+        handle.lock().await.worker=s.conquest.workers.read().await.first().unwrap().id.clone();
         let initial_hp=number(&handle.lock().await.payload,"BossHp");
         let master=n(&users[0]["UserInfo"],"AccountId");let mut clients=vec![];
         for user in &users {
@@ -1357,5 +1476,129 @@ mod tests {
         recover_orphaned(&s).await.unwrap();recover_orphaned(&s).await.unwrap();
         for u in users {let mut db=s.db.acquire().await.unwrap();assert_eq!(conquest::tickets(&mut db,&s,n(&u["UserInfo"],"AccountId"),0).await.unwrap()["NewValue"],2);}
         assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_runs WHERE completed=0").fetch_one(&s.db).await.unwrap(),0);
+    }
+}
+
+#[cfg(test)]
+mod relay_isolation_tests {
+    use super::*;
+    use crate::api::community::tests::setup;
+
+    fn live_run(id:&str,worker:&str,members:Vec<i64>,logs:usize)->Arc<Mutex<Run>> {
+        Arc::new(Mutex::new(Run{id:id.into(),worker:worker.into(),master:members[0],room:0,members,payload:json!({"RunId":id}),
+            entered:BTreeSet::new(),ready:BTreeSet::new(),sent:BTreeSet::new(),departed:BTreeSet::new(),offline:BTreeSet::new(),cancelled:BTreeSet::new(),
+            disconnect_cutoffs:Default::default(),
+            logs:(0..logs).map(|no|("BattleLogNot".to_owned(),json!({"No":no,"BattleLogs":[{"No":no}],"ServerTimeMs":no}))).collect(),
+            pending_actions:vec![],result:None,started:true,wave_started:true,prepared:true,created:now(),time_ms:0}))
+    }
+
+    async fn login_worker(s:&AppState,key:&str)->(tokio::task::JoinHandle<Result<()>>,tokio::io::DuplexStream) {
+        let (socket,mut worker)=tokio::io::duplex(1<<20);
+        let task=tokio::spawn(connection_stream(socket,s.clone(),true));
+        worker.write_all(&encode_packet("WorkerLogin",&json!({"Key":key,"ArenaVersion":1,"ChallengeRaidVersion":1,"DispatchVersion":2}))).await.unwrap();
+        (task,worker)
+    }
+
+    /// A reconnect into a long fight (thousands of logs) to a player whose
+    /// socket drains slowly must not hold the match lock: the worker's next
+    /// packet for that run, and therefore every other run on the worker,
+    /// must go through at once. The player still receives the full history,
+    /// then the live packets sent meanwhile, then its reply, in order.
+    #[tokio::test]
+    async fn slow_reconnect_replay_does_not_block_the_worker() {
+        let s=setup().await;
+        let (worker_tx,_worker_rx)=mpsc::channel(16);
+        *s.conquest.workers.write().await=vec![Worker{id:"w".into(),sender:worker_tx,arena_version:1,challenge_version:1,dispatch_version:1}];
+        s.conquest.runs.insert("velkazar".into(),live_run("velkazar","w",vec![7],3000));
+        let (tx,mut rx)=mpsc::channel(8);
+        s.conquest.peers.insert(7,Peer{id:"slow".into(),run:"velkazar".into(),sender:tx.clone()});
+        let state=s.clone();
+        let enter=tokio::spawn(async move {player_packet(&state,7,"BattleEnterReq",json!({"RequestId":1}),&tx).await});
+        // The replay is now parked on the full 8-packet player channel.
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        assert!(!enter.is_finished());
+        tokio::time::timeout(std::time::Duration::from_secs(1),
+            worker_packet(&s,"w","WorkerPacket",json!({"RunId":"velkazar","Name":"BattleLogNot","Body":{"BattleLogs":[{"No":"live"}],"ServerTimeMs":3000}})))
+            .await.expect("worker packet waited on a player's replay").unwrap();
+        let mut received=vec![];
+        while received.len()<3002 {received.push(rx.recv().await.unwrap());}
+        enter.await.unwrap().unwrap();
+        for (no,(name,body)) in received[..3000].iter().enumerate() {assert_eq!((name.as_str(),&body["No"]),("BattleLogNot",&json!(no)));}
+        assert_eq!(received[3000].1["BattleLogs"][0]["No"],"live");
+        assert_eq!(received[3001].0,"BattleEnterRes");
+        // The hold ended: later packets go straight to the socket.
+        assert!(s.conquest.replays.is_empty());
+        let run=s.conquest.runs.get("velkazar").unwrap().clone();
+        s.conquest.notify(&*run.lock().await,"BattleLogNot",json!({"No":"after"}));
+        assert_eq!(rx.recv().await.unwrap().1["No"],"after");
+    }
+
+    /// A worker packet the server rejects ends that run only. The worker stays
+    /// connected and its other battles continue.
+    #[tokio::test]
+    async fn rejected_worker_packet_ends_only_its_run() {
+        let mut s=setup().await;
+        let key=uuid::Uuid::new_v4().to_string();s.battle_service_key=Arc::new(Some(key.clone()));
+        let (task,mut worker)=login_worker(&s,&key).await;
+        let id=tokio::time::timeout(std::time::Duration::from_secs(2),async {
+            loop {
+                if let Some(w)=s.conquest.workers.read().await.first() {break w.id.clone();}
+                tokio::task::yield_now().await;
+            }
+        }).await.unwrap();
+        let broken=live_run("broken",&id,vec![8],0);broken.lock().await.started=false;
+        s.conquest.runs.insert("broken".into(),broken);
+        s.conquest.runs.insert("healthy".into(),live_run("healthy",&id,vec![9],0));
+        let (tx,mut rx)=mpsc::channel(8);
+        s.conquest.peers.insert(9,Peer{id:"player".into(),run:"healthy".into(),sender:tx});
+        // A result before the run started is rejected (InvalidValue).
+        worker.write_all(&encode_packet("WorkerResult",&json!({"RunId":"broken","Win":true,"Creatures":[]}))).await.unwrap();
+        worker.write_all(&encode_packet("WorkerPacket",&json!({"RunId":"healthy","Name":"BattleLogNot","Body":{"BattleLogs":[{"No":1}],"ServerTimeMs":100}}))).await.unwrap();
+        let packet=tokio::time::timeout(std::time::Duration::from_secs(5),rx.recv()).await.unwrap().unwrap();
+        assert_eq!(packet.1["BattleLogs"][0]["No"],1);
+        assert!(!s.conquest.runs.contains_key("broken"),"the rejected run must end");
+        assert!(s.conquest.runs.contains_key("healthy"));
+        assert!(!task.is_finished(),"the worker connection must stay open");
+        assert!(s.conquest.worker_active(&id).await);
+        task.abort();
+    }
+
+    /// Live fights go to the worker running the fewest live fights; dispatch
+    /// simulations prefer the last worker so they stay off the one live fights
+    /// start on.
+    #[tokio::test]
+    async fn placement_spreads_live_fights_and_keeps_dispatch_apart() {
+        let s=setup().await;
+        let (a,_ra)=mpsc::channel(4);let (b,_rb)=mpsc::channel(4);
+        *s.conquest.workers.write().await=vec![
+            Worker{id:"a".into(),sender:a,arena_version:1,challenge_version:1,dispatch_version:2},
+            Worker{id:"b".into(),sender:b,arena_version:0,challenge_version:1,dispatch_version:2}];
+        assert_eq!(s.conquest.pick_worker(Placement::Live,|_|true).await.unwrap().0,"a");
+        assert_eq!(s.conquest.pick_worker(Placement::Dispatch,|_|true).await.unwrap().0,"b");
+        s.conquest.runs.insert("one".into(),live_run("one","a",vec![1],0));
+        assert_eq!(s.conquest.pick_worker(Placement::Live,|_|true).await.unwrap().0,"b");
+        assert_eq!(s.conquest.pick_worker(Placement::Dispatch,|_|true).await.unwrap().0,"b");
+        // Capabilities still decide: only "a" runs online arena.
+        assert_eq!(s.conquest.pick_worker(Placement::Live,|w|w.arena_version>=1).await.unwrap().0,"a");
+        // Finished runs (kept for late result delivery) are not load.
+        s.conquest.runs.get("one").unwrap().lock().await.result=Some(json!({}));
+        assert_eq!(s.conquest.pick_worker(Placement::Live,|_|true).await.unwrap().0,"a");
+    }
+
+    /// BATTLE_WORKERS processes may authenticate; one more is refused.
+    #[tokio::test]
+    async fn worker_logins_are_limited_to_the_configured_count() {
+        let mut s=setup().await;
+        let key=uuid::Uuid::new_v4().to_string();s.battle_service_key=Arc::new(Some(key.clone()));
+        s.conquest=Arc::new(BattleHub{max_workers:2,..Default::default()});
+        let mut sockets=vec![];let mut tasks=vec![];
+        for _ in 0..3 {
+            let (task,worker)=login_worker(&s,&key).await;
+            tasks.push(task);sockets.push(worker);
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+        assert_eq!(s.conquest.workers.read().await.len(),2);
+        assert!(tokio::time::timeout(std::time::Duration::from_secs(2),tasks.pop().unwrap()).await.unwrap().unwrap().is_err());
+        for task in tasks {assert!(!task.is_finished());task.abort();}
     }
 }

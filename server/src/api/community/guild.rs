@@ -38,7 +38,7 @@ pub(super) async fn state(db: &mut PgConnection, s: &AppState, g: i64) -> Result
 /// The normalized guild info without persisting it, for read-only connections
 /// (inspecting a guild member's profile runs on the reader pool).
 pub(super) async fn view(db: &mut PgConnection, s: &AppState, g: i64) -> Result<Value> {
-    let r=crate::db::query("SELECT g.*,a.nick AS master_nick,(SELECT count(*) FROM guild_members m WHERE m.guild_id=g.guild_id) AS members FROM guilds g JOIN accounts a ON a.account_id=g.master_account_id WHERE g.guild_id=$1").bind(g).fetch_optional(&mut *db).await?.ok_or_else(||rule("NoGuild"))?;
+    let r=crate::db::query("SELECT g.*,sprk_display_nick(a.account_id,a.nick) AS master_nick,(SELECT count(*) FROM guild_members m WHERE m.guild_id=g.guild_id) AS members FROM guilds g JOIN accounts a ON a.account_id=g.master_account_id WHERE g.guild_id=$1").bind(g).fetch_optional(&mut *db).await?.ok_or_else(||rule("NoGuild"))?;
     let mut v = get(db, g, "guild", 0).await?;
     if v.is_null() {
         v = json!({"Logo":1,"Back":1,"Flag":0,"JoinWay":1,"ReqTeamLevel":1,"Introduce":"","CountryCode":"US","ActivityPoint":r.get::<i64,_>("exp"),"SuppressPoint":0,"Wood":0,"Stone":0,"Metal":0,"SkillInfos":[],"SkillInitTime":null,"AutoApplySuppress":0});

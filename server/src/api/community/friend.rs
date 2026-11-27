@@ -19,7 +19,7 @@ fn response(result: &str) -> Value {
 }
 
 pub async fn profile(state: &AppState, account: i64) -> Result<Value> {
-    let row = crate::db::query("SELECT a.account_id, a.nick, a.last_login, a.last_logout, u.team_level, u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id = $1 AND a.is_banned = 0")
+    let row = crate::db::query("SELECT a.account_id, sprk_display_nick(a.account_id,a.nick) AS nick, a.last_login, a.last_logout, u.team_level, u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id = $1 AND a.is_banned = 0")
         .bind(account).fetch_one(&state.db).await?;
     profile_row(&mut *state.db.acquire().await?, state, &row).await
 }
@@ -148,7 +148,7 @@ pub async fn inspect_user(State(state): State<AppState>, body: Bytes) -> Result<
     // Read-only snapshot of another player (~100 Hero snapshots): serve it
     // from a reader instead of queueing every request behind it on the writer.
     let mut db = state.reads.begin().await?;
-    let row = crate::db::query("SELECT a.account_id,a.nick,a.last_login, a.last_logout,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=$1 AND a.is_banned=0")
+    let row = crate::db::query("SELECT a.account_id,sprk_display_nick(a.account_id,a.nick) AS nick,a.last_login, a.last_logout,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=$1 AND a.is_banned=0")
         .bind(target).fetch_optional(&mut *db).await?;
     let Some(row) = row else { return Ok(Json(response("NoTargetAccountId"))); };
     let mut user = profile_row(&mut db, &state, &row).await?;
@@ -209,7 +209,7 @@ pub async fn login_data(
     state: &AppState,
     account: i64,
 ) -> Result<(Vec<Value>, Vec<Value>, Vec<Value>, Vec<Value>)> {
-    let rows = crate::db::query("SELECT f.account_id AS sender, f.friend_account_id AS receiver, f.status, f.created_at, a.account_id, a.nick, a.last_login, a.last_logout, u.team_level, u.avatar_hero_index FROM friends f JOIN accounts a ON a.account_id = CASE WHEN f.account_id = $1 THEN f.friend_account_id ELSE f.account_id END JOIN user_info u ON u.account_id = a.account_id WHERE (f.account_id = $2 OR f.friend_account_id = $3) AND a.is_banned = 0 ORDER BY f.id")
+    let rows = crate::db::query("SELECT f.account_id AS sender, f.friend_account_id AS receiver, f.status, f.created_at, a.account_id, sprk_display_nick(a.account_id,a.nick) AS nick, a.last_login, a.last_logout, u.team_level, u.avatar_hero_index FROM friends f JOIN accounts a ON a.account_id = CASE WHEN f.account_id = $1 THEN f.friend_account_id ELSE f.account_id END JOIN user_info u ON u.account_id = a.account_id WHERE (f.account_id = $2 OR f.friend_account_id = $3) AND a.is_banned = 0 ORDER BY f.id")
         .bind(account).bind(account).bind(account).fetch_all(&state.reads).await?;
     let mut outgoing = Vec::new();
     let mut incoming_rows = Vec::new();
@@ -264,7 +264,7 @@ pub async fn search_friend(State(state): State<AppState>, body: Bytes) -> Result
     // The native client requests recommendations with an omitted/empty Keyword
     // when opening Accept/Request, and uses this same endpoint for Find.
     let mut query = QueryBuilder::<sqlx::Postgres>::new(
-        "SELECT a.account_id,a.nick,a.last_login, a.last_logout,u.team_level,u.avatar_hero_index \
+        "SELECT a.account_id,sprk_display_nick(a.account_id,a.nick) AS nick,a.last_login, a.last_logout,u.team_level,u.avatar_hero_index \
          FROM accounts a JOIN user_info u USING(account_id) \
          LEFT JOIN credentials c ON c.login_id = a.login_id \
          WHERE a.is_banned = 0 AND u.team_level > 0 AND COALESCE(a.nick, '') != '' \

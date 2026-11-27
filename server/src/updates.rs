@@ -18,17 +18,23 @@ pub(crate) struct UpdateStorage(Arc<PathBuf>);
 pub async fn routes_from_env() -> anyhow::Result<Router> {
     let root = std::env::var("SPRK_UPDATES_DIR").unwrap_or_else(|_| "client-updates".into());
     let config = github::Config::from_env()?;
+    let throttle = throttle::Config::from_env()?;
     if config.is_some() {
         tokio::fs::create_dir_all(&root).await?;
     }
     if let Some(config) = config {
         github::sync(tokio::fs::canonicalize(&root).await?, config).await?;
     }
-    routes(FsPath::new(&root)).await
+    let router = routes(FsPath::new(&root)).await?;
+    Ok(match throttle {
+        Some(throttle) => throttle::layer(router, throttle),
+        None => router,
+    })
 }
 
 mod github;
 mod overlay;
+mod throttle;
 
 pub async fn routes(root: &FsPath) -> anyhow::Result<Router> {
     use anyhow::Context;

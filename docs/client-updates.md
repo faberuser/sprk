@@ -236,8 +236,14 @@ defaults then use HTTPS, and player sockets use WSS. `LOGIN_SERVER` can override
 the login URL (include a trailing `/`). See [WebSocket hosting](websocket-hosting.md)
 for the client patch and Cloudflare Tunnel configuration.
 
-CPU/memory limits do not reserve your home upload bandwidth. Configure download
-rate limits or router traffic shaping separately if updates interfere with play.
+CPU/memory limits do not reserve your home upload bandwidth. Set
+`SPRK_UPDATES_MAX_MBPS` below your upload speed so downloads (releases and game
+assets under `/updates/assets/`) leave room for play. The cap is split evenly
+between the players downloading at the time, however many connections each opens
+(the game's asset downloader uses 30, the launcher 4). Behind a reverse proxy, set
+`SPRK_UPDATES_CLIENT_IP_HEADER` to the header it writes the player's IP to
+(`CF-Connecting-IP`, `X-Forwarded-For`); otherwise all players count as one and
+only the total cap applies.
 
 ## Validation
 

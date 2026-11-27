@@ -207,6 +207,7 @@ public class GuildConstruction : BaseWindow, BuildingComponent.Listener, Progres
 			SetProgressBar();
 			SetButtonState();
 		}
+		SprkGuildDonate.Attach(this, show);
 	}
 
 	private void SetConstructionResource()

@@ -15,6 +15,7 @@ impl Request {
         let mut fields = HashMap::new();
         let mut arrays: HashMap<String, Vec<String>> = HashMap::new();
         for (key, value) in pairs {
+            let value = crate::api::account::name_tag::strip_markers(value);
             if array_fields.contains(&key.as_str()) {
                 arrays.entry(key).or_default().push(value);
             } else {
@@ -35,9 +36,12 @@ impl Request {
         }
         Ok(Self(fields))
     }
+    /// Player text never carries name-tag markers: only the server adds them,
+    /// so a pasted marker cannot fake a tag in chat, names or notices.
     pub fn parse(body: &[u8]) -> Result<Self> {
-        serde_urlencoded::from_bytes(body)
-            .map(Self)
+        serde_urlencoded::from_bytes::<HashMap<String, String>>(body)
+            .map(|fields| Self(fields.into_iter()
+                .map(|(k, v)| (k, crate::api::account::name_tag::strip_markers(v))).collect()))
             .map_err(|e| ServerError::InvalidRequest(e.to_string()))
     }
     /// Keep native repeated integer arrays without losing their order or pairing.
@@ -80,9 +84,10 @@ impl Request {
         if !raw.contains('%') && !raw.contains('+') {
             return raw.to_string();
         }
-        urlencoding::decode(&raw.replace('+', " "))
+        let decoded = urlencoding::decode(&raw.replace('+', " "))
             .map(|s| s.into_owned())
-            .unwrap_or_else(|_| raw.to_string())
+            .unwrap_or_else(|_| raw.to_string());
+        crate::api::account::name_tag::strip_markers(decoded)
     }
     pub fn number(&self, key: &str, default: i64) -> Result<i64> {
         match self.0.get(key) {

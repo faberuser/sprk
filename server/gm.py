@@ -21,6 +21,13 @@ Usage (one-shot commands):
     python gm.py festivals                   -- festival schedule status
     python gm.py festival <KEY> open|closed|auto [--hours N]
     python gm.py world-boss [protianus|mountain|xanadus|<INDEX>|auto] [--hours N]
+    python gm.py name-tag list               -- Discord-style tags shown after names
+    python gm.py name-tag create <NAME> <LABEL> [--icon FILE] [--text-color RRGGBB] [--bg-color RRGGBB]
+    python gm.py name-tag update <NAME> [--label TEXT] [--icon FILE | --no-icon] [--text-color ..] [--bg-color ..]
+    python gm.py name-tag delete <NAME>
+    python gm.py name-tag members <NAME>
+    python gm.py name-tag assign <NAME> [ACCOUNT_ID]   -- one tag per player; replaces theirs
+    python gm.py name-tag remove [ACCOUNT_ID]
 
 Config is saved to gm_config.json in the repository root.
 Set SPRK_GM_KEY in your environment or enter it at the hidden prompt. Keys are not saved.
@@ -417,6 +424,112 @@ def cmd_reset(cfg, keep_heroes=False):
     pretty(result)
 
 
+NAME_TAG_ICON_SIDE = 64          # icons are shrunk to this many pixels per side
+NAME_TAG_ICON_SERVER_MAX = 128   # the server refuses larger icons
+NAME_TAG_ICON_SERVER_BYTES = 64 * 1024
+
+
+def png_size(data: bytes):
+    if len(data) >= 24 and data[:8] == b"\x89PNG\r\n\x1a\n" and data[12:16] == b"IHDR":
+        return int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
+    return None
+
+
+def prepare_icon(path: str) -> str:
+    """Read an image, shrink it to a small PNG and return it as base64.
+
+    With Pillow (pip install pillow) any common format (PNG, JPG, WEBP, GIF...)
+    is accepted, transparent margins are trimmed and it is scaled down to fit
+    64x64, keeping its aspect ratio. Without Pillow, only a PNG that is already
+    small enough can be sent (the game also shrinks icons when it shows them).
+    """
+    import base64
+    import io
+    data = Path(path).read_bytes()
+    try:
+        from PIL import Image
+    except ImportError:
+        size = png_size(data)
+        if size and max(size) <= NAME_TAG_ICON_SERVER_MAX and len(data) <= NAME_TAG_ICON_SERVER_BYTES:
+            return base64.b64encode(data).decode()
+        raise ValueError(f"Install Pillow (pip install pillow) to shrink this icon, or supply a PNG of at most "
+                         f"{NAME_TAG_ICON_SERVER_MAX}x{NAME_TAG_ICON_SERVER_MAX} px and {NAME_TAG_ICON_SERVER_BYTES // 1024} KiB.")
+    with Image.open(io.BytesIO(data)) as source:
+        image = source.convert("RGBA")
+    bbox = image.getbbox()          # trim fully transparent margins
+    if bbox:
+        image = image.crop(bbox)
+    image.thumbnail((NAME_TAG_ICON_SIDE, NAME_TAG_ICON_SIDE), Image.LANCZOS)
+    if min(image.size) < 8:         # the server needs at least 8 px per side
+        canvas = Image.new("RGBA", (max(image.width, 8), max(image.height, 8)), (0, 0, 0, 0))
+        canvas.paste(image, ((canvas.width - image.width) // 2, (canvas.height - image.height) // 2))
+        image = canvas
+    out = io.BytesIO()
+    image.save(out, format="PNG", optimize=True)
+    print(f"  Icon shrunk to {image.width}x{image.height} px ({len(out.getvalue()):,} bytes).")
+    return base64.b64encode(out.getvalue()).decode()
+
+
+def show_tag(tag: dict):
+    icon = "icon" if tag.get("HasIcon") else "no icon"
+    print(f"  {tag['Name']:<16} [{tag['Label']}]  text #{tag['TextColor']}  bg #{tag['BackgroundColor']}  "
+          f"{icon}  {tag.get('Members', 0)} player(s)")
+
+
+def cmd_name_tag(cfg, action, name=None, label=None, icon=None, no_icon=False,
+                 text_color=None, bg_color=None, account=None):
+    """Name tags are managed only here (GM). Players see changes the next time
+    a screen loads the name; tagged players see their own after logging in again."""
+    fields = {"Action": "unassign" if action == "remove" else action}
+    if name is not None:
+        fields["Name"] = name
+    if label is not None:
+        fields["Label"] = label
+    if text_color is not None:
+        fields["TextColor"] = text_color
+    if bg_color is not None:
+        fields["BackgroundColor"] = bg_color
+    if no_icon:
+        fields["RemoveIcon"] = "true"
+    elif icon:
+        try:
+            fields["Icon"] = prepare_icon(icon)
+        except (OSError, ValueError) as exc:
+            print(f"  Icon not usable: {exc}")
+            return
+    if action in ("assign", "remove"):
+        if account is None:
+            if not require_account(cfg):
+                return
+            account = cfg["account_id"]
+        fields["AccountId"] = account
+    result = post(cfg, "/cheat/name-tag", fields)
+    if not result:
+        return
+    if action == "list":
+        tags = result.get("Tags", [])
+        if not tags:
+            print("  No name tags yet. Create one: python gm.py name-tag create <NAME> <LABEL> --icon FILE")
+        for tag in tags:
+            show_tag(tag)
+    elif action in ("create", "update"):
+        show_tag(result["Tag"])
+    elif action == "delete":
+        print(f"  Deleted {result['Deleted']} (removed from {result['Unassigned']} player(s)).")
+    elif action == "members":
+        for m in result.get("Members", []):
+            print(f"  {m['AccountId']:>8}  {m['Nickname'] or '':<20} since {m['AssignedAt']}")
+        if not result.get("Members"):
+            print("  Nobody has this tag.")
+    elif action == "assign":
+        print(f"  Account {result['AccountId']} now has name tag {result['Tag']}. Others see it the next time a "
+              "screen loads that name; the player sees their own after their next login.")
+    elif action == "remove":
+        removed = result.get("Removed")
+        print(f"  Removed name tag {removed} from account {result['AccountId']}." if removed
+              else f"  Account {result['AccountId']} had no name tag.")
+
+
 # ---------------------------------------------------------------------------
 # Interactive menu
 # ---------------------------------------------------------------------------
@@ -453,6 +566,7 @@ def interactive(cfg):
         ("a", "Select account ID", "account"),
         ("p", "Find players", "players"),
         ("e", "Export all players", "export-players"),
+        ("n", "Name tags", "name-tag"),
         ("q", "Quit",                             "quit"),
     ]
 
@@ -466,7 +580,7 @@ def interactive(cfg):
         return
 
     # Commands that need an account
-    if action not in ("server", "quit", "account", "players", "export-players"):
+    if action not in ("server", "quit", "account", "players", "export-players", "name-tag"):
         if not require_account(cfg):
             return
 
@@ -515,6 +629,8 @@ def interactive(cfg):
     elif action == "export-players":
         output = input("  Output file (.csv or .json) [players.csv]: ").strip() or "players.csv"
         cmd_export_players(cfg, output)
+    elif action == "name-tag":
+        interactive_name_tag(cfg)
     elif action == "account":
         account = prompt_int("Account ID", 0)
         if account <= 0:
@@ -528,6 +644,35 @@ def interactive(cfg):
             cfg["server"] = normalize_server(raw)
             save_config(cfg)
             print(f"  Server updated.")
+
+
+def interactive_name_tag(cfg):
+    print("  [l] List  [c] Create  [u] Update  [d] Delete  [m] Members  [a] Assign  [r] Remove from player")
+    choice = input("  > ").strip().lower()
+    ask = lambda label: input(f"  {label}: ").strip() or None
+    if choice == "l":
+        cmd_name_tag(cfg, "list")
+    elif choice == "c":
+        cmd_name_tag(cfg, "create", ask("Name (handle, e.g. wao)"), ask("Label (shown text, up to 8 characters)"),
+                     icon=ask("Icon image file (blank: none)"), text_color=ask("Text colour RRGGBB (blank: FFFFFF)"),
+                     bg_color=ask("Background colour RRGGBB (blank: 2B2D31)"))
+    elif choice == "u":
+        name = ask("Name")
+        icon = ask("New icon file (blank: keep, - : remove)")
+        cmd_name_tag(cfg, "update", name, ask("New label (blank: keep)"), icon=None if icon == "-" else icon,
+                     no_icon=icon == "-", text_color=ask("Text colour (blank: keep)"),
+                     bg_color=ask("Background colour (blank: keep)"))
+    elif choice == "d":
+        name = ask("Name")
+        if name and input(f"  Type YES to delete {name} and remove it from every player: ").strip() == "YES":
+            cmd_name_tag(cfg, "delete", name)
+    elif choice == "m":
+        cmd_name_tag(cfg, "members", ask("Name"))
+    elif choice == "a":
+        account = prompt_int("Account ID", cfg.get("account_id") or 0)
+        cmd_name_tag(cfg, "assign", ask("Name"), account=account)
+    elif choice == "r":
+        cmd_name_tag(cfg, "remove", account=prompt_int("Account ID", cfg.get("account_id") or 0))
 
 
 # ---------------------------------------------------------------------------
@@ -558,6 +703,27 @@ def build_parser() -> argparse.ArgumentParser:
     wb = sub.add_parser("world-boss", help="Show the World Boss, or force one over the rotation for testing")
     wb.add_argument("boss", nargs="?", help="protianus, mountain, xanadus, an index, or auto")
     wb.add_argument("--hours", type=int, default=24)
+    nt = sub.add_parser("name-tag", help="Manage Discord-style name tags shown after player names")
+    nts = nt.add_subparsers(dest="tag_action", required=True)
+    nts.add_parser("list", help="List name tags")
+    c = nts.add_parser("create", help="Create a name tag")
+    c.add_argument("name", help="Handle used by these commands (a-z, 0-9, - and _)")
+    c.add_argument("label", help="Text shown in the tag, up to 8 characters (e.g. WAO)")
+    u = nts.add_parser("update", help="Change a name tag; unspecified parts are kept")
+    u.add_argument("name")
+    u.add_argument("--label")
+    u.add_argument("--no-icon", action="store_true", help="Remove the icon")
+    for tag_parser in (c, u):
+        tag_parser.add_argument("--icon", help="Image file, shrunk to fit 64x64 PNG (Pillow needed for non-PNG or large images)")
+        tag_parser.add_argument("--text-color", help="RRGGBB (default FFFFFF)")
+        tag_parser.add_argument("--bg-color", help="RRGGBB (default 2B2D31)")
+    nts.add_parser("delete", help="Delete a name tag and remove it from every player").add_argument("name")
+    nts.add_parser("members", help="List players with a name tag").add_argument("name")
+    a = nts.add_parser("assign", help="Give a player a name tag (replaces their current one)")
+    a.add_argument("name")
+    a.add_argument("account", type=int, nargs="?", help="Account ID (default: the selected account)")
+    r = nts.add_parser("remove", help="Remove a player's name tag")
+    r.add_argument("account", type=int, nargs="?", help="Account ID (default: the selected account)")
     mh = sub.add_parser('maxheroes', help='Create a separate max-core-hero raid test database')
     mh.add_argument('--source-url', required=True, help='PostgreSQL URL of a database copy to clone')
     mh.add_argument('--output-db', required=True, help='Name of the new fixture database (same server)')
@@ -633,6 +799,13 @@ def main():
         return
     if args.command == "world-boss":
         cmd_world_boss(cfg, args.boss, args.hours)
+        return
+
+    if args.command == "name-tag":
+        cmd_name_tag(cfg, args.tag_action, getattr(args, "name", None), getattr(args, "label", None),
+                     icon=getattr(args, "icon", None), no_icon=getattr(args, "no_icon", False),
+                     text_color=getattr(args, "text_color", None), bg_color=getattr(args, "bg_color", None),
+                     account=getattr(args, "account", None))
         return
 
     if args.command == 'maxheroes':

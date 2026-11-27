@@ -180,7 +180,7 @@ mod tests {
             }
         }
         let (tx,rx)=mpsc::channel(100);
-        *s.conquest.worker.write().await=Some(Worker{id:"honor-worker".into(),sender:tx,arena_version:1,challenge_version:0,dispatch_version:0});
+        *s.conquest.workers.write().await=vec!(Worker{id:"honor-worker".into(),sender:tx,arena_version:1,challenge_version:0,dispatch_version:0});
         (s,users,rx)
     }
     async fn register(s:&AppState,u:&Value,kind:&str) {
@@ -455,7 +455,7 @@ mod tests {
         struct Native(std::process::Child);
         impl Drop for Native {fn drop(&mut self){let _=self.0.kill();let _=self.0.wait();}}
         let (mut s,users,_rx)=fixture().await;
-        *s.conquest.worker.write().await=None;
+        s.conquest.workers.write().await.clear();
         crate::db::query("UPDATE heroes SET level=1,star=1 WHERE account_id=$1")
             .bind(number(&users[1]["UserInfo"],"AccountId")).execute(&s.db).await.unwrap();
         let key=uuid::Uuid::new_v4().to_string();s.battle_service_key=Arc::new(Some(key.clone()));

@@ -65,7 +65,7 @@ async fn fixture_for_players(raid: i64, level: i64, players: usize) -> (AppState
 
 async fn fake_worker(s: &AppState) -> mpsc::Receiver<Packet> {
     let (tx,rx)=mpsc::channel(100);
-    *s.conquest.worker.write().await=Some(Worker{id:"raid-worker".into(),sender:tx,arena_version:0,challenge_version:0,dispatch_version:0});rx
+    *s.conquest.workers.write().await=vec!(Worker{id:"raid-worker".into(),sender:tx,arena_version:0,challenge_version:0,dispatch_version:0});rx
 }
 
 async fn arcdim_fixture(raid:i64,level:i64,host_second:bool)->(AppState,Vec<Value>,Vec<String>) {
@@ -210,7 +210,7 @@ async fn native_arcdim_coop_transitions_to_zeta_and_settles_both_players() {
         #[cfg(windows)] {use std::os::windows::process::CommandExt;command.creation_flags(0x08000000);}
         let _native=Native(command.spawn().unwrap());
         tokio::time::timeout(std::time::Duration::from_secs(90),async {
-            while s.conquest.worker.read().await.is_none() {tokio::time::sleep(std::time::Duration::from_millis(100)).await;}
+            while s.conquest.workers.read().await.is_empty() {tokio::time::sleep(std::time::Duration::from_millis(100)).await;}
         }).await.expect("Arcdim worker did not authenticate");
         for (index,user) in users.iter().enumerate() {
             let start=call(&s,user,"campaign/begin_campaign",&args[index]).await;
@@ -302,7 +302,7 @@ async fn challenge_two_players_fill_eight_heroes_and_reject_oversized_rosters() 
     for (raid,level) in [(70001,1),(70001,4),(70015,1),(70015,4)] {
         let (s,users,args)=fixture_for_players(raid,level,2).await;
         let _worker=fake_worker(&s).await;
-        s.conquest.worker.write().await.as_mut().unwrap().challenge_version=1;
+        s.conquest.workers.write().await.first_mut().unwrap().challenge_version=1;
         for (user,args) in users.iter().zip(&args) {
             let begun=call(&s,user,"campaign/begin_campaign",args).await;
             assert_eq!(begun["Result"],"Success","raid {raid}/{level}: {begun}");
@@ -315,7 +315,7 @@ async fn challenge_two_players_fill_eight_heroes_and_reject_oversized_rosters() 
     for over_player in [true,false] {
         let (s,users,args)=fixture_for_players(70001,1,if over_player {2}else{3}).await;
         let _worker=fake_worker(&s).await;
-        s.conquest.worker.write().await.as_mut().unwrap().challenge_version=1;
+        s.conquest.workers.write().await.first_mut().unwrap().challenge_version=1;
         let a=account(users.last().unwrap());
         let count=if over_player {5}else{3};
         let deck:serde_json::Map<_,_>=(20..20+count).map(|h|(h.to_string(),json!({"HeroIndex":h}))).collect();
@@ -597,7 +597,7 @@ async fn native_field_and_technomagic_coop_wave_and_settlement() {
         #[cfg(windows)] {use std::os::windows::process::CommandExt;command.creation_flags(0x08000000);}
         let _native=Native(command.spawn().unwrap());
         tokio::time::timeout(std::time::Duration::from_secs(90),async {
-            while s.conquest.worker.read().await.is_none() {tokio::time::sleep(std::time::Duration::from_millis(100)).await;}
+            while s.conquest.workers.read().await.is_empty() {tokio::time::sleep(std::time::Duration::from_millis(100)).await;}
         }).await.expect("Native worker did not authenticate");
         for (i,user) in users.iter().enumerate() {
             let begun=call(&s,user,"campaign/begin_campaign",&args[i]).await;

@@ -51,6 +51,7 @@ fn admin_routes(state: AppState, key: String) -> axum::Router {
         .route("/cheat/uwut", post(gm_add_all_uwut))
         .route("/cheat/festivals", post(gm_festivals))
         .route("/cheat/world-boss", post(gm_world_boss))
+        .route("/cheat/name-tag", post(crate::api::account::name_tag::gm))
         .route_layer(middleware::from_fn_with_state(key, authorize))
         .with_state(state)
 }

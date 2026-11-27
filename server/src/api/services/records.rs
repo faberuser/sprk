@@ -289,7 +289,7 @@ async fn honor(
                 None => continue,
             }
         } else {
-            let u=crate::db::query("SELECT a.nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=$1").bind(id).fetch_optional(&mut *db).await?;
+            let u=crate::db::query("SELECT sprk_display_nick(a.account_id,a.nick) AS nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=$1").bind(id).fetch_optional(&mut *db).await?;
             match u {
                 Some(u) => (
                     u.get::<String, _>("nick"),

@@ -145,6 +145,51 @@ class GmTests(unittest.TestCase):
             self.assertIs(opener.call_args.args[0], gm.NoRedirect)
         self.assertIsNone(gm.NoRedirect().redirect_request(None, None, 302, None, None, "https://other/"))
 
+    def test_name_tag_commands_post_gm_actions_and_shrink_icons(self):
+        import base64
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skipTest("Pillow is not installed")
+        tag = {"Name": "wao", "Label": "WAO", "TextColor": "A8E6A1", "BackgroundColor": "1E1F22", "HasIcon": True, "Members": 0}
+        with tempfile.TemporaryDirectory() as directory:
+            icon = Path(directory) / "leaf.png"
+            Image.new("RGBA", (300, 150), (110, 200, 90, 255)).save(icon)
+            config = Path(directory) / "config.json"
+            config.write_text(json.dumps({"server": gm.DEFAULT_SERVER, "account_id": 42}))
+            with patch.object(gm, "CONFIG_FILE", config), \
+                    patch.object(gm, "post", return_value={"Tag": tag, "AccountId": 42, "Removed": "wao"}) as post, \
+                    contextlib.redirect_stdout(io.StringIO()) as out:
+                with patch("sys.argv", ["gm.py", "name-tag", "create", "wao", "WAO", "--icon", str(icon), "--text-color", "a8e6a1"]):
+                    gm.main()
+                path, fields = post.call_args.args[1:]
+                self.assertEqual(path, "/cheat/name-tag")
+                self.assertEqual({k: v for k, v in fields.items() if k != "Icon"},
+                                 {"Action": "create", "Name": "wao", "Label": "WAO", "TextColor": "a8e6a1"})
+                with Image.open(io.BytesIO(base64.b64decode(fields["Icon"]))) as sent:
+                    self.assertEqual((sent.format, sent.size), ("PNG", (64, 32)))
+                # Assign/remove default to the selected account; remove maps to unassign.
+                with patch("sys.argv", ["gm.py", "name-tag", "assign", "wao"]):
+                    gm.main()
+                self.assertEqual(post.call_args.args[2], {"Action": "assign", "Name": "wao", "AccountId": 42})
+                with patch("sys.argv", ["gm.py", "name-tag", "remove", "7"]):
+                    gm.main()
+                self.assertEqual(post.call_args.args[2], {"Action": "unassign", "AccountId": 7})
+                with patch("sys.argv", ["gm.py", "name-tag", "update", "wao", "--no-icon", "--label", "GM"]):
+                    gm.main()
+                self.assertEqual(post.call_args.args[2], {"Action": "update", "Name": "wao", "Label": "GM", "RemoveIcon": "true"})
+            self.assertIn("Icon shrunk to 64x32 px", out.getvalue())
+
+    def test_name_tag_icon_without_pillow_accepts_only_small_pngs(self):
+        small = b"\x89PNG\r\n\x1a\n" + b"\x00\x00\x00\x0dIHDR" + (32).to_bytes(4, "big") * 2 + b"\x00" * 40
+        large = b"\x89PNG\r\n\x1a\n" + b"\x00\x00\x00\x0dIHDR" + (512).to_bytes(4, "big") * 2 + b"\x00" * 40
+        with tempfile.TemporaryDirectory() as directory, patch.dict("sys.modules", {"PIL": None}):
+            for name, data in (("small.png", small), ("large.png", large)):
+                (Path(directory) / name).write_bytes(data)
+            self.assertTrue(gm.prepare_icon(str(Path(directory) / "small.png")))
+            with self.assertRaisesRegex(ValueError, "Install Pillow"):
+                gm.prepare_icon(str(Path(directory) / "large.png"))
+
 
 if __name__ == "__main__":
     unittest.main()

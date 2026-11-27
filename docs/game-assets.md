@@ -146,8 +146,8 @@ login; no deployment is needed.
 
 - Disk: about 19 GB for Windows plus 11 GB for Android; later versions add only
   changed files.
-- Bandwidth: a new player downloads their tier (about 4.5–6.6 GB on Android). Rate-limit
-  the update container or shape traffic so downloads do not lag the game.
+- Bandwidth: a new player downloads their tier (about 4.5–6.6 GB on Android). Set
+  `SPRK_UPDATES_MAX_MBPS` so downloads do not lag the game ([client updates](client-updates.md)).
 - Cloudflare: check its terms before serving gigabytes per player through its proxy or
   a tunnel; files over 512 MB are not cached on the free plan.
 - Backups: the host volume is the only served copy of the objects. Keep the local store.

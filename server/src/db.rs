@@ -289,7 +289,7 @@ macro_rules! bind_as_is {
         }
     )*};
 }
-bind_as_is!(String, Option<String>, &'a str, Option<&'a str>, Vec<u8>, &'a [u8]);
+bind_as_is!(String, Option<String>, &'a str, Option<&'a str>, Vec<u8>, Option<Vec<u8>>, &'a [u8]);
 
 impl<'a> Bind<'a> for &'a String {
     type Out = &'a str;

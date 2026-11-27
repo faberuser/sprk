@@ -237,6 +237,7 @@ public class ValanceOptionRenewWindow : ValanceEnhanceBase, IUserObserver<ItemIn
 		_selectOptionIndex = 0;
 		_selectSkillIndex = 0;
 		ClearMaterialIcon();
+		SprkReforgeUntil.TechnomagicReleasing(this);
 		CreateStatGauge();
 		CreateExtraSkill();
 		RepositionTable();
@@ -244,6 +245,7 @@ public class ValanceOptionRenewWindow : ValanceEnhanceBase, IUserObserver<ItemIn
 		RefreshExtraSkill();
 		SetTargetFrame();
 		SetRenewButton();
+		SprkReforgeUntil.TechnomagicBuilt(this, _statGaugeComponent, _extraSkillComponent);
 	}
 
 	private void CreateStatGauge()
@@ -490,12 +492,14 @@ public class ValanceOptionRenewWindow : ValanceEnhanceBase, IUserObserver<ItemIn
 
 	public override void OnClosing()
 	{
+		SprkReforgeUntil.TechnomagicClosing(this);
 		base.OnClosing();
 		GlobalAutoBehaviour<AccountManager>.instance.RemoveUserObserver(this);
 	}
 
 	public override void ClearSeletedTarget()
 	{
+		SprkReforgeUntil.TechnomagicReleasing(this);
 		base.ClearSeletedTarget();
 		_selectOptionIndex = 0;
 		_selectSkillIndex = 0;
@@ -573,6 +577,17 @@ public class ValanceOptionRenewWindow : ValanceEnhanceBase, IUserObserver<ItemIn
 	{
 		if (!IsRenewOption && !IsRenewSkill)
 		{
+			return;
+		}
+		// SPRK: with a "reforge until" target, its count popup is the confirmation.
+		if (IsRenewOption && _listener != null && SprkReforgeUntil.IsTechnomagicArmed(base.EquipItemInfo.SlotIndex))
+		{
+			_listener.OnClickRenew(base.EquipItemInfo.SlotIndex, _selectOptionIndex);
+			return;
+		}
+		if (IsRenewSkill && _listener != null && SprkReforgeUntil.IsTechnomagicSkillArmed(base.EquipItemInfo.SlotIndex))
+		{
+			_listener.OnClickSkillRenew(base.EquipItemInfo.SlotIndex, _selectSkillIndex);
 			return;
 		}
 		string stringDirect = LocalizationManager.GetStringDirect("EQUIP_OPTION_RENEW.ASK_RENEW_OPTION_TITLE");

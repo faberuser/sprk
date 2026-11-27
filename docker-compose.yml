@@ -28,6 +28,19 @@ services:
       # TCP stays private; /health/battle checks worker authentication/capabilities.
       CHAT_BIND: 127.0.0.1
       BATTLE_BIND: 127.0.0.1
+      # Native worker processes (1-64). Each simulates its battles (Conquest,
+      # party raids, online arena, dispatch) on its own thread; new fights go
+      # to the least busy one. Each is a full Unity process: budget its memory.
+      BATTLE_WORKERS: ${SPRK_BATTLE_WORKERS:-1}
+      # Worker timing trace for diagnosing battle lag ("1" enables). Workers
+      # after the first append ".<n>" to the file name.
+      # How far behind the battle clock players replay (0-200 ms), sent to
+      # every player when a battle starts. Lower is more responsive, higher
+      # absorbs more network jitter without desync.
+      SPRK_COOP_REPLAY_BUFFER_MS: ${SPRK_COOP_REPLAY_BUFFER_MS:-100}
+      SPRK_ARENA_REPLAY_BUFFER_MS: ${SPRK_ARENA_REPLAY_BUFFER_MS:-100}
+      SPRK_BATTLE_TRACE: ${SPRK_BATTLE_TRACE:-}
+      SPRK_BATTLE_TRACE_FILE: ${SPRK_BATTLE_TRACE_FILE:-}
       # Game database (docs/database-diagnostics.md). The app role reads and
       # writes data; the owner role applies migrations at startup. Use
       # URL-safe passwords (letters, digits, - and _).
@@ -61,6 +74,10 @@ services:
       SPRK_UPDATES_DIR: /client-updates
       # The release tag/repository are pinned in the image by CI.
       SPRK_UPDATES_PUBLIC_KEY: ${SPRK_UPDATES_PUBLIC_KEY:-}
+      # Download bandwidth cap (Mbit/s, shared fairly per player) and the proxy's
+      # client-IP header; see .env.example. Empty: unlimited.
+      SPRK_UPDATES_MAX_MBPS: ${SPRK_UPDATES_MAX_MBPS:-}
+      SPRK_UPDATES_CLIENT_IP_HEADER: ${SPRK_UPDATES_CLIENT_IP_HEADER:-}
     ports:
       - "${SPRK_UPDATE_PORT:-8081}:8080"
     volumes:

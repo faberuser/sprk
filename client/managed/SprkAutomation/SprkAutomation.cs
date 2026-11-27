@@ -595,6 +595,34 @@ public sealed class SprkAutomation : MonoBehaviour
 				Write(reply);
 				return;
 			}
+			if (command.action == "guild-donate-probe")
+			{
+				string profile = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+				if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Login" || string.IsNullOrEmpty(profile) || !profile.StartsWith("guild-donate-"))
+				{
+					throw new InvalidOperationException("Guild donate fixture requires isolated Login and guild-donate profile");
+				}
+				string result = (string)Assembly.Load("SprkGuildDonate").GetType("SprkGuildDonateProbe").GetMethod("Run")
+					.Invoke(null, new object[1] { command.text });
+				reply = Snapshot(command.id);
+				reply.materials.Add(result);
+				Write(reply);
+				return;
+			}
+			if (command.action == "tm-reforge-until-probe")
+			{
+				string profile = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+				if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Login" || string.IsNullOrEmpty(profile) || !profile.StartsWith("tm-reforge-"))
+				{
+					throw new InvalidOperationException("Technomagic reforge until fixture requires isolated Login and tm-reforge profile");
+				}
+				string result = (string)Assembly.Load("SprkReforgeUntil").GetType("SprkTmReforgeUntilProbe").GetMethod("Run")
+					.Invoke(null, new object[1] { command.text });
+				reply = Snapshot(command.id);
+				reply.materials.Add(result);
+				Write(reply);
+				return;
+			}
 			if (command.action == "profile-image-probe")
 			{
 				string profile = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
@@ -606,6 +634,20 @@ public sealed class SprkAutomation : MonoBehaviour
 					.Invoke(null, new object[1] { command.text });
 				reply = Snapshot(command.id);
 				reply.materials.Add(probeResult);
+				Write(reply);
+				return;
+			}
+			if (command.action == "name-tag-probe")
+			{
+				string nameTagProfile = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+				if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Login" || string.IsNullOrEmpty(nameTagProfile) || !nameTagProfile.StartsWith("name-tag-"))
+				{
+					throw new InvalidOperationException("Name tag fixture requires isolated Login and name-tag profile");
+				}
+				string nameTagResult = (string)Assembly.Load("SprkNameTag").GetType("SprkNameTagProbe").GetMethod("Run")
+					.Invoke(null, new object[1] { command.text });
+				reply = Snapshot(command.id);
+				reply.materials.Add(nameTagResult);
 				Write(reply);
 				return;
 			}
