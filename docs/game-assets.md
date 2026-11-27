@@ -146,8 +146,63 @@ login; no deployment is needed.
 
 - Disk: about 19 GB for Windows plus 11 GB for Android; later versions add only
   changed files.
-- Bandwidth: a new player downloads their tier (about 4.5–6.6 GB on Android). Rate-limit
-  the update container or shape traffic so downloads do not lag the game.
+- Bandwidth: a new player downloads their tier (about 4.5–6.6 GB on Android). Set
+  `SPRK_UPDATES_MAX_MBPS` so downloads do not lag the game ([client updates](client-updates.md)),
+  or move the bytes off your connection ([R2](#serving-assets-from-cloudflare-r2)).
 - Cloudflare: check its terms before serving gigabytes per player through its proxy or
   a tunnel; files over 512 MB are not cached on the free plan.
 - Backups: the host volume is the only served copy of the objects. Keep the local store.
+
+## Serving assets from Cloudflare R2
+
+To take asset downloads off a home connection, mirror `assets/objects/` to R2 (no
+egress fees) and let the update service redirect to it. The update service still
+answers every request, keeps its local store, and serves `LastBuildVersion.txt` and
+`patch.json` itself; only the file bytes come from R2. Releases (SprkLauncher) stay
+on the update service, since the launcher downloads only from its manifest's host.
+
+How it works:
+
+- `SPRK_ASSETS_MIRROR_URL` is the public URL of the mirrored folder. For an asset
+  file, the service checks once (`HEAD`) that `<url>/<sha256>` exists, then answers
+  `302` to it; the game follows the redirect. An object not on R2 yet, or any failed
+  check, is served locally and checked again a minute later, so a new asset
+  version works before it is uploaded.
+- The `assets-mirror` service in `docker-compose.yml` runs `rclone copy` every
+  `SPRK_R2_SYNC_SECONDS` (default 3600), uploading only objects R2 does not have.
+  It never deletes: objects pruned locally stay on R2, which is cheap and keeps
+  older clients working.
+
+Setup:
+
+1. In Cloudflare, create an R2 bucket. Under its **Settings → Custom Domains**, connect
+   a subdomain of a zone on your account, e.g. `assets.example.com`. Do not use the
+   `r2.dev` URL; it is rate limited and not meant for production.
+2. Add a **Cache Rule** for that hostname: *Eligible for cache*, so Cloudflare caches
+   the extensionless objects (it does not by default). Cached downloads are not
+   billed as R2 reads. Objects over 512 MB are not cached on the free plan.
+3. Create an R2 API token (**R2 → Manage API tokens**) with *Object Read & Write*
+   on that bucket. Note the account ID, access key ID and secret.
+4. Set in the stack's environment:
+
+   ```
+   SPRK_R2_ACCOUNT_ID=<account id>
+   SPRK_R2_BUCKET=<bucket>
+   SPRK_R2_ACCESS_KEY_ID=<access key id>
+   SPRK_R2_SECRET_ACCESS_KEY=<secret>
+   ```
+
+   and redeploy. The first pass uploads the whole store (30 GB, about 61,000
+   objects); follow it with `docker logs` on the `assets-mirror` container.
+5. When it has finished, set
+   `SPRK_ASSETS_MIRROR_URL=https://assets.example.com/assets/objects/` and redeploy.
+   Leave `SPRK_ASSETS_CDN_URL` as it is: the game must still ask the update service.
+
+To check, `curl -I https://<update host>/updates/assets/objects/<sha256>` answers
+`302` with a `Location` on the asset domain. Unset `SPRK_ASSETS_MIRROR_URL` to go back
+to serving everything locally.
+
+Cost: storage is $0.015/GB-month after 10 GB free (about $0.30/month for 30 GB).
+Reads that miss Cloudflare's cache cost $0.36 per million after 10 million free, and
+a full download is about 33,000 files. Each upload pass lists the bucket, about
+1 request per 1000 objects, within the free 1 million writes a month. Egress is free.

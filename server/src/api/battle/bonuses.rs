@@ -28,7 +28,7 @@ pub(crate) async fn calculate(
     let costumes: Vec<i32> =
         crate::db::query_scalar("SELECT costume_index FROM costumes WHERE account_id=$1")
             .bind(a)
-            .fetch_all(db)
+            .fetch_all(&mut *db)
             .await?;
     for id in costumes {
         if let Some(c) = s.tables.hero_shop.costumes.get(&id) {
@@ -48,6 +48,10 @@ pub(crate) async fn calculate(
             }
         }
     }
+    // Festival Hot Time (LiveRules.json Festivals) shown by the native bonus icons.
+    let calendar = crate::api::festivals::Calendar::load(db, s).await?;
+    gold += calendar.bonus("BonusGold", battle);
+    exp += calendar.bonus("BonusExp", battle);
     Ok((gold + guild_bonus.0 + honor_gold, exp + guild_bonus.1))
 }
 

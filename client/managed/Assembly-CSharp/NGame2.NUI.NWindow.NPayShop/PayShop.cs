@@ -178,6 +178,12 @@ public class PayShop : LobbyFullWindow, PayShopResourceList.IListener, PayShopCa
 
 	public void SelectCategory(string category, bool forceSelect = false)
 	{
+		string visible = SprkShopSearch.VisibleCategory(category);
+		if (visible != category)
+		{
+			category = visible;
+			forceSelect = true;
+		}
 		if (forceSelect)
 		{
 			CategoryListGroup.SelectCategory(category);

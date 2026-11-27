@@ -12,73 +12,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e189374413a3f00468e49d51d8b27a09, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  enable: 1
+  enable: 0
   useGlobalIl2cpp: 0
   hybridclrRepoURL: https://github.com/focus-creative-games/hybridclr
   il2cppPlusRepoURL: https://github.com/focus-creative-games/il2cpp_plus
   hotUpdateAssemblyDefinitions: []
-  hotUpdateAssemblies:
-  - Assembly-CSharp
-  - SprkAccessories
-  - SprkAccounts
-  - SprkArenaPractice
-  - SprkArtifactSourceFilter
-  - SprkAutomation
-  - SprkBatchGrind
-  - SprkBattleKeyboard
-  - SprkBattleSpeed
-  - SprkChatChannels
-  - SprkConquest
-  - SprkDiscordPresence
-  - SprkDispatch
-  - SprkDispatchSelection
-  - SprkForgeAwakenChance
-  - SprkFreeCamera
-  - SprkGearPresetPortraits
-  - SprkGraphicsOptions
-  - SprkHeroExpLevel
-  - SprkHeroMaterialTickets
-  - SprkHeroRuneFilter
-  - SprkHonorBuff
-  - SprkHonorDuel
-  - SprkIllustrationUpscale
-  - SprkIllustrationZoom
-  - SprkImageRecovery
-  - SprkInventoryTickets
-  - SprkKarmaRaid
-  - SprkLobbyAvatarStability
-  - SprkMailUpdates
-  - SprkMissionClaimAll
-  - SprkMissionHistory
-  - SprkMotionCostumes
-  - SprkNetworkPerformance
-  - SprkOpeningSkip
-  - SprkPartyRetry
-  - SprkPetPresentation
-  - SprkPresetDisposal
-  - SprkRaidInfoScroll
-  - SprkReforgeUntil
-  - SprkRoomShortcut
-  - SprkShopSearch
-  - SprkShopTags
-  - SprkSkillDescriptionFormula
-  - SprkSkillPriority
-  - SprkSkillUpgradeAll
-  - SprkSoloRetry
-  - SprkSoulLiberationCost
-  - SprkSoulUpgradePlayback
-  - SprkSoulWeaponAutoEnhance
-  - SprkSpecialShop
-  - SprkStoryAuto
-  - SprkTeamExpRefresh
-  - SprkTechnomagicAwaken
-  - SprkTicketSearch
-  - SprkWebSocketTransport
+  hotUpdateAssemblies: []
   preserveHotUpdateAssemblies: []
   externalHotUpdateAssembliyDirs:
   - HotUpdate
   linkPreserveLevel: 0
   outputLinkFile: HybridCLR/Generate/link.xml
-  outputAOTGenericReferenceFile: HybridCLR/Generate/AOTGenericReferences.cs
+  outputAOTGenericReferenceFile: SprkBootstrap/Generated/AOTGenericReferences.cs
   maxGenericReferenceIteration: 10
   maxMethodBridgeGenericIteration: 10

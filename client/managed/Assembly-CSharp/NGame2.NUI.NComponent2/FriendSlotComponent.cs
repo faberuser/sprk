@@ -129,6 +129,8 @@ public class FriendSlotComponent : UIScrollItemBehaviour
 		SetName(FriendInfo.Nick);
 		SetLevel(FriendInfo.TeamLevel);
 		SetPortraitTexture(FriendInfo.AvatarHeroIndex);
+		SprkPortraitAboveFrame();
+		SprkProfileImage.Bind(_portraitTexture, FriendInfo.AccountId);
 		UpdateButtonStatus();
 		UIHelper.EnableGameObject(_duelButton, SingletonAuto<Config>.instance.ClientConfig.ShowEditorGui);
 	}
@@ -171,6 +173,25 @@ public class FriendSlotComponent : UIScrollItemBehaviour
 		else
 		{
 			SetOffline(o_dateTime2);
+		}
+	}
+
+	/// <summary>
+	/// SPRK: the shared frame (Common_Hero_Frame_Small) has a dark strip at the
+	/// bottom for star ratings, which friend slots do not show. Draw the
+	/// portrait above the frame so the empty strip is covered.
+	/// </summary>
+	public void SprkPortraitAboveFrame()
+	{
+		if (_portraitTexture == null || _portraitTexture.transform.parent == null)
+		{
+			return;
+		}
+		Transform frame = _portraitTexture.transform.parent.Find("Sprite_PortraiFrame");
+		UIWidget frameWidget = ((frame != null) ? frame.GetComponent<UIWidget>() : null);
+		if (frameWidget != null && _portraitTexture.depth <= frameWidget.depth)
+		{
+			_portraitTexture.depth = frameWidget.depth + 1;
 		}
 	}
 

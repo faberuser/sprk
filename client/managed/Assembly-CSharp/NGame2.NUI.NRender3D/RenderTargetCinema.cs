@@ -266,6 +266,7 @@ public class RenderTargetCinema : LinkFactoryComponent, ISceneContainer, IInspec
 
 	public void Close()
 	{
+		SprkDressingRoomMirror.Release(this);
 		VespaCoroutine.Stop(this, _coroutineList);
 		_coroutineList.Clear();
 		if (_preloader != null)

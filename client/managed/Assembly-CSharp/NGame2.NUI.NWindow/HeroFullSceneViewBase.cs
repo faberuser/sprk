@@ -378,6 +378,7 @@ public class HeroFullSceneViewBase : FrameControlWindow, MotionSequence.IDataPro
 			_cameraController.ChainLateUpdate();
 		}
 		SprkFreeCamera.Apply(this);
+		SprkDressingRoomMirror.Track(_cinema);
 	}
 
 	public override void Reset()

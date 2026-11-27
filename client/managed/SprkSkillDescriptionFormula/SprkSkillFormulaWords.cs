@@ -68,34 +68,52 @@ public static class SprkSkillFormulaWords
 				"技能等級", "等級縮放", "覺醒係數", "疊加層數", "×", "部分數值仍顯示計算結果。", "此技能暫不支援公式顯示。", "trunc：捨去小數部分；P.ATK / M.ATK：施法者的物理 / 魔法攻擊力。", "目標身上相應效果的疊加層數（預覽：0）", "顯示公式",
 				"顯示計算結果"
 			}
+		},
+		{
+			"th",
+			new string[11]
+			{
+				"เลเวลสกิล", "การปรับตามเลเวล", "ค่าสัมประสิทธิ์วิวัฒนาการ", "จำนวนสแตก", "ของ", "ค่าบางส่วนยังแสดงเป็นผลที่คำนวณแล้ว", "สกิลนี้ไม่รองรับการแสดงสูตร", "trunc: ตัดทศนิยมทิ้ง; P.ATK / M.ATK: พลังโจมตีกาย / โจมตีเวทย์ของผู้ใช้", "จำนวนสแตกของเอฟเฟกต์ที่เกี่ยวข้องบนเป้าหมาย (ตัวอย่าง: 0)", "แสดงสูตร",
+				"แสดงค่าที่คำนวณแล้ว"
+			}
+		},
+		{
+			"vi",
+			new string[11]
+			{
+				"Cấp kỹ năng", "Hệ số theo cấp", "Hệ số Thức tỉnh", "Số cộng dồn", "của", "Một số giá trị vẫn hiển thị kết quả đã tính.", "Kỹ năng này không hỗ trợ hiển thị công thức.", "trunc: bỏ phần thập phân; P.ATK / M.ATK: ATK vật lý / phép của người dùng.", "số cộng dồn của hiệu ứng tương ứng trên mục tiêu (xem trước: 0)", "Hiện công thức",
+				"Hiện giá trị đã tính"
+			}
 		}
 	};
 
-	private static readonly string[] Locales = new string[7] { "de", "fr", "ja", "ko", "ru", "zh-Hans", "zh-Hant" };
+	private static readonly string[] Locales = new string[9] { "de", "fr", "ja", "ko", "ru", "zh-Hans", "zh-Hant", "th", "vi" };
 
 	private static readonly Dictionary<string, string[]> Extra = new Dictionary<string, string[]>
 	{
 		{
 			"Max HP",
-			new string[7] { "Max. LP", "PV max.", "最大HP", "최대 체력", "Макс. ОЗ", "最大生命值", "最大生命值" }
+			new string[9] { "Max. LP", "PV max.", "最大HP", "최대 체력", "Макс. ОЗ", "最大生命值", "最大生命值", "HP สูงสุด", "Max HP" }
 		},
 		{
 			"Target",
-			new string[7] { "Ziel", "Cible", "対象", "대상", "Цель", "目标", "目標" }
+			new string[9] { "Ziel", "Cible", "対象", "대상", "Цель", "目标", "目標", "เป้าหมาย", "Mục tiêu" }
 		},
 		{
 			"Distance",
-			new string[7] { "Entfernung", "Distance", "距離", "거리", "Расстояние", "距离", "距離" }
+			new string[9] { "Entfernung", "Distance", "距離", "거리", "Расстояние", "距离", "距離", "ระยะห่าง", "Khoảng cách" }
 		},
 		{
 			"caster-to-target distance in game units (preview: 0)",
-			new string[7] { "Abstand zwischen Anwender und Ziel in Spieleinheiten (Vorschau: 0)", "distance entre le lanceur et la cible en unités de jeu (aperçu : 0)", "使用者から対象までの距離（ゲーム内単位、プレビュー：0）", "시전자와 대상 사이의 거리 (게임 단위, 미리보기: 0)", "расстояние от героя до цели в игровых единицах (предпросмотр: 0)", "施法者与目标之间的距离（游戏单位，预览：0）", "施法者與目標之間的距離（遊戲單位，預覽：0）" }
+			new string[9] { "Abstand zwischen Anwender und Ziel in Spieleinheiten (Vorschau: 0)", "distance entre le lanceur et la cible en unités de jeu (aperçu : 0)", "使用者から対象までの距離（ゲーム内単位、プレビュー：0）", "시전자와 대상 사이의 거리 (게임 단위, 미리보기: 0)", "расстояние от героя до цели в игровых единицах (предпросмотр: 0)", "施法者与目标之间的距离（游戏单位，预览：0）", "施法者與目標之間的距離（遊戲單位，預覽：0）", "ระยะห่างระหว่างผู้ใช้กับเป้าหมายในหน่วยของเกม (ตัวอย่าง: 0)", "khoảng cách từ người dùng đến mục tiêu theo đơn vị trong game (xem trước: 0)" }
 		}
 	};
 
 	public static string Locale => SingletonAuto<LocalizationManager>.instance.Language.ToString() switch
 	{
 		"ChineseTraditional" => "zh-Hant", 
+		"Thai" => "th", 
+		"Vietnamese" => "vi", 
 		"ChineseSimplified" => "zh-Hans", 
 		"Russian" => "ru", 
 		"Korean" => "ko", 

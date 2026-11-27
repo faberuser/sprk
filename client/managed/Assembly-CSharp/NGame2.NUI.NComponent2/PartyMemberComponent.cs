@@ -32,6 +32,7 @@ public class PartyMemberComponent : LinkFactoryComponent
 			PartyMemberInfo = partyMemberInfo;
 			_listener = listener;
 			SetAvatar(partyMemberInfo.AvatarHeroIndex);
+			SprkProfileImage.Bind(AvatarTexture, partyMemberInfo.AccountId);
 			UIHelper.SetLabelText(NickLabel, partyMemberInfo.Nick);
 			UIHelper.SetLabelText(TeamLevelLabel, partyMemberInfo.TeamLevel);
 		}

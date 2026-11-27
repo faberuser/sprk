@@ -12,36 +12,44 @@
   ],
   "files": {
     "LocalizationJit/LocalizationAll_ChineseSimplified.jit": {
-      "sha256": "038743aa3441e12c879bf286dbe1a836bc52fe55fb9ff9014e646e73c07a11bb",
+      "sha256": "fc76856742daa70ef1b3e53c048c1ddb61c58bec17f04103999a9fc96e1145ff",
       "originalSha256": "d259ef6d142fb3a61741f954f30815a8860e7df102001b243192734ac451c662"
     },
     "LocalizationJit/LocalizationAll_ChineseTraditional.jit": {
-      "sha256": "deec5fae3b317313284e1d3337be4f46f2ee8c73ce637238bcf3de928f5dac5a",
+      "sha256": "f9cf74b2a19719f18f5289f7d10f8cc7a08dd4a8148d37bbf46616d6197f027f",
       "originalSha256": "4c60d885fb88713bebf24b8342db4b8fa86d61db05a49ebd0c6b74b3ad0e1c80"
     },
     "LocalizationJit/LocalizationAll_English.jit": {
-      "sha256": "a693d2274dd9a8ff9d5befcd41c87853e8c4266469bf3b8f39109f11905f4368",
+      "sha256": "493eaada2ae8a1e9152e13343dd105fee56ee7ab9145bce4bf158d38fc02623a",
       "originalSha256": "1c5123def223090b3032d270e60afaa6eed321419478a39e1ab354dd3f892ece"
     },
     "LocalizationJit/LocalizationAll_French.jit": {
-      "sha256": "eca7cfeef5e047a5f37913ed6439867342fde40d1e99b4de6a587ce080e1601c",
+      "sha256": "de9ddf5c64fb7d8446d7fb362c39760df196c4758e1e79327b75b9fe49ebe9fc",
       "originalSha256": "6ff52dd56c49e164289821390cfbc2eff3cda4d652c5b28e09ac73275a2c6fc6"
     },
     "LocalizationJit/LocalizationAll_German.jit": {
-      "sha256": "120af16dcc0abf47e1416edb4bad12a5145a68cb6cd5fadd00a8eb5ef5bc6978",
+      "sha256": "e419b5ebb6bfa88cf112d6648f936f1090f1ecbe0939ddc7066e73d83263142b",
       "originalSha256": "b747402e843864147e7bdcce5b27230ddf59610e6d5740e6a927b56b650d8cec"
     },
     "LocalizationJit/LocalizationAll_Japanese.jit": {
-      "sha256": "88162f15dc9fee1e976b0a267313f217bec034a4eed790b160b3cd76ec7a5441",
+      "sha256": "3d85f8c05c18f9d001291d0e75b7f3f083b1aa6922203a3c7c6f7f1890ce513b",
       "originalSha256": "10892275d2af2a89b3bb09801e2eb884b82c9a0461a8b6aea46977ccb332c887"
     },
     "LocalizationJit/LocalizationAll_Korean.jit": {
-      "sha256": "d302ef5b00a936e5327671b310835bf6906123092eea95eda856ba1076bc1333",
+      "sha256": "948496aa80fb7a37319ebc06a314511035af4fbb13fb1e5946e626a4ce20dc55",
       "originalSha256": "d69d559f961f056c1d2000027bc6f43892d43d8ca2c678417ce123e6a74bd515"
     },
     "LocalizationJit/LocalizationAll_Russian.jit": {
-      "sha256": "7e8a4870782e6fe385dc202fb1a6eccfa496bd9085394ddfc345f72b1d2ac445",
+      "sha256": "3d66fe491beb965dcde9a9cb8c8edc67678adba523bc546a2a21a4981dbac7d1",
       "originalSha256": "ed31e3c00d64be92bf4d8d0c9521767a67e0cb5b4062f424b5c9bf05517269de"
+    },
+    "LocalizationJit/LocalizationAll_Thai.jit": {
+      "sha256": "a5a31410ea60a3623765dd2e23cc432eaa892e2331a21d0f6f3897667a61c3a2",
+      "originalSha256": "ed3a7e083f452c30dee3029ab7be851fe9719a6fa1bca2bebe93984ac9b624db"
+    },
+    "LocalizationJit/LocalizationAll_Vietnamese.jit": {
+      "sha256": "a27df3ee3200e5d14dc9c3faa8ecb0d42204e557e9a8b5b299a2aa0a5f6e14cf",
+      "originalSha256": "a017880437887d66524e32d32504b7ef8918b8408954754f6c457ca776624c1e"
     }
   },
   "changesByLocale": {

@@ -212,6 +212,12 @@ public class PayShopCategoryComponent : ButtonListComponent
 
 	public void SetFlag(PayShopFlagType flag)
 	{
+		// SPRK: the Packages tab only sums up its sub-tabs; its "New" tag stayed on
+		// permanently, so it is not shown there. Sub-tabs keep their own tags.
+		if (GroupData != null && GroupData.PayShopCategoryType == "Package")
+		{
+			flag &= ~PayShopFlagType.New;
+		}
 		if (flag == PayShopFlagType.None)
 		{
 			UIHelper.EnableGameObject(FlagImageSelector, enable: false);

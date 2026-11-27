@@ -116,6 +116,7 @@ pub(super) async fn require_story_join_unlock(db: &mut PgConnection, s: &AppStat
     let ch=row(s,"CampaignChapter",&[("Index",c)])?;
     let d=row(s,"CampaignDungeon",&[("ChapterIndex",c),("DungeonIndex",di)])?;
     crate::api::episodes::require_battle(db, s, a, c, di, n(room,"DungeonDifficulty")).await?;
+    crate::api::festivals::require_chapter(db, s, a, c).await?;
     if ch["IsOpen"]!=true {return Err(rule("NotOpenedDungeon"));}
     let mut prerequisites=vec![(n(ch,"ReqChapterIndex"),n(ch,"ReqDungeonIndex"))];
     if c==50000 {prerequisites.push((97,2));if di==210 {prerequisites.push((50000,9));}}
@@ -153,6 +154,7 @@ async fn validate_inner(
     let ch = row(s, "CampaignChapter", &[("Index", c)])?;
     let diff = difficulty(r)?;
     crate::api::episodes::require_battle(db, s, a, c, n(d, "DungeonIndex"), diff).await?;
+    crate::api::festivals::require_chapter(db, s, a, c).await?;
     let restored_field = n(d, "BattleType") == 33
         && s.tables.battle.rules["EnableLegacyFieldRaids"] == true
         && s.tables.battle.find("Raid", &[("Index", int(r,"RaidIndex")?), ("Level", int(r,"RaidLevel")?)])
@@ -388,6 +390,9 @@ async fn begin_local_inner(
         return Err(rule("HeroNotFound"));
     }
     let d = dungeon(s, r)?;
+    if n(d, "ReqStaminaType") == dungeons::EVENT_TICKET {
+        dungeons::set_event_ticket_chapter(db, a, n(d, "ChapterIndex")).await?;
+    }
     let mut out = response(s, "campaign/begin_campaign");
     super::entry_costs::prepare(db,s,a,r,&mut entry,&mut out).await?;
     super::loot_booster::prepare(db,s,a,r,&mut entry,&mut out,party_use_stamina != Some(false)).await?;
@@ -562,7 +567,7 @@ async fn end_inner(
     }
     let mut out = if completed {
         let loot_percent = super::loot_booster::percent(db,s,a,&request,&entry).await?;
-        complete_inner(db, s, a, &request, &party, star, 1, party_loot_enabled(&entry), loot_percent).await?
+        complete_inner(db, s, a, &request, &party, star, 1, party_loot_enabled(&entry), loot_percent, None).await?
     } else {
         item::success()
     };
@@ -584,6 +589,9 @@ async fn end_inner(
     rooms::finish(db, s, a, &request, completed, &mut out).await?;
     super::treasure::record_time(db, s, a, r, saved.get("started"), n(dungeon(s, &request)?, "BattleType"), &mut out).await?;
     if completed {crate::api::services::records::record_clear(db,a,&entry,r.number("PureBattleTime",elapsed)?).await?;}
+    // Thanksgiving Defense K.O. counts and Daily level rewards, won or lost.
+    crate::api::festivals::phase_step::finish(db, s, a, int(&request, "ChapterIndex")?, int(&request, "DungeonIndex")?,
+        crate::api::festivals::phase_step::kills(s, r), &mut out).await?;
     // Before the response is saved below: story and party retries replay it.
     super::archive::record(db, s, a, r, &mut out).await?;
     // Story and substory battles can submit the ending twice. Persist the
@@ -631,7 +639,7 @@ pub(super) async fn complete(
     count: i64,
 ) -> Result<Value> {
     let loot_percent = super::loot_booster::percent(db,s,a,r,&json!({})).await?;
-    complete_inner(db, s, a, r, party, star, count, true, loot_percent).await
+    complete_inner(db, s, a, r, party, star, count, true, loot_percent, None).await
 }
 
 pub(super) async fn complete_dispatch(
@@ -642,9 +650,10 @@ pub(super) async fn complete_dispatch(
     party: &[i64],
     star: i64,
     count: i64,
+    reward_box: Option<&Value>,
 ) -> Result<Value> {
     // Dispatch is excluded from loot boosters, even when one is active at claim.
-    complete_inner(db, s, a, r, party, star, count, true, 0).await
+    complete_inner(db, s, a, r, party, star, count, true, 0, reward_box).await
 }
 
 /// Only authenticated, server-saved party options can disable battle loot.
@@ -655,6 +664,7 @@ pub(super) fn party_loot_enabled(entry: &Value) -> bool {
 async fn complete_inner(
     db: &mut PgConnection, s: &AppState, a: i64, r: &Request,
     party: &[i64], star: i64, count: i64, grant_loot: bool, loot_percent: i64,
+    reward_box: Option<&Value>,
 ) -> Result<Value> {
     let d = dungeon(s, r)?;
     let c = n(d, "ChapterIndex");
@@ -663,10 +673,21 @@ async fn complete_inner(
     let mut p = progress(db, s, a, c, di).await?;
     let mut reward = Rewards { mail_overflow: true, ..Rewards::default() };
     for _ in 0..if grant_loot {count} else {0} {
-        let index = field(d, "DropRewardIndex", diff);
+        // A dispatch box replaces the run's loose loot; DirectItems are the
+        // stage loot the box leaves out.
+        let index = reward_box.map_or_else(|| field(d, "DropRewardIndex", diff), |b| n(b, "RewardIndex"));
         if index > 0 {
             item::reward_with_loot_bonus(db,s,a,index as i32,&mut reward,loot_percent).await?;
         }
+        for extra in reward_box.and_then(|b| b["DirectItems"].as_array()).into_iter().flatten() {
+            let grant = crate::models::item::ItemGrant {
+                index: n(extra, "ItemIndex") as i32, count: n(extra, "Count") as i32, star: 0, custom: 0,
+            };
+            tutorial::grant_item(db, s, a, grant, &mut reward).await?;
+        }
+    }
+    if grant_loot && reward_box.is_none() {
+        crate::api::festivals::dungeon_points(db, s, a, c, di, diff, count, &mut reward).await?;
     }
     // Clear credit also unlocks later stages. Track actual loot claims separately
     // so a free clear cannot consume the first reward of a later paid clear.
@@ -743,7 +764,10 @@ async fn complete_inner(
             .unwrap_or(old)
             .max(old);
         let exp = base_exp + base_exp * exp_boost / 100;
-        let (level, new_exp) = if old >= cap {
+        // A capped hero, or one holding a flask, earns no level EXP; an EXP
+        // flask collects it instead.
+        let blocked = old >= cap || super::super::extensions::consumables::holds_flask(s, &details);
+        let (level, new_exp) = if blocked {
             (old, n(&h, "Exp"))
         } else {
             crate::tables::add_exp(
@@ -767,7 +791,7 @@ async fn complete_inner(
         let old_exp = n(&h, "Exp");
         h["Level"] = json!(level);
         h["Exp"] = json!(new_exp);
-        if old >= cap && grant_loot {
+        if blocked && grant_loot {
             if let Some((f, items)) =
                 super::super::extensions::consumables::fill_flask_with(db, s, a, *id as i32, exp, &mut details).await?
             {
@@ -783,7 +807,7 @@ async fn complete_inner(
         // tutorial result builder. AddValue is therefore the local-EXP delta
         // (negative after level-ups), not the base gain; otherwise level-ups
         // inflate the label and the booster share is never shown.
-        let (add_value, booster) = if old >= cap { (0, 0) } else { (new_exp - old_exp, exp - base_exp) };
+        let (add_value, booster) = if blocked { (0, 0) } else { (new_exp - old_exp, exp - base_exp) };
         hero_exp.push(json!({"HeroIndex":id,"OldLevel":old,"NewLevel":level,"NewValue":new_exp,"AddValue":add_value,"AddBoosterValue":booster,"AddTeamLevelValue":0}));
     }
     // A repeated party slot saves its last details, as one save per slot did.

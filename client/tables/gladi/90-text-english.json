@@ -1,0 +1,38 @@
+{
+  "localization": {
+    "English": {
+      "SKILL_DESC_60009120": "While in War God state, DMG dealt to Non-Hero enemies is increased by 10%.",
+      "SKILL_DESC_60009121": "While in War God state, DMG dealt to Heroes is increased by 5% and DMG received from Heroes is reduced by 5%. Gains immunity to CC for the first 5 sec of War God state.",
+      "SKILL_DESC_60009130": "Mana cost is increased by 1 and DMG is increased by 100%.",
+      "SKILL_DESC_60009141": "When activated in the Arena, deal 15% of the target's current HP as additional P.DMG that ignores DEF and inflict [Mark of the War God], reducing the target's Heal Rate by 2%. This effect can be stacked up to max 10 times and is irremovable.",
+      "SKILL_DESC_60009151": "Increases all DEF by 10% of ATK.",
+      "SKILL_DESC_90000910": "Increases own DMG dealt to enemies by 4%. Upon a Crit Hit, Crit. DMG is increased by 20% for 5 sec. This effect can be stacked up to 10 times max and is irremovable.",
+      "SKILL_DESC_90000911": "Increases own DMG dealt to enemies by 6%. Upon a Crit Hit, Crit. DMG is increased by 24% for 5 sec. This effect can be stacked up to 10 times max and is irremovable.",
+      "SKILL_DESC_90000912": "Increases own DMG dealt to enemies by 8%. Upon a Crit Hit, Crit. DMG is increased by 29% for 5 sec. This effect can be stacked up to 10 times max and is irremovable.",
+      "SKILL_DESC_90000913": "Increases own DMG dealt to enemies by 10%. Upon a Crit Hit, Crit. DMG is increased by 35% for 5 sec. This effect can be stacked up to 10 times max and is irremovable.",
+      "SKILL_DESC_90000914": "Increases own DMG dealt to enemies by 12%. Upon a Crit Hit, Crit. DMG is increased by 42% for 5 sec. This effect can be stacked up to 10 times max and is irremovable.",
+      "SKILL_DESC_90000915": "Increases own DMG dealt to enemies by 15%. Upon a Crit Hit, Crit. DMG is increased by 50% for 5 sec. This effect can be stacked up to 10 times max and is irremovable.",
+      "SKILL_DESC_91009120": "[Advent of the War God] Increases ATK Spd by 100 and stacks 1 [This will hurt!] upon dealing additional P.DMG for the duration of Skill.",
+      "SKILL_DESC_91009121": "[Advent of the War God] Increases ATK Spd by 150 and stacks 1 [This will hurt!] upon dealing additional P.DMG for the duration of Skill.",
+      "SKILL_DESC_91009122": "[Advent of the War God] Increases ATK Spd by 200 and stacks 1 [This will hurt!] upon dealing additional P.DMG for the duration of Skill.",
+      "SKILL_DESC_91009123": "[Advent of the War God] Increases ATK Spd by 300 and stacks 1 [This will hurt!] upon dealing additional P.DMG for the duration of Skill.",
+      "SKILL_DESC_91009124": "[Advent of the War God] Increases ATK Spd by 400 and stacks 1 [This will hurt!] upon dealing additional P.DMG for the duration of Skill.",
+      "SKILL_DESC_91009125": "[Advent of the War God] Increases ATK Spd by 500 and stacks 1 [This will hurt!] upon dealing additional P.DMG for the duration of Skill.",
+      "SKILL_DESC_91009130": "[Ultimate Punch!] Skill cooldown is reduced by 30%, DMG ignores the target's Block, and per each activation DMG is increased by 4%. This effect can be stacked max 10 times.",
+      "SKILL_DESC_91009131": "[Ultimate Punch!] Skill cooldown is reduced by 30%, DMG ignores the target's Block, and per each activation DMG is increased by 4.8%. This effect can be stacked max 10 times.",
+      "SKILL_DESC_91009132": "[Ultimate Punch!] Skill cooldown is reduced by 30%, DMG ignores the target's Block, and per each activation DMG is increased by 5.8%. This effect can be stacked max 10 times.",
+      "SKILL_DESC_91009133": "[Ultimate Punch!] Skill cooldown is reduced by 30%, DMG ignores the target's Block, and per each activation DMG is increased by 7%. This effect can be stacked max 10 times.",
+      "SKILL_DESC_91009134": "[Ultimate Punch!] Skill cooldown is reduced by 30%, DMG ignores the target's Block, and per each activation DMG is increased by 8.4%. This effect can be stacked max 10 times.",
+      "SKILL_DESC_91009135": "[Ultimate Punch!] Skill cooldown is reduced by 30%, DMG ignores the target's Block, and per each activation DMG is increased by 10%. This effect can be stacked max 10 times.",
+      "SKILL_DESC_91009140": "[This will hurt!] Increases DMG by 50%. Upon activation, a target takes 2% increased P.DMG for 10 sec. This effect can be stacked up to max 10 times.",
+      "SKILL_DESC_91009141": "[This will hurt!] Increases DMG by 50%. Upon activation, a target takes 2.4% increased P.DMG for 10 sec. This effect can be stacked up to max 10 times.",
+      "SKILL_DESC_91009142": "[This will hurt!] Increases DMG by 50%. Upon activation, a target takes 2.9% increased P.DMG for 10 sec. This effect can be stacked up to max 10 times.",
+      "SKILL_DESC_91009143": "[This will hurt!] Increases DMG by 50%. Upon activation, a target takes 3.5% increased P.DMG for 10 sec. This effect can be stacked up to max 10 times.",
+      "SKILL_DESC_91009144": "[This will hurt!] Increases DMG by 50%. Upon activation, a target takes 4.2% increased P.DMG for 10 sec. This effect can be stacked up to max 10 times.",
+      "SKILL_DESC_91009145": "[This will hurt!] Increases DMG by 50%. Upon activation, a target takes 5% increased P.DMG for 10 sec. This effect can be stacked up to max 10 times.",
+      "SKILL_DESC_9120": "Dispel all negative effects on self and deal [ffc800]{1}[-] P.DMG to nearby enemies within a small radius, gaining the Status 'War God' for 15 sec. While in War God mode, ATK is boosted by [64ff64]{2}[-] and all auto attacks have a 30% chance to deal an extra attack of [ffc800]{3}[-] extra P.DMG. Upon taking M.DMG, dodge all M.DMG for 1 sec. Dodge effect only activates 1 time in every 2 sec. 'War God' is irremovable.",
+      "SKILL_DESC_9130": "Charges energy and sprints toward frontal enemies, dealing [ffc800]{1}[-] P.DMG to enemies within range and inflicting Stun for 3 sec. If the target is a Boss, attack ignores target's DEF and DMG is increased by 100%.",
+      "SKILL_DESC_9140": "Increases DMG dealt to Non-Hero enemies by 5%. Upon hitting a single target with 4 normal attacks, deals [ffc800]{1}[-] additional P.DMG that ignores DEF."
+    }
+  }
+}

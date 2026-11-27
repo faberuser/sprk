@@ -538,6 +538,17 @@ pub(crate) async fn fill_stamina_flask_with(
     fill_flask_from_source(db,state,account,hero_id,stamina,2,details,true).await
 }
 
+/// Whether the hero holds an EXP flask (fills from battle EXP) or a ruby
+/// flask (fills from stamina). Such a hero earns no level EXP at any level:
+/// battle EXP goes to an EXP flask, and is withheld under a ruby flask.
+pub(crate) fn holds_flask(state: &AppState, details: &Value) -> bool {
+    let id = n(details, "FlaskItemIndex");
+    id != 0 && row(state, "FlaskItem", &[("ItemIndex", id)]).is_ok_and(|r| {
+        n(r, "FlaskExp") > 0
+            && matches!((n(r,"Type"),n(r,"SourceType"),n(r,"RewardType")), (0,1,1) | (1,2,2))
+    })
+}
+
 async fn fill_flask_from_source(
     db: &mut PgConnection,
     state: &AppState,

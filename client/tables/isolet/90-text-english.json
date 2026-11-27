@@ -1,0 +1,13 @@
+{
+  "localization": {
+    "English": {
+      "SKILL_DESC_60008211": "Reduces Crit Resistance of enemies inflicted with [Ignite] by 500.",
+      "SKILL_DESC_60008220": "Each hit reduces enemy's Mana by {1}. Against Bosses, reduces Mana by 500 instead.",
+      "SKILL_DESC_60008230": "[Blazing Storm] reduces the target's Mana by 100 each hit.",
+      "SKILL_DESC_8240": "Isolet recovers [64ff64]{3}[-] Mana every time she uses a Skill, and increases her Crit DMG by [64ff64]{2}[-]%.\nWhen she creates [64ffff][Explosive Reaction][-], her ATK increases by [64ff64]{4}[-]%. This effect can be stacked up to max [64ffff]{5}[-] times and is irremovable.\nWhen she creates [64ff64][Blazing Storm][-], M.DMG all allies take is reduced by [64ff64]{6}[-]%. This effect can be stacked up to max [64ffff]{7}[-] times and is irremovable.",
+      "SKILL_DESC_91008240": "[Quintessence of Technomagic] Increases the max number of stacks of [Explosive Reaction] by {1}. Gains 1 additional stack every time [Explosive Reaction] is created.",
+      "SKILL_DESC_93008202": "Increases Isolet's DMG dealt to non-Hero enemies by {1}% and reduces her Cooldown of active Skills by 2 sec every sec for the duration of soul.",
+      "SKILL_DESC_60008231": "Increases DMG by 60%."
+    }
+  }
+}

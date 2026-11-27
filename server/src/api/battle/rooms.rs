@@ -84,7 +84,7 @@ async fn leave(
     v["CurPartyMember"] = json!(ids.len());
     if master == target {
         let next = ids[0];
-        let nick: String = crate::db::query_scalar("SELECT nick FROM accounts WHERE account_id=$1")
+        let nick: String = crate::db::query_scalar("SELECT sprk_display_nick(account_id,nick) FROM accounts WHERE account_id=$1")
             .bind(next)
             .fetch_one(&mut *db)
             .await?;
@@ -162,7 +162,7 @@ pub(super) async fn execute(
         if opened > 1 {
             return Err(rule("InvalidRoomInfo"));
         }
-        let nick: String = crate::db::query_scalar("SELECT nick FROM accounts WHERE account_id=$1")
+        let nick: String = crate::db::query_scalar("SELECT sprk_display_nick(account_id,nick) FROM accounts WHERE account_id=$1")
             .bind(a)
             .fetch_one(&mut *db)
             .await?;
@@ -263,7 +263,7 @@ pub(super) async fn execute(
         }
         v["MasterAccountId"] = json!(target);
         v["MasterNick"] = json!(
-            crate::db::query_scalar::<String>("SELECT nick FROM accounts WHERE account_id=$1")
+            crate::db::query_scalar::<String>("SELECT sprk_display_nick(account_id,nick) FROM accounts WHERE account_id=$1")
                 .bind(target)
                 .fetch_one(&mut *db)
                 .await?

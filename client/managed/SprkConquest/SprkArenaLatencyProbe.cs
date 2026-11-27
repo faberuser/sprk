@@ -91,7 +91,7 @@ public static class SprkArenaLatencyProbe
 				{ "MasterId", "123" }
 			});
 			long time = 1000L;
-			Check(SprkConquest.FilterClock(ref time) && time == 1000, "Co-op clock must filter without adding a buffer");
+			Check(SprkConquest.FilterClock(ref time) && time == 900, "Co-op login did not enable replay headroom");
 			time = 1000L;
 			Check(!SprkConquest.FilterClock(ref time), "Duplicate co-op heartbeat restarted extrapolation");
 			BattleInstance battleInstance = new BattleInstance();
@@ -105,7 +105,7 @@ public static class SprkArenaLatencyProbe
 			battleInstance.OnWaveReadyBattle();
 			Check(battleInstance.GlobalTimer.GetCurrentTimeMs() == 6000, "Native wave transition resets the global clock");
 			time = 6000L;
-			Check(SprkConquest.FilterClock(ref time) && time == 6000, "Next wave cannot advance the co-op clock");
+			Check(SprkConquest.FilterClock(ref time) && time == 5900, "Next wave cannot advance the co-op clock");
 			time = 3000L;
 			Check(!SprkConquest.FilterClock(ref time), "Old-wave heartbeat rewound the next wave");
 			SprkConquest.Login(new Dictionary<string, object> { { "MasterId", "123" } });
@@ -122,6 +122,14 @@ public static class SprkArenaLatencyProbe
 			SprkConquest.Login(new Dictionary<string, object> { { "MatchUid", "124" } });
 			time2 = 0L;
 			Check(SprkConquest.FilterClock(ref time2) && time2 == 0, "Next Arena match cannot reset its clock");
+			SprkConquest.Login(new Dictionary<string, object> { { "MasterId", "123" } });
+			SprkConquest.ReadLoginOptions(new Dictionary<string, object> { { "Result", "Success" }, { "ReplayBufferMs", 40 } });
+			long time3 = 1000L;
+			Check(SprkConquest.FilterClock(ref time3) && time3 == 960, "Server replay headroom was not applied");
+			SprkConquest.Login(new Dictionary<string, object>());
+			SprkConquest.ReadLoginOptions(new Dictionary<string, object> { { "ReplayBufferMs", 40 } });
+			time3 = 20L;
+			Check(SprkConquest.FilterClock(ref time3) && time3 == 20, "Server headroom enabled an offline clock");
 			SystemButtonAutoSimple systemButtonAutoSimple = gameObject.AddComponent<SystemButtonAutoSimple>();
 			SystemButtonAuto systemButtonAuto = gameObject.AddComponent<SystemButtonAuto>();
 			BattleType[] array = new BattleType[2]

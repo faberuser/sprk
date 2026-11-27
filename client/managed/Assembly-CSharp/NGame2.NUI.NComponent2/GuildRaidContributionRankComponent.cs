@@ -58,6 +58,7 @@ public class GuildRaidContributionRankComponent : UIScrollItemBehaviour, NVespa.
 
 	public void SetHeroImage(GuildMemberInfo memberInfo)
 	{
+		SprkProfileImage.Bind(HeroTex, memberInfo.AccountId);
 		string iconPath = UIAvatarHelper.GetIconPath(memberInfo.AvatarHeroIndex);
 		if (!String_Extension_Method.IsNullOrEmpty(iconPath))
 		{

@@ -1,0 +1,1561 @@
+{
+  "table": "SkillTable",
+  "upsert": [
+    {
+      "Index": 9104,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnCriticalSkill",
+      "TriggerRatio": 1000,
+      "CoolTimeMs": 100,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TriggerDisabled": true,
+      "OperationType1": "ModCriticalPower",
+      "OperationValue1": [
+        "200"
+      ],
+      "OperationDurationMs1": 5000,
+      "OperationState1": "UniqueGladi"
+    },
+    {
+      "Index": 9110,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerRatio": 1000,
+      "Mp": 2000,
+      "CoolTimeMs": 7000,
+      "ActingTimeMs": 1000,
+      "DurationTimeMs": [
+        2900
+      ],
+      "CancelOnWaveEnd": true,
+      "TickTimeValue": [
+        "1200[1:3:4]",
+        "1400[1:3:4]",
+        "1600[1:3:4]",
+        "1700[1:3:4]",
+        "1800[1:3:4]",
+        "1900[1:3:4]",
+        "2200[1:2:4]"
+      ],
+      "AttrType": "Physical",
+      "TargetType": "Enemy",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "MaxRangeMm": 5500,
+      "IgnoreBlock": true,
+      "RetargetOnFire": true,
+      "OperationType1": "GetPhysicalDamageR",
+      "OperationTargetType1": "Target",
+      "OperationValue1": [
+        "948",
+        "216"
+      ],
+      "OperationValueFactor1": [
+        0,
+        0,
+        5,
+        216
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModPhysicalWeakness",
+      "OperationTargetType2": "Parent",
+      "OperationValue2": [
+        "250"
+      ],
+      "OperationDurationMs2": 10000,
+      "OperationParent2": 1,
+      "OperationState2": "9110",
+      "OperationFlags2": [
+        "HasParent"
+      ],
+      "OperationType3": "DashToTarget",
+      "OperationValue3": [
+        "1500",
+        "100"
+      ],
+      "OperationState3": "",
+      "OperationType4": "OverrideStat",
+      "OperationTargetType4": "Parent",
+      "OperationValue4": [
+        "MpRegenRatioM",
+        "Custom",
+        "0"
+      ],
+      "OperationDurationMs4": 10000,
+      "OperationParent4": 1,
+      "OperationState4": "91009110",
+      "OperationFlags4": [
+        "HasParent",
+        "Disabled"
+      ]
+    },
+    {
+      "Index": 9120,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerRatio": 1000,
+      "Mp": 1000,
+      "CoolTimeMs": 15000,
+      "ActingTimeMs": 900,
+      "DurationTimeMs": [
+        1600
+      ],
+      "TickTimeValue": [
+        "0[3]",
+        "1000[1:2:4:5:6]"
+      ],
+      "AttrType": "Physical",
+      "ClearStateType": [
+        "CC"
+      ],
+      "IgnoreStateType": [
+        "CC"
+      ],
+      "TargetType": "Enemy",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModPower",
+      "OperationValue1": [
+        "153"
+      ],
+      "OperationValueFactor1": [
+        5,
+        153
+      ],
+      "OperationDurationMs1": 15000,
+      "OperationState1": "9120",
+      "OperationType2": "GetPhysicalDamageR",
+      "OperationRadiusMm2": 2000,
+      "OperationValue2": [
+        "2990",
+        "681"
+      ],
+      "OperationValueFactor2": [
+        0,
+        0,
+        5,
+        681
+      ],
+      "OperationState2": "",
+      "OperationType3": "Cleanse",
+      "OperationState3": "",
+      "OperationType4": "EnablePassiveSkill",
+      "OperationValue4": [
+        "9125",
+        "True"
+      ],
+      "OperationDurationMs4": 15000,
+      "OperationState4": "9120_2",
+      "OperationType5": "EnablePassiveSkill",
+      "OperationValue5": [
+        "9124",
+        "True"
+      ],
+      "OperationDurationMs5": 15000,
+      "OperationState5": "9120_3",
+      "OperationType6": "ModAttackSpeedR",
+      "OperationValue6": [
+        "100"
+      ],
+      "OperationDurationMs6": 15000,
+      "OperationState6": "9120_7",
+      "OperationFlags6": [
+        "Disabled"
+      ]
+    },
+    {
+      "Index": 9124,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "ReqIndex": 9120,
+      "FollowLevelIndex": 9120,
+      "TriggerType": "OnBaseAttack",
+      "TriggerRatio": 300,
+      "TriggerDisabled": true,
+      "AttrType": "Physical",
+      "TargetType": "TriggerTarget",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "GetPhysicalDamageR",
+      "OperationTargetType1": "Target",
+      "OperationValue1": [
+        "1658",
+        "375"
+      ],
+      "OperationValueFactor1": [
+        0,
+        0,
+        5,
+        375
+      ],
+      "OperationDelayMs1": [
+        50,
+        0,
+        0
+      ],
+      "OperationState1": "",
+      "OperationType2": "GetManaR",
+      "OperationValue2": [
+        "-50"
+      ],
+      "OperationState2": "",
+      "OperationFlags2": [
+        "Disabled"
+      ],
+      "OperationType3": "ModToughness",
+      "OperationTargetType3": "Parent",
+      "OperationDurationMs3": 999999,
+      "OperationParent3": 1,
+      "OperationState3": "9140",
+      "OperationFlags3": [
+        "HasParent",
+        "Disabled"
+      ],
+      "OperationType4": "GetPhysicalDamageR",
+      "OperationTargetType4": "Target",
+      "OperationValue4": [
+        "837",
+        "189",
+        "IgnoreDefence"
+      ],
+      "OperationValueFactor4": [
+        0,
+        0,
+        5,
+        189
+      ],
+      "OperationConditionType4": "StateCount",
+      "OperationConditionValue4": [
+        "9140",
+        "3",
+        "Equal"
+      ],
+      "OperationState4": "",
+      "OperationFlags4": [
+        "Disabled"
+      ],
+      "OperationType5": "ClearState",
+      "OperationTargetType5": "Target",
+      "OperationValue5": [
+        "9140",
+        "0"
+      ],
+      "OperationConditionType5": "StateCount",
+      "OperationConditionValue5": [
+        "9140",
+        "3",
+        "Equal"
+      ],
+      "OperationState5": "",
+      "OperationFlags5": [
+        "Disabled"
+      ]
+    },
+    {
+      "Index": 9130,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerRatio": 1000,
+      "Mp": 4000,
+      "CoolTimeMs": 20000,
+      "ActingTimeMs": 1900,
+      "DurationTimeMs": [
+        2800
+      ],
+      "CancelOnWaveEnd": true,
+      "TickTimeValue": [
+        "0[6:7:8]",
+        "2000[1:2:3:4:5]"
+      ],
+      "AttrType": "Physical",
+      "TargetType": "Enemy",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "MaxRangeMm": 5500,
+      "IgnoreBlock": true,
+      "RetargetOnFire": true,
+      "ViewTargetWhileUse": true,
+      "OperationType1": "DashFromMyself",
+      "OperationValue1": [
+        "8000",
+        "200",
+        "",
+        "",
+        "True"
+      ],
+      "OperationState1": "",
+      "OperationType2": "GetPhysicalDamageR",
+      "OperationRadiusMm2": 9500,
+      "OperationWidth2": 2000,
+      "OperationAreaDelayMss2": [
+        30,
+        0
+      ],
+      "OperationAngle2": 90,
+      "OperationValue2": [
+        "6906",
+        "1573"
+      ],
+      "OperationValueFactor2": [
+        0,
+        0,
+        5,
+        1573
+      ],
+      "OperationConditionType2": "Boss",
+      "OperationConditionReverseCheck2": true,
+      "OperationState2": "",
+      "OperationFlags2": [
+        "CheckConditionOnBegin"
+      ],
+      "OperationType3": "Stun",
+      "OperationTargetType3": "Parent",
+      "OperationDurationMs3": 3000,
+      "OperationParent3": 2,
+      "OperationState3": "",
+      "OperationFlags3": [
+        "HasParent"
+      ],
+      "OperationType4": "GetPhysicalDamageR",
+      "OperationRadiusMm4": 9500,
+      "OperationWidth4": 2000,
+      "OperationAreaDelayMss4": [
+        30,
+        0
+      ],
+      "OperationAngle4": 90,
+      "OperationValue4": [
+        "6906",
+        "1573",
+        "IgnoreDefence"
+      ],
+      "OperationValueFactor4": [
+        0,
+        0,
+        5,
+        1573
+      ],
+      "OperationConditionType4": "Boss",
+      "OperationState4": "",
+      "OperationFlags4": [
+        "CheckConditionOnBegin"
+      ],
+      "OperationType5": "Stun",
+      "OperationTargetType5": "Parent",
+      "OperationDurationMs5": 3000,
+      "OperationParent5": 4,
+      "OperationState5": "",
+      "OperationFlags5": [
+        "HasParent"
+      ],
+      "OperationType6": "ModSkillPowerR",
+      "OperationValue6": [
+        "9130",
+        "2",
+        "40"
+      ],
+      "OperationDurationMs6": 999999,
+      "OperationDelayMs6": [
+        2900,
+        0,
+        0
+      ],
+      "OperationState6": "91009130",
+      "OperationFlags6": [
+        "Disabled"
+      ],
+      "OperationType7": "ModSkillPowerR",
+      "OperationValue7": [
+        "9130",
+        "4",
+        "40"
+      ],
+      "OperationDurationMs7": 999999,
+      "OperationDelayMs7": [
+        2900,
+        0,
+        0
+      ],
+      "OperationState7": "91009130_2",
+      "OperationFlags7": [
+        "Disabled"
+      ],
+      "OperationType8": "ModAttackByBoss",
+      "OperationValue8": [
+        "True",
+        "1000"
+      ],
+      "OperationDurationMs8": 2800,
+      "OperationState8": "9130_1"
+    },
+    {
+      "Index": 9140,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnBaseAttack",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetType": "TriggerTarget",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModToughness",
+      "OperationTargetType1": "Target",
+      "OperationDurationMs1": 999999,
+      "OperationState1": "9140",
+      "OperationType2": "GetPhysicalDamageR",
+      "OperationTargetType2": "Target",
+      "OperationValue2": [
+        "837",
+        "189",
+        "IgnoreDefence"
+      ],
+      "OperationValueFactor2": [
+        0,
+        0,
+        5,
+        189
+      ],
+      "OperationConditionType2": "StateCount",
+      "OperationConditionValue2": [
+        "9140",
+        "3",
+        "Equal"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ClearState",
+      "OperationTargetType3": "Target",
+      "OperationValue3": [
+        "9140",
+        "0"
+      ],
+      "OperationConditionType3": "StateCount",
+      "OperationConditionValue3": [
+        "9140",
+        "3",
+        "Equal"
+      ],
+      "OperationState3": "",
+      "OperationType4": "ModPhysicalWeakness",
+      "OperationTargetType4": "Parent",
+      "OperationValue4": [
+        "20"
+      ],
+      "OperationDurationMs4": 10000,
+      "OperationParent4": 2,
+      "OperationState4": "91009140",
+      "OperationFlags4": [
+        "HasParent",
+        "Disabled"
+      ]
+    },
+    {
+      "Index": 9144,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "AttrType": "Physical",
+      "OperationType1": "ModAttackByRace",
+      "OperationValue1": [
+        "Hero",
+        "50",
+        "0",
+        "True"
+      ],
+      "OperationDurationMs1": 9999999,
+      "OperationState1": ""
+    },
+    {
+      "Index": 60009120,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnFireSkill",
+      "TriggerRatio": 1000,
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TriggerValue": [
+        "9120"
+      ],
+      "OperationType1": "ModAttackByRace",
+      "OperationValue1": [
+        "Hero",
+        "100",
+        "0",
+        "True"
+      ],
+      "OperationDurationMs1": 15000,
+      "OperationDelayMs1": [
+        1000,
+        0,
+        0
+      ],
+      "OperationState1": "9120_4"
+    },
+    {
+      "Index": 60009121,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnFireSkill",
+      "TriggerRatio": 1000,
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "TriggerValue": [
+        "9120"
+      ],
+      "OperationType1": "ModAttackByRace",
+      "OperationValue1": [
+        "Hero",
+        "50",
+        "-50"
+      ],
+      "OperationDurationMs1": 15000,
+      "OperationDelayMs1": [
+        1000,
+        0,
+        0
+      ],
+      "OperationState1": "9120_5",
+      "OperationType2": "ImmuneCc",
+      "OperationDurationMs2": 5000,
+      "OperationDelayMs2": [
+        1000,
+        0,
+        0
+      ],
+      "OperationState2": "9120_6"
+    },
+    {
+      "Index": 60009130,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillPowerR",
+      "OperationValue1": [
+        "9130",
+        "2",
+        "1000"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillPowerR",
+      "OperationValue2": [
+        "9130",
+        "4",
+        "1000"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ModSkill",
+      "OperationValue3": [
+        "9130",
+        "0",
+        "SkillMp",
+        "1000"
+      ],
+      "OperationState3": ""
+    },
+    {
+      "Index": 60009141,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnAttack",
+      "TriggerValue": [
+        "9140",
+        "None",
+        "Dot"
+      ],
+      "TriggerRatio": 1000,
+      "TargetType": "TriggerTarget",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "GetPhysicalDamageR",
+      "OperationTargetType1": "Target",
+      "OperationValue1": [
+        "0",
+        "$ByTargetHp(666)",
+        "IgnoreDefence|NoCritical"
+      ],
+      "OperationDelayMs1": [
+        150,
+        0,
+        0
+      ],
+      "OperationConditionType1": "BattleDefineCode",
+      "OperationConditionValue1": [
+        "Arena"
+      ],
+      "OperationState1": "",
+      "OperationType2": "GetPhysicalDamageR",
+      "OperationTargetType2": "Target",
+      "OperationValue2": [
+        "0",
+        "$ByTargetHp(666)",
+        "IgnoreDefence|NoCritical"
+      ],
+      "OperationDelayMs2": [
+        150,
+        0,
+        0
+      ],
+      "OperationConditionType2": "BattleDefineCode",
+      "OperationConditionValue2": [
+        "Arena2"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ModRecoverPower",
+      "OperationTargetType3": "Target",
+      "OperationValue3": [
+        "-20"
+      ],
+      "OperationDurationMs3": 9999999,
+      "OperationConditionType3": "BattleDefineCode",
+      "OperationConditionValue3": [
+        "Arena"
+      ],
+      "OperationState3": "60009141",
+      "OperationType4": "ModRecoverPower",
+      "OperationTargetType4": "Target",
+      "OperationValue4": [
+        "-20"
+      ],
+      "OperationDurationMs4": 9999999,
+      "OperationConditionType4": "BattleDefineCode",
+      "OperationConditionValue4": [
+        "Arena2"
+      ],
+      "OperationState4": "60009141"
+    },
+    {
+      "Index": 60009151,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModDefence",
+      "OperationValue1": [
+        "$ByPhysicalAttack(100)"
+      ],
+      "OperationDurationMs1": 999999,
+      "OperationState1": "60009151",
+      "OperationRecalculateValueByStats1": [
+        "PhysicalAttack"
+      ]
+    },
+    {
+      "Index": 90000910,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModAttackPower",
+      "OperationValue1": [
+        "40"
+      ],
+      "OperationDurationMs1": 9999999,
+      "OperationState1": "Gladi_UniqueWeapon",
+      "OperationType2": "SetSkill",
+      "OperationValue2": [
+        "9104",
+        "1",
+        "Value",
+        "200"
+      ],
+      "OperationState2": "",
+      "OperationType3": "EnablePassiveSkill",
+      "OperationValue3": [
+        "9104",
+        "True"
+      ],
+      "OperationDurationMs3": 9999999,
+      "OperationState3": ""
+    },
+    {
+      "Index": 90000911,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModAttackPower",
+      "OperationValue1": [
+        "60"
+      ],
+      "OperationDurationMs1": 9999999,
+      "OperationState1": "Gladi_UniqueWeapon",
+      "OperationType2": "SetSkill",
+      "OperationValue2": [
+        "9104",
+        "1",
+        "Value",
+        "240"
+      ],
+      "OperationState2": "",
+      "OperationType3": "EnablePassiveSkill",
+      "OperationValue3": [
+        "9104",
+        "True"
+      ],
+      "OperationDurationMs3": 9999999,
+      "OperationState3": ""
+    },
+    {
+      "Index": 90000912,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModAttackPower",
+      "OperationValue1": [
+        "80"
+      ],
+      "OperationDurationMs1": 9999999,
+      "OperationState1": "Gladi_UniqueWeapon",
+      "OperationType2": "SetSkill",
+      "OperationValue2": [
+        "9104",
+        "1",
+        "Value",
+        "290"
+      ],
+      "OperationState2": "",
+      "OperationType3": "EnablePassiveSkill",
+      "OperationValue3": [
+        "9104",
+        "True"
+      ],
+      "OperationDurationMs3": 9999999,
+      "OperationState3": ""
+    },
+    {
+      "Index": 90000913,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModAttackPower",
+      "OperationValue1": [
+        "100"
+      ],
+      "OperationDurationMs1": 9999999,
+      "OperationState1": "Gladi_UniqueWeapon",
+      "OperationType2": "SetSkill",
+      "OperationValue2": [
+        "9104",
+        "1",
+        "Value",
+        "350"
+      ],
+      "OperationState2": "",
+      "OperationType3": "EnablePassiveSkill",
+      "OperationValue3": [
+        "9104",
+        "True"
+      ],
+      "OperationDurationMs3": 9999999,
+      "OperationState3": ""
+    },
+    {
+      "Index": 90000914,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModAttackPower",
+      "OperationValue1": [
+        "120"
+      ],
+      "OperationDurationMs1": 9999999,
+      "OperationState1": "Gladi_UniqueWeapon",
+      "OperationType2": "SetSkill",
+      "OperationValue2": [
+        "9104",
+        "1",
+        "Value",
+        "420"
+      ],
+      "OperationState2": "",
+      "OperationType3": "EnablePassiveSkill",
+      "OperationValue3": [
+        "9104",
+        "True"
+      ],
+      "OperationDurationMs3": 9999999,
+      "OperationState3": ""
+    },
+    {
+      "Index": 90000915,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "AttrType": "Physical",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModAttackPower",
+      "OperationValue1": [
+        "150"
+      ],
+      "OperationDurationMs1": 9999999,
+      "OperationState1": "Gladi_UniqueWeapon",
+      "OperationType2": "SetSkill",
+      "OperationValue2": [
+        "9104",
+        "1",
+        "Value",
+        "500"
+      ],
+      "OperationState2": "",
+      "OperationType3": "EnablePassiveSkill",
+      "OperationValue3": [
+        "9104",
+        "True"
+      ],
+      "OperationDurationMs3": 9999999,
+      "OperationState3": ""
+    },
+    {
+      "Index": 91009120,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillEnabled",
+      "OperationValue1": [
+        "9120",
+        "6"
+      ],
+      "OperationState1": "",
+      "OperationType2": "SetSkill",
+      "OperationValue2": [
+        "9120",
+        "6",
+        "Value",
+        "100"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ModSkillEnabled",
+      "OperationValue3": [
+        "9124",
+        "3"
+      ],
+      "OperationState3": "",
+      "OperationType4": "ModSkillEnabled",
+      "OperationValue4": [
+        "9124",
+        "4"
+      ],
+      "OperationState4": "",
+      "OperationType5": "ModSkillEnabled",
+      "OperationValue5": [
+        "9124",
+        "5"
+      ],
+      "OperationState5": ""
+    },
+    {
+      "Index": 91009121,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillEnabled",
+      "OperationValue1": [
+        "9120",
+        "6"
+      ],
+      "OperationState1": "",
+      "OperationType2": "SetSkill",
+      "OperationValue2": [
+        "9120",
+        "6",
+        "Value",
+        "150"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ModSkillEnabled",
+      "OperationValue3": [
+        "9124",
+        "3"
+      ],
+      "OperationState3": "",
+      "OperationType4": "ModSkillEnabled",
+      "OperationValue4": [
+        "9124",
+        "4"
+      ],
+      "OperationState4": "",
+      "OperationType5": "ModSkillEnabled",
+      "OperationValue5": [
+        "9124",
+        "5"
+      ],
+      "OperationState5": ""
+    },
+    {
+      "Index": 91009122,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillEnabled",
+      "OperationValue1": [
+        "9120",
+        "6"
+      ],
+      "OperationState1": "",
+      "OperationType2": "SetSkill",
+      "OperationValue2": [
+        "9120",
+        "6",
+        "Value",
+        "200"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ModSkillEnabled",
+      "OperationValue3": [
+        "9124",
+        "3"
+      ],
+      "OperationState3": "",
+      "OperationType4": "ModSkillEnabled",
+      "OperationValue4": [
+        "9124",
+        "4"
+      ],
+      "OperationState4": "",
+      "OperationType5": "ModSkillEnabled",
+      "OperationValue5": [
+        "9124",
+        "5"
+      ],
+      "OperationState5": ""
+    },
+    {
+      "Index": 91009123,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillEnabled",
+      "OperationValue1": [
+        "9120",
+        "6"
+      ],
+      "OperationState1": "",
+      "OperationType2": "SetSkill",
+      "OperationValue2": [
+        "9120",
+        "6",
+        "Value",
+        "300"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ModSkillEnabled",
+      "OperationValue3": [
+        "9124",
+        "3"
+      ],
+      "OperationState3": "",
+      "OperationType4": "ModSkillEnabled",
+      "OperationValue4": [
+        "9124",
+        "4"
+      ],
+      "OperationState4": "",
+      "OperationType5": "ModSkillEnabled",
+      "OperationValue5": [
+        "9124",
+        "5"
+      ],
+      "OperationState5": ""
+    },
+    {
+      "Index": 91009124,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillEnabled",
+      "OperationValue1": [
+        "9120",
+        "6"
+      ],
+      "OperationState1": "",
+      "OperationType2": "SetSkill",
+      "OperationValue2": [
+        "9120",
+        "6",
+        "Value",
+        "400"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ModSkillEnabled",
+      "OperationValue3": [
+        "9124",
+        "3"
+      ],
+      "OperationState3": "",
+      "OperationType4": "ModSkillEnabled",
+      "OperationValue4": [
+        "9124",
+        "4"
+      ],
+      "OperationState4": "",
+      "OperationType5": "ModSkillEnabled",
+      "OperationValue5": [
+        "9124",
+        "5"
+      ],
+      "OperationState5": ""
+    },
+    {
+      "Index": 91009125,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillEnabled",
+      "OperationValue1": [
+        "9120",
+        "6"
+      ],
+      "OperationState1": "",
+      "OperationType2": "SetSkill",
+      "OperationValue2": [
+        "9120",
+        "6",
+        "Value",
+        "500"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ModSkillEnabled",
+      "OperationValue3": [
+        "9124",
+        "3"
+      ],
+      "OperationState3": "",
+      "OperationType4": "ModSkillEnabled",
+      "OperationValue4": [
+        "9124",
+        "4"
+      ],
+      "OperationState4": "",
+      "OperationType5": "ModSkillEnabled",
+      "OperationValue5": [
+        "9124",
+        "5"
+      ],
+      "OperationState5": ""
+    },
+    {
+      "Index": 91009130,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkill",
+      "OperationValue1": [
+        "9130",
+        "0",
+        "SkillCoolTimeMs",
+        "-6000"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillEnabled",
+      "OperationValue2": [
+        "9130",
+        "6"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ModSkillEnabled",
+      "OperationValue3": [
+        "9130",
+        "7"
+      ],
+      "OperationState3": "",
+      "OperationType4": "SetSkill",
+      "OperationValue4": [
+        "9130",
+        "6",
+        "Value",
+        "40",
+        "2"
+      ],
+      "OperationState4": "",
+      "OperationType5": "SetSkill",
+      "OperationValue5": [
+        "9130",
+        "7",
+        "Value",
+        "40",
+        "2"
+      ],
+      "OperationState5": "",
+      "OperationType6": "SetSkill",
+      "OperationValue6": [
+        "9130",
+        "2",
+        "Value",
+        "IgnoreBlock",
+        "2"
+      ],
+      "OperationState6": "",
+      "OperationType7": "SetSkill",
+      "OperationValue7": [
+        "9130",
+        "4",
+        "Value",
+        "IgnoreDefence|IgnoreBlock",
+        "2"
+      ],
+      "OperationState7": ""
+    },
+    {
+      "Index": 91009131,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkill",
+      "OperationValue1": [
+        "9130",
+        "0",
+        "SkillCoolTimeMs",
+        "-6000"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillEnabled",
+      "OperationValue2": [
+        "9130",
+        "6"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ModSkillEnabled",
+      "OperationValue3": [
+        "9130",
+        "7"
+      ],
+      "OperationState3": "",
+      "OperationType4": "SetSkill",
+      "OperationValue4": [
+        "9130",
+        "6",
+        "Value",
+        "48",
+        "2"
+      ],
+      "OperationState4": "",
+      "OperationType5": "SetSkill",
+      "OperationValue5": [
+        "9130",
+        "7",
+        "Value",
+        "48",
+        "2"
+      ],
+      "OperationState5": "",
+      "OperationType6": "SetSkill",
+      "OperationValue6": [
+        "9130",
+        "2",
+        "Value",
+        "IgnoreBlock",
+        "2"
+      ],
+      "OperationState6": "",
+      "OperationType7": "SetSkill",
+      "OperationValue7": [
+        "9130",
+        "4",
+        "Value",
+        "IgnoreDefence|IgnoreBlock",
+        "2"
+      ],
+      "OperationState7": ""
+    },
+    {
+      "Index": 91009132,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkill",
+      "OperationValue1": [
+        "9130",
+        "0",
+        "SkillCoolTimeMs",
+        "-6000"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillEnabled",
+      "OperationValue2": [
+        "9130",
+        "6"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ModSkillEnabled",
+      "OperationValue3": [
+        "9130",
+        "7"
+      ],
+      "OperationState3": "",
+      "OperationType4": "SetSkill",
+      "OperationValue4": [
+        "9130",
+        "6",
+        "Value",
+        "58",
+        "2"
+      ],
+      "OperationState4": "",
+      "OperationType5": "SetSkill",
+      "OperationValue5": [
+        "9130",
+        "7",
+        "Value",
+        "58",
+        "2"
+      ],
+      "OperationState5": "",
+      "OperationType6": "SetSkill",
+      "OperationValue6": [
+        "9130",
+        "2",
+        "Value",
+        "IgnoreBlock",
+        "2"
+      ],
+      "OperationState6": "",
+      "OperationType7": "SetSkill",
+      "OperationValue7": [
+        "9130",
+        "4",
+        "Value",
+        "IgnoreDefence|IgnoreBlock",
+        "2"
+      ],
+      "OperationState7": ""
+    },
+    {
+      "Index": 91009133,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkill",
+      "OperationValue1": [
+        "9130",
+        "0",
+        "SkillCoolTimeMs",
+        "-6000"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillEnabled",
+      "OperationValue2": [
+        "9130",
+        "6"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ModSkillEnabled",
+      "OperationValue3": [
+        "9130",
+        "7"
+      ],
+      "OperationState3": "",
+      "OperationType4": "SetSkill",
+      "OperationValue4": [
+        "9130",
+        "6",
+        "Value",
+        "70",
+        "2"
+      ],
+      "OperationState4": "",
+      "OperationType5": "SetSkill",
+      "OperationValue5": [
+        "9130",
+        "7",
+        "Value",
+        "70",
+        "2"
+      ],
+      "OperationState5": "",
+      "OperationType6": "SetSkill",
+      "OperationValue6": [
+        "9130",
+        "2",
+        "Value",
+        "IgnoreBlock",
+        "2"
+      ],
+      "OperationState6": "",
+      "OperationType7": "SetSkill",
+      "OperationValue7": [
+        "9130",
+        "4",
+        "Value",
+        "IgnoreDefence|IgnoreBlock",
+        "2"
+      ],
+      "OperationState7": ""
+    },
+    {
+      "Index": 91009134,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkill",
+      "OperationValue1": [
+        "9130",
+        "0",
+        "SkillCoolTimeMs",
+        "-6000"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillEnabled",
+      "OperationValue2": [
+        "9130",
+        "6"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ModSkillEnabled",
+      "OperationValue3": [
+        "9130",
+        "7"
+      ],
+      "OperationState3": "",
+      "OperationType4": "SetSkill",
+      "OperationValue4": [
+        "9130",
+        "6",
+        "Value",
+        "84",
+        "2"
+      ],
+      "OperationState4": "",
+      "OperationType5": "SetSkill",
+      "OperationValue5": [
+        "9130",
+        "7",
+        "Value",
+        "84",
+        "2"
+      ],
+      "OperationState5": "",
+      "OperationType6": "SetSkill",
+      "OperationValue6": [
+        "9130",
+        "2",
+        "Value",
+        "IgnoreBlock",
+        "2"
+      ],
+      "OperationState6": "",
+      "OperationType7": "SetSkill",
+      "OperationValue7": [
+        "9130",
+        "4",
+        "Value",
+        "IgnoreDefence|IgnoreBlock",
+        "2"
+      ],
+      "OperationState7": ""
+    },
+    {
+      "Index": 91009135,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkill",
+      "OperationValue1": [
+        "9130",
+        "0",
+        "SkillCoolTimeMs",
+        "-6000"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillEnabled",
+      "OperationValue2": [
+        "9130",
+        "6"
+      ],
+      "OperationState2": "",
+      "OperationType3": "ModSkillEnabled",
+      "OperationValue3": [
+        "9130",
+        "7"
+      ],
+      "OperationState3": "",
+      "OperationType4": "SetSkill",
+      "OperationValue4": [
+        "9130",
+        "6",
+        "Value",
+        "100",
+        "2"
+      ],
+      "OperationState4": "",
+      "OperationType5": "SetSkill",
+      "OperationValue5": [
+        "9130",
+        "7",
+        "Value",
+        "100",
+        "2"
+      ],
+      "OperationState5": "",
+      "OperationType6": "SetSkill",
+      "OperationValue6": [
+        "9130",
+        "2",
+        "Value",
+        "IgnoreBlock",
+        "2"
+      ],
+      "OperationState6": "",
+      "OperationType7": "SetSkill",
+      "OperationValue7": [
+        "9130",
+        "4",
+        "Value",
+        "IgnoreDefence|IgnoreBlock",
+        "2"
+      ],
+      "OperationState7": ""
+    },
+    {
+      "Index": 93009111,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnBaseAttack",
+      "TriggerRatio": 1000,
+      "AttrType": "Magical",
+      "IgnoreStateType": [
+        "CC"
+      ],
+      "TargetType": "TriggerTarget",
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "GetPhysicalDamageR",
+      "OperationTargetType1": "Target",
+      "OperationValue1": [
+        "2000",
+        "0",
+        "IgnoreDefence"
+      ],
+      "OperationDelayMs1": [
+        0,
+        0,
+        200
+      ],
+      "OperationConditionType1": "StateCount",
+      "OperationConditionValue1": [
+        "9140",
+        "3",
+        "Equal"
+      ],
+      "OperationState1": ""
+    },
+    {
+      "Index": 93009112,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "SKILL_DESC_93000210",
+      "TriggerType": "OnActiveSkill",
+      "TriggerValue": [
+        "0",
+        "Myself"
+      ],
+      "TriggerRatio": 1000,
+      "AttrType": "Magical",
+      "IgnoreStateType": [
+        "CC"
+      ],
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "DescParam": [
+        "3"
+      ],
+      "OperationType1": "ModToughness",
+      "OperationDurationMs1": 999999,
+      "OperationState1": "SoulWeapon91"
+    }
+  ]
+}

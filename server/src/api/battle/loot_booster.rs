@@ -268,12 +268,18 @@ mod tests {
             let done=call(&s,&u,path,&format!("SlotIndex={slot}")).await;
             assert_eq!(done["Result"],"Success","{done}");
             assert_eq!(done["DispatchBattleInfo"]["WinCount"],2);
-            assert_eq!(fragments(&done),4,"Only the two successful unboosted drops");
+            // Each win pays one sealed stage box; a booster would multiply them.
+            let sealed=s.tables.get_item_index("DISPATCH_REWARD_BOX_CHAPTER_1_1").unwrap();
+            let boxes:i64=done["ItemResults"].as_array().unwrap().iter()
+                .filter(|v|n(v,"ItemIndex")==sealed as i64).map(|v|n(v,"AddCount")).sum();
+            assert_eq!(boxes,2,"Only the two successful unboosted runs: {done}");
+            assert_eq!(fragments(&done),0,"Stage loot stays sealed in the boxes");
             assert!(done["ItemResults"].as_array().unwrap().iter().all(|v|n(v,"AddBoosterCount")==0));
             assert_eq!(gems(&s,a).await,before,"Dispatch cannot select or charge the paid loot option");
-            let count:i64=crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=20001").bind(a).fetch_one(&s.db).await.unwrap();
+            let held="SELECT count FROM items WHERE account_id=$1 AND item_index=$2";
+            let count:i32=crate::db::query_scalar(held).bind(a).bind(sealed).fetch_one(&s.db).await.unwrap();
             let _=call(&s,&u,path,&format!("SlotIndex={slot}")).await;
-            assert_eq!(crate::db::query_scalar::<i64>("SELECT count FROM items WHERE account_id=$1 AND item_index=20001").bind(a).fetch_one(&s.db).await.unwrap(),count,"Retry cannot duplicate loot");
+            assert_eq!(crate::db::query_scalar::<i32>(held).bind(a).bind(sealed).fetch_one(&s.db).await.unwrap(),count,"Retry cannot duplicate loot");
         }
     }
 
@@ -551,6 +557,7 @@ pub(super) async fn percent(
     let battle = campaign::dungeon(s, r)?["BattleType"].clone();
     let timers = item::active_boosters(db, s, a, true).await?;
     let mut percent = if active(entry) { 100_i64 } else { 0 };
+    percent += crate::api::festivals::Calendar::load(db, s).await?.bonus("BonusItem", battle.as_i64().unwrap_or(0));
     for id in timers {
         if let Some(b) = s.tables.inventory.booster_effect(id) {
             if n(b,"Type") == 2 && b["IsOnetime"] != true

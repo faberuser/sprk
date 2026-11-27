@@ -20,12 +20,14 @@ const string Usage = """
       verify    <jit-dir> <Table>...              Dump every row, rebuild from the dump; reports byte identity.
       rebuild   <jit-dir> <Table> <out.jit>           Write the unpatched rebuild (to diff a failed verify).
       dump      <jit-dir> <Table> <out.json> [key...]   Write rows (all, or the given keys) as patchable JSON.
-      build     <input-dir> <patch-dir> <out-dir>   Apply every *.json patch; write changed tables,
+      build     <input-dir> <patch-dir> <out-dir> [seed-dir]   Apply every *.json patch; write changed tables,
                 localization and SPRK-Native*.json. Both dirs use the native patch layout
                 (TableJit/, LocalizationJit/); <input-dir> must be the pinned baseline.
+                A language the baseline lacks starts from <seed-dir>/LocalizationAll_<Language>.jit.
       bjs <file.bjs>                             Prints a PlainAsset JsonBin file as JSON.
       bundle-index <BundlePack.bin> <regex> [--values]  Lists index entries whose key matches (optionally with values).
-      loc-get <file.jit> <key>...                Prints the text for localization keys.
+      loc-get <file.jit> <key>...                Prints the text for localization keys (#<hash> for a raw hash).
+      loc-dump <file.jit> <out.json>             Writes every entry as {"<hash>": "text"} JSON.
       loc-verify <file.jit>...                   Round-trip localization files; reports byte identity.
       sprites   <BundlePack.bin> [regex]         List sprite paths and their atlas / sprite names.
     """;
@@ -77,7 +79,7 @@ try
             return 0;
         }
         case "build":
-            return Build(args[1], args[2], args[3]);
+            return Build(args[1], args[2], args[3], args.Length > 4 ? args[4] : null);
         case "bjs":
         {
             // Prints a PlainAsset JsonBin file (.bjs) as JSON; tries plain, then encrypted.
@@ -127,6 +129,15 @@ try
             }
             return 0;
         }
+        case "loc-dump":
+        {
+            var f = LocalizationFile.Load(args[1]);
+            var entries = f.Entries().OrderBy(e => e.Hash).ToDictionary(e => e.Hash.ToString(CultureInfo.InvariantCulture), e => e.Text);
+            var options = new JsonSerializerOptions { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+            File.WriteAllText(args[2], JsonSerializer.Serialize(entries, options) + "\n");
+            Console.WriteLine($"{Path.GetFileName(args[1])}: wrote {entries.Count} entries to {args[2]}");
+            return 0;
+        }
         case "loc-verify":
         {
             bool same = true;
@@ -159,7 +170,7 @@ static bool Report(string table, byte[] original, byte[] rebuilt)
 // King's Raid_Data/Documents/Patch/StandaloneWindows): TableJit/, LocalizationJit/
 // and the SPRK-Native*.json integrity metadata. The input must be the pinned
 // baseline, never a client that already contains these patches.
-static int Build(string inputDir, string patchDir, string outDir)
+static int Build(string inputDir, string patchDir, string outDir, string seedDir)
 {
     var patches = Directory.GetFiles(patchDir, "*.json", SearchOption.AllDirectories)
         .OrderBy(p => Path.GetRelativePath(patchDir, p), StringComparer.Ordinal)
@@ -218,8 +229,10 @@ static int Build(string inputDir, string patchDir, string outDir)
                 added++;
             }
         }
+        // List-only containers (PortalRenewalTable) never index rows by key, and
+        // the original tables repeat keys there.
         var keys = rows.Where(r => r.Key != null).GroupBy(r => r.Key).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
-        if (keys.Count > 0)
+        if (keys.Count > 0 && !t.IsListOnly)
         {
             throw new InvalidOperationException($"{group.Key}: duplicate keys after patching: {string.Join(", ", keys)}");
         }
@@ -251,7 +264,18 @@ static int Build(string inputDir, string patchDir, string outDir)
     foreach (var (language, strings) in byLanguage)
     {
         string relative = $"LocalizationJit/LocalizationAll_{language}.jit";
-        var file = LocalizationFile.Load(Path.Combine(inputDir, relative));
+        string source = Path.Combine(inputDir, relative);
+        if (!File.Exists(source) && seedDir != null)
+        {
+            // A language the baseline does not ship (Thai, Vietnamese) starts from a
+            // pinned seed file under client/localization/seed.
+            source = Path.Combine(seedDir, Path.GetFileName(relative));
+        }
+        if (!File.Exists(source))
+        {
+            throw new FileNotFoundException($"{relative}: not in the baseline and no seed file; add one under the seed folder.", source);
+        }
+        var file = LocalizationFile.Load(source);
         byte[] baseline = file.Serialize();
         if (!file.Original.AsSpan().SequenceEqual(baseline))
         {
@@ -334,16 +358,31 @@ sealed class LocalizationFile
         return f;
     }
 
+    // A key is a text key (hashed with JitOption.StringToHashCode) or "#<hash>", the
+    // stored hash itself, for entries whose text key is unknown (seed-language gaps).
+    public static int HashOf(string key)
+    {
+        return key.StartsWith('#') ? int.Parse(key.AsSpan(1), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture) : JitOption.StringToHashCode(key);
+    }
+
+    public IEnumerable<(int Hash, string Text)> Entries()
+    {
+        foreach (DictionaryEntry entry in strings)
+        {
+            yield return ((int)entry.Key, (string)entry.Value);
+        }
+    }
+
     public string Get(string key)
     {
-        int hash = JitOption.StringToHashCode(key);
+        int hash = HashOf(key);
         return strings.Contains(hash) ? (string)strings[hash] : null;
     }
 
     // Returns true when the key already existed.
     public bool Set(string key, string text)
     {
-        int hash = JitOption.StringToHashCode(key);
+        int hash = HashOf(key);
         bool existed = strings.Contains(hash);
         strings[hash] = text;
         return existed;
@@ -407,6 +446,21 @@ sealed class JitTable
 
     public byte[] Original { get; private set; }
 
+    public bool IsListOnly
+    {
+        get
+        {
+            for (Type t = containerType; t != null; t = t.BaseType)
+            {
+                if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(JitDataContainerListOnly<>))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
     JitTable(Type containerType)
     {
         this.containerType = containerType;
@@ -425,7 +479,9 @@ sealed class JitTable
     {
         ["CostumeTable"] = new[] { "IsOpen", "PreviewableWhenOwned", "IsShow" },
         // SPRK sells every accessory except gift-only ones (AccessoryCostumeData.IsSprkGiftOnly).
-        ["AccessoryCostumeTable"] = new[] { "IsOpen", "IsBuy", "PreviewableWhenOwned" }
+        ["AccessoryCostumeTable"] = new[] { "IsOpen", "IsBuy", "PreviewableWhenOwned" },
+        // SPRK shows the Pet portal rows as windows (SprkPetPresentation.Shape).
+        ["PortalRenewalTable"] = new[] { "SubComponentShape" }
     };
 
     // True when the rebuilt bytes decode to the same rows, in the same order, apart from the given fields.
@@ -524,17 +580,68 @@ sealed class JitTable
     // Key order of every dictionary part as stored in the input file.
     List<List<object>> originalKeyOrder;
 
+    // Element order of every list-valued dictionary entry in the input file, by
+    // part and key (for example GameOptionTable's rows per settings tab).
+    List<Dictionary<object, List<string>>> originalValueOrder;
+
     List<List<object>> OriginalKeyOrder()
     {
         if (originalKeyOrder == null)
         {
             originalKeyOrder = new List<List<object>>();
+            originalValueOrder = new List<Dictionary<object, List<string>>>();
             foreach (object part in Parts(LoadMaterialized()))
             {
-                originalKeyOrder.Add(DictionaryOf(part)?.Keys.Cast<object>().ToList());
+                IDictionary dic = DictionaryOf(part);
+                originalKeyOrder.Add(dic?.Keys.Cast<object>().ToList());
+                Dictionary<object, List<string>> values = null;
+                if (dic != null)
+                {
+                    values = new Dictionary<object, List<string>>();
+                    foreach (DictionaryEntry e in dic)
+                    {
+                        if (e.Value is IList list && !(e.Value is Array))
+                        {
+                            values[e.Key] = list.Cast<object>().Select(ElementId).ToList();
+                        }
+                    }
+                }
+                originalValueOrder.Add(values);
             }
         }
         return originalKeyOrder;
+    }
+
+    static string ElementId(object element) =>
+        element == null ? "null" : KeyOfRow(element) is string key ? "row:" + key : "value:" + Convert.ToString(element, CultureInfo.InvariantCulture);
+
+    // A container rebuilds list values (such as rows per tab) in row order, but the
+    // input may store them in another order. Put known elements back in the input's
+    // order; an element a patch adds follows the element before it in the rebuilt list.
+    static void RestoreListOrder(IList list, List<string> original)
+    {
+        var rank = new Dictionary<string, int>();
+        for (int i = 0; i < original.Count; i++)
+        {
+            rank.TryAdd(original[i], i);
+        }
+        var items = list.Cast<object>().ToList();
+        var keyed = new List<(double Rank, int Position, object Item)>();
+        double previous = -1;
+        for (int i = 0; i < items.Count; i++)
+        {
+            double r = previous + 0.5;
+            if (rank.TryGetValue(ElementId(items[i]), out int known))
+            {
+                r = previous = known;
+            }
+            keyed.Add((r, i, items[i]));
+        }
+        list.Clear();
+        foreach (var entry in keyed.OrderBy(k => k.Rank).ThenBy(k => k.Position))
+        {
+            list.Add(entry.Item);
+        }
     }
 
     static IDictionary DictionaryOf(object part) =>
@@ -580,6 +687,17 @@ sealed class JitTable
                 if (byKey.Remove(e.Key, out object value))
                 {
                     dic.Add(e.Key, value);
+                }
+            }
+            Dictionary<object, List<string>> values = originalValueOrder[i];
+            if (values != null)
+            {
+                foreach (DictionaryEntry e in entries)
+                {
+                    if (e.Value is IList list && !(e.Value is Array) && values.TryGetValue(e.Key, out List<string> original))
+                    {
+                        RestoreListOrder(list, original);
+                    }
                 }
             }
         }

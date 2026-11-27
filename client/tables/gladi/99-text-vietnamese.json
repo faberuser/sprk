@@ -1,0 +1,38 @@
+{
+  "localization": {
+    "Vietnamese": {
+      "SKILL_DESC_60009120": "Khi ở trạng thái Chiến thần, tăng 10% sát thương gây lên kẻ địch không phải Anh hùng.",
+      "SKILL_DESC_60009121": "Khi ở trạng thái Chiến thần, tăng 5% sát thương gây lên Anh hùng và giảm 5% sát thương nhận từ Anh hùng. Miễn nhiễm chế ngự trong 5 giây đầu của trạng thái Chiến thần.",
+      "SKILL_DESC_60009130": "Tiêu hao mana tăng 1 và sát thương tăng 100%.",
+      "SKILL_DESC_60009141": "Khi kích hoạt trong Đấu trường, gây thêm sát thương vật lý bỏ qua DEF bằng 15% HP hiện tại của mục tiêu và gây [Dấu ấn Chiến thần], giảm 2% tỷ lệ hồi máu của mục tiêu. Hiệu ứng này cộng dồn tối đa 10 lần và không thể bị gỡ bỏ.",
+      "SKILL_DESC_60009151": "Tăng DEF toàn bộ bằng 10% ATK.",
+      "SKILL_DESC_90000910": "Tăng 4% sát thương bản thân gây ra cho kẻ địch. Khi ra đòn chí mạng, Sát thương chí mạng tăng 20% trong 5 giây. Hiệu ứng này cộng dồn tối đa 10 lần và không thể bị gỡ bỏ.",
+      "SKILL_DESC_90000911": "Tăng 6% sát thương bản thân gây ra cho kẻ địch. Khi ra đòn chí mạng, Sát thương chí mạng tăng 24% trong 5 giây. Hiệu ứng này cộng dồn tối đa 10 lần và không thể bị gỡ bỏ.",
+      "SKILL_DESC_90000912": "Tăng 8% sát thương bản thân gây ra cho kẻ địch. Khi ra đòn chí mạng, Sát thương chí mạng tăng 29% trong 5 giây. Hiệu ứng này cộng dồn tối đa 10 lần và không thể bị gỡ bỏ.",
+      "SKILL_DESC_90000913": "Tăng 10% sát thương bản thân gây ra cho kẻ địch. Khi ra đòn chí mạng, Sát thương chí mạng tăng 35% trong 5 giây. Hiệu ứng này cộng dồn tối đa 10 lần và không thể bị gỡ bỏ.",
+      "SKILL_DESC_90000914": "Tăng 12% sát thương bản thân gây ra cho kẻ địch. Khi ra đòn chí mạng, Sát thương chí mạng tăng 42% trong 5 giây. Hiệu ứng này cộng dồn tối đa 10 lần và không thể bị gỡ bỏ.",
+      "SKILL_DESC_90000915": "Tăng 15% sát thương bản thân gây ra cho kẻ địch. Khi ra đòn chí mạng, Sát thương chí mạng tăng 50% trong 5 giây. Hiệu ứng này cộng dồn tối đa 10 lần và không thể bị gỡ bỏ.",
+      "SKILL_DESC_91009120": "[Giáng sinh của chúa tể chiến tranh] Tăng 100 Tốc độ tấn công và cộng dồn 1 [Sẽ đau lắm!] khi gây thêm sát thương vật lý trong thời gian hiệu lực của kỹ năng.",
+      "SKILL_DESC_91009121": "[Giáng sinh của chúa tể chiến tranh] Tăng 150 Tốc độ tấn công và cộng dồn 1 [Sẽ đau lắm!] khi gây thêm sát thương vật lý trong thời gian hiệu lực của kỹ năng.",
+      "SKILL_DESC_91009122": "[Giáng sinh của chúa tể chiến tranh] Tăng 200 Tốc độ tấn công và cộng dồn 1 [Sẽ đau lắm!] khi gây thêm sát thương vật lý trong thời gian hiệu lực của kỹ năng.",
+      "SKILL_DESC_91009123": "[Giáng sinh của chúa tể chiến tranh] Tăng 300 Tốc độ tấn công và cộng dồn 1 [Sẽ đau lắm!] khi gây thêm sát thương vật lý trong thời gian hiệu lực của kỹ năng.",
+      "SKILL_DESC_91009124": "[Giáng sinh của chúa tể chiến tranh] Tăng 400 Tốc độ tấn công và cộng dồn 1 [Sẽ đau lắm!] khi gây thêm sát thương vật lý trong thời gian hiệu lực của kỹ năng.",
+      "SKILL_DESC_91009125": "[Giáng sinh của chúa tể chiến tranh] Tăng 500 Tốc độ tấn công và cộng dồn 1 [Sẽ đau lắm!] khi gây thêm sát thương vật lý trong thời gian hiệu lực của kỹ năng.",
+      "SKILL_DESC_91009130": "[Cú đấm tối thượng!] Giảm 30% thời gian hồi chiêu kỹ năng, sát thương bỏ qua Chặn của mục tiêu, và mỗi lần kích hoạt tăng 4% sát thương. Hiệu ứng này cộng dồn tối đa 10 lần.",
+      "SKILL_DESC_91009131": "[Cú đấm tối thượng!] Giảm 30% thời gian hồi chiêu kỹ năng, sát thương bỏ qua Chặn của mục tiêu, và mỗi lần kích hoạt tăng 4.8% sát thương. Hiệu ứng này cộng dồn tối đa 10 lần.",
+      "SKILL_DESC_91009132": "[Cú đấm tối thượng!] Giảm 30% thời gian hồi chiêu kỹ năng, sát thương bỏ qua Chặn của mục tiêu, và mỗi lần kích hoạt tăng 5.8% sát thương. Hiệu ứng này cộng dồn tối đa 10 lần.",
+      "SKILL_DESC_91009133": "[Cú đấm tối thượng!] Giảm 30% thời gian hồi chiêu kỹ năng, sát thương bỏ qua Chặn của mục tiêu, và mỗi lần kích hoạt tăng 7% sát thương. Hiệu ứng này cộng dồn tối đa 10 lần.",
+      "SKILL_DESC_91009134": "[Cú đấm tối thượng!] Giảm 30% thời gian hồi chiêu kỹ năng, sát thương bỏ qua Chặn của mục tiêu, và mỗi lần kích hoạt tăng 8.4% sát thương. Hiệu ứng này cộng dồn tối đa 10 lần.",
+      "SKILL_DESC_91009135": "[Cú đấm tối thượng!] Giảm 30% thời gian hồi chiêu kỹ năng, sát thương bỏ qua Chặn của mục tiêu, và mỗi lần kích hoạt tăng 10% sát thương. Hiệu ứng này cộng dồn tối đa 10 lần.",
+      "SKILL_DESC_91009140": "[Đòn này hơi đau đấy!] Tăng 50% sát thương. Khi kích hoạt, mục tiêu nhận thêm 2% sát thương vật lý trong 10 giây. Hiệu ứng này cộng dồn tối đa 10 lần.",
+      "SKILL_DESC_91009141": "[Đòn này hơi đau đấy!] Tăng 50% sát thương. Khi kích hoạt, mục tiêu nhận thêm 2.4% sát thương vật lý trong 10 giây. Hiệu ứng này cộng dồn tối đa 10 lần.",
+      "SKILL_DESC_91009142": "[Đòn này hơi đau đấy!] Tăng 50% sát thương. Khi kích hoạt, mục tiêu nhận thêm 2.9% sát thương vật lý trong 10 giây. Hiệu ứng này cộng dồn tối đa 10 lần.",
+      "SKILL_DESC_91009143": "[Đòn này hơi đau đấy!] Tăng 50% sát thương. Khi kích hoạt, mục tiêu nhận thêm 3.5% sát thương vật lý trong 10 giây. Hiệu ứng này cộng dồn tối đa 10 lần.",
+      "SKILL_DESC_91009144": "[Đòn này hơi đau đấy!] Tăng 50% sát thương. Khi kích hoạt, mục tiêu nhận thêm 4.2% sát thương vật lý trong 10 giây. Hiệu ứng này cộng dồn tối đa 10 lần.",
+      "SKILL_DESC_91009145": "[Đòn này hơi đau đấy!] Tăng 50% sát thương. Khi kích hoạt, mục tiêu nhận thêm 5% sát thương vật lý trong 10 giây. Hiệu ứng này cộng dồn tối đa 10 lần.",
+      "SKILL_DESC_9120": "Gỡ bỏ mọi hiệu ứng xấu khỏi bản thân và gây [ffc800]{1}[-] sát thương vật lý lên kẻ địch xung quanh trong bán kính nhỏ, nhận trạng thái 'Chiến thần' trong 15 giây. Khi ở chế độ Chiến thần, ATK tăng [64ff64]{2}[-] và mọi đòn đánh tự động có 30% xác suất đánh thêm một đòn gây thêm [ffc800]{3}[-] sát thương vật lý. Khi nhận sát thương phép thuật, né mọi sát thương phép thuật trong 1 giây. Hiệu ứng né chỉ kích hoạt 1 lần mỗi 2 giây. 'Chiến thần' không thể bị gỡ bỏ.",
+      "SKILL_DESC_9130": "Tích tụ năng lượng và lao về phía kẻ địch phía trước, gây [ffc800]{1}[-] sát thương vật lý lên kẻ địch trong phạm vi và gây Choáng trong 3 giây. Nếu mục tiêu là Boss, đòn đánh bỏ qua DEF của mục tiêu và sát thương tăng 100%.",
+      "SKILL_DESC_9140": "Tăng 5% sát thương gây lên kẻ địch không phải Anh hùng. Khi đánh trúng một mục tiêu bằng 4 đòn đánh thường, gây thêm [ffc800]{1}[-] sát thương vật lý bỏ qua DEF."
+    }
+  }
+}

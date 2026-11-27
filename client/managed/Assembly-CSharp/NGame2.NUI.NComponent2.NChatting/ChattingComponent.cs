@@ -147,6 +147,7 @@ public class ChattingComponent : LinkFactoryComponent, UICamera.IOnClickListener
 		}
 		SetChatCase();
 		SetChatLabelEncoding(ref chatInfo.Chat);
+		SprkProfileImage.Bind(PortraitTexture, chatInfo.IsSystem ? 0 : chatInfo.SenderId);
 		if (chatInfo.IsSystem)
 		{
 			SetSystemChat(chatInfo.Chat);

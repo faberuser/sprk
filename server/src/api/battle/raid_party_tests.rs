@@ -65,7 +65,7 @@ async fn fixture_for_players(raid: i64, level: i64, players: usize) -> (AppState
 
 async fn fake_worker(s: &AppState) -> mpsc::Receiver<Packet> {
     let (tx,rx)=mpsc::channel(100);
-    *s.conquest.worker.write().await=Some(Worker{id:"raid-worker".into(),sender:tx,arena_version:0,challenge_version:0,dispatch_version:0});rx
+    *s.conquest.workers.write().await=vec!(Worker{id:"raid-worker".into(),sender:tx,arena_version:0,challenge_version:0,dispatch_version:0});rx
 }
 
 async fn arcdim_fixture(raid:i64,level:i64,host_second:bool)->(AppState,Vec<Value>,Vec<String>) {
@@ -210,7 +210,7 @@ async fn native_arcdim_coop_transitions_to_zeta_and_settles_both_players() {
         #[cfg(windows)] {use std::os::windows::process::CommandExt;command.creation_flags(0x08000000);}
         let _native=Native(command.spawn().unwrap());
         tokio::time::timeout(std::time::Duration::from_secs(90),async {
-            while s.conquest.worker.read().await.is_none() {tokio::time::sleep(std::time::Duration::from_millis(100)).await;}
+            while s.conquest.workers.read().await.is_empty() {tokio::time::sleep(std::time::Duration::from_millis(100)).await;}
         }).await.expect("Arcdim worker did not authenticate");
         for (index,user) in users.iter().enumerate() {
             let start=call(&s,user,"campaign/begin_campaign",&args[index]).await;
@@ -302,7 +302,7 @@ async fn challenge_two_players_fill_eight_heroes_and_reject_oversized_rosters() 
     for (raid,level) in [(70001,1),(70001,4),(70015,1),(70015,4)] {
         let (s,users,args)=fixture_for_players(raid,level,2).await;
         let _worker=fake_worker(&s).await;
-        s.conquest.worker.write().await.as_mut().unwrap().challenge_version=1;
+        s.conquest.workers.write().await.first_mut().unwrap().challenge_version=1;
         for (user,args) in users.iter().zip(&args) {
             let begun=call(&s,user,"campaign/begin_campaign",args).await;
             assert_eq!(begun["Result"],"Success","raid {raid}/{level}: {begun}");
@@ -315,7 +315,7 @@ async fn challenge_two_players_fill_eight_heroes_and_reject_oversized_rosters() 
     for over_player in [true,false] {
         let (s,users,args)=fixture_for_players(70001,1,if over_player {2}else{3}).await;
         let _worker=fake_worker(&s).await;
-        s.conquest.worker.write().await.as_mut().unwrap().challenge_version=1;
+        s.conquest.workers.write().await.first_mut().unwrap().challenge_version=1;
         let a=account(users.last().unwrap());
         let count=if over_player {5}else{3};
         let deck:serde_json::Map<_,_>=(20..20+count).map(|h|(h.to_string(),json!({"HeroIndex":h}))).collect();
@@ -496,7 +496,8 @@ async fn field_and_technomagic_dispatch_infers_solo_raid_and_settles_flat_roster
 
 #[tokio::test]
 async fn field_and_technomagic_solo_subparty_is_counted_once() {
-    for (raid,total,sub) in [(41,4,0),(42,6,2),(43,6,2),(44,7,3),(301,7,3),(302,7,3),(303,7,3)] {
+    // Dark Legion (44) is 4+2 like the other field raids (archived RaidTable).
+    for (raid,total,sub) in [(41,4,0),(42,6,2),(43,6,2),(44,6,2),(301,7,3),(302,7,3),(303,7,3)] {
         let (s,u)=setup().await;let a=account(&u);unlock(&s,a).await;
         for hero in 1..=10 {
             crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES($1,$2,$3,100,5) ON CONFLICT DO NOTHING")
@@ -524,6 +525,11 @@ async fn field_and_technomagic_solo_subparty_is_counted_once() {
             ] {
                 assert_eq!(call(&s,&u,"campaign/begin_campaign",&invalid).await["Result"],"NotMatchHeroIndices","{invalid}");
                 assert_eq!(crate::db::query_scalar::<i64>("SELECT stamina FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap(),before);
+            }
+            if raid==44 {
+                // The old 4+3 Dark Legion roster is one support hero too many.
+                let old=format!("{prefix}&HeroIndices={}&AiHeroIndices=[5,6,7]",json!((1..=7).collect::<Vec<_>>()));
+                assert_eq!(call(&s,&u,"campaign/begin_campaign",&old).await["Result"],"NotMatchHeroIndices");
             }
             if sub>0 {
                 for invalid in [
@@ -591,7 +597,7 @@ async fn native_field_and_technomagic_coop_wave_and_settlement() {
         #[cfg(windows)] {use std::os::windows::process::CommandExt;command.creation_flags(0x08000000);}
         let _native=Native(command.spawn().unwrap());
         tokio::time::timeout(std::time::Duration::from_secs(90),async {
-            while s.conquest.worker.read().await.is_none() {tokio::time::sleep(std::time::Duration::from_millis(100)).await;}
+            while s.conquest.workers.read().await.is_empty() {tokio::time::sleep(std::time::Duration::from_millis(100)).await;}
         }).await.expect("Native worker did not authenticate");
         for (i,user) in users.iter().enumerate() {
             let begun=call(&s,user,"campaign/begin_campaign",&args[i]).await;

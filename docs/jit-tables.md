@@ -157,10 +157,20 @@ see [SprkSkillDescriptionFormula](../client/managed/SprkSkillDescriptionFormula)
 ```
 
 Languages are the file names: `English`, `Korean`, `Japanese`,
-`ChineseSimplified`, `ChineseTraditional`, `French`, `German`, `Russian`. Keys
-are hashed with `JitOption.StringToHashCode` (the same function as
-`kingsraid-table-data/lookup_localization.py`); existing keys are replaced.
-Color tags such as `[ffc800]...[-]` and `{1}` placeholders work as in the game.
+`ChineseSimplified`, `ChineseTraditional`, `French`, `German`, `Russian`,
+`Thai`, `Vietnamese`. Keys are hashed with `JitOption.StringToHashCode` (the
+same function as `kingsraid-table-data/lookup_localization.py`); existing keys
+are replaced. A key written as `#<hash>` (decimal) addresses an entry by its
+hash directly, for text whose original key name is unknown. Color tags such as
+`[ffc800]...[-]` and `{1}` placeholders work as in the game.
+
+The pinned baseline ships no Thai or Vietnamese file. For those, `build_tables.py`
+starts from the seed files in `client/localization/seed/` (taken from the last
+official Thai/Vietnamese release) and applies the patches on top, mainly
+`client/tables/restored-languages/`, which brings them up to current English.
+The client loads English as a final fallback for keys missing in either language.
+Dump any localization file to JSON with
+`dotnet run --project tools/JitTables -c Release -- loc-dump <file.jit> <out.json>`.
 
 ## Integrity metadata and generated files
 
@@ -208,10 +218,18 @@ Known limits:
   values, so `build` accepts this table when the rebuilt rows decode to the
   original rows apart from those three fields (`JitTable.ForcedGetterFields`);
   any other difference still refuses the patch.
+- `PortalRenewalTable` likewise: `SprkPetPresentation.Shape` forces
+  `SubComponentShape` of the Pet rows, so its rebuild is accepted apart from
+  that field. Its container is list-only (`JitDataContainerListOnly`), so rows
+  may share a key (the archive's Orvel `EventNode` shortcuts do); `build` allows
+  duplicate keys only in such tables.
 - Tables whose containers need a running game are not listed; `dump` reports
   `Unknown table`.
 - Only hashed localization packers are supported (all shipped languages are).
 
 If `verify` fails for a new table, compare with `rebuild` and `diffrows`. So
 far the causes were patched getters (the tool reads backing fields) and
-dictionary insertion order (the tool restores the input's key order).
+dictionary insertion order (the tool restores the input's key order), and the
+order of list values inside dictionaries, such as `GameOptionTable`'s rows per
+settings tab (the tool restores the input's element order; a row a patch adds
+follows the row before it in the patched table).

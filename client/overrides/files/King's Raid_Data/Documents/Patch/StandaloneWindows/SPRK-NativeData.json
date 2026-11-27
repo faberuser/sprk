@@ -55,16 +55,28 @@
       "originalSha256": "4808cae77c0ae41b16b076b83ba1fba464a036ab60c206c04bb5b5d4a5eb018b"
     },
     "TableJit/CreatureTable.jit": {
-      "sha256": "c4d359b7ff0dfe23ca66af19b118608eeaf28c4eccbe4544c1e133126ff6e5b8",
+      "sha256": "ee5f0986d2a5ce91ee2e5910fde184c3e23e7a0bef7f599b9182039e45d7b17e",
       "originalSha256": "a94d0223b4a3b5b6b8aecbd6e7c4baca260a82681c9106877c1f59606034bd4a"
     },
     "TableJit/EmoticonTable.jit": {
       "sha256": "4c4413170b8f421b669a36451cf51eeb1e3fd3fa3e2e1065d5a18958f88a30d4",
       "originalSha256": "909e11ee86037c1a107d38cf2962fa8a3d1a88a795c7daa03d84327c0dd8fe77"
     },
+    "TableJit/EntryMenuSettingTable.jit": {
+      "sha256": "271f96a636d448a38df08a6aefcd343c413f14b532a2b5b6c0482b2929d0a386",
+      "originalSha256": "70f8dad846b6a02bd30a758032ffa2923ac729d0e37bf0a4b403d3b3ebb0d18a"
+    },
     "TableJit/EquipItemTable.jit": {
       "sha256": "e32decfca6955e47b1880562d5780e28a9f821191a3493da1c238f40cf2e2dfd",
       "originalSha256": "a0664178e07ee5a1d0ec3e2bfdfb1d0bce7aba18b4861a06d50537716bdfe362"
+    },
+    "TableJit/EventDungeonTable.jit": {
+      "sha256": "9f8b22f5dd2e5a7c7a619705bffa55d7bbc6cd48d4f84d3c19e64e6c96625fcd",
+      "originalSha256": "05fb25af64ae45c27f6408406aea87460014494604c9fece50396326b101a1e6"
+    },
+    "TableJit/GameOptionTable.jit": {
+      "sha256": "27cc3fdc711fd80ea2b2d15bc67ca6ddc727434af0299755d02653faf9961947",
+      "originalSha256": "378021c15302e08f5027631ce301aaf57452bc5ba6cb9e2a9552c8623edca872"
     },
     "TableJit/GodkingTrialGroupTable.jit": {
       "sha256": "c5b32e18082bd8705100ff671d12ec4b4e07a564817a3967748fc0025a84f29a",
@@ -135,7 +147,7 @@
       "originalSha256": "84669507a5f5e0b729bae7d4d860effdf8a4771805376b5c11695daeb960751a"
     },
     "TableJit/PortalRenewalTable.jit": {
-      "sha256": "60d0ade5608d18e9e8668de5e030051543b984227bd48293a280c5f7872a5fb2",
+      "sha256": "de5742bbd15a3de25b8d4babf7eb83f72c3891aaca672b8823048af4f7aac2eb",
       "originalSha256": "69a81846676ab716f9a87c2fd65376984a7eefc38dc261092136eddb42fdba54"
     },
     "TableJit/PortalTable.jit": {
@@ -143,7 +155,7 @@
       "originalSha256": "152208bb7fe484d32b7383bac3527d45bf2f2ac4c21d15ab5fc7491949becfc5"
     },
     "TableJit/RaidTable.jit": {
-      "sha256": "d5d6fbff422a5e004a6ddf8a06369daf0cac3064db7837c1b9cbecd135a02154",
+      "sha256": "f2cbe6f40d65182ed6088603d251b1744434669cf2f49f501ab88ab8f8a2b0fb",
       "originalSha256": "33469d38380589cfe9b79d9e3289d4270078fb49a5a673814c4a481c217d639e"
     },
     "TableJit/SelectItemTable.jit": {
@@ -155,7 +167,7 @@
       "originalSha256": "f9befbe469e7c167c8f30e75aeb7d8d6fcc0b49b21e4a72239cf164718f0e1b6"
     },
     "TableJit/SkillTable.jit": {
-      "sha256": "3299d93ce130301e60862e075b26c496633350fb89dceead2258604659e370ea",
+      "sha256": "0ed79c510c3307dcd144147ec7553e8213907ba37ee3c68ef8af2d8163f40c4e",
       "originalSha256": "2743fc236f2aadf1f7df49a00868a7cf1209577fbc4dd44ded73e4c027e74c8e"
     },
     "TableJit/SoulWeaponNodeTreeTable.jit": {
@@ -163,7 +175,7 @@
       "originalSha256": "3c4e72d94770b71935e10ad6d79bec4088c95914ecf82308d56e7350419e9d22"
     },
     "TableJit/SoulWeaponSkillTable.jit": {
-      "sha256": "a22ca6f340caa1178e552e8cfa1a163a60fc086709a59fd4ee32966c15d3b47c",
+      "sha256": "bab8c60f26f7fd9f8ef39161b0053380fe356b4546eb387cc1b8175a64674484",
       "originalSha256": "2c6ee022a5050c8e83eed68b84dfa5a0c13621c891642a7941a504a329dd4870"
     },
     "TableJit/SoulWeaponUpgradePriceTable.jit": {
@@ -175,7 +187,7 @@
       "sha256": "e85ab891745e5078cd9651754e1d8d39ca8decfbfc56a37dd26cebc81f301679"
     },
     "TableJit/StateTable.jit": {
-      "sha256": "b49c98e4f2a887de5a2a84e02ee6f2fa0c41be8385d364674adf57476bafcf90",
+      "sha256": "f3120c812952376714c097982041f29129195416a04c77e358db86a858f5d68f",
       "originalSha256": "84b9439d6f4983b9104bb19574953fe67d472f58553eacb21a2e6f9ed3fa91ed"
     },
     "TableJit/WeaponCostumeTable.jit": {

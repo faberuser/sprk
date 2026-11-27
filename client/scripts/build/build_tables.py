@@ -31,6 +31,8 @@ from client.scripts.release.client_baseline import BASELINE
 REPO = Path(__file__).resolve().parents[3]
 PATCHES = REPO / "client/tables"
 TOOL = REPO / "client/tools/JitTables"
+# Languages the baseline does not ship (Thai, Vietnamese) start from these pinned files.
+SEEDS = REPO / "client/localization/seed"
 NATIVE = "King's Raid_Data/Documents/Patch/StandaloneWindows"
 OVERRIDES = REPO / "client/overrides/files" / NATIVE
 # Records the overrides this script owns, so a removed patch removes its table.
@@ -91,7 +93,7 @@ def generate(output: Path) -> list[str]:
         tracked = OVERRIDES / name
         if tracked.exists():
             shutil.copyfile(tracked, output / name)
-    subprocess.run([*tool(), "build", str(source), str(PATCHES), str(output)], check=True)
+    subprocess.run([*tool(), "build", str(source), str(PATCHES), str(output), str(SEEDS)], check=True)
     return sorted(p.relative_to(output).as_posix() for p in output.rglob("*.jit"))
 
 

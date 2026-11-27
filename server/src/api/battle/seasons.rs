@@ -86,6 +86,36 @@ fn source<'a>(s: &'a AppState, family: &str, id: i64) -> Result<&'a Value> {
     };
     row(s, name, &fields)
 }
+/// GM testing: a global World Boss shown instead of the rotation's until
+/// `Until` (`python server/gm.py world-boss`).
+const WORLD_BOSS_OVERRIDE: &str = "world_boss_override";
+
+async fn world_boss_override(db: &mut PgConnection, s: &AppState) -> Result<Option<i64>> {
+    let v = get(db, 0, WORLD_BOSS_OVERRIDE, 0).await?;
+    let id = n(&v, "Index");
+    Ok((id > 0 && n(&v, "Until") > now() && source(s, "world_boss", id).is_ok_and(|d| d["IsGlobal"] == true)).then_some(id))
+}
+
+/// GM: force the global World Boss `index` for `hours`, or 0 to follow the
+/// rotation again. Returns the current boss and the global bosses to pick from.
+pub(crate) async fn set_world_boss_override(db: &mut PgConnection, s: &AppState, index: Option<i64>, hours: i64) -> Result<Value> {
+    if let Some(index) = index {
+        if index == 0 {
+            put(db, 0, WORLD_BOSS_OVERRIDE, 0, &json!({})).await?;
+        } else if source(s, "world_boss", index).is_ok_and(|d| d["IsGlobal"] == true) {
+            put(db, 0, WORLD_BOSS_OVERRIDE, 0, &json!({"Index":index,"Until":now() + hours.clamp(1, 24 * 366) * 3600})).await?;
+        } else {
+            return Err(crate::error::ServerError::InvalidRequest(format!("{index} is not a global World Boss")));
+        }
+    }
+    let forced = world_boss_override(db, s).await?;
+    let rotation = active_world_boss(s, world_boss_season(s).0)?;
+    let until = n(&get(db, 0, WORLD_BOSS_OVERRIDE, 0).await?, "Until");
+    let bosses: Vec<Value> = s.tables.battle.rows("WorldBoss").iter().filter(|v| v["IsGlobal"] == true)
+        .map(|v| json!({"Index":v["Index"],"ChapterIndex":v["ChapterIndex"],"DungeonIndex":v["DungeonIndex"]})).collect();
+    Ok(json!({"Active":forced.unwrap_or(rotation),"Rotation":rotation,
+        "Forced":forced.map(|_| json!({"Until":time(until)})),"Bosses":bosses}))
+}
 // Native WorldBoss consumes the first entry and resolves its previous season
 // through NextIndex. Legacy local and special daily rows are not the live cycle.
 fn active_world_boss(s: &AppState, season: i64) -> Result<i64> {
@@ -507,9 +537,9 @@ async fn rankers(
     // Daily bests remain available for participation/daily views. Weekly rank
     // uses one winning run, including that run's time, rather than their sum.
     let query=if family=="world_boss" {
-        "WITH best AS (SELECT account,score,battle_time,ROW_NUMBER() OVER (PARTITION BY account ORDER BY score DESC,day ASC) place FROM battle_scores WHERE family=$1 AND boss=$2 AND season=$3) SELECT b.account,b.score,b.battle_time,a.nick,u.avatar_hero_index FROM best b JOIN accounts a ON a.account_id=b.account JOIN user_info u ON u.account_id=b.account WHERE b.place=1 AND b.score>0 ORDER BY b.score DESC,b.account"
+        "WITH best AS (SELECT account,score,battle_time,ROW_NUMBER() OVER (PARTITION BY account ORDER BY score DESC,day ASC) place FROM battle_scores WHERE family=$1 AND boss=$2 AND season=$3) SELECT b.account,b.score,b.battle_time,sprk_display_nick(a.account_id,a.nick) AS nick,u.avatar_hero_index FROM best b JOIN accounts a ON a.account_id=b.account JOIN user_info u ON u.account_id=b.account WHERE b.place=1 AND b.score>0 ORDER BY b.score DESC,b.account"
     } else {
-        "SELECT b.account,SUM(b.score)::bigint score,SUM(b.battle_time)::bigint battle_time,a.nick,u.avatar_hero_index FROM battle_scores b JOIN accounts a ON a.account_id=b.account JOIN user_info u ON u.account_id=b.account WHERE b.family=$1 AND b.boss=$2 AND b.season=$3 GROUP BY b.account,a.account_id,u.account_id HAVING SUM(b.score)::bigint>0 ORDER BY score DESC,b.account"
+        "SELECT b.account,SUM(b.score)::bigint score,SUM(b.battle_time)::bigint battle_time,sprk_display_nick(a.account_id,a.nick) AS nick,u.avatar_hero_index FROM battle_scores b JOIN accounts a ON a.account_id=b.account JOIN user_info u ON u.account_id=b.account WHERE b.family=$1 AND b.boss=$2 AND b.season=$3 GROUP BY b.account,a.account_id,u.account_id HAVING SUM(b.score)::bigint>0 ORDER BY score DESC,b.account"
     };
     let rows=crate::db::query(query).bind(family).bind(id).bind(season).fetch_all(db).await?;
     Ok(rows.iter().enumerate().map(|(i,r)|json!({"Rank":i+1,"AccountId":r.get::<i64,_>("account"),"Nick":r.get::<String,_>("nick"),"Score":r.get::<i64,_>("score"),"CurrentScore":r.get::<i64,_>("score"),"BattleTime":r.get::<i64,_>("battle_time"),"CurrentBattleTime":r.get::<i64,_>("battle_time"),"AvatarHeroIndex":r.get::<i64,_>("avatar_hero_index"),"CountryCode":"","ServerGroup":"Local"})).collect())
@@ -532,15 +562,21 @@ pub(super) async fn execute(
             "EventWorldBoss"
         };
         let ids = if family == "world_boss" {
-            BTreeSet::from([active_world_boss(s, world_boss_season(s).0)?])
-        } else { s
-            .tables
-            .battle
-            .rows(name)
-            .iter()
-            .filter(|v| family == "world_boss" || v["IsOpen"] == true && n(v, "BossLevel") == 1)
-            .map(|v| n(v, "Index"))
-            .collect::<BTreeSet<_>>() };
+            let id = match world_boss_override(db, s).await? {
+                Some(id) => id,
+                None => active_world_boss(s, world_boss_season(s).0)?,
+            };
+            BTreeSet::from([id])
+        } else {
+            // Event bosses run only while a festival schedules them
+            // (LiveRules Festivals "Bosses"); none is scheduled at present.
+            let open = crate::api::festivals::Calendar::load(db, s).await?.bosses();
+            s.tables.battle.rows(name).iter()
+                .filter(|v| v["IsOpen"] == true && n(v, "BossLevel") == 1)
+                .map(|v| n(v, "Index"))
+                .filter(|id| open.contains(id))
+                .collect::<BTreeSet<_>>()
+        };
         for id in ids {
             infos.push(boss(db, s, family, id).await?);
         }
@@ -572,7 +608,7 @@ pub(super) async fn execute(
     }
     if action.contains("daily_score") || action.contains("score_info") {
         let aggregate=if family=="world_boss" {"MAX"} else {"SUM"};
-        let score:i64=crate::db::query_scalar(sqlx::AssertSqlSafe(format!("SELECT COALESCE({aggregate}(score),0) FROM battle_scores WHERE family=$1 AND boss=$2 AND season=$3 AND account=$4 AND ($5=0 OR day=$6)"))).bind(family).bind(id).bind(season).bind(a).bind(if action.contains("daily"){1}else{0}).bind(day()).fetch_one(&mut *db).await?;
+        let score:i64=crate::db::query_scalar(sqlx::AssertSqlSafe(format!("SELECT COALESCE({aggregate}(score),0)::bigint FROM battle_scores WHERE family=$1 AND boss=$2 AND season=$3 AND account=$4 AND ($5=0 OR day=$6)"))).bind(family).bind(id).bind(season).bind(a).bind(if action.contains("daily"){1}else{0}).bind(day()).fetch_one(&mut *db).await?;
         let participated=score>0 || (family=="world_boss" && crate::db::query_scalar::<bool>("SELECT EXISTS(SELECT 1 FROM battle_reward_claims WHERE account=$1 AND kind='world_boss_participation' AND idx=$2 AND period=$3)")
             .bind(a).bind(id).bind(format!("{season}:{}",day())).fetch_one(&mut *db).await?);
         out[if action.contains("daily") {
@@ -611,7 +647,7 @@ pub(super) async fn execute(
                 .find(|v| n(v, "AccountId") == a)
                 .unwrap_or(Value::Null);
             if family == "world_boss" && out["RankInfo"].is_null() {
-                let player = crate::db::query("SELECT a.nick,a.country_code,u.avatar_hero_index FROM accounts a JOIN user_info u ON u.account_id=a.account_id WHERE a.account_id=$1")
+                let player = crate::db::query("SELECT sprk_display_nick(a.account_id,a.nick) AS nick,a.country_code,u.avatar_hero_index FROM accounts a JOIN user_info u ON u.account_id=a.account_id WHERE a.account_id=$1")
                     .bind(a).fetch_one(&mut *db).await?;
                 out["RankInfo"] = json!({"Rank":-1,"AccountId":a,"Nick":player.get::<String,_>("nick"),
                     "Score":0,"AvatarHeroIndex":player.get::<i64,_>("avatar_hero_index"),

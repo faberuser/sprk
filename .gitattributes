@@ -3,3 +3,5 @@ server/scripts/docker/*.sh text eol=lf
 # sqlx checksums migration bytes; keep them identical on every checkout.
 server/migrations/*.sql text eol=lf
 server/tests/fixtures/* text eol=lf
+start_server.sh text eol=lf
+server/scripts/local/*.sh text eol=lf

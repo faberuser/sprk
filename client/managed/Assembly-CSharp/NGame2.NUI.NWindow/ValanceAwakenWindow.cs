@@ -347,7 +347,7 @@ public class ValanceAwakenWindow : ValanceEnhanceBase, IUserObserver<ItemInfo>, 
 	{
 		bool flag = TargetComponent != null;
 		bool flag2 = IsEnoughGold();
-		bool flag3 = IsEnoughMaterial();
+		bool flag3 = IsEnoughMaterial() || SprkTechnomagicStoneTickets.Coverable(ValanceAwakenData);
 		UIHelper.EnableButton(Button_Awaken, flag && flag2 && flag3, grayscaleIfDisable: true);
 	}
 
@@ -445,6 +445,10 @@ public class ValanceAwakenWindow : ValanceEnhanceBase, IUserObserver<ItemInfo>, 
 
 	public void OnClickAwaken()
 	{
+		if (SprkTechnomagicStoneTickets.Offer(this))
+		{
+			return;
+		}
 		SprkTechnomagicAwaken.Remember(this);
 		if (_listener != null)
 		{

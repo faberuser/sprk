@@ -1,0 +1,36 @@
+{
+  "table": "EntryMenuSettingTable",
+  "upsert": [
+    {
+      "MenuType": "Square2",
+      "EventBgmCode": "Event.ChristmasBGM2",
+      "AssetNguiCode": "Shop.Christmas",
+      "PopupInterval": 0.05000000074505806,
+      "CameraZoomScale": 0.23000000417232513,
+      "CameraOffsetX": -152,
+      "CameraOffsetY": 212,
+      "CameraDirectionY": 0.5,
+      "CameraDirectionZ": 1,
+      "AvatarDirAngle": -100,
+      "NpcCode": "NPC.SoulGemShop",
+      "NpcPrefix": "",
+      "NpcPositionX": -140,
+      "NpcPositionY": -190,
+      "NpcDirectionX": 1,
+      "NpcScale": 152,
+      "NpcSlideOffset": 10,
+      "NpcSlideTimeLength": 0.30000001192092896,
+      "NpcCode2": "",
+      "NpcPrefix2": "",
+      "NpcPosition2X": -140,
+      "NpcPosition2Y": -150,
+      "NpcDirection2X": 1,
+      "NpcDirection2Z": 1,
+      "NpcScale2": 140,
+      "NpcSlideOffset2": -10,
+      "NpcSlideTimeLength2": 0.30000001192092896,
+      "CinemaWindowName": "",
+      "LobbyWindowName": ""
+    }
+  ]
+}

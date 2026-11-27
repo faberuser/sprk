@@ -166,6 +166,17 @@ backgrounds, non-English text; see `battle_unused` in
 configuration points there and it is missing. Without a worker, those battle
 types are unavailable.
 
+A worker simulates all of its battles on one Unity main thread, and the engine
+is not safe to run on several threads inside one process. To use more cores,
+set `BATTLE_WORKERS` (1-64, default 1; `SPRK_BATTLE_WORKERS` in
+`docker-compose.yml`). The server starts that many worker processes and accepts
+that many logins. Each new live fight goes to the worker running the fewest
+live fights, and dispatch simulations prefer the last worker. A run stays on
+its worker until it ends. The first worker logs to `conquest-worker.log`, the
+others to `conquest-worker-<n>.log`. With `SPRK_BATTLE_TRACE_FILE` set, workers
+after the first get `<file>.<n>`. Each worker is a full Unity process, so plan
+its memory before raising the count.
+
 ## Tests
 
 Tests need a PostgreSQL server where the role can create databases, such as the
@@ -226,6 +237,35 @@ python server/gm.py --help                           # all commands
 ```
 
 Never expose the GM port publicly.
+
+### Name tags
+
+Name tags are Discord-style badges (an optional icon and up to 8 characters of
+text in a coloured pill) shown after a player's name on every screen and in
+chat. Only GMs can manage them; each player has at most one.
+
+```bash
+python server/gm.py name-tag create wao WAO --icon leaf.png --text-color A8E6A1 --bg-color 1E1F22
+python server/gm.py name-tag assign wao <ACCOUNT_ID>   # replaces the player's current tag
+python server/gm.py name-tag remove <ACCOUNT_ID>
+python server/gm.py name-tag update wao --label WAO2 --no-icon
+python server/gm.py name-tag list | members wao | delete wao
+```
+
+`--icon` takes any image. With Pillow installed (`pip install pillow`), it is
+trimmed and shrunk to fit 64x64. Without Pillow, only a PNG of at most
+128x128 px and 64 KiB is accepted. Other players see a change the next time a
+screen loads that name; the tagged player sees their own tag after logging in
+again.
+
+How it works: queries that show a name select
+`sprk_display_nick(account_id, nick)` (migration `0018_name_tags.sql`). For
+tagged players it prefixes the nick with an invisible marker. The client
+(`client/managed/SprkNameTag`) removes the marker in `UILabel` and draws the
+badge. It fetches each tag's look from `/sprk/name_tag/get`. Player input is
+stripped of marker characters, so tags cannot be faked. A new query that
+shows a player's name must select `sprk_display_nick` rather than the raw
+`nick`.
 
 ## Docker image
 

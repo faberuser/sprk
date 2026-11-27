@@ -766,6 +766,26 @@ async fn subquest_requires_saved_dungeon_and_claims_once() {
         1
     );
 }
+/// The client counts chapter stars from the login dungeon list (battle_state),
+/// so a clear saved only there must count toward the reward as well.
+#[tokio::test]
+async fn chapter_reward_counts_stars_the_client_is_shown() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    assert_eq!(
+        call(&s, &u, "reward_clear_chapter", "ChapterIndex=1&Step=1").await["Result"],
+        "NotEnoughStar"
+    );
+    for id in 1..=8i64 {
+        crate::api::battle::put(&mut s.db.acquire().await.unwrap(), a, "dungeon", (1 << 32) | id,
+            &json!({"ChapterIndex":1,"DungeonIndex":id,"FirstRewardedDiff":2,"MaxStar":13}))
+            .await.unwrap();
+    }
+    assert_eq!(
+        call(&s, &u, "reward_clear_chapter", "ChapterIndex=1&Step=1").await["Result"],
+        "Success"
+    );
+}
 #[tokio::test]
 async fn chapter_reward_uses_decimal_star_encoding_and_bitmask() {
     let (s, u) = setup().await;
@@ -1919,4 +1939,27 @@ async fn ordeal_tower_normal_achievement_claim_uses_cleared_floor_access_proof()
     assert_ne!(call(&s,&u,"reward_achievement",claim).await["Result"],"Success");
     let login=relogin(&s).await;
     assert!(login.achievement_infos.iter().any(|v|v["AchievementIndex"]==511 && v["LastStep"]==1));
+}
+
+#[tokio::test]
+async fn daily_missions_pay_lakrak_coins_while_the_forge_runs() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    for (kind, value) in [("ClearDungeon", 5), ("BuyShopItem", 1)] {
+        record(&mut s.db.acquire().await.unwrap(), a, kind, 0, 0, value).await.unwrap();
+    }
+    let mut db = s.db.acquire().await.unwrap();
+    crate::api::festivals::set_override(&mut db, &s, "lakrak-forge", "Open", 2).await.unwrap();
+    let before = n(&hero::currency(&mut db, a, "EventOrvelPoint", 0).await.unwrap(), "NewValue");
+    drop(db);
+    let batch = "AchievementIndices=1101&Steps=0&AchievementIndices=1102&Steps=0&AchievementIndices=1104&Steps=0&AchievementIndices=1111&Steps=0&AchievementIndices=1112&Steps=0";
+    let v = call(&s, &u, "reward_achievement", batch).await;
+    assert_eq!(v["Result"], "Success");
+    let paid = v["CurrencyResults"].as_array().unwrap().iter()
+        .find(|c| c["CurrencyType"] == "EventOrvelPoint").expect("coin result");
+    // Five daily missions, five coins each.
+    assert_eq!(n(paid, "AddValue"), 25);
+    let mut db = s.db.acquire().await.unwrap();
+    assert_eq!(n(&hero::currency(&mut db, a, "EventOrvelPoint", 0).await.unwrap(), "NewValue"), before + 25);
+    crate::api::festivals::set_override(&mut db, &s, "lakrak-forge", "Closed", 2).await.unwrap();
 }

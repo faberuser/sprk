@@ -16,6 +16,8 @@ public class FontSelector : MonoBehaviour, IInspectorGuiDrawer
 
 	private const string PrefabPath = "Resources/Prefab/FontSelector";
 
+	private const string VietnameseFontPath = "Prefab/LanguageFont/RussianFont";
+
 	private static FontSelector _instance;
 
 	public UIFont ReferenceFont;
@@ -52,6 +54,13 @@ public class FontSelector : MonoBehaviour, IInspectorGuiDrawer
 			return;
 		}
 		string i_path = DefaultFontPath;
+		// SPRK: the shipped prefab has no Vietnamese entry, so Vietnamese fell back to
+		// the Korean default font (NanumBarunGothic), which lacks glyphs such as "đ" and
+		// leaves gaps. Tahoma (the Russian container) covers every Vietnamese letter.
+		if (language == SystemLanguage.Vietnamese)
+		{
+			i_path = VietnameseFontPath;
+		}
 		for (int i = 0; i < LanguageFontList.Count; i++)
 		{
 			LanguageFont languageFont = LanguageFontList[i];

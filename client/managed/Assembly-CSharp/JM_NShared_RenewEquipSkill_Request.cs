@@ -47,6 +47,7 @@ public static class JM_NShared_RenewEquipSkill_Request
 		{
 			dictionary.Add("SessionId", o.SessionId);
 		}
+		SprkReforgeUntil.EncodeSkill(dictionary, o);
 		return dictionary;
 	}
 }

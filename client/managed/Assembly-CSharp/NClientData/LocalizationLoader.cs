@@ -17,13 +17,23 @@ public class LocalizationLoader : SingletonAuto<LocalizationLoader>
 
 	public const int CONTAINER_COUNT = 2;
 
+	// SPRK: languages restored from an older client. Text the restored file lacks
+	// falls back to English instead of showing the raw key.
+	private const int CONTAINER_INDEX_ENGLISH_FALLBACK = 2;
+
+	private static readonly SystemLanguage[] EnglishFallbackLanguages = new SystemLanguage[2]
+	{
+		SystemLanguage.Thai,
+		SystemLanguage.Vietnamese
+	};
+
 	private const SystemLanguage DefaultLanguage = SystemLanguage.English;
 
 	private bool _enableLoadFromPatch;
 
 	private LocalStorageEnum<SystemLanguage> _language;
 
-	private JitLocalizeContainer[] _containerArray = new JitLocalizeContainer[2];
+	private JitLocalizeContainer[] _containerArray = new JitLocalizeContainer[3];
 
 	private JitEnumRedirector _enumRedirector;
 
@@ -155,6 +165,7 @@ public class LocalizationLoader : SingletonAuto<LocalizationLoader>
 		if (!CanLoadFromPatch())
 		{
 			_containerArray[0] = null;
+			_containerArray[CONTAINER_INDEX_ENGLISH_FALLBACK] = null;
 			_enumRedirector = null;
 			return;
 		}
@@ -162,6 +173,13 @@ public class LocalizationLoader : SingletonAuto<LocalizationLoader>
 		JitLocalizeContainer jitLocalizeContainer = new JitLocalizeContainer((LanguageType)Language, loadDefine);
 		jitLocalizeContainer.Load();
 		_containerArray[0] = jitLocalizeContainer;
+		_containerArray[CONTAINER_INDEX_ENGLISH_FALLBACK] = null;
+		if (System.Array.IndexOf(EnglishFallbackLanguages, Language) >= 0)
+		{
+			JitLocalizeContainer englishContainer = new JitLocalizeContainer(LanguageType.English, LocalizeLoadDefine.CreateLoadDefine_from_Patch(LanguageType.English));
+			englishContainer.Load();
+			_containerArray[CONTAINER_INDEX_ENGLISH_FALLBACK] = englishContainer;
+		}
 		LocalizeLoadDefine loadDefine2 = LocalizeLoadDefine.CreateLoadDefine_from_Patch("Localization_EnumRedirection.jit");
 		_enumRedirector = new JitEnumRedirector(loadDefine2);
 		_enumRedirector.Load();

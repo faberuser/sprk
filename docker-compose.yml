@@ -28,6 +28,19 @@ services:
       # TCP stays private; /health/battle checks worker authentication/capabilities.
       CHAT_BIND: 127.0.0.1
       BATTLE_BIND: 127.0.0.1
+      # Native worker processes (1-64). Each simulates its battles (Conquest,
+      # party raids, online arena, dispatch) on its own thread; new fights go
+      # to the least busy one. Each is a full Unity process: budget its memory.
+      BATTLE_WORKERS: ${SPRK_BATTLE_WORKERS:-1}
+      # Worker timing trace for diagnosing battle lag ("1" enables). Workers
+      # after the first append ".<n>" to the file name.
+      # How far behind the battle clock players replay (0-200 ms), sent to
+      # every player when a battle starts. Lower is more responsive, higher
+      # absorbs more network jitter without desync.
+      SPRK_COOP_REPLAY_BUFFER_MS: ${SPRK_COOP_REPLAY_BUFFER_MS:-100}
+      SPRK_ARENA_REPLAY_BUFFER_MS: ${SPRK_ARENA_REPLAY_BUFFER_MS:-100}
+      SPRK_BATTLE_TRACE: ${SPRK_BATTLE_TRACE:-}
+      SPRK_BATTLE_TRACE_FILE: ${SPRK_BATTLE_TRACE_FILE:-}
       # Game database (docs/database-diagnostics.md). The app role reads and
       # writes data; the owner role applies migrations at startup. Use
       # URL-safe passwords (letters, digits, - and _).
@@ -61,6 +74,16 @@ services:
       SPRK_UPDATES_DIR: /client-updates
       # The release tag/repository are pinned in the image by CI.
       SPRK_UPDATES_PUBLIC_KEY: ${SPRK_UPDATES_PUBLIC_KEY:-}
+      # Download bandwidth cap (Mbit/s, shared fairly per player) and the proxy's
+      # client-IP header; see .env.example. Empty: unlimited.
+      SPRK_UPDATES_MAX_MBPS: ${SPRK_UPDATES_MAX_MBPS:-}
+      SPRK_UPDATES_CLIENT_IP_HEADER: ${SPRK_UPDATES_CLIENT_IP_HEADER:-}
+      # Download queue (players and connections per player at once); see .env.example.
+      SPRK_UPDATES_MAX_CLIENTS: ${SPRK_UPDATES_MAX_CLIENTS:-}
+      SPRK_UPDATES_MAX_CONNECTIONS_PER_CLIENT: ${SPRK_UPDATES_MAX_CONNECTIONS_PER_CLIENT:-}
+      SPRK_UPDATES_QUEUE_MAX_WAIT_SECONDS: ${SPRK_UPDATES_QUEUE_MAX_WAIT_SECONDS:-}
+      # Public URL of the mirrored asset objects (R2); see docs/game-assets.md.
+      SPRK_ASSETS_MIRROR_URL: ${SPRK_ASSETS_MIRROR_URL:-}
     ports:
       - "${SPRK_UPDATE_PORT:-8081}:8080"
     volumes:
@@ -73,6 +96,49 @@ services:
           create_host_path: false
     cpus: "${SPRK_UPDATE_CPUS:-1.0}"
     mem_limit: ${SPRK_UPDATE_MEMORY:-256m}
+
+  # Copies new game asset objects to Cloudflare R2 for SPRK_ASSETS_MIRROR_URL
+  # (docs/game-assets.md). Objects are immutable and named by hash, so it only
+  # ever adds files. Idle until SPRK_R2_BUCKET is set.
+  assets-mirror:
+    image: rclone/rclone:1
+    restart: unless-stopped
+    init: true
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        if [ -z "$$SPRK_R2_BUCKET" ]; then
+          echo "SPRK_R2_BUCKET is not set; asset mirror is off."
+          exec sleep 2147483647
+        fi
+        while true; do
+          rclone copy /client-updates/assets/objects "r2:$$SPRK_R2_BUCKET/assets/objects" \
+            --ignore-existing --exclude '.*' --transfers 16 --checkers 16 \
+            --header-upload 'Cache-Control: public, max-age=31536000, immutable' \
+            --header-upload 'Content-Type: application/octet-stream' \
+            --stats 0 --log-level NOTICE \
+            || echo "Asset mirror upload failed; retrying later."
+          sleep "$$SPRK_R2_SYNC_SECONDS"
+        done
+    environment:
+      SPRK_R2_BUCKET: ${SPRK_R2_BUCKET:-}
+      SPRK_R2_SYNC_SECONDS: ${SPRK_R2_SYNC_SECONDS:-3600}
+      RCLONE_CONFIG_R2_TYPE: s3
+      RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+      RCLONE_CONFIG_R2_ENDPOINT: https://${SPRK_R2_ACCOUNT_ID:-unset}.r2.cloudflarestorage.com
+      RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${SPRK_R2_ACCESS_KEY_ID:-}
+      RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${SPRK_R2_SECRET_ACCESS_KEY:-}
+      # Object-scoped tokens may not create or check buckets.
+      RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
+    volumes:
+      - type: bind
+        source: ${SPRK_UPDATES_HOST_DIR:-/srv/sprk/client-updates}
+        target: /client-updates
+        read_only: true
+        bind:
+          create_host_path: false
+    cpus: "0.5"
+    mem_limit: 256m
 
   # Game database. The init script (configs below) creates the roles and the
   # sprk database only when the volume is first created. Back it up with pg_dump; the

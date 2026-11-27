@@ -315,6 +315,7 @@ public class HeroCostumeView : HeroCostumeSceneView, IUserObserver<NGame2.NAccou
 		base.UpdateDerived();
 		UpdateCamera();
 		CheckButtonRefresh();
+		SprkDressingRoomPanel.Update(this);
 	}
 
 	private void UpdateCamera()
@@ -574,6 +575,7 @@ public class HeroCostumeView : HeroCostumeSceneView, IUserObserver<NGame2.NAccou
 	{
 		base.Reset();
 		ResetUI();
+		SprkDressingRoomPanel.Reset(this);
 		ForEachContainer(delegate(WidgetBase widget)
 		{
 			widget.Reset();

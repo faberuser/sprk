@@ -295,7 +295,9 @@ public class PayShopProductList : PayShopBaseFrameList<NewPayShopProductInfo, Pa
 			else if (newFlagCheckClass.IsNew(item.OpenDate))
 			{
 				payShopFlagType |= PayShopFlagType.New;
-				newFlagCheckClass.NewFlagValue = item.OpenDate;
+				// SPRK: keep the newest date. Opening the tab confirms NewFlagValue; the last
+				// product in list order could be older, which left the tab "New" forever.
+				newFlagCheckClass.NewFlagValue = Math.Max(newFlagCheckClass.NewFlagValue, item.OpenDate);
 			}
 		}
 		PayShopCategoryComponent.SaveNewFlagCheckClass(category, newFlagCheckClass);

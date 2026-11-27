@@ -22,6 +22,7 @@ public static class JM_NShared_RenewEquipSkill_Response
 
 	public static NShared.RenewEquipSkill.Response Parse(IDictionary d, NShared.RenewEquipSkill.Response o)
 	{
+		SprkReforgeUntil.CaptureSkill(d, o);
 		o.CurrencyResult = BaseJsonMarshaler.ParseObject(d, "CurrencyResult", JM_NShared_CurrencyResultInfo3.Parse);
 		o.ItemResults = BaseJsonMarshaler.ParseArray(d, "ItemResults", JM_NShared_ItemResultInfo.Parse);
 		o.ResultEquipItem = BaseJsonMarshaler.ParseObject(d, "ResultEquipItem", JM_NShared_EquipItemInfo.Parse);

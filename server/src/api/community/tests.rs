@@ -548,6 +548,50 @@ async fn guild_building_invest_allowed_below_required_guild_level() {
 }
 
 #[tokio::test]
+async fn guild_construction_donation_trades_rubies_for_any_material() {
+    let s = setup().await;
+    let master = login(&s, "stone-master").await;
+    let g = create(&s, &master, "Quarry", 1).await;
+    // Plain members may donate; only investing is admin-only.
+    let u = login(&s, "stone-donor").await;
+    assert_eq!(call(&s, &u, "guild/request_join_guild", &format!("GuildId={g}")).await["Result"], "Success");
+    let rules = &s.tables.arena_guild.rules["GuildDonateConstruction"];
+    let (cost, amount) = (n(rules, "Gem"), n(rules, "Amount"));
+    let gem_before = 100000;
+    let donate = |resource: &str| format!("Gem={cost}&Resource={resource}");
+    // A price the client did not show, or an unknown or missing material, is refused without charging.
+    for body in [format!("Gem={}&Resource=Stone", cost + 1), donate("Gold"), format!("Gem={cost}")] {
+        let v = call(&s, &u, "guild/sprk_donate_construction", &body).await;
+        assert_eq!(v["Result"], "Fail", "{body}: {v}");
+    }
+    let v = call(&s, &u, "guild/sprk_donate_construction", &donate("Stone")).await;
+    assert_eq!(v["Result"], "Success", "{v}");
+    assert_eq!(v["CurrencyResult"]["CurrencyType"], "Gem", "{v}");
+    assert_eq!(n(&v["CurrencyResult"], "NewValue"), gem_before - cost, "{v}");
+    assert_eq!((n(&v, "Wood"), n(&v, "Stone"), n(&v, "Metal")), (0, amount, 0), "{v}");
+    let v = call(&s, &u, "guild/sprk_donate_construction", &donate("Stone")).await;
+    assert_eq!(n(&v, "Stone"), 2 * amount, "{v}");
+    let v = call(&s, &u, "guild/sprk_donate_construction", &donate("Wood")).await;
+    assert_eq!((n(&v, "Wood"), n(&v, "Stone"), n(&v, "Metal")), (amount, 2 * amount, 0), "{v}");
+    let v = call(&s, &u, "guild/sprk_donate_construction", &donate("Metal")).await;
+    assert_eq!((n(&v, "Wood"), n(&v, "Stone"), n(&v, "Metal")), (amount, 2 * amount, amount), "{v}");
+    assert_eq!(n(&v["CurrencyResult"], "NewValue"), gem_before - 4 * cost, "{v}");
+    let info = call(&s, &master, "guild/get_guildbasicinfo", "").await;
+    assert_eq!((n(&info["info"], "Wood"), n(&info["info"], "Stone"), n(&info["info"], "Metal")), (amount, 2 * amount, amount), "{info}");
+    let members = call(&s, &master, "guild/get_all_guild_member_info", &format!("GuildId={g}")).await;
+    let donor = members["MemberInfos"].as_array().unwrap().iter()
+        .find(|m| m["AccountId"] == u["UserInfo"]["AccountId"]).unwrap().clone();
+    assert_eq!((n(&donor, "AccWood"), n(&donor, "AccStone"), n(&donor, "AccMetal")), (amount, 2 * amount, amount), "{donor}");
+    // Not enough Rubies: nothing is charged or added.
+    crate::db::query("UPDATE user_info SET gem=$1 WHERE account_id=$2")
+        .bind(cost - 1).bind(n(&u["UserInfo"], "AccountId")).execute(&s.db).await.unwrap();
+    let v = call(&s, &u, "guild/sprk_donate_construction", &donate("Wood")).await;
+    assert_eq!(v["Result"], "NotEnoughGem", "{v}");
+    let info = call(&s, &master, "guild/get_guildbasicinfo", "").await;
+    assert_eq!(n(&info["info"], "Wood"), amount, "{info}");
+}
+
+#[tokio::test]
 async fn guild_levels_buildings_and_skills_charge_target_level_once() {
     let s = setup().await;
     let u = login(&s, "builder").await;

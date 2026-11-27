@@ -478,6 +478,8 @@ public class UserManager
 	public void SetNick(string nick)
 	{
 		string nick2 = _userInfo.Nick;
+		// SPRK: keep the player's name-tag marker across a nickname change.
+		nick = SprkNameTag.Carry(nick2, nick);
 		_userInfo.Nick = nick;
 		_observerManager.AnnounceToObservers(new UserStatInfo
 		{
@@ -787,6 +789,8 @@ public class UserManager
 			SetStaminaRechargeTime(info.Type, info.StaminaRechargeTime);
 			SetStaminaRechargeCount(info.Type, info.RechargeCount);
 			_staminaManager.ApplyExpectedRechargeTime(info.Type, info.NextRechargeRemainTime, info.FullRechargeRemainTime);
+			// SprkEventTicket: keep each event's own ticket balance.
+			SprkEventTicket.Observe(info);
 		}
 	}
 

@@ -178,7 +178,8 @@ public class CampaignWaveData : IDataKeySelector<CampaignWaveKey2>
 		public override EWaveFlag WaveFlag => _WaveFlag;
 
 		[IgnoreMember]
-		public override string VisualInfo => _VisualInfo;
+		// SprkWorldBossSkin: World Bosses wear their event forms during festivals.
+		public override string VisualInfo => SprkWorldBossSkin.Visual(_VisualInfo);
 
 		[IgnoreMember]
 		public override int OffsetMx => _OffsetMx;

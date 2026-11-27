@@ -1,0 +1,38 @@
+{
+  "localization": {
+    "French": {
+      "SKILL_DESC_60009120": "En état Dieu de la Guerre, augmente les DEG infligés aux ennemis non-Héros de 10%.",
+      "SKILL_DESC_60009121": "En état Dieu de la Guerre, augmente les DEG aux Héros de 5% et réduit les DEG reçus par les attaques de Héros de 5%. Confère l'immunité aux Contrôles pendant les 5 premières sec de l'état Dieu de la Guerre.",
+      "SKILL_DESC_60009130": "Augmente le coût en PM de 1 et les DEG de 100%.",
+      "SKILL_DESC_60009141": "Lorsque activé en Arène, inflige 15% des PV actuels de la cible sous forme de DEG P supplémentaires qui ignorent la DEF et applique [Marque du Dieu de la Guerre], réduisant la Récupération des PV de la cible de 2%. Cet effet ne peut être dissipé et peut se cumuler jusqu'à 10 fois.",
+      "SKILL_DESC_60009151": "Augmente toutes les DEF de 10% de l'ATQ.",
+      "SKILL_DESC_90000910": "Augmente les DEG infligés aux ennemis de 4%. Chaque coup critique augmente les DEG Crit 20% pendant 5 sec. Cumulable 10 fois. Cet effet ne peut pas être dissipé.",
+      "SKILL_DESC_90000911": "Augmente les DEG infligés aux ennemis de 6%. Chaque coup critique augmente les DEG Crit 24% pendant 5 sec. Cumulable 10 fois. Cet effet ne peut pas être dissipé.",
+      "SKILL_DESC_90000912": "Augmente les DEG infligés aux ennemis de 8%. Chaque coup critique augmente les DEG Crit 29% pendant 5 sec. Cumulable 10 fois. Cet effet ne peut pas être dissipé.",
+      "SKILL_DESC_90000913": "Augmente les DEG infligés aux ennemis de 10%. Chaque coup critique augmente les DEG Crit 35% pendant 5 sec. Cumulable 10 fois. Cet effet ne peut pas être dissipé.",
+      "SKILL_DESC_90000914": "Augmente les DEG infligés aux ennemis de 12%. Chaque coup critique augmente les DEG Crit 42% pendant 5 sec. Cumulable 10 fois. Cet effet ne peut pas être dissipé.",
+      "SKILL_DESC_90000915": "Augmente les DEG infligés aux ennemis de 15%. Chaque coup critique augmente les DEG Crit 50% pendant 5 sec. Cumulable 10 fois. Cet effet ne peut pas être dissipé.",
+      "SKILL_DESC_91009120": "[Avènement du Dieu de la Guerre] Pendant la durée de la compétence, augmente la Vitesse d'ATQ de 100 et accumule 1 [Ça va faire mal !] en infligeant des DEG P supplémentaires.",
+      "SKILL_DESC_91009121": "[Avènement du Dieu de la Guerre] Pendant la durée de la compétence, augmente la Vitesse d'ATQ de 150 et accumule 1 [Ça va faire mal !] en infligeant des DEG P supplémentaires.",
+      "SKILL_DESC_91009122": "[Avènement du Dieu de la Guerre] Pendant la durée de la compétence, augmente la Vitesse d'ATQ de 200 et accumule 1 [Ça va faire mal !] en infligeant des DEG P supplémentaires.",
+      "SKILL_DESC_91009123": "[Avènement du Dieu de la Guerre] Pendant la durée de la compétence, augmente la Vitesse d'ATQ de 300 et accumule 1 [Ça va faire mal !] en infligeant des DEG P supplémentaires.",
+      "SKILL_DESC_91009124": "[Avènement du Dieu de la Guerre] Pendant la durée de la compétence, augmente la Vitesse d'ATQ de 400 et accumule 1 [Ça va faire mal !] en infligeant des DEG P supplémentaires.",
+      "SKILL_DESC_91009125": "[Avènement du Dieu de la Guerre] Pendant la durée de la compétence, augmente la Vitesse d'ATQ de 500 et accumule 1 [Ça va faire mal !] en infligeant des DEG P supplémentaires.",
+      "SKILL_DESC_91009130": "[Coup de poing ultime!] Le temps de recharge de la compétence est réduit de 30%, les DEG ignorent l'effet Blocage de la cible et pour chaque activation, les DEG sont augmentés de 4%. Cumulable 10 fois.",
+      "SKILL_DESC_91009131": "[Coup de poing ultime!] Le temps de recharge de la compétence est réduit de 30%, les DEG ignorent l'effet Blocage de la cible et pour chaque activation, les DEG sont augmentés de 4.8%. Cumulable 10 fois.",
+      "SKILL_DESC_91009132": "[Coup de poing ultime!] Le temps de recharge de la compétence est réduit de 30%, les DEG ignorent l'effet Blocage de la cible et pour chaque activation, les DEG sont augmentés de 5.8%. Cumulable 10 fois.",
+      "SKILL_DESC_91009133": "[Coup de poing ultime!] Le temps de recharge de la compétence est réduit de 30%, les DEG ignorent l'effet Blocage de la cible et pour chaque activation, les DEG sont augmentés de 7%. Cumulable 10 fois.",
+      "SKILL_DESC_91009134": "[Coup de poing ultime!] Le temps de recharge de la compétence est réduit de 30%, les DEG ignorent l'effet Blocage de la cible et pour chaque activation, les DEG sont augmentés de 8.4%. Cumulable 10 fois.",
+      "SKILL_DESC_91009135": "[Coup de poing ultime!] Le temps de recharge de la compétence est réduit de 30%, les DEG ignorent l'effet Blocage de la cible et pour chaque activation, les DEG sont augmentés de 10%. Cumulable 10 fois.",
+      "SKILL_DESC_91009140": "[Ça va faire mal !] Augmente les DEG de 50 %. Les DEG P subis par les cibles augmentent de 2 % pendant 10 sec. Cet effet peut se cumuler jusqu'à 10 fois.",
+      "SKILL_DESC_91009141": "[Ça va faire mal !] Augmente les DEG de 50 %. Les DEG P subis par les cibles augmentent de 2.4 % pendant 10 sec. Cet effet peut se cumuler jusqu'à 10 fois.",
+      "SKILL_DESC_91009142": "[Ça va faire mal !] Augmente les DEG de 50 %. Les DEG P subis par les cibles augmentent de 2.9 % pendant 10 sec. Cet effet peut se cumuler jusqu'à 10 fois.",
+      "SKILL_DESC_91009143": "[Ça va faire mal !] Augmente les DEG de 50 %. Les DEG P subis par les cibles augmentent de 3.5 % pendant 10 sec. Cet effet peut se cumuler jusqu'à 10 fois.",
+      "SKILL_DESC_91009144": "[Ça va faire mal !] Augmente les DEG de 50 %. Les DEG P subis par les cibles augmentent de 4.2 % pendant 10 sec. Cet effet peut se cumuler jusqu'à 10 fois.",
+      "SKILL_DESC_91009145": "[Ça va faire mal !] Augmente les DEG de 50 %. Les DEG P subis par les cibles augmentent de 5 % pendant 10 sec. Cet effet peut se cumuler jusqu'à 10 fois.",
+      "SKILL_DESC_9120": "Dissipe tous ses effets négatifs, inflige {1} DEG P aux ennemis proches dans une petite zone et entre en état Dieu de la guerre pendant 15 sec. Son ATQ augmente de {2} et ses attaques normales ont 30% de chances d'infliger une attaque supplémentaire de {3} DEG P. Subir des DEG M permet d'esquiver tous les DEG M pendant 1 sec. Cette esquive ne s'active que 1 fois toutes les 2 sec. L'état Dieu de la guerre ne peut pas être dissipé.",
+      "SKILL_DESC_9130": "Le Héros se charge d'énergie et sprinte frontalement vers les ennemis, inflige [ffc800]{1}[-] points de DEG P aux ennemis à portée et applique Étourdissement pendant 3 sec. Si la cible est un Boss, les attaques ignorent la DEF de la cible et les DEG sont augmentés de 100%.",
+      "SKILL_DESC_9140": "Augmente les DEG infligés aux ennemis non-Héros de 5%. Chaque fois que Gladi touche une cible unique avec 4 attaques auto, il inflige [ffc800]{1}[-] points de DEG supplémentaires qui ignorent la DEF."
+    }
+  }
+}

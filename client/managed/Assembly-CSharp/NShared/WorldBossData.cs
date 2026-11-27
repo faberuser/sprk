@@ -39,7 +39,21 @@ public class WorldBossData : IDataKeySelector<int>
 	public int[] RecommendedHeroIndex { get; set; }
 
 	[Key(11)]
-	public string BossInfoImage { get; set; }
+	public string BossInfoImage
+	{
+		// SprkWorldBossSkin: the event form's art during its festival.
+		get
+		{
+			return SprkWorldBossSkin.BossInfoImage(_sprkBossInfoImage);
+		}
+		set
+		{
+			_sprkBossInfoImage = value;
+		}
+	}
+
+	[IgnoreMember]
+	private string _sprkBossInfoImage;
 
 	[Key(12)]
 	public string PreviewBg { get; set; }

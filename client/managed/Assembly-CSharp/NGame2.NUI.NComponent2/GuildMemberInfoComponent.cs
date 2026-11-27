@@ -53,6 +53,7 @@ public class GuildMemberInfoComponent : UIScrollItemBehaviour
 	{
 		UIHelper.SetLabelText(Label_TeamLevel, "Lv " + MemberInfo.TeamLevel);
 		UIHelper.SetLabelText(Label_Nick, MemberInfo.Nick);
+		SprkProfileImage.Bind(Texture_AvatarHero, MemberInfo.AccountId);
 		string iconPath = UIAvatarHelper.GetIconPath(MemberInfo.AvatarHeroIndex);
 		if (!String_Extension_Method.IsNullOrEmpty(iconPath))
 		{

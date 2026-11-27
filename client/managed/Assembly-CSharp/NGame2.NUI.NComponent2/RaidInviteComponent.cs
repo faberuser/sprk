@@ -98,6 +98,7 @@ public class RaidInviteComponent : LinkFactoryComponent, InitOnCreate
 			_invited = false;
 			UserInfo = userInfo;
 			InitPortrait(_avatarHeroIndex);
+			SprkProfileImage.Bind(PortraitTexture, _accountId);
 			InitInfo(_nick, _teamLevel);
 			UpdateButtonState();
 		}

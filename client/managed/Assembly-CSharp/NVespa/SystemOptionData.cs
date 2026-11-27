@@ -83,6 +83,20 @@ public static class SystemOptionData
 
 	private static LocalStorageBool _chat_ShowBattleEmoticon;
 
+	// SPRK: the chat preview popup (top right) per chat tab; see GameOptionTable rows 111-115.
+	private static LocalStorageBool _chat_ShowAllPopup;
+
+	private static LocalStorageBool _chat_ShowChannelPopup;
+
+	private static LocalStorageBool _chat_ShowGuildPopup;
+
+	private static LocalStorageBool _chat_ShowPartyPopup;
+
+	private static LocalStorageBool _chat_ShowWhisperPopup;
+
+	// SPRK: the Packages tab of the Special Shop; see GameOptionTable row 116.
+	private static LocalStorageBool _shop_ShowPackageTab;
+
 	private static LocalStorageBool _costume_AllowCutSceneAccessory;
 
 	private static LocalAccountInt _rubyPopup_Skip_Count;
@@ -547,6 +561,106 @@ public static class SystemOptionData
 		}
 	}
 
+	public static bool Chat_ShowAllPopup
+	{
+		get
+		{
+			return _chat_ShowAllPopup.Value;
+		}
+		set
+		{
+			_chat_ShowAllPopup.Value = value;
+		}
+	}
+
+	public static bool Chat_ShowChannelPopup
+	{
+		get
+		{
+			return _chat_ShowChannelPopup.Value;
+		}
+		set
+		{
+			_chat_ShowChannelPopup.Value = value;
+		}
+	}
+
+	public static bool Chat_ShowGuildPopup
+	{
+		get
+		{
+			return _chat_ShowGuildPopup.Value;
+		}
+		set
+		{
+			_chat_ShowGuildPopup.Value = value;
+		}
+	}
+
+	public static bool Chat_ShowPartyPopup
+	{
+		get
+		{
+			return _chat_ShowPartyPopup.Value;
+		}
+		set
+		{
+			_chat_ShowPartyPopup.Value = value;
+		}
+	}
+
+	public static bool Chat_ShowWhisperPopup
+	{
+		get
+		{
+			return _chat_ShowWhisperPopup.Value;
+		}
+		set
+		{
+			_chat_ShowWhisperPopup.Value = value;
+		}
+	}
+
+	public static bool Shop_ShowPackageTab
+	{
+		get
+		{
+			return _shop_ShowPackageTab.Value;
+		}
+		set
+		{
+			_shop_ShowPackageTab.Value = value;
+		}
+	}
+
+	// SPRK: whether a received chat message may open the preview popup. System notices
+	// always show; player messages follow the Chat Popup options of their chat tab.
+	public static bool Chat_ShouldShowPopup(ChatType chatType, bool isSystem)
+	{
+		if (isSystem)
+		{
+			return true;
+		}
+		if (!Chat_ShowAllPopup)
+		{
+			return false;
+		}
+		switch (chatType)
+		{
+		case ChatType.World:
+		case ChatType.Channel:
+			return Chat_ShowChannelPopup;
+		case ChatType.Guild:
+			return Chat_ShowGuildPopup;
+		case ChatType.Party:
+			return Chat_ShowPartyPopup;
+		case ChatType.Whisper:
+			return Chat_ShowWhisperPopup;
+		default:
+			return true;
+		}
+	}
+
 	public static bool Show_BattleEmoticon
 	{
 		get
@@ -743,6 +857,12 @@ public static class SystemOptionData
 		_chat_AllowGuildWhisper = new LocalStorageBool(i_default: true, "KingsRaid_GameOption_chat_AllowGuildWhisper");
 		_chat_AllowEtcWhisper = new LocalStorageBool(i_default: true, "KingsRaid_GameOption_chat_AllowEtcWhisper");
 		_chat_ShowBattleEmoticon = new LocalStorageBool(i_default: true, "KingRaid_GameOption_chat_ShowBattleEmoticon");
+		_chat_ShowAllPopup = new LocalStorageBool(i_default: true, "Sprk_GameOption_chat_ShowAllPopup");
+		_chat_ShowChannelPopup = new LocalStorageBool(i_default: true, "Sprk_GameOption_chat_ShowChannelPopup");
+		_chat_ShowGuildPopup = new LocalStorageBool(i_default: true, "Sprk_GameOption_chat_ShowGuildPopup");
+		_chat_ShowPartyPopup = new LocalStorageBool(i_default: true, "Sprk_GameOption_chat_ShowPartyPopup");
+		_chat_ShowWhisperPopup = new LocalStorageBool(i_default: true, "Sprk_GameOption_chat_ShowWhisperPopup");
+		_shop_ShowPackageTab = new LocalStorageBool(i_default: true, "Sprk_GameOption_shop_ShowPackageTab");
 		_costume_AllowCutSceneAccessory = new LocalStorageBool(i_default: false, "KingsRaid_GameOption_costume_AllowCutSceneAccessory");
 		_rubyPopup_Skip_Count = new LocalAccountInt(0, "KingsRaid_GameOption_rubyPopup_Skip_Count");
 		_IsWindow = new LocalStorageBool(i_default: false, "KingsRaid_GameOption_IsWindow");

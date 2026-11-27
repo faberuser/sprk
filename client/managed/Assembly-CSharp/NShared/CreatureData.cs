@@ -69,7 +69,21 @@ public class CreatureData : IDataKeySelector<int>, IPayShopEventSearchInfo, IVal
 	public string ModelCode { get; set; }
 
 	[Key(6)]
-	public string ModelPrefix { get; set; }
+	public string ModelPrefix
+	{
+		// SprkWorldBossSkin: the World Bosses' festival costumes.
+		get
+		{
+			return SprkWorldBossSkin.ModelPrefix(Index, _sprkModelPrefix);
+		}
+		set
+		{
+			_sprkModelPrefix = value;
+		}
+	}
+
+	[IgnoreMember]
+	private string _sprkModelPrefix;
 
 	[Key(7)]
 	public CreatureOpenType OpenType { get; set; }

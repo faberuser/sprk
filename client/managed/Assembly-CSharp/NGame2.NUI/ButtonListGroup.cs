@@ -53,6 +53,10 @@ public class ButtonListGroup : MonoBehaviour, ButtonListComponent.IListener
 
 	private IListener _listener;
 
+	// SPRK: empty widget above the first button, sized to the badge that sticks out of it.
+	[System.NonSerialized]
+	private UIWidget _sprkTopSpacer;
+
 	public void Init(IListener listener)
 	{
 		_listener = listener;
@@ -242,6 +246,7 @@ public class ButtonListGroup : MonoBehaviour, ButtonListComponent.IListener
 		{
 			if (ScrollView != null)
 			{
+				UpdateTopSpacer((list.Count > 0) ? list[0].Button : null);
 				ScrollView.InvalidateBounds();
 				if (!String_Extension_Method.IsNullOrEmpty(_prevSelectMainKey))
 				{
@@ -252,7 +257,9 @@ public class ButtonListGroup : MonoBehaviour, ButtonListComponent.IListener
 					}
 					else if (buttonInfo.IsOpen)
 					{
-						ScrollTo(buttonInfo.Button, 0f, 0f);
+						// SPRK: leave room for what sticks out above the button (the shop's
+						// FREE/SALE badge), which was clipped when the button sat at the top.
+						ScrollTo(buttonInfo.Button, 0f - TopOverflow(buttonInfo.Button), 0f);
 					}
 					else
 					{
@@ -261,6 +268,59 @@ public class ButtonListGroup : MonoBehaviour, ButtonListComponent.IListener
 				}
 			}
 		});
+	}
+
+	// SPRK: a button's own rect covers its children for layout and scroll bounds, so a
+	// badge drawn above the first button (the shop's FREE/SALE tag) lay outside the
+	// scrollable area and was clipped at the top. The spacer extends the scroll bounds
+	// by that much, so resting and dragged positions keep the badge in view.
+	private void UpdateTopSpacer(ButtonListComponent first)
+	{
+		if (first == null)
+		{
+			return;
+		}
+		float overflow = TopOverflow(first);
+		if (overflow < 1f)
+		{
+			if (_sprkTopSpacer != null)
+			{
+				_sprkTopSpacer.gameObject.SetActive(value: false);
+			}
+			return;
+		}
+		if (_sprkTopSpacer == null)
+		{
+			GameObject gameObject = new GameObject("SprkTopSpacer");
+			gameObject.layer = first.gameObject.layer;
+			gameObject.transform.SetParent(first.transform.parent, worldPositionStays: false);
+			_sprkTopSpacer = gameObject.AddComponent<UIWidget>();
+			_sprkTopSpacer.pivot = UIWidget.Pivot.Bottom;
+			_sprkTopSpacer.width = 2;
+		}
+		else if (_sprkTopSpacer.transform.parent != first.transform.parent)
+		{
+			_sprkTopSpacer.transform.SetParent(first.transform.parent, worldPositionStays: false);
+		}
+		_sprkTopSpacer.gameObject.SetActive(value: true);
+		_sprkTopSpacer.height = Mathf.CeilToInt(overflow);
+		Vector3 localPosition = first.transform.localPosition;
+		_sprkTopSpacer.transform.localPosition = new Vector3(localPosition.x, localPosition.y, 0f);
+	}
+
+	// How far the button's visible widgets reach above its own origin (its top edge).
+	// Measured per widget: a root widget that covers its children reports only its own rect.
+	private static float TopOverflow(MonoBehaviour mono)
+	{
+		float top = 0f;
+		foreach (UIWidget widget in mono.GetComponentsInChildren<UIWidget>())
+		{
+			if (widget.enabled)
+			{
+				top = Mathf.Max(top, NGUIMath.CalculateRelativeWidgetBounds(mono.transform, widget.transform).max.y);
+			}
+		}
+		return top;
 	}
 
 	private float CalcHeight(MonoBehaviour mono)

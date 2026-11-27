@@ -152,7 +152,7 @@ public static class SprkSkillDescriptionFormulaProbe
 		CreatureData[] array = (from object id in (IList)Json.Deserialize(File.ReadAllText(Path.Combine(environmentVariable, "fixture-roster.json")))
 			select GameRoot.Instance.CreatureDataContainer.GetData(Convert.ToInt32(id))).ToArray();
 		Check(array.Length == 102 && array.All((CreatureData h) => h != null && h.Race == CreatureRaceType.Hero), "tracked playable hero roster");
-		string[][] obj = new string[8][]
+		string[][] obj = new string[10][]
 		{
 			new string[2] { "en", "English" },
 			new string[2] { "de", "German" },
@@ -161,7 +161,9 @@ public static class SprkSkillDescriptionFormulaProbe
 			new string[2] { "ko", "Korean" },
 			new string[2] { "ru", "Russian" },
 			new string[2] { "zh-Hans", "ChineseSimplified" },
-			new string[2] { "zh-Hant", "ChineseTraditional" }
+			new string[2] { "zh-Hant", "ChineseTraditional" },
+			new string[2] { "th", "Thai" },
+			new string[2] { "vi", "Vietnamese" }
 		};
 		Dictionary<string, IDictionary> dictionary2 = new Dictionary<string, IDictionary>();
 		string path = Path.Combine(Application.dataPath, "Documents/Patch/StandaloneWindows");

@@ -155,7 +155,7 @@ pub(super) async fn opponent(db: &mut PgConnection, a: i64, exclude: i64) -> Res
     for id in ids {
         heroes.insert(id.to_string(), cached_hero(db, account, id as i32).await?);
     }
-    let user=crate::db::query("SELECT a.nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u ON a.account_id=u.account_id WHERE a.account_id=$1").bind(account).fetch_one(db).await?;
+    let user=crate::db::query("SELECT sprk_display_nick(a.account_id,a.nick) AS nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u ON a.account_id=u.account_id WHERE a.account_id=$1").bind(account).fetch_one(db).await?;
     Ok(
         json!({"UserInfo":{"AccountId":if account == a {-a} else {account},"Nick":user.get::<String,_>("nick"),"TeamLevel":user.get::<i64,_>("team_level"),"AvatarHeroIndex":user.get::<i64,_>("avatar_hero_index"),"MatchScore":0,"SeasonWin":0,"SeasonLose":0},"HeroInfos":heroes,"AiHeroInfos":{},"GroupHeroInfos":{},"DeckInfos":{}}),
     )

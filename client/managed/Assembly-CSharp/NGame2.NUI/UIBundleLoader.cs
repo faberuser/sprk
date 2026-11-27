@@ -132,7 +132,7 @@ public class UIBundleLoader : MonoBehaviour, IInspectorGuiDrawer
 
 	private void LoadAssetTexture()
 	{
-		if (SprkImageRecovery.TryTpIcon(this) || String_Extension_Method.IsNullOrEmpty(_assetPath) || _assetTex != null)
+		if (SprkProfileImage.TryApply(this) || SprkImageRecovery.TryTpIcon(this) || String_Extension_Method.IsNullOrEmpty(_assetPath) || _assetTex != null)
 		{
 			return;
 		}
@@ -186,6 +186,12 @@ public class UIBundleLoader : MonoBehaviour, IInspectorGuiDrawer
 			_assetTexPreload.Close();
 			_assetTexPreload = null;
 		}
+	}
+
+	/// <summary>Reload the current asset, for example after a SPRK texture override changed.</summary>
+	public void SprkReload()
+	{
+		RefreshAssetTexture();
 	}
 
 	public void SetUITexture(UITexture uiTexture)

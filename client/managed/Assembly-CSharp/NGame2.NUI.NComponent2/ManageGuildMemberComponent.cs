@@ -134,6 +134,7 @@ public class ManageGuildMemberComponent : UIScrollItemBehaviour
 	{
 		UIHelper.SetLabelText(Label_TeamLevel, "Lv " + teamLevel);
 		UIHelper.SetLabelText(Label_Nick, nick);
+		SprkProfileImage.Bind(Texture_AvatarHero, (_type == ComponentType.WaitingPlayer) ? (WaitingInfo?.AccountId ?? 0) : (MemberInfo?.AccountId ?? 0));
 		string iconPath = UIAvatarHelper.GetIconPath(avatarIndex);
 		if (!String_Extension_Method.IsNullOrEmpty(iconPath))
 		{

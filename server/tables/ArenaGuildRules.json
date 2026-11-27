@@ -5,6 +5,7 @@
   "GuildContributionActivity": 1000,
   "GuildContributionPoint": 100,
   "GuildContributionMaterials": {"Wood": 100, "Stone": 100, "Metal": 100},
+  "GuildDonateConstruction": {"Gem": 1000, "Amount": 1000},
   "GuildAttendancePoint": 100,
   "GuildAttendanceActivity": 100,
   "GuildActivityPerStamina": 1,

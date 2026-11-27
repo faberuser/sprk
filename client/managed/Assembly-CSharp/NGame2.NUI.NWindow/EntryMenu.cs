@@ -443,6 +443,8 @@ public class EntryMenu : BaseWindow, LobbyTopmostMenu.ILobbyTopmostObserver<Guil
 
 	protected virtual void SetupMenuButton(NShared.EntryMenu menu)
 	{
+		// SprkEventTicket: an event's menu shows that event's own tickets.
+		SprkEventTicket.MenuButton(menu.EntryMenuButton);
 		string valueString = ArgParser.GetValueString(menu.EntryMenuButton, 1);
 		if (String_Extension_Method.IsNullOrEmpty(valueString))
 		{

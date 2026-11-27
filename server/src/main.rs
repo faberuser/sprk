@@ -67,7 +67,8 @@ async fn main() -> anyhow::Result<()> {
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
     tracing::info!("Server listening on http://{}", listener.local_addr()?);
-    axum::serve(listener, app)
+    // Peer addresses let the update bandwidth limit tell clients apart.
+    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
         .with_graceful_shutdown(shutdown_signal())
         .await?;
     Ok(())
@@ -151,7 +152,11 @@ async fn game_router() -> anyhow::Result<Router> {
         ))?;
         let port=state.conquest.port;
         let worker_host = format!("http://127.0.0.1:{}/host.json", std::env::var("PORT").unwrap_or_else(|_| "8080".into()));
-        let log=std::env::current_dir()?.join("conquest-worker.log");
+        // BATTLE_WORKERS processes, each simulating its own battles on its own
+        // Unity main thread. The first keeps the historical log name.
+        for index in 0..crate::api::battle::cooperative::worker_count() {
+        let (key,executable,worker_host)=(key.clone(),executable.clone(),worker_host.clone());
+        let log=std::env::current_dir()?.join(if index==0 {"conquest-worker.log".to_owned()} else {format!("conquest-worker-{}.log",index+1)});
         tokio::spawn(async move {
             loop {
                 let mut command=tokio::process::Command::new(&executable);
@@ -159,18 +164,25 @@ async fn game_router() -> anyhow::Result<Router> {
                     .env("SPRK_CONQUEST_WORKER_KEY",&key).env("SPRK_CONQUEST_WORKER_HOST","127.0.0.1")
                     .env("SPRK_CONQUEST_WORKER_PORT",port.to_string()).kill_on_drop(true);
                 command.env("SPRK_HOST_URL", &worker_host);
+                // 1-based; the Docker launcher gives each its own Wine prefix and display.
+                command.env("SPRK_BATTLE_WORKER", (index+1).to_string());
                 command.env_remove("SPRK_AUTOMATION_PROFILE").env_remove("SPRK_AUTOMATION_DIR").env_remove("SPRK_GM_KEY");
+                // One trace file per process, so concurrent appends never interleave.
+                if let Some(trace)=std::env::var("SPRK_BATTLE_TRACE_FILE").ok().filter(|v|index>0 && !v.is_empty()) {
+                    command.env("SPRK_BATTLE_TRACE_FILE",format!("{trace}.{}",index+1));
+                }
                 #[cfg(windows)] command.creation_flags(0x08000000);
                 match command.spawn() {
                     Ok(mut worker)=> {
-                        tracing::info!(pid=?worker.id(),"Conquest native worker started");
-                        match worker.wait().await {Ok(status)=>tracing::warn!(%status,"Conquest native worker exited"),Err(error)=>tracing::warn!(%error,"Conquest worker wait failed")}
+                        tracing::info!(pid=?worker.id(),worker=index+1,"Conquest native worker started");
+                        match worker.wait().await {Ok(status)=>tracing::warn!(%status,worker=index+1,"Conquest native worker exited"),Err(error)=>tracing::warn!(%error,"Conquest worker wait failed")}
                     },
                     Err(error)=>tracing::error!(%error,"Conquest native worker could not start"),
                 }
                 tokio::time::sleep(std::time::Duration::from_secs(5)).await;
             }
         });
+        }
     }
 
 
@@ -220,6 +232,12 @@ pub(crate) fn game_routes(state: AppState) -> Router {
         .route("/query/nick", post(api::account::nickname::query))
         .route("/user/change_nick", post(api::account::nickname::change))
         .route("/user/query_nick", post(api::account::nickname::query))
+        // SPRK custom profile pictures (SprkProfileImage, sent directly, not via WebServiceRequester).
+        .route("/sprk/profile_image/get", post(api::account::profile_image::get))
+        .route("/sprk/profile_image/list", post(api::account::profile_image::list))
+        .route("/sprk/profile_image/set", post(api::account::profile_image::set))
+        .route("/sprk/profile_image/remove", post(api::account::profile_image::remove))
+        .route("/sprk/name_tag/get", post(api::account::name_tag::get))
         .route("/user/ping", post(api::account::client::ping))
         .route("/user/set_push_notification", post(api::account::client::set_push_notification))
         .route("/push_reward/get_push_reward", post(api::account::client::get_push_reward))
@@ -379,6 +397,7 @@ pub(crate) fn game_routes(state: AppState) -> Router {
         .route("/quest/progress_client_main_quest", post(api::progression::progress_client_main_quest))
         .route("/clear_mission/get_clear_mission_reward", post(api::progression::get_clear_mission_reward))
         .route("/mission/sync_seen_categories", post(api::progression::mission_history_sync::sync))
+        .route("/sprk/event_ticket", post(api::battle::event_ticket))
         .route("/newbie_mission/get_newbie_mission_reward", post(api::progression::get_newbie_mission_reward))
         .route("/campaign/reward_clear_chapter", post(api::progression::reward_clear_chapter))
         .route("/world_map/receive_completed_reward", post(api::progression::receive_completed_reward))

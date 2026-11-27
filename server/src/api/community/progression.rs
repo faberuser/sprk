@@ -264,6 +264,30 @@ pub(super) async fn execute(
             out["GuildMemberAccActivityPointResult"] =
                 json!({"AddValue":activity,"NewValue":n(&m,"AccActivityPoint")});
         }
+        "sprk_donate_construction" => {
+            // Any member may donate; investing the stockpile stays admin-only.
+            let rule_v = &s.tables.arena_guild.rules["GuildDonateConstruction"];
+            let kind = match r.text("Resource") {
+                k @ ("Wood" | "Stone" | "Metal") => k,
+                _ => return Err(rule("Fail")),
+            };
+            let cost = n(rule_v, "Gem");
+            let amount = n(rule_v, "Amount");
+            // The client sends the price it showed; never charge a different one.
+            if cost <= 0 || amount <= 0 || int(r, "Gem")? != cost {
+                return Err(rule("Fail"));
+            }
+            out["CurrencyResult"] = hero::currency(db, a, "Gem", -cost).await?;
+            info[kind] = json!(n(&info, kind) + amount);
+            // Credit the donor in the Weekly Status tab (AccWood/AccStone/AccMetal).
+            let mut m = guild::member_state(db, s, a, g).await?;
+            let acc = format!("Acc{kind}");
+            m[&acc] = json!(n(&m, &acc) + amount);
+            guild::save_member(db, a, g, &m).await?;
+            for k in ["Wood", "Stone", "Metal"] {
+                out[k] = info[k].clone();
+            }
+        }
         "open_guild_building" => {
             let v = get(db, a, "guild_visit", g).await?;
             let mut visit = v.clone();

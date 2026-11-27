@@ -3,8 +3,7 @@ use super::*;
 use crate::api::community::arena::online;
 
 pub(crate) async fn arena_worker(s:&AppState)->Option<String> {
-    let guard=s.conquest.worker.read().await;
-    guard.as_ref().filter(|w|w.arena_version>=1 && !w.sender.is_closed()).map(|w|w.id.clone())
+    s.conquest.pick_worker(Placement::Live,|w|w.arena_version>=1).await.map(|(id,_,_)|id)
 }
 
 pub(crate) fn create_arena(s:&AppState,worker:String,info:Value) {
@@ -69,7 +68,7 @@ pub(super) async fn finish(s:&AppState,run:&mut Run,body:&Value,give_up:Option<i
     let delivered=notify_result(s,run,run.result.as_ref().unwrap());
     run.sent.extend(delivered);
     if give_up.is_some() {
-        let _=s.conquest.send_worker("WorkerCancel",json!({"RunId":run.id})).await;
+        let _=s.conquest.send_worker(&run.worker,"WorkerCancel",json!({"RunId":run.id})).await;
     }
     Ok(())
 }
@@ -154,7 +153,7 @@ pub(super) async fn cancel(s:&AppState,run:&Run)->Result<()> {
     online::cancel(&mut db,s,number(&run.payload,"MatchUid")).await?;
     db.commit().await?;
     let _=notify_result(s,run,&json!({"Canceled":true}));
-    let _=s.conquest.send_worker("WorkerCancel",json!({"RunId":run.id})).await;
+    let _=s.conquest.send_worker(&run.worker,"WorkerCancel",json!({"RunId":run.id})).await;
     s.conquest.runs.remove(&run.id);
     Ok(())
 }
@@ -189,7 +188,7 @@ pub(super) async fn sync_finished(s:&AppState,run:&mut Run)->Result<bool> {
         run.result=Some(json!({"WinnerAccountId":winner,"Creatures":[],"GiveUp":true}));
         let delivered=notify_result(s,run,run.result.as_ref().unwrap());
         run.sent.extend(delivered);
-        let _=s.conquest.send_worker("WorkerCancel",json!({"RunId":run.id})).await;
+        let _=s.conquest.send_worker(&run.worker,"WorkerCancel",json!({"RunId":run.id})).await;
     }
     Ok(true)
 }
@@ -204,7 +203,7 @@ pub(super) mod tests {
         let s=setup().await;
         let users=vec![login(&s,"arena-live-a").await,login(&s,"arena-live-b").await,login(&s,"arena-live-c").await];
         let (tx,rx)=mpsc::channel(100);
-        *s.conquest.worker.write().await=Some(Worker{id:"arena-worker".into(),sender:tx,arena_version:1,challenge_version:0,dispatch_version:0});
+        *s.conquest.workers.write().await=vec!(Worker{id:"arena-worker".into(),sender:tx,arena_version:1,challenge_version:0,dispatch_version:0});
         (s,users,rx)
     }
 
@@ -255,7 +254,7 @@ pub(super) mod tests {
     async fn queue_polls_touch_only_last_poll_and_keep_progression_cached() {
         let (s,users,_worker)=fixture().await;
         // No worker: a poll only refreshes the queue entry.
-        *s.conquest.worker.write().await=None;
+        s.conquest.workers.write().await.clear();
         register(&s,&users[0]).await;
         let a=number(&users[0]["UserInfo"],"AccountId");
         let row=|s:AppState|async move {
@@ -618,7 +617,7 @@ pub(super) mod tests {
         let bot=call(&s,&users[0],"match/wait_match","PlayOfflineMatch=true").await;
         assert_eq!(bot["MatchedNpcInfo"]["IsNpc"],true);
         register(&s,&users[1]).await;register(&s,&users[2]).await;
-        s.conquest.worker.write().await.as_mut().unwrap().arena_version=0;
+        s.conquest.workers.write().await.first_mut().unwrap().arena_version=0;
         let bot=call(&s,&users[1],"match/wait_match","PlayOfflineMatch=true").await;
         assert_eq!(bot["MatchedNpcInfo"]["IsNpc"],true);
         assert!(bot["MatchInfo"].is_null());
@@ -777,7 +776,7 @@ pub(super) mod tests {
         struct Native(std::process::Child);
         impl Drop for Native {fn drop(&mut self){let _=self.0.kill();let _=self.0.wait();}}
         let (mut s,users,_rx)=fixture().await;
-        *s.conquest.worker.write().await=None;
+        s.conquest.workers.write().await.clear();
         let key=uuid::Uuid::new_v4().to_string();s.battle_service_key=Arc::new(Some(key.clone()));
         crate::db::query("UPDATE heroes SET level=100,star=5,transcend=5 WHERE account_id=$1")
             .bind(number(&users[1]["UserInfo"],"AccountId")).execute(&s.db).await.unwrap();

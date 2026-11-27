@@ -1,7 +1,8 @@
 # SPRK text
 
 `sprk.tsv` contains English text followed by German, French, Japanese, Korean,
-Russian, Simplified Chinese and Traditional Chinese, separated by literal tabs.
+Russian, Simplified Chinese, Traditional Chinese, Thai and Vietnamese, separated
+by literal tabs.
 Write line breaks inside a value as `\n`. Keep numbered placeholders and NGUI
 markup intact; translators may reorder placeholders.
 
@@ -27,7 +28,24 @@ graphics help, dynamic caption lists and table-patch language coverage.
 The automation action `localization-probe`, with `text` set to a supported
 Unity language name, checks every catalog entry and opens native login settings.
 It requires the Login scene and an isolated `localization-*` automation profile.
-Run it in all eight languages, capture screenshots, then send `restore`.
+Run it in all ten languages, capture screenshots, then send `restore`.
+
+## Thai and Vietnamese
+
+The original game dropped Thai and Vietnamese before its final version. They are
+restored from `seed/LocalizationAll_Thai.jit` and `seed/LocalizationAll_Vietnamese.jit`
+(the last official files) plus `client/tables/restored-languages/`, which
+translates every game text whose English changed or was added after those
+files. `languages.json` re-enables both in the native language list
+(`Basic/Localization_Language`); regenerate the embedded copy in
+`NShared.NJit/PreloadInAppBytes.cs` with `JitTables build` if that list changes.
+Keys still missing in either language fall back to English at runtime.
+`30-english-carryover.json` translates entries the old official files had left
+in English (UI words, Limit Breakthrough texts); names, voice-actor credits and
+stat abbreviations stay as shipped. The native font list has no Vietnamese
+entry, so `FontSelector` maps Vietnamese to the Tahoma container
+(`Prefab/LanguageFont/RussianFont`) instead of the Korean default font, which
+lacks letters such as "đ".
 
 ## Audit scope
 

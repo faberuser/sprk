@@ -139,6 +139,7 @@ public class MyInfoWindow : BaseWindow, LoginCreateNick.Listener, IUserObserver<
 		TeamLevelupPopup.SetTeamLevelEffectLabels(GameRoot.Instance.TeamLevelDataContainer.GetData(userManager.TeamLevel), MyInfo.TeamLevelEffectLabels);
 		SprkAccounts.LabelNickname(this);
 		SprkPetPresentation.Setup(this);
+		SprkProfileImageView.Setup(this);
 	}
 
 	private void ChangeNick(string nick)

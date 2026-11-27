@@ -301,7 +301,7 @@ pub async fn login(
 
     // Check if account exists
     let existing_account = crate::db::query(
-        "SELECT account_id, nick, session_key FROM accounts WHERE login_id = $1"
+        "SELECT account_id, sprk_display_nick(account_id,nick) AS nick, session_key FROM accounts WHERE login_id = $1"
     )
     .bind(&login_id)
     .fetch_optional(&state.db)
@@ -388,6 +388,14 @@ pub async fn login(
 
     crate::api::tutorial::restore_clause_reward(&state, account_id).await?;
     crate::api::tutorial::restore_skipped_cave_story(&state, account_id).await?;
+    // Before balances are read: festival currencies expire with their run.
+    let festival_events = {
+        let mut db = state.db.acquire().await?;
+        let calendar = crate::api::festivals::Calendar::load(&mut db, &state).await?;
+        crate::api::festivals::expire(&mut db, &state, account_id, &calendar).await?;
+        crate::api::festivals::gifts(&mut db, &state, account_id, &calendar).await?;
+        calendar.events()
+    };
 
     // Fetch user info
     let user_info_row = crate::db::query(
@@ -767,7 +775,8 @@ pub async fn login(
         soul_weapon_infos,
         player_product_purchase_infos: progression["PlayerProductPurchaseInfos"].as_array().into_iter().flatten().chain(products.as_array().into_iter().flatten()).cloned().collect(),
         drop_bonus_events: crate::api::episodes::events(&state).into_iter()
-            .chain(crate::api::battle::challenge::events(&state)).collect(),
+            .chain(crate::api::battle::challenge::events(&state))
+            .chain(festival_events).collect(),
         pay_shop_item_event_infos: vec![],
         npc_friendly_infos,
         chat_ban_infos: vec![],

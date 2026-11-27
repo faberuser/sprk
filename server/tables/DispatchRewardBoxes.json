@@ -1,0 +1,8941 @@
+[
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550001,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_1"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 1,
+  "Difficulty": 1,
+  "RewardIndex": 550001,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_1"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550002,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_2"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 2,
+  "Difficulty": 1,
+  "RewardIndex": 550002,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_2"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550003,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_3"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 3,
+  "Difficulty": 1,
+  "RewardIndex": 550003,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_3"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550004,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_4"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 4,
+  "Difficulty": 1,
+  "RewardIndex": 550004,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_4"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550005,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_5"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 5,
+  "Difficulty": 1,
+  "RewardIndex": 550005,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_5"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550006,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_6"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 6,
+  "Difficulty": 1,
+  "RewardIndex": 550006,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_6"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550007,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_7"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 7,
+  "Difficulty": 1,
+  "RewardIndex": 550007,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_7"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550008,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_8"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 8,
+  "Difficulty": 1,
+  "RewardIndex": 550008,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_8"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550009,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_9"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 9,
+  "Difficulty": 1,
+  "RewardIndex": 550009,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_9"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550010,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_10"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 10,
+  "Difficulty": 1,
+  "RewardIndex": 550010,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_10"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 11,
+  "Difficulty": 0,
+  "RewardIndex": 550011,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_11"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 11,
+  "Difficulty": 1,
+  "RewardIndex": 550011,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_11"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 12,
+  "Difficulty": 0,
+  "RewardIndex": 550012,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_12"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 12,
+  "Difficulty": 1,
+  "RewardIndex": 550012,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_12"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 13,
+  "Difficulty": 0,
+  "RewardIndex": 550013,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_13"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 13,
+  "Difficulty": 1,
+  "RewardIndex": 550013,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_13"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 14,
+  "Difficulty": 0,
+  "RewardIndex": 550014,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_14"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 14,
+  "Difficulty": 1,
+  "RewardIndex": 550014,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_14"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 15,
+  "Difficulty": 0,
+  "RewardIndex": 550015,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_15"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 15,
+  "Difficulty": 1,
+  "RewardIndex": 550015,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_15"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 16,
+  "Difficulty": 0,
+  "RewardIndex": 550016,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_16"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 16,
+  "Difficulty": 1,
+  "RewardIndex": 550016,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_16"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 17,
+  "Difficulty": 0,
+  "RewardIndex": 550017,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_17"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 17,
+  "Difficulty": 1,
+  "RewardIndex": 550017,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_17"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 18,
+  "Difficulty": 0,
+  "RewardIndex": 550018,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_18"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 18,
+  "Difficulty": 1,
+  "RewardIndex": 550018,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_18"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 19,
+  "Difficulty": 0,
+  "RewardIndex": 550019,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_19"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 19,
+  "Difficulty": 1,
+  "RewardIndex": 550019,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_19"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 20,
+  "Difficulty": 0,
+  "RewardIndex": 550020,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_20"
+ },
+ {
+  "ChapterIndex": 1,
+  "DungeonIndex": 20,
+  "Difficulty": 1,
+  "RewardIndex": 550020,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_1_20"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550021,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_1"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 1,
+  "Difficulty": 1,
+  "RewardIndex": 550021,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_1"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550022,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_2"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 2,
+  "Difficulty": 1,
+  "RewardIndex": 550022,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_2"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550023,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_3"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 3,
+  "Difficulty": 1,
+  "RewardIndex": 550023,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_3"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550024,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_4"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 4,
+  "Difficulty": 1,
+  "RewardIndex": 550024,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_4"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550025,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_5"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 5,
+  "Difficulty": 1,
+  "RewardIndex": 550025,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_5"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550026,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_6"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 6,
+  "Difficulty": 1,
+  "RewardIndex": 550026,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_6"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550027,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_7"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 7,
+  "Difficulty": 1,
+  "RewardIndex": 550027,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_7"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550028,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_8"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 8,
+  "Difficulty": 1,
+  "RewardIndex": 550028,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_8"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550029,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_9"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 9,
+  "Difficulty": 1,
+  "RewardIndex": 550029,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_9"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550030,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_10"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 10,
+  "Difficulty": 1,
+  "RewardIndex": 550030,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_10"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 11,
+  "Difficulty": 0,
+  "RewardIndex": 550031,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_11"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 11,
+  "Difficulty": 1,
+  "RewardIndex": 550031,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_11"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 12,
+  "Difficulty": 0,
+  "RewardIndex": 550032,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_12"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 12,
+  "Difficulty": 1,
+  "RewardIndex": 550032,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_12"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 13,
+  "Difficulty": 0,
+  "RewardIndex": 550033,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_13"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 13,
+  "Difficulty": 1,
+  "RewardIndex": 550033,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_13"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 14,
+  "Difficulty": 0,
+  "RewardIndex": 550034,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_14"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 14,
+  "Difficulty": 1,
+  "RewardIndex": 550034,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_14"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 15,
+  "Difficulty": 0,
+  "RewardIndex": 550035,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_15"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 15,
+  "Difficulty": 1,
+  "RewardIndex": 550035,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_15"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 16,
+  "Difficulty": 0,
+  "RewardIndex": 550036,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_16"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 16,
+  "Difficulty": 1,
+  "RewardIndex": 550036,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_16"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 17,
+  "Difficulty": 0,
+  "RewardIndex": 550037,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_17"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 17,
+  "Difficulty": 1,
+  "RewardIndex": 550037,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_17"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 18,
+  "Difficulty": 0,
+  "RewardIndex": 550038,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_18"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 18,
+  "Difficulty": 1,
+  "RewardIndex": 550038,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_18"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 19,
+  "Difficulty": 0,
+  "RewardIndex": 550039,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_19"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 19,
+  "Difficulty": 1,
+  "RewardIndex": 550039,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_19"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 20,
+  "Difficulty": 0,
+  "RewardIndex": 550040,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_20"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 20,
+  "Difficulty": 1,
+  "RewardIndex": 550040,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_20"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 21,
+  "Difficulty": 0,
+  "RewardIndex": 550041,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_21"
+ },
+ {
+  "ChapterIndex": 2,
+  "DungeonIndex": 21,
+  "Difficulty": 1,
+  "RewardIndex": 550041,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_2_21"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550042,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_1"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 1,
+  "Difficulty": 1,
+  "RewardIndex": 550042,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_1"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550043,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_2"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 2,
+  "Difficulty": 1,
+  "RewardIndex": 550043,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_2"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550044,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_3"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 3,
+  "Difficulty": 1,
+  "RewardIndex": 550044,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_3"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550045,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_4"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 4,
+  "Difficulty": 1,
+  "RewardIndex": 550045,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_4"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550046,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_5"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 5,
+  "Difficulty": 1,
+  "RewardIndex": 550046,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_5"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550047,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_6"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 6,
+  "Difficulty": 1,
+  "RewardIndex": 550047,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_6"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550048,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_7"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 7,
+  "Difficulty": 1,
+  "RewardIndex": 550048,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_7"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550049,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_8"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 8,
+  "Difficulty": 1,
+  "RewardIndex": 550049,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_8"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550050,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_9"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 9,
+  "Difficulty": 1,
+  "RewardIndex": 550050,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_9"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550051,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_10"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 10,
+  "Difficulty": 1,
+  "RewardIndex": 550051,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_10"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 11,
+  "Difficulty": 0,
+  "RewardIndex": 550052,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_11"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 11,
+  "Difficulty": 1,
+  "RewardIndex": 550052,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_11"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 12,
+  "Difficulty": 0,
+  "RewardIndex": 550053,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_12"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 12,
+  "Difficulty": 1,
+  "RewardIndex": 550053,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_12"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 13,
+  "Difficulty": 0,
+  "RewardIndex": 550054,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_13"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 13,
+  "Difficulty": 1,
+  "RewardIndex": 550054,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_13"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 14,
+  "Difficulty": 0,
+  "RewardIndex": 550055,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_14"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 14,
+  "Difficulty": 1,
+  "RewardIndex": 550055,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_14"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 15,
+  "Difficulty": 0,
+  "RewardIndex": 550056,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_15"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 15,
+  "Difficulty": 1,
+  "RewardIndex": 550056,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_15"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 16,
+  "Difficulty": 0,
+  "RewardIndex": 550057,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_16"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 16,
+  "Difficulty": 1,
+  "RewardIndex": 550057,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_16"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 17,
+  "Difficulty": 0,
+  "RewardIndex": 550058,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_17"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 17,
+  "Difficulty": 1,
+  "RewardIndex": 550058,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_17"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 18,
+  "Difficulty": 0,
+  "RewardIndex": 550059,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_18"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 18,
+  "Difficulty": 1,
+  "RewardIndex": 550059,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_18"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 19,
+  "Difficulty": 0,
+  "RewardIndex": 550060,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_19"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 19,
+  "Difficulty": 1,
+  "RewardIndex": 550060,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_19"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 20,
+  "Difficulty": 0,
+  "RewardIndex": 550061,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_20"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 20,
+  "Difficulty": 1,
+  "RewardIndex": 550061,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_20"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 21,
+  "Difficulty": 0,
+  "RewardIndex": 550062,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_21"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 21,
+  "Difficulty": 1,
+  "RewardIndex": 550062,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_21"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 22,
+  "Difficulty": 0,
+  "RewardIndex": 550063,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_22"
+ },
+ {
+  "ChapterIndex": 3,
+  "DungeonIndex": 22,
+  "Difficulty": 1,
+  "RewardIndex": 550063,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_3_22"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550064,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_1"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 1,
+  "Difficulty": 1,
+  "RewardIndex": 550064,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_1"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550065,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_2"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 2,
+  "Difficulty": 1,
+  "RewardIndex": 550065,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_2"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550066,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_3"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 3,
+  "Difficulty": 1,
+  "RewardIndex": 550066,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_3"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550067,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_4"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 4,
+  "Difficulty": 1,
+  "RewardIndex": 550067,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_4"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550068,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_5"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 5,
+  "Difficulty": 1,
+  "RewardIndex": 550068,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_5"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550069,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_6"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 6,
+  "Difficulty": 1,
+  "RewardIndex": 550069,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_6"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550070,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_7"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 7,
+  "Difficulty": 1,
+  "RewardIndex": 550070,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_7"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550071,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_8"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 8,
+  "Difficulty": 1,
+  "RewardIndex": 550071,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_8"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550072,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_9"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 9,
+  "Difficulty": 1,
+  "RewardIndex": 550072,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_9"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550073,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_10"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 10,
+  "Difficulty": 1,
+  "RewardIndex": 550073,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_10"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 11,
+  "Difficulty": 0,
+  "RewardIndex": 550074,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_11"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 11,
+  "Difficulty": 1,
+  "RewardIndex": 550074,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_11"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 12,
+  "Difficulty": 0,
+  "RewardIndex": 550075,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_12"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 12,
+  "Difficulty": 1,
+  "RewardIndex": 550075,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_12"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 13,
+  "Difficulty": 0,
+  "RewardIndex": 550076,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_13"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 13,
+  "Difficulty": 1,
+  "RewardIndex": 550076,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_13"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 14,
+  "Difficulty": 0,
+  "RewardIndex": 550077,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_14"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 14,
+  "Difficulty": 1,
+  "RewardIndex": 550077,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_14"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 15,
+  "Difficulty": 0,
+  "RewardIndex": 550078,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_15"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 15,
+  "Difficulty": 1,
+  "RewardIndex": 550078,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_15"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 16,
+  "Difficulty": 0,
+  "RewardIndex": 550079,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_16"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 16,
+  "Difficulty": 1,
+  "RewardIndex": 550079,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_16"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 17,
+  "Difficulty": 0,
+  "RewardIndex": 550080,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_17"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 17,
+  "Difficulty": 1,
+  "RewardIndex": 550080,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_17"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 18,
+  "Difficulty": 0,
+  "RewardIndex": 550081,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_18"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 18,
+  "Difficulty": 1,
+  "RewardIndex": 550081,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_18"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 19,
+  "Difficulty": 0,
+  "RewardIndex": 550082,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_19"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 19,
+  "Difficulty": 1,
+  "RewardIndex": 550082,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_19"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 20,
+  "Difficulty": 0,
+  "RewardIndex": 550083,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_20"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 20,
+  "Difficulty": 1,
+  "RewardIndex": 550083,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_20"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 21,
+  "Difficulty": 0,
+  "RewardIndex": 550084,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_21"
+ },
+ {
+  "ChapterIndex": 4,
+  "DungeonIndex": 21,
+  "Difficulty": 1,
+  "RewardIndex": 550084,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_4_21"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550085,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_1"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 1,
+  "Difficulty": 1,
+  "RewardIndex": 550085,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_1"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550086,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_2"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 2,
+  "Difficulty": 1,
+  "RewardIndex": 550086,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_2"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550087,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_3"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 3,
+  "Difficulty": 1,
+  "RewardIndex": 550087,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_3"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550088,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_4"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 4,
+  "Difficulty": 1,
+  "RewardIndex": 550088,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_4"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550089,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_5"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 5,
+  "Difficulty": 1,
+  "RewardIndex": 550089,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_5"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550090,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_6"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 6,
+  "Difficulty": 1,
+  "RewardIndex": 550090,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_6"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550091,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_7"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 7,
+  "Difficulty": 1,
+  "RewardIndex": 550091,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_7"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550092,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_8"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 8,
+  "Difficulty": 1,
+  "RewardIndex": 550092,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_8"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550093,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_9"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 9,
+  "Difficulty": 1,
+  "RewardIndex": 550093,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_9"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550094,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_10"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 10,
+  "Difficulty": 1,
+  "RewardIndex": 550094,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_10"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 11,
+  "Difficulty": 0,
+  "RewardIndex": 550095,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_11"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 11,
+  "Difficulty": 1,
+  "RewardIndex": 550095,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_11"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 12,
+  "Difficulty": 0,
+  "RewardIndex": 550096,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_12"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 12,
+  "Difficulty": 1,
+  "RewardIndex": 550096,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_12"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 13,
+  "Difficulty": 0,
+  "RewardIndex": 550097,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_13"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 13,
+  "Difficulty": 1,
+  "RewardIndex": 550097,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_13"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 14,
+  "Difficulty": 0,
+  "RewardIndex": 550098,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_14"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 14,
+  "Difficulty": 1,
+  "RewardIndex": 550098,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_14"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 15,
+  "Difficulty": 0,
+  "RewardIndex": 550099,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_15"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 15,
+  "Difficulty": 1,
+  "RewardIndex": 550099,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_15"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 16,
+  "Difficulty": 0,
+  "RewardIndex": 550100,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_16"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 16,
+  "Difficulty": 1,
+  "RewardIndex": 550100,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_16"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 17,
+  "Difficulty": 0,
+  "RewardIndex": 550101,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_17"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 17,
+  "Difficulty": 1,
+  "RewardIndex": 550101,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_17"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 18,
+  "Difficulty": 0,
+  "RewardIndex": 550102,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_18"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 18,
+  "Difficulty": 1,
+  "RewardIndex": 550102,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_18"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 19,
+  "Difficulty": 0,
+  "RewardIndex": 550103,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_19"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 19,
+  "Difficulty": 1,
+  "RewardIndex": 550103,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_19"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 20,
+  "Difficulty": 0,
+  "RewardIndex": 550104,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_20"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 20,
+  "Difficulty": 1,
+  "RewardIndex": 550104,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_20"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 21,
+  "Difficulty": 0,
+  "RewardIndex": 550105,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_21"
+ },
+ {
+  "ChapterIndex": 5,
+  "DungeonIndex": 21,
+  "Difficulty": 1,
+  "RewardIndex": 550105,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_5_21"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550106,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_1"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 1,
+  "Difficulty": 1,
+  "RewardIndex": 550106,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_1"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550107,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_2"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 2,
+  "Difficulty": 1,
+  "RewardIndex": 550107,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_2"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550108,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_3"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 3,
+  "Difficulty": 1,
+  "RewardIndex": 550108,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_3"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550109,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_4"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 4,
+  "Difficulty": 1,
+  "RewardIndex": 550109,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_4"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550110,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_5"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 5,
+  "Difficulty": 1,
+  "RewardIndex": 550110,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_5"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550111,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_6"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 6,
+  "Difficulty": 1,
+  "RewardIndex": 550111,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_6"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550112,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_7"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 7,
+  "Difficulty": 1,
+  "RewardIndex": 550112,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_7"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550113,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_8"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 8,
+  "Difficulty": 1,
+  "RewardIndex": 550113,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_8"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550114,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_9"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 9,
+  "Difficulty": 1,
+  "RewardIndex": 550114,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_9"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550115,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_10"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 10,
+  "Difficulty": 1,
+  "RewardIndex": 550115,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_10"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 11,
+  "Difficulty": 0,
+  "RewardIndex": 550116,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_11"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 11,
+  "Difficulty": 1,
+  "RewardIndex": 550116,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_11"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 12,
+  "Difficulty": 0,
+  "RewardIndex": 550117,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_12"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 12,
+  "Difficulty": 1,
+  "RewardIndex": 550117,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_12"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 13,
+  "Difficulty": 0,
+  "RewardIndex": 550118,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_13"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 13,
+  "Difficulty": 1,
+  "RewardIndex": 550118,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_13"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 14,
+  "Difficulty": 0,
+  "RewardIndex": 550119,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_14"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 14,
+  "Difficulty": 1,
+  "RewardIndex": 550119,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_14"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 15,
+  "Difficulty": 0,
+  "RewardIndex": 550120,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_15"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 15,
+  "Difficulty": 1,
+  "RewardIndex": 550120,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_15"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 16,
+  "Difficulty": 0,
+  "RewardIndex": 550121,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_16"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 16,
+  "Difficulty": 1,
+  "RewardIndex": 550121,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_16"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 17,
+  "Difficulty": 0,
+  "RewardIndex": 550122,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_17"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 17,
+  "Difficulty": 1,
+  "RewardIndex": 550122,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_17"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 18,
+  "Difficulty": 0,
+  "RewardIndex": 550123,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_18"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 18,
+  "Difficulty": 1,
+  "RewardIndex": 550123,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_18"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 19,
+  "Difficulty": 0,
+  "RewardIndex": 550124,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_19"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 19,
+  "Difficulty": 1,
+  "RewardIndex": 550124,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_19"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 20,
+  "Difficulty": 0,
+  "RewardIndex": 550125,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_20"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 20,
+  "Difficulty": 1,
+  "RewardIndex": 550125,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_20"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 21,
+  "Difficulty": 0,
+  "RewardIndex": 550126,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_21"
+ },
+ {
+  "ChapterIndex": 6,
+  "DungeonIndex": 21,
+  "Difficulty": 1,
+  "RewardIndex": 550126,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_6_21"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550127,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_1"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 1,
+  "Difficulty": 1,
+  "RewardIndex": 550127,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_1"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550128,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_2"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 2,
+  "Difficulty": 1,
+  "RewardIndex": 550128,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_2"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550129,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_3"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 3,
+  "Difficulty": 1,
+  "RewardIndex": 550129,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_3"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550130,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_4"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 4,
+  "Difficulty": 1,
+  "RewardIndex": 550130,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_4"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550131,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_5"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 5,
+  "Difficulty": 1,
+  "RewardIndex": 550131,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_5"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550132,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_6"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 6,
+  "Difficulty": 1,
+  "RewardIndex": 550132,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_6"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550133,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_7"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 7,
+  "Difficulty": 1,
+  "RewardIndex": 550133,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_7"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550134,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_8"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 8,
+  "Difficulty": 1,
+  "RewardIndex": 550134,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_8"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550135,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_9"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 9,
+  "Difficulty": 1,
+  "RewardIndex": 550135,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_9"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550136,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_10"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 10,
+  "Difficulty": 1,
+  "RewardIndex": 550136,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_10"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 11,
+  "Difficulty": 0,
+  "RewardIndex": 550137,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_11"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 11,
+  "Difficulty": 1,
+  "RewardIndex": 550137,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_11"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 12,
+  "Difficulty": 0,
+  "RewardIndex": 550138,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_12"
+ },
+ {
+  "ChapterIndex": 7,
+  "DungeonIndex": 12,
+  "Difficulty": 1,
+  "RewardIndex": 550138,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_7_12"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550139,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_1"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 1,
+  "Difficulty": 1,
+  "RewardIndex": 550139,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_1"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550140,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_2"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 2,
+  "Difficulty": 1,
+  "RewardIndex": 550140,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_2"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550141,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_3"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 3,
+  "Difficulty": 1,
+  "RewardIndex": 550141,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_3"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550142,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_4"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 4,
+  "Difficulty": 1,
+  "RewardIndex": 550142,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_4"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550143,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_5"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 5,
+  "Difficulty": 1,
+  "RewardIndex": 550143,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_5"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550144,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_6"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 6,
+  "Difficulty": 1,
+  "RewardIndex": 550144,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_6"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550145,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_7"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 7,
+  "Difficulty": 1,
+  "RewardIndex": 550145,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_7"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550146,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_8"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 8,
+  "Difficulty": 1,
+  "RewardIndex": 550146,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_8"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550147,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_9"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 9,
+  "Difficulty": 1,
+  "RewardIndex": 550147,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_9"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550148,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_10"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 10,
+  "Difficulty": 1,
+  "RewardIndex": 550148,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_10"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 11,
+  "Difficulty": 0,
+  "RewardIndex": 550149,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_11"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 11,
+  "Difficulty": 1,
+  "RewardIndex": 550149,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_11"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 12,
+  "Difficulty": 0,
+  "RewardIndex": 550150,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_12"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 12,
+  "Difficulty": 1,
+  "RewardIndex": 550150,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_12"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 13,
+  "Difficulty": 0,
+  "RewardIndex": 550151,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_13"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 13,
+  "Difficulty": 1,
+  "RewardIndex": 550151,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_13"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 14,
+  "Difficulty": 0,
+  "RewardIndex": 550152,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_14"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 14,
+  "Difficulty": 1,
+  "RewardIndex": 550152,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_14"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 15,
+  "Difficulty": 0,
+  "RewardIndex": 550153,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_15"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 15,
+  "Difficulty": 1,
+  "RewardIndex": 550153,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_15"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 16,
+  "Difficulty": 0,
+  "RewardIndex": 550154,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_16"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 16,
+  "Difficulty": 1,
+  "RewardIndex": 550154,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_16"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 17,
+  "Difficulty": 0,
+  "RewardIndex": 550155,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_17"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 17,
+  "Difficulty": 1,
+  "RewardIndex": 550155,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_17"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 18,
+  "Difficulty": 0,
+  "RewardIndex": 550156,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_18"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 18,
+  "Difficulty": 1,
+  "RewardIndex": 550156,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_18"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 19,
+  "Difficulty": 0,
+  "RewardIndex": 550157,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_19"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 19,
+  "Difficulty": 1,
+  "RewardIndex": 550157,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_19"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 20,
+  "Difficulty": 0,
+  "RewardIndex": 550158,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_20"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 20,
+  "Difficulty": 1,
+  "RewardIndex": 550158,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_20"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 21,
+  "Difficulty": 0,
+  "RewardIndex": 550159,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_21"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 21,
+  "Difficulty": 1,
+  "RewardIndex": 550159,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_21"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 22,
+  "Difficulty": 0,
+  "RewardIndex": 550160,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_22"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 22,
+  "Difficulty": 1,
+  "RewardIndex": 550160,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_22"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 23,
+  "Difficulty": 0,
+  "RewardIndex": 550161,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_23"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 23,
+  "Difficulty": 1,
+  "RewardIndex": 550161,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_23"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 24,
+  "Difficulty": 0,
+  "RewardIndex": 550162,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_24"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 24,
+  "Difficulty": 1,
+  "RewardIndex": 550162,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_24"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 25,
+  "Difficulty": 0,
+  "RewardIndex": 550163,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_25"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 25,
+  "Difficulty": 1,
+  "RewardIndex": 550163,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_25"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 26,
+  "Difficulty": 0,
+  "RewardIndex": 550164,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_26"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 26,
+  "Difficulty": 1,
+  "RewardIndex": 550164,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_8_26"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 100,
+  "Difficulty": 0,
+  "RewardIndex": 550308,
+  "Item": "DISPATCH_REWARD_BOX_RAID_FIELD_LAVAFLAME1"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 101,
+  "Difficulty": 0,
+  "RewardIndex": 550308,
+  "Item": "DISPATCH_REWARD_BOX_RAID_FIELD_LAVAFLAME1"
+ },
+ {
+  "ChapterIndex": 8,
+  "DungeonIndex": 111,
+  "Difficulty": 0,
+  "RewardIndex": 550309,
+  "Item": "DISPATCH_REWARD_BOX_RAID_FIELD_LAVAFLAME2"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550165,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_1"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 1,
+  "Difficulty": 1,
+  "RewardIndex": 550165,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_1"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550166,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_2"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 2,
+  "Difficulty": 1,
+  "RewardIndex": 550166,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_2"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550167,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_3"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 3,
+  "Difficulty": 1,
+  "RewardIndex": 550167,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_3"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550168,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_4"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 4,
+  "Difficulty": 1,
+  "RewardIndex": 550168,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_4"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550169,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_5"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 5,
+  "Difficulty": 1,
+  "RewardIndex": 550169,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_5"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550170,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_6"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 6,
+  "Difficulty": 1,
+  "RewardIndex": 550170,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_6"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550171,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_7"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 7,
+  "Difficulty": 1,
+  "RewardIndex": 550171,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_7"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550172,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_8"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 8,
+  "Difficulty": 1,
+  "RewardIndex": 550172,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_8"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550173,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_9"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 9,
+  "Difficulty": 1,
+  "RewardIndex": 550173,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_9"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550174,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_10"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 10,
+  "Difficulty": 1,
+  "RewardIndex": 550174,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_10"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 11,
+  "Difficulty": 0,
+  "RewardIndex": 550175,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_11"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 11,
+  "Difficulty": 1,
+  "RewardIndex": 550175,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_11"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 12,
+  "Difficulty": 0,
+  "RewardIndex": 550176,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_12"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 12,
+  "Difficulty": 1,
+  "RewardIndex": 550176,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_12"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 13,
+  "Difficulty": 0,
+  "RewardIndex": 550177,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_13"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 13,
+  "Difficulty": 1,
+  "RewardIndex": 550177,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_13"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 14,
+  "Difficulty": 0,
+  "RewardIndex": 550178,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_14"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 14,
+  "Difficulty": 1,
+  "RewardIndex": 550178,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_14"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 15,
+  "Difficulty": 0,
+  "RewardIndex": 550179,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_15"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 15,
+  "Difficulty": 1,
+  "RewardIndex": 550179,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_15"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 16,
+  "Difficulty": 0,
+  "RewardIndex": 550180,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_16"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 16,
+  "Difficulty": 1,
+  "RewardIndex": 550180,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_16"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 17,
+  "Difficulty": 0,
+  "RewardIndex": 550181,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_17"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 17,
+  "Difficulty": 1,
+  "RewardIndex": 550181,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_17"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 18,
+  "Difficulty": 0,
+  "RewardIndex": 550182,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_18"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 18,
+  "Difficulty": 1,
+  "RewardIndex": 550182,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_18"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 19,
+  "Difficulty": 0,
+  "RewardIndex": 550183,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_19"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 19,
+  "Difficulty": 1,
+  "RewardIndex": 550183,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_19"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 20,
+  "Difficulty": 0,
+  "RewardIndex": 550184,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_20"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 20,
+  "Difficulty": 1,
+  "RewardIndex": 550184,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_20"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 21,
+  "Difficulty": 0,
+  "RewardIndex": 550185,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_21"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 21,
+  "Difficulty": 1,
+  "RewardIndex": 550185,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_21"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 22,
+  "Difficulty": 0,
+  "RewardIndex": 550186,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_22"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 22,
+  "Difficulty": 1,
+  "RewardIndex": 550186,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_22"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 23,
+  "Difficulty": 0,
+  "RewardIndex": 550187,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_23"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 23,
+  "Difficulty": 1,
+  "RewardIndex": 550187,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_9_23"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 100,
+  "Difficulty": 0,
+  "RewardIndex": 550313,
+  "Item": "DISPATCH_REWARD_BOX_RAID_FIELD_DARKLORD_1"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 101,
+  "Difficulty": 0,
+  "RewardIndex": 550318,
+  "Item": "DISPATCH_REWARD_BOX_RAID_FIELD_TRANSMISSIONTOWER_1"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 102,
+  "Difficulty": 0,
+  "RewardIndex": 550323,
+  "Item": "DISPATCH_REWARD_BOX_RAID_FIELD_DIMENSION_1"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 103,
+  "Difficulty": 0,
+  "RewardIndex": 550313,
+  "Item": "DISPATCH_REWARD_BOX_RAID_FIELD_DARKLORD_1"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 104,
+  "Difficulty": 0,
+  "RewardIndex": 550318,
+  "Item": "DISPATCH_REWARD_BOX_RAID_FIELD_TRANSMISSIONTOWER_1"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 105,
+  "Difficulty": 0,
+  "RewardIndex": 550323,
+  "Item": "DISPATCH_REWARD_BOX_RAID_FIELD_DIMENSION_1"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 113,
+  "Difficulty": 0,
+  "RewardIndex": 550314,
+  "Item": "DISPATCH_REWARD_BOX_RAID_FIELD_DARKLORD_2"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 114,
+  "Difficulty": 0,
+  "RewardIndex": 550319,
+  "Item": "DISPATCH_REWARD_BOX_RAID_FIELD_TRANSMISSIONTOWER_2"
+ },
+ {
+  "ChapterIndex": 9,
+  "DungeonIndex": 115,
+  "Difficulty": 0,
+  "RewardIndex": 550324,
+  "Item": "DISPATCH_REWARD_BOX_RAID_FIELD_DIMENSION_2"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 3,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 4,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 5,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 6,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 7,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 8,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 9,
+  "Difficulty": 1,
+  "RewardIndex": 550336,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_9"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 10,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 11,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 12,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 13,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 14,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 15,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 16,
+  "Difficulty": 1,
+  "RewardIndex": 550336,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_9"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 17,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 18,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 19,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 20,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 21,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 22,
+  "Difficulty": 1,
+  "RewardIndex": 550336,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_9"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 23,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 24,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 25,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 26,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 27,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 28,
+  "Difficulty": 1,
+  "RewardIndex": 550328,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_1"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 29,
+  "Difficulty": 1,
+  "RewardIndex": 550356,
+  "Item": "DISPATCH_REWARD_BOX_CHAPTER_10_29"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1001,
+  "Difficulty": 0,
+  "RewardIndex": 550357,
+  "Item": "DISPATCH_REWARD_BOX_GARGORIA_RAID_GRADE_1_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1002,
+  "Difficulty": 0,
+  "RewardIndex": 550358,
+  "Item": "DISPATCH_REWARD_BOX_GARGORIA_RAID_GRADE_2_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1003,
+  "Difficulty": 0,
+  "RewardIndex": 550359,
+  "Item": "DISPATCH_REWARD_BOX_GARGORIA_RAID_GRADE_3_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1004,
+  "Difficulty": 0,
+  "RewardIndex": 550360,
+  "Item": "DISPATCH_REWARD_BOX_GARGORIA_RAID_GRADE_4_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1005,
+  "Difficulty": 0,
+  "RewardIndex": 550361,
+  "Item": "DISPATCH_REWARD_BOX_GARGORIA_RAID_GRADE_5_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1006,
+  "Difficulty": 0,
+  "RewardIndex": 550362,
+  "Item": "DISPATCH_REWARD_BOX_GARGORIA_RAID_GRADE_6_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1007,
+  "Difficulty": 0,
+  "RewardIndex": 550393,
+  "Item": "DISPATCH_REWARD_BOX_GARGORIA_RAID_GRADE_7_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1008,
+  "Difficulty": 0,
+  "RewardIndex": 550394,
+  "Item": "DISPATCH_REWARD_BOX_GARGORIA_RAID_GRADE_8_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1009,
+  "Difficulty": 0,
+  "RewardIndex": 550395,
+  "Item": "DISPATCH_REWARD_BOX_GARGORIA_RAID_GRADE_9_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1101,
+  "Difficulty": 0,
+  "RewardIndex": 550363,
+  "Item": "DISPATCH_REWARD_BOX_SIEGFRIED_RAID_GRADE_1_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1102,
+  "Difficulty": 0,
+  "RewardIndex": 550364,
+  "Item": "DISPATCH_REWARD_BOX_SIEGFRIED_RAID_GRADE_2_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1103,
+  "Difficulty": 0,
+  "RewardIndex": 550365,
+  "Item": "DISPATCH_REWARD_BOX_SIEGFRIED_RAID_GRADE_3_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1104,
+  "Difficulty": 0,
+  "RewardIndex": 550366,
+  "Item": "DISPATCH_REWARD_BOX_SIEGFRIED_RAID_GRADE_4_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1105,
+  "Difficulty": 0,
+  "RewardIndex": 550367,
+  "Item": "DISPATCH_REWARD_BOX_SIEGFRIED_RAID_GRADE_5_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1106,
+  "Difficulty": 0,
+  "RewardIndex": 550368,
+  "Item": "DISPATCH_REWARD_BOX_SIEGFRIED_RAID_GRADE_6_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1107,
+  "Difficulty": 0,
+  "RewardIndex": 550396,
+  "Item": "DISPATCH_REWARD_BOX_SIEGFRIED_RAID_GRADE_7_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1108,
+  "Difficulty": 0,
+  "RewardIndex": 550397,
+  "Item": "DISPATCH_REWARD_BOX_SIEGFRIED_RAID_GRADE_8_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1109,
+  "Difficulty": 0,
+  "RewardIndex": 550398,
+  "Item": "DISPATCH_REWARD_BOX_SIEGFRIED_RAID_GRADE_9_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1201,
+  "Difficulty": 0,
+  "RewardIndex": 550369,
+  "Item": "DISPATCH_REWARD_BOX_ASCALON_RAID_GRADE_1_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1202,
+  "Difficulty": 0,
+  "RewardIndex": 550370,
+  "Item": "DISPATCH_REWARD_BOX_ASCALON_RAID_GRADE_2_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1203,
+  "Difficulty": 0,
+  "RewardIndex": 550371,
+  "Item": "DISPATCH_REWARD_BOX_ASCALON_RAID_GRADE_3_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1204,
+  "Difficulty": 0,
+  "RewardIndex": 550372,
+  "Item": "DISPATCH_REWARD_BOX_ASCALON_RAID_GRADE_4_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1205,
+  "Difficulty": 0,
+  "RewardIndex": 550373,
+  "Item": "DISPATCH_REWARD_BOX_ASCALON_RAID_GRADE_5_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1206,
+  "Difficulty": 0,
+  "RewardIndex": 550374,
+  "Item": "DISPATCH_REWARD_BOX_ASCALON_RAID_GRADE_6_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1207,
+  "Difficulty": 0,
+  "RewardIndex": 550399,
+  "Item": "DISPATCH_REWARD_BOX_ASCALON_RAID_GRADE_7_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1208,
+  "Difficulty": 0,
+  "RewardIndex": 550400,
+  "Item": "DISPATCH_REWARD_BOX_ASCALON_RAID_GRADE_8_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 1209,
+  "Difficulty": 0,
+  "RewardIndex": 550401,
+  "Item": "DISPATCH_REWARD_BOX_ASCALON_RAID_GRADE_9_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2001,
+  "Difficulty": 0,
+  "RewardIndex": 550357,
+  "Item": "DISPATCH_REWARD_BOX_GARGORIA_RAID_GRADE_1_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2002,
+  "Difficulty": 0,
+  "RewardIndex": 550358,
+  "Item": "DISPATCH_REWARD_BOX_GARGORIA_RAID_GRADE_2_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2003,
+  "Difficulty": 0,
+  "RewardIndex": 550359,
+  "Item": "DISPATCH_REWARD_BOX_GARGORIA_RAID_GRADE_3_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2004,
+  "Difficulty": 0,
+  "RewardIndex": 550360,
+  "Item": "DISPATCH_REWARD_BOX_GARGORIA_RAID_GRADE_4_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2005,
+  "Difficulty": 0,
+  "RewardIndex": 550361,
+  "Item": "DISPATCH_REWARD_BOX_GARGORIA_RAID_GRADE_5_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2006,
+  "Difficulty": 0,
+  "RewardIndex": 550362,
+  "Item": "DISPATCH_REWARD_BOX_GARGORIA_RAID_GRADE_6_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2007,
+  "Difficulty": 0,
+  "RewardIndex": 550393,
+  "Item": "DISPATCH_REWARD_BOX_GARGORIA_RAID_GRADE_7_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2008,
+  "Difficulty": 0,
+  "RewardIndex": 550394,
+  "Item": "DISPATCH_REWARD_BOX_GARGORIA_RAID_GRADE_8_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2009,
+  "Difficulty": 0,
+  "RewardIndex": 550395,
+  "Item": "DISPATCH_REWARD_BOX_GARGORIA_RAID_GRADE_9_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2101,
+  "Difficulty": 0,
+  "RewardIndex": 550363,
+  "Item": "DISPATCH_REWARD_BOX_SIEGFRIED_RAID_GRADE_1_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2102,
+  "Difficulty": 0,
+  "RewardIndex": 550364,
+  "Item": "DISPATCH_REWARD_BOX_SIEGFRIED_RAID_GRADE_2_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2103,
+  "Difficulty": 0,
+  "RewardIndex": 550365,
+  "Item": "DISPATCH_REWARD_BOX_SIEGFRIED_RAID_GRADE_3_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2104,
+  "Difficulty": 0,
+  "RewardIndex": 550366,
+  "Item": "DISPATCH_REWARD_BOX_SIEGFRIED_RAID_GRADE_4_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2105,
+  "Difficulty": 0,
+  "RewardIndex": 550367,
+  "Item": "DISPATCH_REWARD_BOX_SIEGFRIED_RAID_GRADE_5_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2106,
+  "Difficulty": 0,
+  "RewardIndex": 550368,
+  "Item": "DISPATCH_REWARD_BOX_SIEGFRIED_RAID_GRADE_6_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2107,
+  "Difficulty": 0,
+  "RewardIndex": 550396,
+  "Item": "DISPATCH_REWARD_BOX_SIEGFRIED_RAID_GRADE_7_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2108,
+  "Difficulty": 0,
+  "RewardIndex": 550397,
+  "Item": "DISPATCH_REWARD_BOX_SIEGFRIED_RAID_GRADE_8_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2109,
+  "Difficulty": 0,
+  "RewardIndex": 550398,
+  "Item": "DISPATCH_REWARD_BOX_SIEGFRIED_RAID_GRADE_9_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2201,
+  "Difficulty": 0,
+  "RewardIndex": 550369,
+  "Item": "DISPATCH_REWARD_BOX_ASCALON_RAID_GRADE_1_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2202,
+  "Difficulty": 0,
+  "RewardIndex": 550370,
+  "Item": "DISPATCH_REWARD_BOX_ASCALON_RAID_GRADE_2_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2203,
+  "Difficulty": 0,
+  "RewardIndex": 550371,
+  "Item": "DISPATCH_REWARD_BOX_ASCALON_RAID_GRADE_3_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2204,
+  "Difficulty": 0,
+  "RewardIndex": 550372,
+  "Item": "DISPATCH_REWARD_BOX_ASCALON_RAID_GRADE_4_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2205,
+  "Difficulty": 0,
+  "RewardIndex": 550373,
+  "Item": "DISPATCH_REWARD_BOX_ASCALON_RAID_GRADE_5_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2206,
+  "Difficulty": 0,
+  "RewardIndex": 550374,
+  "Item": "DISPATCH_REWARD_BOX_ASCALON_RAID_GRADE_6_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2207,
+  "Difficulty": 0,
+  "RewardIndex": 550399,
+  "Item": "DISPATCH_REWARD_BOX_ASCALON_RAID_GRADE_7_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2208,
+  "Difficulty": 0,
+  "RewardIndex": 550400,
+  "Item": "DISPATCH_REWARD_BOX_ASCALON_RAID_GRADE_8_NEW"
+ },
+ {
+  "ChapterIndex": 10,
+  "DungeonIndex": 2209,
+  "Difficulty": 0,
+  "RewardIndex": 550401,
+  "Item": "DISPATCH_REWARD_BOX_ASCALON_RAID_GRADE_9_NEW"
+ },
+ {
+  "ChapterIndex": 901,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550188,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T3_1"
+ },
+ {
+  "ChapterIndex": 901,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550189,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T3_2"
+ },
+ {
+  "ChapterIndex": 901,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550190,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T4_1"
+ },
+ {
+  "ChapterIndex": 901,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550191,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T4_2"
+ },
+ {
+  "ChapterIndex": 901,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550192,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T5_1"
+ },
+ {
+  "ChapterIndex": 901,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550193,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T5_2"
+ },
+ {
+  "ChapterIndex": 901,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550194,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T6_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 5,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 901,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550195,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T6_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 6,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 901,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550196,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T7_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 11,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 901,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550197,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T7_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 12,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 901,
+  "DungeonIndex": 11,
+  "Difficulty": 0,
+  "RewardIndex": 550198,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 17,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 901,
+  "DungeonIndex": 12,
+  "Difficulty": 0,
+  "RewardIndex": 550199,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 18,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 901,
+  "DungeonIndex": 13,
+  "Difficulty": 0,
+  "RewardIndex": 550200,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_3",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 19,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 901,
+  "DungeonIndex": 14,
+  "Difficulty": 0,
+  "RewardIndex": 550201,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_4",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 20,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 901,
+  "DungeonIndex": 15,
+  "Difficulty": 0,
+  "RewardIndex": 550202,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_5",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 21,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 901,
+  "DungeonIndex": 16,
+  "Difficulty": 0,
+  "RewardIndex": 550203,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_6",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 22,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 901,
+  "DungeonIndex": 17,
+  "Difficulty": 0,
+  "RewardIndex": 550204,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_7",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 23,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 901,
+  "DungeonIndex": 18,
+  "Difficulty": 0,
+  "RewardIndex": 550205,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_8",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 24,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 901,
+  "DungeonIndex": 19,
+  "Difficulty": 0,
+  "RewardIndex": 550206,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_9",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 25,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 901,
+  "DungeonIndex": 20,
+  "Difficulty": 0,
+  "RewardIndex": 550207,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_10",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 26,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 902,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550208,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T3_1"
+ },
+ {
+  "ChapterIndex": 902,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550209,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T3_2"
+ },
+ {
+  "ChapterIndex": 902,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550210,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T4_1"
+ },
+ {
+  "ChapterIndex": 902,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550211,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T4_2"
+ },
+ {
+  "ChapterIndex": 902,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550212,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T5_1"
+ },
+ {
+  "ChapterIndex": 902,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550213,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T5_2"
+ },
+ {
+  "ChapterIndex": 902,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550214,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T6_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 5,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 902,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550215,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T6_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 6,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 902,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550216,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T7_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 11,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 902,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550217,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T7_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 12,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 902,
+  "DungeonIndex": 11,
+  "Difficulty": 0,
+  "RewardIndex": 550218,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 17,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 902,
+  "DungeonIndex": 12,
+  "Difficulty": 0,
+  "RewardIndex": 550219,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 18,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 902,
+  "DungeonIndex": 13,
+  "Difficulty": 0,
+  "RewardIndex": 550220,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_3",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 19,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 902,
+  "DungeonIndex": 14,
+  "Difficulty": 0,
+  "RewardIndex": 550221,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_4",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 20,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 902,
+  "DungeonIndex": 15,
+  "Difficulty": 0,
+  "RewardIndex": 550222,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_5",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 21,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 902,
+  "DungeonIndex": 16,
+  "Difficulty": 0,
+  "RewardIndex": 550223,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_6",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 22,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 902,
+  "DungeonIndex": 17,
+  "Difficulty": 0,
+  "RewardIndex": 550224,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_7",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 23,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 902,
+  "DungeonIndex": 18,
+  "Difficulty": 0,
+  "RewardIndex": 550225,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_8",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 24,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 902,
+  "DungeonIndex": 19,
+  "Difficulty": 0,
+  "RewardIndex": 550226,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_9",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 25,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 902,
+  "DungeonIndex": 20,
+  "Difficulty": 0,
+  "RewardIndex": 550227,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_10",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 26,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 903,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550228,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T3_1"
+ },
+ {
+  "ChapterIndex": 903,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550229,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T3_2"
+ },
+ {
+  "ChapterIndex": 903,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550230,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T4_1"
+ },
+ {
+  "ChapterIndex": 903,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550231,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T4_2"
+ },
+ {
+  "ChapterIndex": 903,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550232,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T5_1"
+ },
+ {
+  "ChapterIndex": 903,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550233,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T5_2"
+ },
+ {
+  "ChapterIndex": 903,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550234,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T6_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 5,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 903,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550235,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T6_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 6,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 903,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550236,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T7_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 11,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 903,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550237,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T7_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 12,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 903,
+  "DungeonIndex": 11,
+  "Difficulty": 0,
+  "RewardIndex": 550238,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 17,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 903,
+  "DungeonIndex": 12,
+  "Difficulty": 0,
+  "RewardIndex": 550239,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 18,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 903,
+  "DungeonIndex": 13,
+  "Difficulty": 0,
+  "RewardIndex": 550240,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_3",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 19,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 903,
+  "DungeonIndex": 14,
+  "Difficulty": 0,
+  "RewardIndex": 550241,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_4",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 20,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 903,
+  "DungeonIndex": 15,
+  "Difficulty": 0,
+  "RewardIndex": 550242,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_5",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 21,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 903,
+  "DungeonIndex": 16,
+  "Difficulty": 0,
+  "RewardIndex": 550243,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_6",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 22,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 903,
+  "DungeonIndex": 17,
+  "Difficulty": 0,
+  "RewardIndex": 550244,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_7",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 23,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 903,
+  "DungeonIndex": 18,
+  "Difficulty": 0,
+  "RewardIndex": 550245,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_8",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 24,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 903,
+  "DungeonIndex": 19,
+  "Difficulty": 0,
+  "RewardIndex": 550246,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_9",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 25,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 903,
+  "DungeonIndex": 20,
+  "Difficulty": 0,
+  "RewardIndex": 550247,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_10",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 26,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 904,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550248,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T3_1"
+ },
+ {
+  "ChapterIndex": 904,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550249,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T3_2"
+ },
+ {
+  "ChapterIndex": 904,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550250,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T4_1"
+ },
+ {
+  "ChapterIndex": 904,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550251,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T4_2"
+ },
+ {
+  "ChapterIndex": 904,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550252,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T5_1"
+ },
+ {
+  "ChapterIndex": 904,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550253,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T5_2"
+ },
+ {
+  "ChapterIndex": 904,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550254,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T6_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 5,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 904,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550255,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T6_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 6,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 904,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550256,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T7_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 11,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 904,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550257,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T7_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 12,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 904,
+  "DungeonIndex": 11,
+  "Difficulty": 0,
+  "RewardIndex": 550258,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 17,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 904,
+  "DungeonIndex": 12,
+  "Difficulty": 0,
+  "RewardIndex": 550259,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 18,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 904,
+  "DungeonIndex": 13,
+  "Difficulty": 0,
+  "RewardIndex": 550260,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_3",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 19,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 904,
+  "DungeonIndex": 14,
+  "Difficulty": 0,
+  "RewardIndex": 550261,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_4",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 20,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 904,
+  "DungeonIndex": 15,
+  "Difficulty": 0,
+  "RewardIndex": 550262,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_5",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 21,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 904,
+  "DungeonIndex": 16,
+  "Difficulty": 0,
+  "RewardIndex": 550263,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_6",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 22,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 904,
+  "DungeonIndex": 17,
+  "Difficulty": 0,
+  "RewardIndex": 550264,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_7",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 23,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 904,
+  "DungeonIndex": 18,
+  "Difficulty": 0,
+  "RewardIndex": 550265,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_8",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 24,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 904,
+  "DungeonIndex": 19,
+  "Difficulty": 0,
+  "RewardIndex": 550266,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_9",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 25,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 904,
+  "DungeonIndex": 20,
+  "Difficulty": 0,
+  "RewardIndex": 550267,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_10",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 26,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550188,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T3_1"
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550189,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T3_2"
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550190,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T4_1"
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550191,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T4_2"
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550192,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T5_1"
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550193,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T5_2"
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550194,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T6_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 5,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 7,
+  "Difficulty": 1,
+  "RewardIndex": 550194,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T6_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 5,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 7,
+  "Difficulty": 2,
+  "RewardIndex": 550194,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T6_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 5,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 7,
+  "Difficulty": 3,
+  "RewardIndex": 550194,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T6_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 5,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550195,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T6_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 6,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 8,
+  "Difficulty": 1,
+  "RewardIndex": 550195,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T6_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 6,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 8,
+  "Difficulty": 2,
+  "RewardIndex": 550195,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T6_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 6,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 8,
+  "Difficulty": 3,
+  "RewardIndex": 550195,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T6_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 6,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550196,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T7_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 11,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 9,
+  "Difficulty": 1,
+  "RewardIndex": 550196,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T7_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 11,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 9,
+  "Difficulty": 2,
+  "RewardIndex": 550196,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T7_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 11,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 9,
+  "Difficulty": 3,
+  "RewardIndex": 550196,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T7_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 11,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550197,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T7_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 12,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 10,
+  "Difficulty": 1,
+  "RewardIndex": 550197,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T7_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 12,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 10,
+  "Difficulty": 2,
+  "RewardIndex": 550197,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T7_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 12,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 10,
+  "Difficulty": 3,
+  "RewardIndex": 550197,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T7_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 12,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 11,
+  "Difficulty": 0,
+  "RewardIndex": 550198,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 17,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 11,
+  "Difficulty": 1,
+  "RewardIndex": 550198,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 17,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 11,
+  "Difficulty": 2,
+  "RewardIndex": 550198,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 17,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 11,
+  "Difficulty": 3,
+  "RewardIndex": 550198,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 17,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 12,
+  "Difficulty": 0,
+  "RewardIndex": 550199,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 18,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 12,
+  "Difficulty": 1,
+  "RewardIndex": 550199,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 18,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 12,
+  "Difficulty": 2,
+  "RewardIndex": 550199,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 18,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 12,
+  "Difficulty": 3,
+  "RewardIndex": 550199,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 18,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 13,
+  "Difficulty": 0,
+  "RewardIndex": 550200,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_3",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 19,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 13,
+  "Difficulty": 1,
+  "RewardIndex": 550200,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_3",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 19,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 13,
+  "Difficulty": 2,
+  "RewardIndex": 550200,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_3",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 19,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 13,
+  "Difficulty": 3,
+  "RewardIndex": 550200,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_3",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 19,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 14,
+  "Difficulty": 0,
+  "RewardIndex": 550201,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_4",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 20,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 14,
+  "Difficulty": 1,
+  "RewardIndex": 550201,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_4",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 20,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 14,
+  "Difficulty": 2,
+  "RewardIndex": 550201,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_4",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 20,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 14,
+  "Difficulty": 3,
+  "RewardIndex": 550201,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_4",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 20,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 15,
+  "Difficulty": 0,
+  "RewardIndex": 550202,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_5",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 21,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 15,
+  "Difficulty": 1,
+  "RewardIndex": 550202,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_5",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 21,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 15,
+  "Difficulty": 2,
+  "RewardIndex": 550202,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_5",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 21,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 15,
+  "Difficulty": 3,
+  "RewardIndex": 550202,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_5",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 21,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 16,
+  "Difficulty": 0,
+  "RewardIndex": 550203,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_6",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 22,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 16,
+  "Difficulty": 1,
+  "RewardIndex": 550203,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_6",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 22,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 16,
+  "Difficulty": 2,
+  "RewardIndex": 550203,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_6",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 22,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 16,
+  "Difficulty": 3,
+  "RewardIndex": 550203,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_6",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 22,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 17,
+  "Difficulty": 0,
+  "RewardIndex": 550204,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_7",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 23,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 17,
+  "Difficulty": 1,
+  "RewardIndex": 550204,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_7",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 23,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 17,
+  "Difficulty": 2,
+  "RewardIndex": 550204,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_7",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 23,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 17,
+  "Difficulty": 3,
+  "RewardIndex": 550204,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_7",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 23,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 18,
+  "Difficulty": 0,
+  "RewardIndex": 550205,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_8",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 24,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 18,
+  "Difficulty": 1,
+  "RewardIndex": 550205,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_8",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 24,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 18,
+  "Difficulty": 2,
+  "RewardIndex": 550205,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_8",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 24,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 18,
+  "Difficulty": 3,
+  "RewardIndex": 550205,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_8",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 24,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 19,
+  "Difficulty": 0,
+  "RewardIndex": 550206,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_9",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 25,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 19,
+  "Difficulty": 1,
+  "RewardIndex": 550206,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_9",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 25,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 19,
+  "Difficulty": 2,
+  "RewardIndex": 550206,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_9",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 25,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 19,
+  "Difficulty": 3,
+  "RewardIndex": 550206,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_9",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 25,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 20,
+  "Difficulty": 0,
+  "RewardIndex": 550207,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_10",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 26,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 20,
+  "Difficulty": 1,
+  "RewardIndex": 550207,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_10",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 26,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 20,
+  "Difficulty": 2,
+  "RewardIndex": 550207,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_10",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 26,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 905,
+  "DungeonIndex": 20,
+  "Difficulty": 3,
+  "RewardIndex": 550207,
+  "Item": "DISPATCH_REWARD_BOX_RAID_RED_T8_10",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 26,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550208,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T3_1"
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550209,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T3_2"
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550210,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T4_1"
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550211,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T4_2"
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550212,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T5_1"
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550213,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T5_2"
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550214,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T6_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 5,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 7,
+  "Difficulty": 1,
+  "RewardIndex": 550214,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T6_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 5,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 7,
+  "Difficulty": 2,
+  "RewardIndex": 550214,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T6_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 5,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 7,
+  "Difficulty": 3,
+  "RewardIndex": 550214,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T6_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 5,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550215,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T6_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 6,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 8,
+  "Difficulty": 1,
+  "RewardIndex": 550215,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T6_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 6,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 8,
+  "Difficulty": 2,
+  "RewardIndex": 550215,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T6_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 6,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 8,
+  "Difficulty": 3,
+  "RewardIndex": 550215,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T6_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 6,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550216,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T7_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 11,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 9,
+  "Difficulty": 1,
+  "RewardIndex": 550216,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T7_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 11,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 9,
+  "Difficulty": 2,
+  "RewardIndex": 550216,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T7_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 11,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 9,
+  "Difficulty": 3,
+  "RewardIndex": 550216,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T7_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 11,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550217,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T7_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 12,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 10,
+  "Difficulty": 1,
+  "RewardIndex": 550217,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T7_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 12,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 10,
+  "Difficulty": 2,
+  "RewardIndex": 550217,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T7_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 12,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 10,
+  "Difficulty": 3,
+  "RewardIndex": 550217,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T7_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 12,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 11,
+  "Difficulty": 0,
+  "RewardIndex": 550218,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 17,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 11,
+  "Difficulty": 1,
+  "RewardIndex": 550218,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 17,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 11,
+  "Difficulty": 2,
+  "RewardIndex": 550218,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 17,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 11,
+  "Difficulty": 3,
+  "RewardIndex": 550218,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 17,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 12,
+  "Difficulty": 0,
+  "RewardIndex": 550219,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 18,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 12,
+  "Difficulty": 1,
+  "RewardIndex": 550219,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 18,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 12,
+  "Difficulty": 2,
+  "RewardIndex": 550219,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 18,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 12,
+  "Difficulty": 3,
+  "RewardIndex": 550219,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 18,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 13,
+  "Difficulty": 0,
+  "RewardIndex": 550220,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_3",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 19,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 13,
+  "Difficulty": 1,
+  "RewardIndex": 550220,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_3",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 19,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 13,
+  "Difficulty": 2,
+  "RewardIndex": 550220,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_3",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 19,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 13,
+  "Difficulty": 3,
+  "RewardIndex": 550220,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_3",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 19,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 14,
+  "Difficulty": 0,
+  "RewardIndex": 550221,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_4",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 20,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 14,
+  "Difficulty": 1,
+  "RewardIndex": 550221,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_4",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 20,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 14,
+  "Difficulty": 2,
+  "RewardIndex": 550221,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_4",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 20,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 14,
+  "Difficulty": 3,
+  "RewardIndex": 550221,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_4",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 20,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 15,
+  "Difficulty": 0,
+  "RewardIndex": 550222,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_5",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 21,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 15,
+  "Difficulty": 1,
+  "RewardIndex": 550222,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_5",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 21,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 15,
+  "Difficulty": 2,
+  "RewardIndex": 550222,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_5",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 21,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 15,
+  "Difficulty": 3,
+  "RewardIndex": 550222,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_5",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 21,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 16,
+  "Difficulty": 0,
+  "RewardIndex": 550223,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_6",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 22,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 16,
+  "Difficulty": 1,
+  "RewardIndex": 550223,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_6",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 22,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 16,
+  "Difficulty": 2,
+  "RewardIndex": 550223,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_6",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 22,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 16,
+  "Difficulty": 3,
+  "RewardIndex": 550223,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_6",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 22,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 17,
+  "Difficulty": 0,
+  "RewardIndex": 550224,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_7",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 23,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 17,
+  "Difficulty": 1,
+  "RewardIndex": 550224,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_7",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 23,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 17,
+  "Difficulty": 2,
+  "RewardIndex": 550224,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_7",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 23,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 17,
+  "Difficulty": 3,
+  "RewardIndex": 550224,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_7",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 23,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 18,
+  "Difficulty": 0,
+  "RewardIndex": 550225,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_8",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 24,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 18,
+  "Difficulty": 1,
+  "RewardIndex": 550225,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_8",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 24,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 18,
+  "Difficulty": 2,
+  "RewardIndex": 550225,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_8",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 24,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 18,
+  "Difficulty": 3,
+  "RewardIndex": 550225,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_8",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 24,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 19,
+  "Difficulty": 0,
+  "RewardIndex": 550226,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_9",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 25,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 19,
+  "Difficulty": 1,
+  "RewardIndex": 550226,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_9",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 25,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 19,
+  "Difficulty": 2,
+  "RewardIndex": 550226,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_9",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 25,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 19,
+  "Difficulty": 3,
+  "RewardIndex": 550226,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_9",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 25,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 20,
+  "Difficulty": 0,
+  "RewardIndex": 550227,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_10",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 26,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 20,
+  "Difficulty": 1,
+  "RewardIndex": 550227,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_10",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 26,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 20,
+  "Difficulty": 2,
+  "RewardIndex": 550227,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_10",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 26,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 906,
+  "DungeonIndex": 20,
+  "Difficulty": 3,
+  "RewardIndex": 550227,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLUE_T8_10",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 26,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550228,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T3_1"
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550229,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T3_2"
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550230,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T4_1"
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550231,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T4_2"
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550232,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T5_1"
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550233,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T5_2"
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550234,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T6_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 5,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 7,
+  "Difficulty": 1,
+  "RewardIndex": 550234,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T6_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 5,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 7,
+  "Difficulty": 2,
+  "RewardIndex": 550234,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T6_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 5,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 7,
+  "Difficulty": 3,
+  "RewardIndex": 550234,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T6_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 5,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550235,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T6_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 6,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 8,
+  "Difficulty": 1,
+  "RewardIndex": 550235,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T6_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 6,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 8,
+  "Difficulty": 2,
+  "RewardIndex": 550235,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T6_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 6,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 8,
+  "Difficulty": 3,
+  "RewardIndex": 550235,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T6_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 6,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550236,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T7_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 11,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 9,
+  "Difficulty": 1,
+  "RewardIndex": 550236,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T7_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 11,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 9,
+  "Difficulty": 2,
+  "RewardIndex": 550236,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T7_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 11,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 9,
+  "Difficulty": 3,
+  "RewardIndex": 550236,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T7_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 11,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550237,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T7_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 12,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 10,
+  "Difficulty": 1,
+  "RewardIndex": 550237,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T7_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 12,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 10,
+  "Difficulty": 2,
+  "RewardIndex": 550237,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T7_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 12,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 10,
+  "Difficulty": 3,
+  "RewardIndex": 550237,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T7_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 12,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 11,
+  "Difficulty": 0,
+  "RewardIndex": 550238,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 17,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 11,
+  "Difficulty": 1,
+  "RewardIndex": 550238,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 17,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 11,
+  "Difficulty": 2,
+  "RewardIndex": 550238,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 17,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 11,
+  "Difficulty": 3,
+  "RewardIndex": 550238,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 17,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 12,
+  "Difficulty": 0,
+  "RewardIndex": 550239,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 18,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 12,
+  "Difficulty": 1,
+  "RewardIndex": 550239,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 18,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 12,
+  "Difficulty": 2,
+  "RewardIndex": 550239,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 18,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 12,
+  "Difficulty": 3,
+  "RewardIndex": 550239,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 18,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 13,
+  "Difficulty": 0,
+  "RewardIndex": 550240,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_3",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 19,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 13,
+  "Difficulty": 1,
+  "RewardIndex": 550240,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_3",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 19,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 13,
+  "Difficulty": 2,
+  "RewardIndex": 550240,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_3",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 19,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 13,
+  "Difficulty": 3,
+  "RewardIndex": 550240,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_3",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 19,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 14,
+  "Difficulty": 0,
+  "RewardIndex": 550241,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_4",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 20,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 14,
+  "Difficulty": 1,
+  "RewardIndex": 550241,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_4",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 20,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 14,
+  "Difficulty": 2,
+  "RewardIndex": 550241,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_4",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 20,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 14,
+  "Difficulty": 3,
+  "RewardIndex": 550241,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_4",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 20,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 15,
+  "Difficulty": 0,
+  "RewardIndex": 550242,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_5",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 21,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 15,
+  "Difficulty": 1,
+  "RewardIndex": 550242,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_5",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 21,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 15,
+  "Difficulty": 2,
+  "RewardIndex": 550242,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_5",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 21,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 15,
+  "Difficulty": 3,
+  "RewardIndex": 550242,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_5",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 21,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 16,
+  "Difficulty": 0,
+  "RewardIndex": 550243,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_6",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 22,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 16,
+  "Difficulty": 1,
+  "RewardIndex": 550243,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_6",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 22,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 16,
+  "Difficulty": 2,
+  "RewardIndex": 550243,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_6",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 22,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 16,
+  "Difficulty": 3,
+  "RewardIndex": 550243,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_6",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 22,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 17,
+  "Difficulty": 0,
+  "RewardIndex": 550244,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_7",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 23,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 17,
+  "Difficulty": 1,
+  "RewardIndex": 550244,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_7",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 23,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 17,
+  "Difficulty": 2,
+  "RewardIndex": 550244,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_7",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 23,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 17,
+  "Difficulty": 3,
+  "RewardIndex": 550244,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_7",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 23,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 18,
+  "Difficulty": 0,
+  "RewardIndex": 550245,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_8",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 24,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 18,
+  "Difficulty": 1,
+  "RewardIndex": 550245,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_8",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 24,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 18,
+  "Difficulty": 2,
+  "RewardIndex": 550245,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_8",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 24,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 18,
+  "Difficulty": 3,
+  "RewardIndex": 550245,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_8",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 24,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 19,
+  "Difficulty": 0,
+  "RewardIndex": 550246,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_9",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 25,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 19,
+  "Difficulty": 1,
+  "RewardIndex": 550246,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_9",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 25,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 19,
+  "Difficulty": 2,
+  "RewardIndex": 550246,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_9",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 25,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 19,
+  "Difficulty": 3,
+  "RewardIndex": 550246,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_9",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 25,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 20,
+  "Difficulty": 0,
+  "RewardIndex": 550247,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_10",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 26,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 20,
+  "Difficulty": 1,
+  "RewardIndex": 550247,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_10",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 26,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 20,
+  "Difficulty": 2,
+  "RewardIndex": 550247,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_10",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 26,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 907,
+  "DungeonIndex": 20,
+  "Difficulty": 3,
+  "RewardIndex": 550247,
+  "Item": "DISPATCH_REWARD_BOX_RAID_GREEN_T8_10",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 26,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550248,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T3_1"
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550249,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T3_2"
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550250,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T4_1"
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550251,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T4_2"
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550252,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T5_1"
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550253,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T5_2"
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550254,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T6_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 5,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 7,
+  "Difficulty": 1,
+  "RewardIndex": 550254,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T6_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 5,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 7,
+  "Difficulty": 2,
+  "RewardIndex": 550254,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T6_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 5,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 7,
+  "Difficulty": 3,
+  "RewardIndex": 550254,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T6_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 5,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550255,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T6_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 6,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 8,
+  "Difficulty": 1,
+  "RewardIndex": 550255,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T6_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 6,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 8,
+  "Difficulty": 2,
+  "RewardIndex": 550255,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T6_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 6,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 8,
+  "Difficulty": 3,
+  "RewardIndex": 550255,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T6_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 6,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550256,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T7_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 11,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 9,
+  "Difficulty": 1,
+  "RewardIndex": 550256,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T7_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 11,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 9,
+  "Difficulty": 2,
+  "RewardIndex": 550256,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T7_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 11,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 9,
+  "Difficulty": 3,
+  "RewardIndex": 550256,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T7_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 11,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550257,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T7_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 12,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 10,
+  "Difficulty": 1,
+  "RewardIndex": 550257,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T7_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 12,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 10,
+  "Difficulty": 2,
+  "RewardIndex": 550257,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T7_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 12,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 10,
+  "Difficulty": 3,
+  "RewardIndex": 550257,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T7_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 12,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 11,
+  "Difficulty": 0,
+  "RewardIndex": 550258,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 17,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 11,
+  "Difficulty": 1,
+  "RewardIndex": 550258,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 17,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 11,
+  "Difficulty": 2,
+  "RewardIndex": 550258,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 17,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 11,
+  "Difficulty": 3,
+  "RewardIndex": 550258,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_1",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 17,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 12,
+  "Difficulty": 0,
+  "RewardIndex": 550259,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 18,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 12,
+  "Difficulty": 1,
+  "RewardIndex": 550259,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 18,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 12,
+  "Difficulty": 2,
+  "RewardIndex": 550259,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 18,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 12,
+  "Difficulty": 3,
+  "RewardIndex": 550259,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_2",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 18,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 13,
+  "Difficulty": 0,
+  "RewardIndex": 550260,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_3",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 19,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 13,
+  "Difficulty": 1,
+  "RewardIndex": 550260,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_3",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 19,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 13,
+  "Difficulty": 2,
+  "RewardIndex": 550260,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_3",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 19,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 13,
+  "Difficulty": 3,
+  "RewardIndex": 550260,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_3",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 19,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 14,
+  "Difficulty": 0,
+  "RewardIndex": 550261,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_4",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 20,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 14,
+  "Difficulty": 1,
+  "RewardIndex": 550261,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_4",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 20,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 14,
+  "Difficulty": 2,
+  "RewardIndex": 550261,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_4",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 20,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 14,
+  "Difficulty": 3,
+  "RewardIndex": 550261,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_4",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 20,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 15,
+  "Difficulty": 0,
+  "RewardIndex": 550262,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_5",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 21,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 15,
+  "Difficulty": 1,
+  "RewardIndex": 550262,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_5",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 21,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 15,
+  "Difficulty": 2,
+  "RewardIndex": 550262,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_5",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 21,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 15,
+  "Difficulty": 3,
+  "RewardIndex": 550262,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_5",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 21,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 16,
+  "Difficulty": 0,
+  "RewardIndex": 550263,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_6",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 22,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 16,
+  "Difficulty": 1,
+  "RewardIndex": 550263,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_6",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 22,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 16,
+  "Difficulty": 2,
+  "RewardIndex": 550263,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_6",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 22,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 16,
+  "Difficulty": 3,
+  "RewardIndex": 550263,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_6",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 22,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 17,
+  "Difficulty": 0,
+  "RewardIndex": 550264,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_7",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 23,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 17,
+  "Difficulty": 1,
+  "RewardIndex": 550264,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_7",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 23,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 17,
+  "Difficulty": 2,
+  "RewardIndex": 550264,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_7",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 23,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 17,
+  "Difficulty": 3,
+  "RewardIndex": 550264,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_7",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 23,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 18,
+  "Difficulty": 0,
+  "RewardIndex": 550265,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_8",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 24,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 18,
+  "Difficulty": 1,
+  "RewardIndex": 550265,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_8",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 24,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 18,
+  "Difficulty": 2,
+  "RewardIndex": 550265,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_8",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 24,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 18,
+  "Difficulty": 3,
+  "RewardIndex": 550265,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_8",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 24,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 19,
+  "Difficulty": 0,
+  "RewardIndex": 550266,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_9",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 25,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 19,
+  "Difficulty": 1,
+  "RewardIndex": 550266,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_9",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 25,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 19,
+  "Difficulty": 2,
+  "RewardIndex": 550266,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_9",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 25,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 19,
+  "Difficulty": 3,
+  "RewardIndex": 550266,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_9",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 25,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 20,
+  "Difficulty": 0,
+  "RewardIndex": 550267,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_10",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 26,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 20,
+  "Difficulty": 1,
+  "RewardIndex": 550267,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_10",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 26,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 20,
+  "Difficulty": 2,
+  "RewardIndex": 550267,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_10",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 26,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 908,
+  "DungeonIndex": 20,
+  "Difficulty": 3,
+  "RewardIndex": 550267,
+  "Item": "DISPATCH_REWARD_BOX_RAID_BLACK_T8_10",
+  "DirectItems": [
+   {
+    "ItemIndex": 43077,
+    "Count": 26,
+    "Item": "MATERIAL_77"
+   }
+  ]
+ },
+ {
+  "ChapterIndex": 911,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550268,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_1"
+ },
+ {
+  "ChapterIndex": 911,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550269,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_2"
+ },
+ {
+  "ChapterIndex": 911,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550270,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_3"
+ },
+ {
+  "ChapterIndex": 911,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550271,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_4"
+ },
+ {
+  "ChapterIndex": 911,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550272,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_5"
+ },
+ {
+  "ChapterIndex": 911,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550273,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_6"
+ },
+ {
+  "ChapterIndex": 911,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550274,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_7"
+ },
+ {
+  "ChapterIndex": 911,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550275,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_8"
+ },
+ {
+  "ChapterIndex": 911,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550276,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_9"
+ },
+ {
+  "ChapterIndex": 911,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550277,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_10"
+ },
+ {
+  "ChapterIndex": 912,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550278,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_1"
+ },
+ {
+  "ChapterIndex": 912,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550279,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_2"
+ },
+ {
+  "ChapterIndex": 912,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550280,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_3"
+ },
+ {
+  "ChapterIndex": 912,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550281,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_4"
+ },
+ {
+  "ChapterIndex": 912,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550282,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_5"
+ },
+ {
+  "ChapterIndex": 912,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550283,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_6"
+ },
+ {
+  "ChapterIndex": 912,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550284,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_7"
+ },
+ {
+  "ChapterIndex": 912,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550285,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_8"
+ },
+ {
+  "ChapterIndex": 912,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550286,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_9"
+ },
+ {
+  "ChapterIndex": 912,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550287,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_10"
+ },
+ {
+  "ChapterIndex": 913,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550288,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_1"
+ },
+ {
+  "ChapterIndex": 913,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550289,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_2"
+ },
+ {
+  "ChapterIndex": 913,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550290,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_3"
+ },
+ {
+  "ChapterIndex": 913,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550291,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_4"
+ },
+ {
+  "ChapterIndex": 913,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550292,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_5"
+ },
+ {
+  "ChapterIndex": 913,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550293,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_6"
+ },
+ {
+  "ChapterIndex": 913,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550294,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_7"
+ },
+ {
+  "ChapterIndex": 913,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550295,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_8"
+ },
+ {
+  "ChapterIndex": 913,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550296,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_9"
+ },
+ {
+  "ChapterIndex": 913,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550297,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_10"
+ },
+ {
+  "ChapterIndex": 914,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550298,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_1"
+ },
+ {
+  "ChapterIndex": 914,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550299,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_2"
+ },
+ {
+  "ChapterIndex": 914,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550300,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_3"
+ },
+ {
+  "ChapterIndex": 914,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550301,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_4"
+ },
+ {
+  "ChapterIndex": 914,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550302,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_5"
+ },
+ {
+  "ChapterIndex": 914,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550303,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_6"
+ },
+ {
+  "ChapterIndex": 914,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550304,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_7"
+ },
+ {
+  "ChapterIndex": 914,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550305,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_8"
+ },
+ {
+  "ChapterIndex": 914,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550306,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_9"
+ },
+ {
+  "ChapterIndex": 914,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550307,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_10"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550268,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_1"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 1,
+  "Difficulty": 1,
+  "RewardIndex": 550268,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_1"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 1,
+  "Difficulty": 2,
+  "RewardIndex": 550268,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_1"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 1,
+  "Difficulty": 3,
+  "RewardIndex": 550268,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_1"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550269,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_2"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 2,
+  "Difficulty": 1,
+  "RewardIndex": 550269,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_2"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 2,
+  "Difficulty": 2,
+  "RewardIndex": 550269,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_2"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 2,
+  "Difficulty": 3,
+  "RewardIndex": 550269,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_2"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550270,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_3"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 3,
+  "Difficulty": 1,
+  "RewardIndex": 550270,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_3"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 3,
+  "Difficulty": 2,
+  "RewardIndex": 550270,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_3"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 3,
+  "Difficulty": 3,
+  "RewardIndex": 550270,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_3"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550271,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_4"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 4,
+  "Difficulty": 1,
+  "RewardIndex": 550271,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_4"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 4,
+  "Difficulty": 2,
+  "RewardIndex": 550271,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_4"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 4,
+  "Difficulty": 3,
+  "RewardIndex": 550271,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_4"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550272,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_5"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 5,
+  "Difficulty": 1,
+  "RewardIndex": 550272,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_5"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 5,
+  "Difficulty": 2,
+  "RewardIndex": 550272,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_5"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 5,
+  "Difficulty": 3,
+  "RewardIndex": 550272,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_5"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550273,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_6"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 6,
+  "Difficulty": 1,
+  "RewardIndex": 550273,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_6"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 6,
+  "Difficulty": 2,
+  "RewardIndex": 550273,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_6"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 6,
+  "Difficulty": 3,
+  "RewardIndex": 550273,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_6"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550274,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_7"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 7,
+  "Difficulty": 1,
+  "RewardIndex": 550274,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_7"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 7,
+  "Difficulty": 2,
+  "RewardIndex": 550274,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_7"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 7,
+  "Difficulty": 3,
+  "RewardIndex": 550274,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_7"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550275,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_8"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 8,
+  "Difficulty": 1,
+  "RewardIndex": 550275,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_8"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 8,
+  "Difficulty": 2,
+  "RewardIndex": 550275,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_8"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 8,
+  "Difficulty": 3,
+  "RewardIndex": 550275,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_8"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550276,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_9"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 9,
+  "Difficulty": 1,
+  "RewardIndex": 550276,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_9"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 9,
+  "Difficulty": 2,
+  "RewardIndex": 550276,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_9"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 9,
+  "Difficulty": 3,
+  "RewardIndex": 550276,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_9"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550277,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_10"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 10,
+  "Difficulty": 1,
+  "RewardIndex": 550277,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_10"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 10,
+  "Difficulty": 2,
+  "RewardIndex": 550277,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_10"
+ },
+ {
+  "ChapterIndex": 931,
+  "DungeonIndex": 10,
+  "Difficulty": 3,
+  "RewardIndex": 550277,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_RED_10"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550278,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_1"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 1,
+  "Difficulty": 1,
+  "RewardIndex": 550278,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_1"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 1,
+  "Difficulty": 2,
+  "RewardIndex": 550278,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_1"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 1,
+  "Difficulty": 3,
+  "RewardIndex": 550278,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_1"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550279,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_2"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 2,
+  "Difficulty": 1,
+  "RewardIndex": 550279,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_2"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 2,
+  "Difficulty": 2,
+  "RewardIndex": 550279,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_2"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 2,
+  "Difficulty": 3,
+  "RewardIndex": 550279,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_2"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550280,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_3"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 3,
+  "Difficulty": 1,
+  "RewardIndex": 550280,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_3"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 3,
+  "Difficulty": 2,
+  "RewardIndex": 550280,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_3"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 3,
+  "Difficulty": 3,
+  "RewardIndex": 550280,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_3"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550281,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_4"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 4,
+  "Difficulty": 1,
+  "RewardIndex": 550281,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_4"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 4,
+  "Difficulty": 2,
+  "RewardIndex": 550281,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_4"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 4,
+  "Difficulty": 3,
+  "RewardIndex": 550281,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_4"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550282,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_5"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 5,
+  "Difficulty": 1,
+  "RewardIndex": 550282,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_5"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 5,
+  "Difficulty": 2,
+  "RewardIndex": 550282,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_5"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 5,
+  "Difficulty": 3,
+  "RewardIndex": 550282,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_5"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550283,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_6"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 6,
+  "Difficulty": 1,
+  "RewardIndex": 550283,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_6"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 6,
+  "Difficulty": 2,
+  "RewardIndex": 550283,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_6"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 6,
+  "Difficulty": 3,
+  "RewardIndex": 550283,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_6"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550284,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_7"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 7,
+  "Difficulty": 1,
+  "RewardIndex": 550284,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_7"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 7,
+  "Difficulty": 2,
+  "RewardIndex": 550284,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_7"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 7,
+  "Difficulty": 3,
+  "RewardIndex": 550284,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_7"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550285,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_8"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 8,
+  "Difficulty": 1,
+  "RewardIndex": 550285,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_8"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 8,
+  "Difficulty": 2,
+  "RewardIndex": 550285,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_8"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 8,
+  "Difficulty": 3,
+  "RewardIndex": 550285,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_8"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550286,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_9"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 9,
+  "Difficulty": 1,
+  "RewardIndex": 550286,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_9"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 9,
+  "Difficulty": 2,
+  "RewardIndex": 550286,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_9"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 9,
+  "Difficulty": 3,
+  "RewardIndex": 550286,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_9"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550287,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_10"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 10,
+  "Difficulty": 1,
+  "RewardIndex": 550287,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_10"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 10,
+  "Difficulty": 2,
+  "RewardIndex": 550287,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_10"
+ },
+ {
+  "ChapterIndex": 932,
+  "DungeonIndex": 10,
+  "Difficulty": 3,
+  "RewardIndex": 550287,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLUE_10"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550288,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_1"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 1,
+  "Difficulty": 1,
+  "RewardIndex": 550288,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_1"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 1,
+  "Difficulty": 2,
+  "RewardIndex": 550288,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_1"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 1,
+  "Difficulty": 3,
+  "RewardIndex": 550288,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_1"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550289,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_2"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 2,
+  "Difficulty": 1,
+  "RewardIndex": 550289,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_2"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 2,
+  "Difficulty": 2,
+  "RewardIndex": 550289,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_2"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 2,
+  "Difficulty": 3,
+  "RewardIndex": 550289,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_2"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550290,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_3"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 3,
+  "Difficulty": 1,
+  "RewardIndex": 550290,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_3"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 3,
+  "Difficulty": 2,
+  "RewardIndex": 550290,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_3"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 3,
+  "Difficulty": 3,
+  "RewardIndex": 550290,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_3"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550291,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_4"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 4,
+  "Difficulty": 1,
+  "RewardIndex": 550291,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_4"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 4,
+  "Difficulty": 2,
+  "RewardIndex": 550291,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_4"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 4,
+  "Difficulty": 3,
+  "RewardIndex": 550291,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_4"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550292,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_5"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 5,
+  "Difficulty": 1,
+  "RewardIndex": 550292,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_5"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 5,
+  "Difficulty": 2,
+  "RewardIndex": 550292,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_5"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 5,
+  "Difficulty": 3,
+  "RewardIndex": 550292,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_5"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550293,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_6"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 6,
+  "Difficulty": 1,
+  "RewardIndex": 550293,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_6"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 6,
+  "Difficulty": 2,
+  "RewardIndex": 550293,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_6"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 6,
+  "Difficulty": 3,
+  "RewardIndex": 550293,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_6"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550294,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_7"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 7,
+  "Difficulty": 1,
+  "RewardIndex": 550294,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_7"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 7,
+  "Difficulty": 2,
+  "RewardIndex": 550294,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_7"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 7,
+  "Difficulty": 3,
+  "RewardIndex": 550294,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_7"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550295,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_8"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 8,
+  "Difficulty": 1,
+  "RewardIndex": 550295,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_8"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 8,
+  "Difficulty": 2,
+  "RewardIndex": 550295,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_8"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 8,
+  "Difficulty": 3,
+  "RewardIndex": 550295,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_8"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550296,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_9"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 9,
+  "Difficulty": 1,
+  "RewardIndex": 550296,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_9"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 9,
+  "Difficulty": 2,
+  "RewardIndex": 550296,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_9"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 9,
+  "Difficulty": 3,
+  "RewardIndex": 550296,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_9"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550297,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_10"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 10,
+  "Difficulty": 1,
+  "RewardIndex": 550297,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_10"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 10,
+  "Difficulty": 2,
+  "RewardIndex": 550297,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_10"
+ },
+ {
+  "ChapterIndex": 933,
+  "DungeonIndex": 10,
+  "Difficulty": 3,
+  "RewardIndex": 550297,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_GREEN_10"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 1,
+  "Difficulty": 0,
+  "RewardIndex": 550298,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_1"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 1,
+  "Difficulty": 1,
+  "RewardIndex": 550298,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_1"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 1,
+  "Difficulty": 2,
+  "RewardIndex": 550298,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_1"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 1,
+  "Difficulty": 3,
+  "RewardIndex": 550298,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_1"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 2,
+  "Difficulty": 0,
+  "RewardIndex": 550299,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_2"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 2,
+  "Difficulty": 1,
+  "RewardIndex": 550299,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_2"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 2,
+  "Difficulty": 2,
+  "RewardIndex": 550299,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_2"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 2,
+  "Difficulty": 3,
+  "RewardIndex": 550299,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_2"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 3,
+  "Difficulty": 0,
+  "RewardIndex": 550300,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_3"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 3,
+  "Difficulty": 1,
+  "RewardIndex": 550300,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_3"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 3,
+  "Difficulty": 2,
+  "RewardIndex": 550300,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_3"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 3,
+  "Difficulty": 3,
+  "RewardIndex": 550300,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_3"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 4,
+  "Difficulty": 0,
+  "RewardIndex": 550301,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_4"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 4,
+  "Difficulty": 1,
+  "RewardIndex": 550301,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_4"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 4,
+  "Difficulty": 2,
+  "RewardIndex": 550301,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_4"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 4,
+  "Difficulty": 3,
+  "RewardIndex": 550301,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_4"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 5,
+  "Difficulty": 0,
+  "RewardIndex": 550302,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_5"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 5,
+  "Difficulty": 1,
+  "RewardIndex": 550302,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_5"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 5,
+  "Difficulty": 2,
+  "RewardIndex": 550302,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_5"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 5,
+  "Difficulty": 3,
+  "RewardIndex": 550302,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_5"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 6,
+  "Difficulty": 0,
+  "RewardIndex": 550303,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_6"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 6,
+  "Difficulty": 1,
+  "RewardIndex": 550303,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_6"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 6,
+  "Difficulty": 2,
+  "RewardIndex": 550303,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_6"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 6,
+  "Difficulty": 3,
+  "RewardIndex": 550303,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_6"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 7,
+  "Difficulty": 0,
+  "RewardIndex": 550304,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_7"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 7,
+  "Difficulty": 1,
+  "RewardIndex": 550304,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_7"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 7,
+  "Difficulty": 2,
+  "RewardIndex": 550304,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_7"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 7,
+  "Difficulty": 3,
+  "RewardIndex": 550304,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_7"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 8,
+  "Difficulty": 0,
+  "RewardIndex": 550305,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_8"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 8,
+  "Difficulty": 1,
+  "RewardIndex": 550305,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_8"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 8,
+  "Difficulty": 2,
+  "RewardIndex": 550305,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_8"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 8,
+  "Difficulty": 3,
+  "RewardIndex": 550305,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_8"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 9,
+  "Difficulty": 0,
+  "RewardIndex": 550306,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_9"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 9,
+  "Difficulty": 1,
+  "RewardIndex": 550306,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_9"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 9,
+  "Difficulty": 2,
+  "RewardIndex": 550306,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_9"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 9,
+  "Difficulty": 3,
+  "RewardIndex": 550306,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_9"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 10,
+  "Difficulty": 0,
+  "RewardIndex": 550307,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_10"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 10,
+  "Difficulty": 1,
+  "RewardIndex": 550307,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_10"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 10,
+  "Difficulty": 2,
+  "RewardIndex": 550307,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_10"
+ },
+ {
+  "ChapterIndex": 934,
+  "DungeonIndex": 10,
+  "Difficulty": 3,
+  "RewardIndex": 550307,
+  "Item": "DISPATCH_REWARD_BOX_RAID_HARD_BLACK_10"
+ }
+]

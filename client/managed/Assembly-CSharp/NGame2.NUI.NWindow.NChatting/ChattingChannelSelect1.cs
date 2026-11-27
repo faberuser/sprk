@@ -87,11 +87,39 @@ public class ChattingChannelSelect1 : BaseWindow
 			else
 			{
 				int num2 = Vespa_String_Extension_Method.TOINT(ChannelNoInput.value, 0);
-				num2 = ((SingletonAuto<LocalizationManager>.instance.Language == SystemLanguage.English) ? 1 : ((SingletonAuto<LocalizationManager>.instance.Language == SystemLanguage.Korean) ? 2 : ((SingletonAuto<LocalizationManager>.instance.Language == SystemLanguage.German) ? 3 : ((SingletonAuto<LocalizationManager>.instance.Language == SystemLanguage.French) ? 4 : ((SingletonAuto<LocalizationManager>.instance.Language == SystemLanguage.Japanese) ? 5 : ((SingletonAuto<LocalizationManager>.instance.Language == SystemLanguage.Russian) ? 6 : ((SingletonAuto<LocalizationManager>.instance.Language == SystemLanguage.ChineseSimplified) ? 7 : ((SingletonAuto<LocalizationManager>.instance.Language != SystemLanguage.ChineseTraditional) ? 1 : 8))))))));
+				num2 = LanguageChannel(SingletonAuto<LocalizationManager>.instance.Language);
 				_listener.OnSelectChannel(num2);
 			}
 		}
 		Close();
+	}
+
+	// The default channel for each language; languages without one use the English channel.
+	private static int LanguageChannel(SystemLanguage language)
+	{
+		switch (language)
+		{
+		case SystemLanguage.Korean:
+			return 2;
+		case SystemLanguage.German:
+			return 3;
+		case SystemLanguage.French:
+			return 4;
+		case SystemLanguage.Japanese:
+			return 5;
+		case SystemLanguage.Russian:
+			return 6;
+		case SystemLanguage.ChineseSimplified:
+			return 7;
+		case SystemLanguage.ChineseTraditional:
+			return 8;
+		case SystemLanguage.Thai:
+			return 9;
+		case SystemLanguage.Vietnamese:
+			return 10;
+		default:
+			return 1;
+		}
 	}
 
 	public void OnClickToggle()

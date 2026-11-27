@@ -163,11 +163,22 @@ public class ValanceWebManager : SingletonAuto<ValanceWebManager>
 
 	public void RequestValanceOptionRenew(int equipItemSlotIndex, int optionSlotIndex)
 	{
+		if (SprkReforgeUntil.TryStartTechnomagic(this, equipItemSlotIndex, optionSlotIndex))
+		{
+			return;
+		}
 		NShared.RenewEquipOption.Request request = new NShared.RenewEquipOption.Request
 		{
 			EquipItemSlotIndex = equipItemSlotIndex,
 			OptionSlotIndex = optionSlotIndex
 		};
+		SprkSendValanceOptionRenew(request, null);
+	}
+
+	public void SprkSendValanceOptionRenew(NShared.RenewEquipOption.Request request, System.Action<NShared.RenewEquipOption.Response> onApplied)
+	{
+		int equipItemSlotIndex = request.EquipItemSlotIndex;
+		int optionSlotIndex = request.OptionSlotIndex;
 		SingletonUpdater<WebServiceManager>.instance.Requester.Request(request, delegate(NShared.RenewEquipOption.Response res)
 		{
 			if (res.BaseResult != BaseResultType.Success)
@@ -194,6 +205,7 @@ public class ValanceWebManager : SingletonAuto<ValanceWebManager>
 				{
 					e.OnValanceOptionRenew(equipItemSlotIndex, optionSlotIndex);
 				});
+				onApplied?.Invoke(res);
 			}
 		});
 	}
@@ -240,11 +252,22 @@ public class ValanceWebManager : SingletonAuto<ValanceWebManager>
 
 	public void RequestValanceSkillRenew(int equipItemSlotIndex, int skillSlotIndex)
 	{
+		if (SprkReforgeUntil.TryStartTechnomagicSkill(this, equipItemSlotIndex, skillSlotIndex))
+		{
+			return;
+		}
 		NShared.RenewEquipSkill.Request request = new NShared.RenewEquipSkill.Request
 		{
 			EquipItemSlotIndex = equipItemSlotIndex,
 			SkillSlotIndex = skillSlotIndex
 		};
+		SprkSendValanceSkillRenew(request, null);
+	}
+
+	public void SprkSendValanceSkillRenew(NShared.RenewEquipSkill.Request request, System.Action<NShared.RenewEquipSkill.Response> onApplied)
+	{
+		int equipItemSlotIndex = request.EquipItemSlotIndex;
+		int skillSlotIndex = request.SkillSlotIndex;
 		SingletonUpdater<WebServiceManager>.instance.Requester.Request(request, delegate(NShared.RenewEquipSkill.Response res)
 		{
 			if (res.BaseResult != BaseResultType.Success)
@@ -271,6 +294,7 @@ public class ValanceWebManager : SingletonAuto<ValanceWebManager>
 				{
 					e.OnValanceSkillRenew(equipItemSlotIndex, skillSlotIndex);
 				});
+				onApplied?.Invoke(res);
 			}
 		});
 	}

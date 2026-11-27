@@ -2,9 +2,7 @@ use super::*;
 use crate::models::item::ItemGrant;
 use rand::RngExt;
 
-async fn progress(db: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
-    let cfg = event(s)?;
-    let season = n(cfg, "Season");
+async fn progress(db: &mut PgConnection, s: &AppState, a: i64, season: i64) -> Result<Value> {
     let mut v = get(db, a, "event_step", season).await?;
     if v.is_null() {
         v = json!({"DailyStep":0,"DailyCount":0,"TotalCount":0,"MissionCount":0,"MissionStep":0,"GroupTotalStep":0,"Day":day()});
@@ -42,16 +40,21 @@ pub(super) async fn execute(
     action: &str,
 ) -> Result<Value> {
     let cfg = event(s)?;
-    let season = n(cfg, "Season");
+    // Each feature opens with its festival run (LiveRules.json Festivals).
+    let calendar = crate::api::festivals::Calendar::load(db, s).await?;
+    if action != "event_calendar" {
+        crate::api::festivals::expire(db, s, a, &calendar).await?;
+    }
     let mut out = json!({});
     let mut rewards = Rewards::default();
     match action {
         "event_calendar" => {
-            let version = cfg["Version"].as_str().unwrap_or("local-1");
-            out = json!({"EventCalendarVersion":version,"NewEvent":r.text("EventCalendarVersion")!=version,"EventCalendarDatas":cfg["Calendar"].as_array().cloned().unwrap_or_default()});
+            let (version, data) = calendar.calendar();
+            out = json!({"EventCalendarVersion":version,"NewEvent":r.text("EventCalendarVersion")!=version,"EventCalendarDatas":data});
         }
         "get_event_step_info" | "put_event_step" | "get_event_step_reward" => {
-            let mut v = progress(db, s, a).await?;
+            let season = calendar.world_tree().ok_or_else(|| rule("ContentsDisabled"))?;
+            let mut v = progress(db, s, a, season).await?;
             if action == "put_event_step" {
                 let amount = n(cfg, "Contribution");
                 if amount <= 0 || n(&v, "DailyCount") + amount > n(cfg, "DailyContributionLimit") {
@@ -90,7 +93,7 @@ pub(super) async fn execute(
                 out["RewardStep"] = v[field].clone();
             }
             put(db, a, "event_step", season, &v).await?;
-            out["EventStepInfo"] = progress(db, s, a).await?;
+            out["EventStepInfo"] = progress(db, s, a, season).await?;
             out["EventStepGroupServerInfos"] = json!(s
                 .tables
                 .live
@@ -105,10 +108,8 @@ pub(super) async fn execute(
             let id = int(r, "CraftIndex")?;
             let count = item::positive(r, "CraftCount")? as i64;
             let data = row(s, "EventCraft", &[("Index", id)])?;
-            if !cfg["CraftGroups"]
-                .as_array()
-                .is_some_and(|v| v.contains(&data["ShowGroup"]))
-            {
+            let (groups, season) = calendar.craft().ok_or_else(|| rule("ContentsDisabled"))?;
+            if !groups.iter().any(|g| data["ShowGroup"] == g.as_str()) {
                 return Err(rule("ContentsDisabled"));
             }
             let mut v = get(db, a, "event_craft", id).await?;
@@ -140,10 +141,7 @@ pub(super) async fn execute(
         "reward_event_roulette" => {
             let id = int(r, "RouletteIndex")?;
             let count = item::positive(r, "RouletteCount")? as i64;
-            if !cfg["RouletteIndices"]
-                .as_array()
-                .is_some_and(|v| v.contains(&json!(id)))
-            {
+            if !calendar.roulettes().contains(&id) {
                 return Err(rule("ContentsDisabled"));
             }
             let data = row(s, "EventRoulette", &[("Index", id)])?;
@@ -189,7 +187,7 @@ pub(super) async fn execute(
             out = json!({"CurrencyResults":currencies,"ItemResults":removed,"RewardResult":item::reward_response(db,s,a,rewards).await?});
         }
         "event_forge" | "event_exchange_equip" => {
-            if cfg["ForgeEnabled"] != true {
+            if !calendar.forge() {
                 return Err(rule("ContentsDisabled"));
             }
             let slots = if action == "event_forge" {
@@ -261,12 +259,22 @@ pub(super) async fn execute(
                         eq.level = level as i32;
                         crate::api::extensions::save_equip(db, a, &eq).await?;
                         out["ResultEquipItem"] = json!(eq);
-                    } else if roll >= n(data, "SuccessRatio") + n(data, "FailRatio")
-                        && n(data, "BreakRatio") > 0
-                    {
-                        removed.push(slot);
-                        let code = data["BreakItemCode"].as_str().unwrap_or("");
-                        if !code.is_empty() {
+                    } else {
+                        // Lakrak's Tearful Remnants: a share of this level's
+                        // Guaranteed Enhancement cost, so failures build towards one.
+                        let broke = roll >= n(data, "SuccessRatio") + n(data, "FailRatio")
+                            && n(data, "BreakRatio") > 0;
+                        let (share, of) = calendar.forge_remnant_share(broke);
+                        let count = (n(data, "SuccessfulItemCount") * share + of - 1) / of;
+                        let code = if broke { data["BreakItemCode"].as_str() } else { data["SuccessfulItemCode"].as_str() }
+                            .unwrap_or("");
+                        let count = if broke { count.max(1) } else { count };
+                        if broke {
+                            removed.push(slot);
+                        } else {
+                            out["ResultEquipItem"] = json!(eq);
+                        }
+                        if !code.is_empty() && count > 0 {
                             let id = s
                                 .tables
                                 .get_item_index(code)
@@ -277,7 +285,7 @@ pub(super) async fn execute(
                                 a,
                                 ItemGrant {
                                     index: id,
-                                    count: 1,
+                                    count: i32::try_from(count).map_err(|_| rule("InvalidValue"))?,
                                     star: 0,
                                     custom: 0,
                                 },
@@ -285,8 +293,6 @@ pub(super) async fn execute(
                             )
                             .await?;
                         }
-                    } else {
-                        out["ResultEquipItem"] = json!(eq);
                     }
                 }
             }

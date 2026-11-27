@@ -88,6 +88,7 @@ public class InspectUserMenuPopup : BaseWindow
 		bool flag4 = SingletonAuto<UserBlockManager>.instance.IsBlockedUser(inspectUser.AccountId);
 		bool enable = GlobalAutoBehaviour<LoadingManager>.instance.CurrentSceneType == LoadingManager.ESceneType.Lobby;
 		UIHelper.SetBundleTexture(AvatarBundleTex, iconPath);
+		SprkProfileImage.Bind(AvatarBundleTex, inspectUser.AccountId);
 		string text = inspectUser.Nickname;
 		if (GuiManager.IsShowDebugButton())
 		{

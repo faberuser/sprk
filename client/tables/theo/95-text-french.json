@@ -1,0 +1,37 @@
+{
+  "localization": {
+    "French": {
+      "SKILL_DESC_4010": "Attaque l'ennemi à 16 reprises, infligeant un total de [ffc800]{1}[-] DEG M. Chaque coup critique augmente les DEG Crit de 3% pendant 20 sec et a 30% de chances d'infliger [ffc800]{2}[-] DEG M supplémentaires tout en appliquant l'Étourdissement pendant 0,3 sec. L'effet des DEG Crit est cumulable 30 fois.",
+      "SKILL_DESC_4020": "Active l'état 'Dieu de la Foudre'. Projette une lance de foudre à l'ennemi, ce qui inflige [ffc800]{1}[-] DEG M. Augmente les DEG M reçus par la cible touchée de [ffc800]{3}[-]% pendant [64ffff]{2}[-] sec. En état de 'Dieu de la Foudre', augmente les chances d'activation de la compétence 'Pour Jane' de 40% et l'ATQ de [64ff64]{5}[-] pendant [64ffff]{4}[-] sec. L'état 'Dieu de la Foudre' ne peut pas être dissipé.",
+      "SKILL_DESC_4030": "Saute vers l'avant sur un ennemi, frappant avec une lance vers le sol. Touche la cible à 5 reprises et inflige un total de [ffc800]{1}[-] points de DEG M à la cible et aux ennemis proches. Applique également Étourdissement pendant 3 sec. Si la cible est un Boss, les attaques ignorent la DEF de la cible et appliquent Étourdissement pendant 5 sec à la place.",
+      "SKILL_DESC_4040": "Augmente le Crit de 100 points et Vol de vie de 200 points. Chaque attaque normale a 20% de chances d'infliger {1} DEG M et d'étourdir pendant 0.7 sec.",
+      "SKILL_DESC_60004010": "Confère l'immunité aux Contrôles pendant l'utilisation de la compétence.",
+      "SKILL_DESC_60004011": "Durée Étourdissement augmentée de 0,2 sec.",
+      "SKILL_DESC_60004020": "À l'état de Dieu de la Foudre, augmente les DEG aux Héros de 10%.",
+      "SKILL_DESC_60004021": "À l'état de Dieu de la Foudre, augmente les DEG infligés aux boss de 10%.",
+      "SKILL_DESC_60004030": "S'il y a 1 ennemi, les DEG sont augmentés de 100%.",
+      "SKILL_DESC_60004031": "Dissipe les effets positifs des ennemis touchés.",
+      "SKILL_DESC_60004040": "S'il y a 1 ennemi, les DEG sont augmentés de 100%.",
+      "SKILL_DESC_60004041": "DEG augmentés de 40% et durée Étourdissement augmentée de 0,3 sec.",
+      "SKILL_DESC_60004051": "En attaquant, obtient [Honneur du chevalier], ce qui augmente les DEG infligés aux ennemis non-Héros de 1%. Cet effet ne peut être dissipé et peut se cumuler jusqu'à 20 fois.",
+      "SKILL_DESC_90000400": "Lors de l'utilisation de compétence et de l'attaque automatique, cumule 'Éclat de Foudre' sur lui-même. Lorsque 50 charges sont cumulées, active 'Legios, l'Éclair', ce qui augmente la Vitesse d'ATQ de 300, les DEG Crit de 100% et la Pénétration DEF de 300, pendant {1} sec. 'Éclat de Foudre' continue de se cumuler pendant que 'Legios, l'Éclair' est activé. Cet effet ne peut pas être dissipé.",
+      "SKILL_DESC_90000401": "Lors de l'utilisation de compétence et de l'attaque automatique, cumule 'Éclat de Foudre' sur lui-même. Lorsque 50 charges sont cumulées, active 'Legios, l'Éclair', ce qui augmente la Vitesse d'ATQ de 360, les DEG Crit de 120% et la Pénétration DEF de 360, pendant {1} sec. 'Éclat de Foudre' continue de se cumuler pendant que 'Legios, l'Éclair' est activé. Cet effet ne peut pas être dissipé.",
+      "SKILL_DESC_90000402": "Lors de l'utilisation de compétence et de l'attaque automatique, cumule 'Éclat de Foudre' sur lui-même. Lorsque 50 charges sont cumulées, active 'Legios, l'Éclair', ce qui augmente la Vitesse d'ATQ de 430, les DEG Crit de 144% et la Pénétration DEF de 430, pendant {1} sec. 'Éclat de Foudre' continue de se cumuler pendant que 'Legios, l'Éclair' est activé. Cet effet ne peut pas être dissipé.",
+      "SKILL_DESC_90000403": "Lors de l'utilisation de compétence et de l'attaque automatique, cumule 'Éclat de Foudre' sur lui-même. Lorsque 50 charges sont cumulées, active 'Legios, l'Éclair', ce qui augmente la Vitesse d'ATQ de 520, les DEG Crit de 173% et la Pénétration DEF de 520, pendant {1} sec. 'Éclat de Foudre' continue de se cumuler pendant que 'Legios, l'Éclair' est activé. Cet effet ne peut pas être dissipé.",
+      "SKILL_DESC_90000404": "Lors de l'utilisation de compétence et de l'attaque automatique, cumule 'Éclat de Foudre' sur lui-même. Lorsque 50 charges sont cumulées, active 'Legios, l'Éclair', ce qui augmente la Vitesse d'ATQ de 620, les DEG Crit de 208% et la Pénétration DEF de 620, pendant {1} sec. 'Éclat de Foudre' continue de se cumuler pendant que 'Legios, l'Éclair' est activé. Cet effet ne peut pas être dissipé.",
+      "SKILL_DESC_90000405": "Lors de l'utilisation de compétence et de l'attaque automatique, cumule 'Éclat de Foudre' sur lui-même. Lorsque 50 charges sont cumulées, active 'Legios, l'Éclair', ce qui augmente la Vitesse d'ATQ de 750, les DEG Crit de 250% et la Pénétration DEF de 750, pendant {1} sec. 'Éclat de Foudre' continue de se cumuler pendant que 'Legios, l'Éclair' est activé. Cet effet ne peut pas être dissipé.",
+      "SKILL_DESC_91004020": "[Dieu de la foudre] La Vitesse d'ATQ augmente de 300 points pendant la durée de la compétence, et les chances d'activer Pour Jane augmentent de 10% supplémentaires.",
+      "SKILL_DESC_91004021": "[Dieu de la foudre] La Vitesse d'ATQ augmente de 300 points pendant la durée de la compétence, et les chances d'activer Pour Jane augmentent de 12.5% supplémentaires.",
+      "SKILL_DESC_91004022": "[Dieu de la foudre] La Vitesse d'ATQ augmente de 300 points pendant la durée de la compétence, et les chances d'activer Pour Jane augmentent de 15.5% supplémentaires.",
+      "SKILL_DESC_91004023": "[Dieu de la foudre] La Vitesse d'ATQ augmente de 300 points pendant la durée de la compétence, et les chances d'activer Pour Jane augmentent de 20% supplémentaires.",
+      "SKILL_DESC_91004024": "[Dieu de la foudre] La Vitesse d'ATQ augmente de 300 points pendant la durée de la compétence, et les chances d'activer Pour Jane augmentent de 25% supplémentaires.",
+      "SKILL_DESC_91004025": "[Dieu de la foudre] La Vitesse d'ATQ augmente de 300 points pendant la durée de la compétence, et les chances d'activer Pour Jane augmentent de 30% supplémentaires.",
+      "SKILL_DESC_91004040": "[Pour Jane] Augmente les chances d'activation de 20 % et la Vitesse d'ATQ du lanceur de 500 points pendant 30 sec au début de chaque combat. Cet effet ne peut pas être dissipé.",
+      "SKILL_DESC_91004041": "[Pour Jane] Augmente les chances d'activation de 24 % et la Vitesse d'ATQ du lanceur de 500 points pendant 30 sec au début de chaque combat. Cet effet ne peut pas être dissipé.",
+      "SKILL_DESC_91004042": "[Pour Jane] Augmente les chances d'activation de 29 % et la Vitesse d'ATQ du lanceur de 500 points pendant 30 sec au début de chaque combat. Cet effet ne peut pas être dissipé.",
+      "SKILL_DESC_91004043": "[Pour Jane] Augmente les chances d'activation de 35 % et la Vitesse d'ATQ du lanceur de 500 points pendant 30 sec au début de chaque combat. Cet effet ne peut pas être dissipé.",
+      "SKILL_DESC_91004044": "[Pour Jane] Augmente les chances d'activation de 42 % et la Vitesse d'ATQ du lanceur de 500 points pendant 30 sec au début de chaque combat. Cet effet ne peut pas être dissipé.",
+      "SKILL_DESC_91004045": "[Pour Jane] Augmente les chances d'activation de 50 % et la Vitesse d'ATQ du lanceur de 500 points pendant 30 sec au début de chaque combat. Cet effet ne peut pas être dissipé."
+    }
+  }
+}

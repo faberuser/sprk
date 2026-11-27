@@ -27,6 +27,14 @@ fn dispatch_raid<'a>(s: &'a AppState, d: &Value) -> Result<Option<&'a Value>> {
     }
     Ok(Some(raid))
 }
+/// Native dispatch paid each won run as one sealed "Dispatch Battle Loot" box
+/// (a Package item) rather than loose loot: its claim responses have no
+/// equipment field. Stages without a box (story Hard/Very Hard) pay directly.
+pub(super) fn reward_box<'a>(s: &'a AppState, d: &Value, diff: i64) -> Option<&'a Value> {
+    s.tables.battle.find("DispatchRewardBox", &[
+        ("ChapterIndex", n(d, "ChapterIndex")), ("DungeonIndex", n(d, "DungeonIndex")), ("Difficulty", diff),
+    ])
+}
 pub(super) async fn ensure_available(
     db: &mut PgConnection,
     a: i64,
@@ -366,12 +374,14 @@ pub(super) async fn execute(
     }
     let req = request(&info);
     let heroes: Vec<i64> = read_json(info["HeroIndices"].as_str().unwrap_or("[]"))?;
+    let reward_box = reward_box(s, campaign::dungeon(s, &req)?, campaign::difficulty(&req)?);
     let mut out = if wins > 0 {
-        campaign::complete_dispatch(db, s, a, &req, &heroes, 3, wins).await?
+        campaign::complete_dispatch(db, s, a, &req, &heroes, 3, wins, reward_box).await?
     } else {
         item::success()
     };
-    if wins > 0 {
+    // A raid's box already holds its IndividualReward.
+    if wins > 0 && reward_box.is_none() {
         if let Some(raid) = dispatch_raid(s, campaign::dungeon(s, &req)?)? {
             let mut extra = Rewards::default();
             for _ in 0..wins {
@@ -647,7 +657,7 @@ async fn drop_snapshot(db: &mut PgConnection, a: i64, slot: i64, info: &mut Valu
 
 pub(super) async fn simulation_snapshot(db: &mut PgConnection, s: &AppState, a: i64, info: &Value) -> Result<Value> {
     let mut account = crate::api::community::conquest::combat_buffs(db, s, a).await?;
-    let user = crate::db::query("SELECT a.nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=$1")
+    let user = crate::db::query("SELECT sprk_display_nick(a.account_id,a.nick) AS nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=$1")
         .bind(a).fetch_one(&mut *db).await?;
     account["UserInfo"] = json!({"AccountId":a,"Nick":user.get::<String,_>("nick"),"TeamLevel":user.get::<i64,_>("team_level"),"AvatarHeroIndex":user.get::<i64,_>("avatar_hero_index")});
     let heroes: Vec<i64> = read_json(info["HeroIndices"].as_str().unwrap_or("[]"))?;

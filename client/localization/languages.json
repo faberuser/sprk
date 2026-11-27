@@ -1,0 +1,7 @@
+{
+  "table": "Basic/Localization_Language",
+  "upsert": [
+    { "Language": "Thai", "Open": true, "CsEmail": "cs_en@vespainc.oqupie.com", "AppName": "", "PluginLanguageName": "", "CultureInfoName": "th" },
+    { "Language": "Vietnamese", "Open": true, "CsEmail": "cs_en@vespainc.oqupie.com", "AppName": "", "PluginLanguageName": "", "CultureInfoName": "vi" }
+  ]
+}

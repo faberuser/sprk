@@ -46,6 +46,8 @@ public static class SprkShopSearch
 
 	private static NewPayShopGroupData bookmarkGroup;
 
+	private static bool? packageEnabled;
+
 	private static HashSet<int> bookmarks;
 
 	private static List<int> bookmarkOrder;
@@ -652,8 +654,17 @@ public static class SprkShopSearch
 		{
 			data.IsEnable = false;
 		}
-		bool num = list.Any((NewPayShopGroupData g) => g.PayShopCategoryType == "Package" && string.IsNullOrEmpty(g.ParentCategory));
-		List<NewPayShopGroupData> list2 = (num ? list.Where((NewPayShopGroupData g) => g.ParentCategory == "Package").ToList() : list.Where((NewPayShopGroupData g) => string.IsNullOrEmpty(g.ParentCategory) && g.PayShopCategoryType != hotKey).ToList());
+		// The Settings option hides the Packages tab (and so its sub-tabs); Search and
+		// Bookmarks then become top-level tabs. Remember the table's own value once,
+		// because this runs on every open and the option can be turned back on.
+		NewPayShopGroupData package = container.GetData("Package");
+		if (package != null && string.IsNullOrEmpty(package.ParentCategory))
+		{
+			packageEnabled = packageEnabled ?? package.IsEnable;
+			package.IsEnable = packageEnabled.Value && SystemOptionData.Shop_ShowPackageTab;
+		}
+		bool num = list.Any((NewPayShopGroupData g) => g.PayShopCategoryType == "Package" && string.IsNullOrEmpty(g.ParentCategory) && g.IsEnable);
+		List<NewPayShopGroupData> list2 = (num ? list.Where((NewPayShopGroupData g) => g.ParentCategory == "Package").ToList() : list.Where((NewPayShopGroupData g) => string.IsNullOrEmpty(g.ParentCategory) && g.PayShopCategoryType != hotKey && g.IsEnable).ToList());
 		int num2 = ((list2.Count != 0) ? list2.Min((NewPayShopGroupData g) => g.Sort) : 0);
 		string text = (num ? "Package" : null);
 		bookmarkGroup = bookmarkGroup ?? Group("SprkBookmark", "Bookmarks", text, num2 - 2);
@@ -677,6 +688,31 @@ public static class SprkShopSearch
 			dictionary["SprkSearch"] = searchGroup;
 			dictionary["SprkBookmark"] = bookmarkGroup;
 		}
+	}
+
+	// True for the Packages tab and its sub-tabs while Settings hides them.
+	public static bool IsHiddenCategory(string category)
+	{
+		if (string.IsNullOrEmpty(category) || SystemOptionData.Shop_ShowPackageTab || IsVirtual(category))
+		{
+			return false;
+		}
+		if (category == "Package")
+		{
+			return true;
+		}
+		NewPayShopGroupData data = GameRoot.Instance.NewPayShopGroupDataContainer.GetData(category);
+		return data != null && data.ParentCategory == "Package";
+	}
+
+	// Banners, shortcuts and product links can ask for a hidden tab; show the default tab instead.
+	public static string VisibleCategory(string category)
+	{
+		if (!IsHiddenCategory(category))
+		{
+			return category;
+		}
+		return DefaultCategory(category);
 	}
 
 	public static void BeforeOpen(PayShop shop)

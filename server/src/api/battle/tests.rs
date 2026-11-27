@@ -2778,13 +2778,21 @@ async fn dragon_dispatch_infers_raid_and_settles_once() {
         assert_eq!(finish["Result"],"Success","{finish}");
         assert_eq!(finish["DispatchBattleInfo"]["WinCount"],2);
         assert_eq!(finish["TeamExpResult"]["AddValue"],2*cost*10);
-        if chapter == 905 {
-            let gear: Vec<crate::models::equip::EquipItemInfo> = read_value(finish["EquipItemResults"].clone()).unwrap();
-            assert!(!gear.is_empty());
-            assert!(gear.iter().all(|v| v.slot_index > 0 && !v.uid.is_empty()));
-        } else {
-            assert!(!finish["ItemResults"].as_array().unwrap().is_empty());
+        // Each win pays the stage's sealed raid box (drop and IndividualReward
+        // inside) plus any loot it leaves out, such as the dragons' MATERIAL_77.
+        let stage = s.tables.battle.find("CampaignDungeon", &[("ChapterIndex", chapter), ("DungeonIndex", dungeon)]).unwrap();
+        let sealed = dispatch::reward_box(&s, stage, 0).unwrap();
+        let added = |index: i64| -> i64 {
+            finish["ItemResults"].as_array().unwrap().iter()
+                .filter(|v| n(v, "ItemIndex") == index).map(|v| n(v, "AddCount")).sum()
+        };
+        assert_eq!(added(s.tables.get_item_index(sealed["Item"].as_str().unwrap()).unwrap() as i64), 2, "{finish}");
+        let direct = sealed["DirectItems"].as_array().cloned().unwrap_or_default();
+        assert_eq!(!direct.is_empty(), chapter == 905, "{sealed}");
+        for extra in direct {
+            assert_eq!(added(n(&extra, "ItemIndex")), 2 * n(&extra, "Count"), "{finish}");
         }
+        assert_eq!(finish["EquipItemResults"].as_array().map_or(0, Vec::len), 0, "{finish}");
         let mail_count: i64 = crate::db::query_scalar("SELECT count(*) FROM mails WHERE account_id=$1")
             .bind(a)
             .fetch_one(&s.db)
@@ -4184,6 +4192,39 @@ async fn campaign_hero_exp_result_matches_client_display_contract() {
     let levels = &s.tables.tutorials.support.hero_levels;
     let total = |level: i64, local: i64| (1..level).map(|lv| levels.iter().find(|l| l.level as i64 == lv).unwrap().local_exp).sum::<i64>() + local;
     assert_eq!(total(n(r, "NewLevel"), n(r, "NewValue")) - total(n(r, "OldLevel"), n(r, "NewValue") - n(r, "AddValue")), gained);
+}
+
+#[tokio::test]
+async fn campaign_flask_holders_below_cap_earn_no_level_exp() {
+    let (s, u) = setup().await;
+    let a = account(&u);
+    let d = s.tables.battle.find("CampaignDungeon", &[("ChapterIndex", 1), ("DungeonIndex", 1)]).unwrap();
+    assert!(campaign::field(d, "CreatureExp", 1) > 0);
+    crate::db::query("UPDATE heroes SET level=1,exp=10 WHERE account_id=$1 AND hero_index=1").bind(a).execute(&s.db).await.unwrap();
+    // 40004 is an EXP flask (25000 capacity), 40101 a ruby flask that fills from stamina.
+    for flask in [40004, 40101] {
+        crate::db::query("INSERT INTO hero_details(account_id,hero_index,data) VALUES($1,1,$2) \
+            ON CONFLICT(account_id,hero_index) DO UPDATE SET data=excluded.data")
+            .bind(a).bind(json!({"FlaskItemIndex":flask,"FlaskExp":0}).to_string())
+            .execute(&s.db).await.unwrap();
+        assert_eq!(call(&s, &u, "campaign/begin_campaign", ENTRY).await["Result"], "Success");
+        let result = call(&s, &u, "campaign/end_campaign", END).await;
+        assert_eq!(result["Result"], "Success", "{result}");
+        let r = &result["HeroExpResults"][0];
+        assert_eq!((n(r, "OldLevel"), n(r, "NewLevel"), n(r, "NewValue"), n(r, "AddValue")), (1, 1, 10, 0), "flask {flask}: {r}");
+        let (level, exp): (i32, i64) = crate::db::query_as("SELECT level,exp FROM heroes WHERE account_id=$1 AND hero_index=1")
+            .bind(a).fetch_one(&s.db).await.unwrap();
+        assert_eq!((level, exp), (1, 10), "flask {flask}");
+        let exp_flask: Vec<_> = result["FlaskResults"].as_array().unwrap().iter()
+            .filter(|f| f["Info"]["ItemIndex"] == 40004).collect();
+        if flask == 40004 {
+            assert_eq!(exp_flask.len(), 1, "{result}");
+            assert!(n(&exp_flask[0]["Info"], "AddExp") > 0, "{result}");
+            assert_eq!(exp_flask[0]["Info"]["NewExp"], exp_flask[0]["Info"]["AddExp"]);
+        } else {
+            assert!(exp_flask.is_empty(), "{result}");
+        }
+    }
 }
 
 #[tokio::test]
