@@ -1,3 +1,7 @@
+# Note
+
+From now on this repo only serve as preservation purpose, it will not contains future improvements or bug fixes as they are now exclusive. Please understand this decision.
+
 # SPRK
 
 A private server for a real-time RPG mobile game, with the game's client code
