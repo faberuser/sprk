@@ -301,7 +301,7 @@ pub async fn login(
 
     // Check if account exists
     let existing_account = crate::db::query(
-        "SELECT account_id, nick, session_key FROM accounts WHERE login_id = $1"
+        "SELECT account_id, sprk_display_nick(account_id,nick) AS nick, session_key FROM accounts WHERE login_id = $1"
     )
     .bind(&login_id)
     .fetch_optional(&state.db)

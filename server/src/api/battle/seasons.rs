@@ -537,9 +537,9 @@ async fn rankers(
     // Daily bests remain available for participation/daily views. Weekly rank
     // uses one winning run, including that run's time, rather than their sum.
     let query=if family=="world_boss" {
-        "WITH best AS (SELECT account,score,battle_time,ROW_NUMBER() OVER (PARTITION BY account ORDER BY score DESC,day ASC) place FROM battle_scores WHERE family=$1 AND boss=$2 AND season=$3) SELECT b.account,b.score,b.battle_time,a.nick,u.avatar_hero_index FROM best b JOIN accounts a ON a.account_id=b.account JOIN user_info u ON u.account_id=b.account WHERE b.place=1 AND b.score>0 ORDER BY b.score DESC,b.account"
+        "WITH best AS (SELECT account,score,battle_time,ROW_NUMBER() OVER (PARTITION BY account ORDER BY score DESC,day ASC) place FROM battle_scores WHERE family=$1 AND boss=$2 AND season=$3) SELECT b.account,b.score,b.battle_time,sprk_display_nick(a.account_id,a.nick) AS nick,u.avatar_hero_index FROM best b JOIN accounts a ON a.account_id=b.account JOIN user_info u ON u.account_id=b.account WHERE b.place=1 AND b.score>0 ORDER BY b.score DESC,b.account"
     } else {
-        "SELECT b.account,SUM(b.score)::bigint score,SUM(b.battle_time)::bigint battle_time,a.nick,u.avatar_hero_index FROM battle_scores b JOIN accounts a ON a.account_id=b.account JOIN user_info u ON u.account_id=b.account WHERE b.family=$1 AND b.boss=$2 AND b.season=$3 GROUP BY b.account,a.account_id,u.account_id HAVING SUM(b.score)::bigint>0 ORDER BY score DESC,b.account"
+        "SELECT b.account,SUM(b.score)::bigint score,SUM(b.battle_time)::bigint battle_time,sprk_display_nick(a.account_id,a.nick) AS nick,u.avatar_hero_index FROM battle_scores b JOIN accounts a ON a.account_id=b.account JOIN user_info u ON u.account_id=b.account WHERE b.family=$1 AND b.boss=$2 AND b.season=$3 GROUP BY b.account,a.account_id,u.account_id HAVING SUM(b.score)::bigint>0 ORDER BY score DESC,b.account"
     };
     let rows=crate::db::query(query).bind(family).bind(id).bind(season).fetch_all(db).await?;
     Ok(rows.iter().enumerate().map(|(i,r)|json!({"Rank":i+1,"AccountId":r.get::<i64,_>("account"),"Nick":r.get::<String,_>("nick"),"Score":r.get::<i64,_>("score"),"CurrentScore":r.get::<i64,_>("score"),"BattleTime":r.get::<i64,_>("battle_time"),"CurrentBattleTime":r.get::<i64,_>("battle_time"),"AvatarHeroIndex":r.get::<i64,_>("avatar_hero_index"),"CountryCode":"","ServerGroup":"Local"})).collect())
@@ -647,7 +647,7 @@ pub(super) async fn execute(
                 .find(|v| n(v, "AccountId") == a)
                 .unwrap_or(Value::Null);
             if family == "world_boss" && out["RankInfo"].is_null() {
-                let player = crate::db::query("SELECT a.nick,a.country_code,u.avatar_hero_index FROM accounts a JOIN user_info u ON u.account_id=a.account_id WHERE a.account_id=$1")
+                let player = crate::db::query("SELECT sprk_display_nick(a.account_id,a.nick) AS nick,a.country_code,u.avatar_hero_index FROM accounts a JOIN user_info u ON u.account_id=a.account_id WHERE a.account_id=$1")
                     .bind(a).fetch_one(&mut *db).await?;
                 out["RankInfo"] = json!({"Rank":-1,"AccountId":a,"Nick":player.get::<String,_>("nick"),
                     "Score":0,"AvatarHeroIndex":player.get::<i64,_>("avatar_hero_index"),

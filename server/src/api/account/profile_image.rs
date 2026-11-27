@@ -20,19 +20,22 @@ pub(crate) const MAX_SIDE: u32 = 512;
 /// Checks the PNG signature, the IHDR dimensions and the IEND trailer.
 /// Pixel data is never decoded here; clients decode it with Texture2D.LoadImage.
 fn validate(png: &[u8]) -> bool {
+    png.len() <= MAX_BYTES && png_size(png).is_some_and(|(width, height)|
+        (MIN_SIDE..=MAX_SIDE).contains(&width) && (MIN_SIDE..=MAX_SIDE).contains(&height))
+}
+
+/// Width and height of a structurally plausible PNG (signature, IHDR, IEND).
+pub(crate) fn png_size(png: &[u8]) -> Option<(u32, u32)> {
     const SIGNATURE: &[u8] = b"\x89PNG\r\n\x1a\n";
-    if png.len() < 8 + 25 + 12 || png.len() > MAX_BYTES || !png.starts_with(SIGNATURE) {
-        return false;
+    if png.len() < 8 + 25 + 12 || !png.starts_with(SIGNATURE) {
+        return None;
     }
     let ihdr = &png[8..];
-    if ihdr[0..4] != [0, 0, 0, 13] || &ihdr[4..8] != b"IHDR" {
-        return false;
+    if ihdr[0..4] != [0, 0, 0, 13] || &ihdr[4..8] != b"IHDR" || &png[png.len() - 8..png.len() - 4] != b"IEND" {
+        return None;
     }
     let side = |at: usize| u32::from_be_bytes([ihdr[at], ihdr[at + 1], ihdr[at + 2], ihdr[at + 3]]);
-    let (width, height) = (side(8), side(12));
-    (MIN_SIDE..=MAX_SIDE).contains(&width)
-        && (MIN_SIDE..=MAX_SIDE).contains(&height)
-        && &png[png.len() - 8..png.len() - 4] == b"IEND"
+    Some((side(8), side(12)))
 }
 
 /// `AccountId` (optional, default: the caller) selects whose picture to read,

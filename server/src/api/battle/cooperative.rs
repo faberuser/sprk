@@ -196,7 +196,7 @@ pub(super) async fn begin(db:&mut PgConnection,s:&AppState,a:i64,r:&Request)->Re
         // Validate balances before anyone is charged. The actual debit occurs
         // together, only once all players have loaded the combat scene.
         if n(&conquest::tickets(db,s,*member,0).await?,"NewValue")<ticket_cost {return Err(rule("NotEnoughDungeonKey"));}
-        let user=crate::db::query("SELECT a.nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=$1")
+        let user=crate::db::query("SELECT sprk_display_nick(a.account_id,a.nick) AS nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=$1")
             .bind(member).fetch_one(&mut *db).await?;
         let mut account=conquest::combat_buffs(db,s,*member).await?;
         account["UserInfo"]=json!({"AccountId":member,"Nick":user.get::<String,_>("nick"),"TeamLevel":user.get::<i64,_>("team_level"),"AvatarHeroIndex":user.get::<i64,_>("avatar_hero_index")});

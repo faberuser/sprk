@@ -47,6 +47,10 @@ public class UILabel : UIWidget
 	[SerializeField]
 	private string mText = "";
 
+	/// <summary>SPRK: this label's name-tag badge (a SprkNameTagBadge), if it ever showed one.</summary>
+	[NonSerialized]
+	public MonoBehaviour SprkNameTagBadge;
+
 	[HideInInspector]
 	[SerializeField]
 	private int mFontSize = 16;
@@ -344,6 +348,8 @@ public class UILabel : UIWidget
 		}
 		set
 		{
+			// SPRK name tags: remove the server's tag marker and badge the name.
+			value = SprkNameTag.OnText(this, value);
 			if (mText == value)
 			{
 				return;

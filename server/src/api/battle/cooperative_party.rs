@@ -244,7 +244,7 @@ pub(super) async fn begin_party_for(
         entry["CoopRoom"] = json!(room_id);
         entry["PartyResourceChoicePending"] = json!(!use_stamina);
         let mut info = conquest::combat_buffs(db, s, *account).await?;
-        let user = crate::db::query("SELECT a.nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=$1")
+        let user = crate::db::query("SELECT sprk_display_nick(a.account_id,a.nick) AS nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=$1")
             .bind(account).fetch_one(&mut *db).await?;
         info["UserInfo"] = json!({"AccountId":account,"Nick":user.get::<String,_>("nick"),"TeamLevel":user.get::<i64,_>("team_level"),"AvatarHeroIndex":user.get::<i64,_>("avatar_hero_index")});
         let mut heroes = serde_json::Map::new();

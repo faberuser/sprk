@@ -86,7 +86,7 @@ pub(super) fn enter(s: &AppState, r: &Request, entry: &mut Value) -> Result<()> 
 }
 
 pub(super) async fn rankers(db: &mut PgConnection, id: i64, season: i64) -> Result<Vec<Value>> {
-    let rows = crate::db::query("SELECT c.*,a.nick,u.avatar_hero_index FROM challenge_results c JOIN accounts a ON a.account_id=c.account JOIN user_info u ON u.account_id=c.account WHERE challenge=$1 AND season=$2 ORDER BY score DESC,battle_time,account")
+    let rows = crate::db::query("SELECT c.*,sprk_display_nick(a.account_id,a.nick) AS nick,u.avatar_hero_index FROM challenge_results c JOIN accounts a ON a.account_id=c.account JOIN user_info u ON u.account_id=c.account WHERE challenge=$1 AND season=$2 ORDER BY score DESC,battle_time,account")
         .bind(id).bind(season).fetch_all(db).await?;
     Ok(rows.iter().enumerate().map(|(i,r)| json!({"Rank":i,"AccountId":r.get::<i64,_>("account"),
         "Nick":r.get::<String,_>("nick"),"AvatarHeroIndex":r.get::<i64,_>("avatar_hero_index"),
@@ -96,7 +96,7 @@ pub(super) async fn rankers(db: &mut PgConnection, id: i64, season: i64) -> Resu
 
 async fn mine(db: &mut PgConnection, a: i64, id: i64, season: i64) -> Result<Value> {
     if let Some(me) = rankers(db,id,season).await?.into_iter().find(|v| n(v,"AccountId")==a) { return Ok(me); }
-    let r = crate::db::query("SELECT a.nick,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE account_id=$1")
+    let r = crate::db::query("SELECT sprk_display_nick(a.account_id,a.nick) AS nick,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE account_id=$1")
         .bind(a).fetch_one(db).await?;
     Ok(json!({"Rank":-1,"AccountId":a,"Nick":r.get::<String,_>("nick"),"AvatarHeroIndex":r.get::<i64,_>("avatar_hero_index"),
         "Score":0,"CurrentScore":0,"BattleTime":0,"CurrentBattleTime":0}))

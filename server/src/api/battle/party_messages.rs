@@ -66,7 +66,7 @@ pub(crate) async fn invite(s: &AppState, a: i64, group: &Value, targets: &Value)
         crate::db::query_scalar("SELECT account_id FROM guild_members WHERE guild_id=(SELECT guild_id FROM guild_members WHERE account_id=$1) AND account_id!=$2")
             .bind(a).bind(a).fetch_all(&mut *db).await?
     } else { return Err(rule("InvalidMessage")); };
-    let nick: String = crate::db::query_scalar("SELECT nick FROM accounts WHERE account_id=$1")
+    let nick: String = crate::db::query_scalar("SELECT sprk_display_nick(account_id,nick) FROM accounts WHERE account_id=$1")
         .bind(a).fetch_one(&mut *db).await?;
     let content = json!({"InvitorName":nick,"RoomNo":id,"RaidIndex":if family=="raid" {room["RaidIndex"].clone()} else {json!(0)},
         "RaidLevel":if family=="raid" {room["RaidLevel"].clone()} else {json!(0)},"BannedIds":[],"IsSendOne":direct,
@@ -97,7 +97,7 @@ async fn ids_in(db: &mut PgConnection, id: i64) -> Result<Vec<i64>> {
     .await?)
 }
 async fn member(db: &mut PgConnection, a: i64, room: &Value, index: usize) -> Result<Value> {
-    let user=crate::db::query("SELECT a.nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=$1").bind(a).fetch_one(&mut *db).await?;
+    let user=crate::db::query("SELECT sprk_display_nick(a.account_id,a.nick) AS nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=$1").bind(a).fetch_one(&mut *db).await?;
     let mut v = get(db, a, "party_member", n(room, "RoomNo")).await?;
     if v.is_null() {
         v = json!({"DeckHeros":{},"SubDeckHeros":{},"IsBattleReady":false});

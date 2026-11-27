@@ -609,6 +609,20 @@ public sealed class SprkAutomation : MonoBehaviour
 				Write(reply);
 				return;
 			}
+			if (command.action == "name-tag-probe")
+			{
+				string nameTagProfile = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+				if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Login" || string.IsNullOrEmpty(nameTagProfile) || !nameTagProfile.StartsWith("name-tag-"))
+				{
+					throw new InvalidOperationException("Name tag fixture requires isolated Login and name-tag profile");
+				}
+				string nameTagResult = (string)Assembly.Load("SprkNameTag").GetType("SprkNameTagProbe").GetMethod("Run")
+					.Invoke(null, new object[1] { command.text });
+				reply = Snapshot(command.id);
+				reply.materials.Add(nameTagResult);
+				Write(reply);
+				return;
+			}
 			if (command.action == "ticket-search-probe")
 			{
 				string environmentVariable9 = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
