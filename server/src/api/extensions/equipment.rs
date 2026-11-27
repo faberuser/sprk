@@ -862,6 +862,98 @@ async fn renew_until(
     super::super::progression::record(db, account, "RenewEquipOption", eq.item_index as i64, 0, tries).await?;
     Ok(out)
 }
+
+/// SPRK "reroll until" for a Technomagic additional skill: reroll one skill line
+/// until it shows the same skill as option `target` (same type and value; several
+/// option rows may show one skill). Same protocol and guarantee as `renew_until`;
+/// each try costs the skill reroll material.
+#[allow(clippy::too_many_arguments)]
+async fn renew_skill_until(
+    db: &mut PgConnection,
+    state: &AppState,
+    account: i64,
+    req: &Request,
+    eq: &EquipItemInfo,
+    mut value: Value,
+    detail: &Value,
+    slot: i64,
+    candidates: &[i64],
+    target: i64,
+) -> Result<Value> {
+    let options = &state.tables.inventory.options;
+    let skill_of = |id: i64| {
+        options
+            .get(&(id as i32))
+            .and_then(|o| option_value(o, eq.star, 0).ok().map(|v| (n(o, "Type"), v)))
+    };
+    let wanted = skill_of(target).ok_or_else(|| rule("NoAvailableOption"))?;
+    let pool: Vec<(i64, i64, i64, i64)> = candidates
+        .iter()
+        .filter_map(|&id| options.get(&(id as i32)).map(|o| (id, n(o, "Ratio"), 0, n(o, "Steps").max(0))))
+        .filter(|r| r.1 > 0)
+        .collect();
+    let total: i64 = pool.iter().map(|r| r.1).sum();
+    let target_pool: Vec<_> = pool.iter().copied().filter(|r| skill_of(r.0) == Some(wanted)).collect();
+    let hit: i64 = target_pool.iter().map(|r| r.1).sum();
+    if total <= 0 || hit <= 0 {
+        return Err(rule("NoAvailableOption"));
+    }
+    let pity_kind = format!("skill{slot}");
+    let pity_target = format!("{}:{}", wanted.0, wanted.1);
+    let mut misses = pity_misses(db, account, eq.slot_index, &pity_kind, &pity_target).await?;
+    if matches!(req.text("SprkPreview"), "1" | "true" | "True") {
+        return Ok(json!({"BaseResult":"Success","Result":"Success","SprkHitWeight":hit,"SprkTotalWeight":total,
+            "SprkPityMisses":misses,"SprkPityLimit":REFORGE_PITY}));
+    }
+    let max_tries = req.number("SprkMaxTries", 0)?;
+    if !(1..=RENEW_UNTIL_MAX_TRIES).contains(&max_tries) {
+        return Err(rule("InvalidOption"));
+    }
+    let material = n(detail, "ExtraSkillRenewItemIndex");
+    let per_try = n(detail, "ExtraSkillRenewItemCount");
+    if material <= 0 || per_try <= 0 {
+        return Err(rule("InvalidOption"));
+    }
+    let affordable = spendable_item(db, account, material).await? / per_try;
+    let (mut tries, mut last, mut guaranteed) = (0i64, None, false);
+    while tries < max_tries.min(affordable) {
+        tries += 1;
+        guaranteed = misses + 1 >= REFORGE_PITY;
+        let roll = choose_option(if guaranteed { &target_pool } else { &pool })?;
+        last = Some(roll);
+        if skill_of(roll.0) == Some(wanted) {
+            misses = 0;
+            break;
+        }
+        misses += 1;
+    }
+    let Some((new, step)) = last else {
+        return Err(rule("NotEnoughItem"));
+    };
+    pending(db, account, eq.slot_index, "skill", &json!({"Slot":slot,"Index":new,"Step":step})).await?;
+    let mut out = item::success();
+    let consumed = vec![item::consume(db, account, material as i32, (per_try * tries) as i32).await?];
+    let count_key = format!("ExtraOptionRenewCount{slot}");
+    value[&count_key] = json!(n(&value, &count_key) + tries);
+    value[format!("IsRenewedExtraOption{slot}")] = json!(1);
+    let eq: EquipItemInfo = serde_json::from_value(value).map_err(|_| rule("InvalidOption"))?;
+    save_equip(db, account, &eq).await?;
+    out["ResultEquipItem"] = json!(eq);
+    out["ItemResults"] = json!(consumed);
+    out["NewSkillIndex"] = json!(new);
+    out["NewSkillStep"] = json!(step);
+    out["SprkTries"] = json!(tries);
+    out["SprkHit"] = json!(skill_of(new) == Some(wanted));
+    out["SprkCouponsUsed"] = json!(0);
+    out["SprkGemsSpent"] = json!(0);
+    out["SprkGuaranteed"] = json!(guaranteed);
+    out["SprkPityMisses"] = json!(misses);
+    out["SprkPityLimit"] = json!(REFORGE_PITY);
+    save_pity(db, account, eq.slot_index, &pity_kind, &pity_target, misses).await?;
+    super::super::progression::record(db, account, "RenewEquipOption", eq.item_index as i64, 0, tries).await?;
+    Ok(out)
+}
+
 async fn renew(
     db: &mut PgConnection,
     state: &AppState,
@@ -954,9 +1046,13 @@ async fn renew(
         });
     }
     let candidates = candidates.into_iter().collect::<Vec<_>>();
-    let target = if skill { 0 } else { req.number("SprkTargetOptionType", 0)? };
+    let target = req.number(if skill { "SprkTargetSkillOption" } else { "SprkTargetOptionType" }, 0)?;
     if target > 0 {
-        return renew_until(db, state, account, req, &eq, value, detail, slot, &candidates, target).await;
+        return if skill {
+            renew_skill_until(db, state, account, req, &eq, value, detail, slot, &candidates, target).await
+        } else {
+            renew_until(db, state, account, req, &eq, value, detail, slot, &candidates, target).await
+        };
     }
     let (new, step) = if skill {
         option(state, &candidates)?

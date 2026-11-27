@@ -376,6 +376,94 @@ async fn reforge_until_guarantees_the_target_on_the_100th_try_across_runs() {
     assert_eq!(n(&preview,"SprkPityMisses"),0,"a hit starts the count over");
 }
 
+/// Technomagic Reforge sends the same request as normal reforge, but pays with
+/// per-try materials only (no coupon, no currency).
+#[tokio::test]
+async fn technomagic_reforge_until_pays_per_try_materials() {
+    let (mut s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let mut eq = give(&s, a, 911301, 1).await.equipment.remove(0);
+    eq.identified = 0;
+    save_equip(&mut s.db.acquire().await.unwrap(), a, &eq).await.unwrap();
+    assert_eq!(call(&s, &u, "valance_identified", &format!("EquipItemSlotIndices={}", eq.slot_index)).await["Result"], "Success");
+    let eq = equip(&mut s.db.acquire().await.unwrap(), a, eq.slot_index as i64).await.unwrap();
+    let data = meta(&s, eq.item_index).unwrap().clone();
+    let detail = row(&s, "EquipItemDetail", &[("DetailIndex", n(&data, "DetailIndex"))]).unwrap().clone();
+    assert_eq!(n(&detail, "RenewCurrencyType"), 0, "{detail}");
+    assert_eq!(n(&detail, "RenewTicketItemIndex"), 0, "{detail}");
+    let materials: Vec<(i64, i64)> = (1..=3)
+        .map(|i| (n(&detail, &format!("RenewItemIndex{i}")), n(&detail, &format!("RenewItemCount{i}"))))
+        .filter(|(_, count)| *count > 0)
+        .collect();
+    assert!(!materials.is_empty(), "{detail}");
+    // A target that is on no line, made (practically) impossible to roll.
+    let mut candidates: Vec<i64> = data["OptionIndex"].as_array().into_iter().flatten().filter_map(Value::as_i64).collect();
+    for group in data["OptionGroupIndex"].as_array().into_iter().flatten().filter_map(Value::as_i64) {
+        candidates.extend(s.tables.inventory.option_groups.get(&(group as i32)).into_iter().flatten().map(|i| *i as i64));
+    }
+    let typ = |s: &AppState, id: i64| s.tables.inventory.options.get(&(id as i32)).map(|o| n(o, "Type")).unwrap_or(0);
+    let owned: Vec<i64> = [eq.option_index_1, eq.option_index_2, eq.option_index_3, eq.option_index_4]
+        .iter().map(|id| typ(&s, i64::from(*id))).collect();
+    let target_id = *candidates.iter().find(|id| !owned.contains(&typ(&s, **id))).expect("a free stat");
+    let target = typ(&s, target_id);
+    let set_ratios = |s: &mut AppState, target_ratio: i64, other_ratio: i64| {
+        let inventory = std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).inventory);
+        for id in &candidates {
+            if let Some(option) = inventory.options.get_mut(&(*id as i32)) {
+                let ratio = if n(option, "Type") == target { target_ratio } else { other_ratio };
+                option["Ratio"] = json!(ratio);
+            }
+        }
+    };
+    set_ratios(&mut s, 1, 1_000_000_000);
+    let set_materials = |s: AppState, tries: i64| {
+        let materials = materials.clone();
+        async move {
+            for (index, count) in &materials {
+                give(&s, a, *index as i32, 1).await;
+                crate::db::query("UPDATE items SET count=$1 WHERE account_id=$2 AND item_index=$3")
+                    .bind((count * tries) as i32).bind(a).bind(*index as i32).execute(&s.db).await.unwrap();
+            }
+        }
+    };
+    let held = |s: AppState, index: i64| async move {
+        crate::db::query_scalar::<i32>("SELECT count FROM items WHERE account_id=$1 AND item_index=$2")
+            .bind(a).bind(index as i32).fetch_one(&s.db).await.unwrap()
+    };
+    let line = format!("EquipItemSlotIndex={}&OptionSlotIndex=1", eq.slot_index);
+    let keep = format!("{line}&IsNew=false&ConfirmOptionIndex={}", eq.option_index_1);
+    let preview = call(&s, &u, "renew_equip_option", &format!("{line}&SprkTargetOptionType={target}&SprkPreview=1")).await;
+    assert_eq!(preview["Result"], "Success", "{preview}");
+    assert!(n(&preview, "SprkHitWeight") > 0 && n(&preview, "SprkTotalWeight") > n(&preview, "SprkHitWeight"), "{preview}");
+    // Materials for 7 tries: the run stops there, charges 7 tries' worth and no gold or rubies.
+    set_materials(s.clone(), 7).await;
+    let before = crate::db::query("SELECT gold,gem,pay_gem FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap();
+    let run = call(&s, &u, "renew_equip_option", &format!("{line}&SprkTargetOptionType={target}&SprkMaxTries=50")).await;
+    assert_eq!((run["Result"].clone(), n(&run, "SprkTries"), run["SprkHit"].clone()), (json!("Success"), 7, json!(false)), "{run}");
+    assert_eq!((n(&run, "SprkCouponsUsed"), n(&run, "SprkGemsSpent"), n(&run, "SprkPityMisses")), (0, 0, 7), "{run}");
+    for (index, _) in &materials {
+        assert_eq!(held(s.clone(), *index).await, 0, "material {index}");
+    }
+    let after = crate::db::query("SELECT gold,gem,pay_gem FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap();
+    for column in ["gold", "gem", "pay_gem"] {
+        assert_eq!(before.try_get::<i64, _>(column).unwrap(), after.try_get::<i64, _>(column).unwrap(), "{column}");
+    }
+    // The last roll waits for the native confirmation, like a single reforge.
+    assert_eq!(call(&s, &u, "renew_confirm_equip_option", &keep).await["Result"], "Success");
+    // Out of materials: nothing runs.
+    let empty = call(&s, &u, "renew_equip_option", &format!("{line}&SprkTargetOptionType={target}&SprkMaxTries=5")).await;
+    assert_eq!(empty["Result"], "NotEnoughItem", "{empty}");
+    // A likely target hits on the first try and charges one try.
+    set_ratios(&mut s, 1_000_000_000, 1);
+    set_materials(s.clone(), 3).await;
+    let run = call(&s, &u, "renew_equip_option", &format!("{line}&SprkTargetOptionType={target}&SprkMaxTries=50")).await;
+    assert_eq!((n(&run, "SprkTries"), run["SprkHit"].clone(), n(&run, "SprkPityMisses")), (1, json!(true), 0), "{run}");
+    assert_eq!(typ(&s, n(&run, "NewOptionIndex")), target, "{run}");
+    for (index, count) in &materials {
+        assert_eq!(i64::from(held(s.clone(), *index).await), count * 2, "material {index}");
+    }
+}
+
 #[tokio::test]
 async fn enchant_until_guarantees_after_300_tries_per_target_across_runs() {
     let (mut s, u) = setup().await;
@@ -1429,6 +1517,66 @@ async fn technomagic_skill_reroll_never_repeats_the_current_skill() {
         assert_eq!(accepted["ResultEquipItem"]["ExtraOptionIndex1"],other);
         current=other;
     }
+}
+
+#[tokio::test]
+async fn technomagic_skill_reroll_until_pays_per_try_and_guarantees_the_target() {
+    let (mut s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let mut eq=give(&s,a,911301,1).await.equipment.remove(0);
+    eq.extra_option_index_1=8201;
+    save_equip(&mut s.db.acquire().await.unwrap(),a,&eq).await.unwrap();
+    let data=meta(&s,eq.item_index).unwrap().clone();
+    let detail=row(&s,"EquipItemDetail",&[("DetailIndex",n(&data,"DetailIndex"))]).unwrap().clone();
+    let (material,per_try)=(n(&detail,"ExtraSkillRenewItemIndex"),n(&detail,"ExtraSkillRenewItemCount"));
+    assert!(material>0 && per_try>0,"{detail}");
+    // Pool: the current skill, the target (practically never rolled) and a filler.
+    let set_ratio=|s:&mut AppState,target_ratio:i64| {
+        let inventory=std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).inventory);
+        inventory.option_groups.insert(10003,vec![8201,8202,8203]);
+        inventory.options.get_mut(&8202).unwrap()["Ratio"]=json!(target_ratio);
+        inventory.options.get_mut(&8203).unwrap()["Ratio"]=json!(1_000_000_000);
+    };
+    set_ratio(&mut s,1);
+    let set_material=|s:AppState,tries:i64| async move {
+        give(&s,a,material as i32,1).await;
+        crate::db::query("UPDATE items SET count=$1 WHERE account_id=$2 AND item_index=$3")
+            .bind((per_try*tries) as i32).bind(a).bind(material as i32).execute(&s.db).await.unwrap();
+    };
+    let held=|s:AppState| async move {
+        crate::db::query_scalar::<i32>("SELECT count FROM items WHERE account_id=$1 AND item_index=$2")
+            .bind(a).bind(material as i32).fetch_one(&s.db).await.unwrap()
+    };
+    let line=format!("EquipItemSlotIndex={}&SkillSlotIndex=1",eq.slot_index);
+    let keep=format!("{line}&IsNew=false&ConfirmSkillIndex=8201");
+    let preview=call(&s,&u,"renew_equip_skill",&format!("{line}&SprkTargetSkillOption=8202&SprkPreview=1")).await;
+    assert_eq!(preview["Result"],"Success","{preview}");
+    assert_eq!((n(&preview,"SprkHitWeight"),n(&preview,"SprkTotalWeight"),n(&preview,"SprkPityLimit")),(1,1_000_000_001,100),"{preview}");
+    // The current skill is not in the pool, so it cannot be a target.
+    assert_eq!(call(&s,&u,"renew_equip_skill",&format!("{line}&SprkTargetSkillOption=8201&SprkPreview=1")).await["Result"],"NoAvailableOption");
+    assert_ne!(call(&s,&u,"renew_equip_skill",&format!("{line}&SprkTargetSkillOption=8202&SprkMaxTries=101")).await["Result"],"Success");
+    // Material for 7 tries: the run stops there and charges exactly 7 tries.
+    set_material(s.clone(),7).await;
+    let run=call(&s,&u,"renew_equip_skill",&format!("{line}&SprkTargetSkillOption=8202&SprkMaxTries=50")).await;
+    assert_eq!((run["Result"].clone(),n(&run,"SprkTries"),run["SprkHit"].clone(),n(&run,"SprkPityMisses")),(json!("Success"),7,json!(false),7),"{run}");
+    assert_eq!(n(&run,"NewSkillIndex"),8203,"{run}");
+    assert_eq!(held(s.clone()).await,0);
+    assert_eq!(n(&run["ResultEquipItem"],"ExtraOptionRenewCount1"),7,"{run}");
+    // The last roll waits for the native confirmation.
+    assert_eq!(call(&s,&u,"renew_confirm_equip_skill",&keep).await["Result"],"Success");
+    assert_eq!(call(&s,&u,"renew_equip_skill",&format!("{line}&SprkTargetSkillOption=8202&SprkMaxTries=5")).await["Result"],"NotEnoughItem");
+    // Misses carry over: 92 more misses, then the 100th try is guaranteed.
+    set_material(s.clone(),92).await;
+    let run=call(&s,&u,"renew_equip_skill",&format!("{line}&SprkTargetSkillOption=8202&SprkMaxTries=92")).await;
+    assert_eq!((n(&run,"SprkTries"),run["SprkHit"].clone(),n(&run,"SprkPityMisses")),(92,json!(false),99),"{run}");
+    assert_eq!(call(&s,&u,"renew_confirm_equip_skill",&keep).await["Result"],"Success");
+    set_material(s.clone(),3).await;
+    let run=call(&s,&u,"renew_equip_skill",&format!("{line}&SprkTargetSkillOption=8202&SprkMaxTries=3")).await;
+    assert_eq!((n(&run,"SprkTries"),run["SprkHit"].clone(),run["SprkGuaranteed"].clone(),n(&run,"SprkPityMisses")),(1,json!(true),json!(true),0),"{run}");
+    assert_eq!(n(&run,"NewSkillIndex"),8202,"{run}");
+    assert_eq!(i64::from(held(s.clone()).await),per_try*2);
+    let accepted=call(&s,&u,"renew_confirm_equip_skill",&format!("{line}&IsNew=true&ConfirmSkillIndex=8202")).await;
+    assert_eq!(accepted["ResultEquipItem"]["ExtraOptionIndex1"],8202,"{accepted}");
 }
 
 #[tokio::test]
