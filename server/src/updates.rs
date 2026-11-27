@@ -26,7 +26,8 @@ pub async fn routes_from_env() -> anyhow::Result<Router> {
     if let Some(config) = config {
         github::sync(tokio::fs::canonicalize(&root).await?, config).await?;
     }
-    let router = routes(FsPath::new(&root)).await?;
+    let mirror = mirror::Mirror::from_env()?.map(Arc::new);
+    let router = routes_with(FsPath::new(&root), mirror).await?;
     let router = match throttle {
         Some(throttle) => throttle::layer(router, throttle),
         None => router,
@@ -39,11 +40,17 @@ pub async fn routes_from_env() -> anyhow::Result<Router> {
 }
 
 mod github;
+mod mirror;
 mod overlay;
 mod queue;
 mod throttle;
 
+#[cfg(test)]
 pub async fn routes(root: &FsPath) -> anyhow::Result<Router> {
+    routes_with(root, None).await
+}
+
+async fn routes_with(root: &FsPath, mirror: Option<Arc<mirror::Mirror>>) -> anyhow::Result<Router> {
     use anyhow::Context;
     let root = tokio::fs::canonicalize(root).await.with_context(|| {
         format!(
@@ -63,7 +70,7 @@ pub async fn routes(root: &FsPath) -> anyhow::Result<Router> {
         .route("/models/{version}/{artifact}", get(illustration_model))
         .fallback(|| async { StatusCode::NOT_FOUND })
         .with_state(UpdateStorage(Arc::new(root.clone())))
-        .nest("/assets", assets::routes(UpdateStorage(Arc::new(root)))))
+        .nest("/assets", assets::routes(UpdateStorage(Arc::new(root)), mirror)))
 }
 
 mod assets;

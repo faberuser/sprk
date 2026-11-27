@@ -328,3 +328,46 @@ async fn assets_serve_objects_by_hash() {
         assert_eq!(request(&app, Method::GET, &missing, None).await.status(), StatusCode::NOT_FOUND, "{missing}");
     }
 }
+
+#[tokio::test]
+async fn assets_redirect_to_the_mirror_once_mirrored() {
+    use axum::routing::head;
+    // A mirror that has the bundle; any other object is missing.
+    let mirror = Router::new().route(
+        "/objects/{sha}",
+        head(|axum::extract::Path(sha): axum::extract::Path<String>| async move {
+            if sha == BUNDLE_SHA { StatusCode::OK } else { StatusCode::NOT_FOUND }
+        }),
+    );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    tokio::spawn(async move { axum::serve(listener, mirror).await.unwrap() });
+    let mirror_url = format!("http://127.0.0.1:{port}/objects/");
+
+    let fixture = Fixture::new().await;
+    let other = "c".repeat(64);
+    write_assets(
+        &fixture.0,
+        &format!(r#"{{"files":{{"Assetbundle/[English]/A b.unity3d":"{BUNDLE_SHA}","Assetbundle/new.unity3d":"{other}"}}}}"#),
+    )
+    .await;
+    tokio::fs::write(fixture.0.join("assets/objects").join(&other), b"not uploaded yet").await.unwrap();
+    let mirror = mirror::Mirror::new_for_tests(&mirror_url);
+    let app = crate::service_router(None, Some(routes_with(&fixture.0, Some(Arc::new(mirror))).await.unwrap()));
+    let base = "/updates/assets/StandaloneWindows";
+
+    let response = request(&app, Method::GET, &format!("{base}/2/Assetbundle/%5BEnglish%5D/A%20b.unity3d"), None).await;
+    assert_eq!(response.status(), StatusCode::FOUND);
+    assert_eq!(response.headers()[header::LOCATION], format!("{mirror_url}{BUNDLE_SHA}"));
+    let response = request(&app, Method::GET, &format!("/updates/assets/objects/{BUNDLE_SHA}"), None).await;
+    assert_eq!(response.status(), StatusCode::FOUND);
+
+    // Not on the mirror yet: served here.
+    let response = request(&app, Method::GET, &format!("{base}/2/Assetbundle/new.unity3d"), None).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(to_bytes(response.into_body(), 64).await.unwrap().as_ref(), b"not uploaded yet");
+    // Version files and unknown names never go to the mirror.
+    assert_eq!(request(&app, Method::GET, &format!("{base}/2/patch.json"), None).await.status(), StatusCode::OK);
+    assert_eq!(request(&app, Method::GET, &format!("{base}/LastBuildVersion.txt"), None).await.status(), StatusCode::OK);
+    assert_eq!(request(&app, Method::GET, &format!("{base}/2/unknown.unity3d"), None).await.status(), StatusCode::NOT_FOUND);
+}

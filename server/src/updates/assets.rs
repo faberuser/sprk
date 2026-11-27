@@ -22,7 +22,7 @@
 //!
 //! Objects and versions are immutable once written; publishing a version
 //! adds new objects and replaces `current.txt` last.
-use super::{io_status, serve, valid_file_path, valid_identifier, UpdateStorage};
+use super::{io_status, mirror::Mirror, serve, valid_file_path, valid_identifier, UpdateStorage};
 use axum::{
     extract::{Path, Request, State},
     http::StatusCode,
@@ -40,12 +40,14 @@ use std::{
 pub(super) struct AssetStorage {
     files: UpdateStorage,
     indexes: Arc<Mutex<HashMap<(String, u32), Arc<HashMap<String, String>>>>>,
+    /// Where objects are downloaded from instead, once mirrored.
+    mirror: Option<Arc<Mirror>>,
 }
 
 /// Parsed indexes kept in memory; a server normally serves one or two versions.
 const MAX_CACHED_INDEXES: usize = 4;
 
-pub(super) fn routes(files: UpdateStorage) -> Router {
+pub(super) fn routes(files: UpdateStorage, mirror: Option<Arc<Mirror>>) -> Router {
     Router::new()
         .route("/objects/{sha256}", get(object))
         .route("/{platform}/LastBuildVersion.txt", get(last_build_version))
@@ -54,6 +56,7 @@ pub(super) fn routes(files: UpdateStorage) -> Router {
         .with_state(AssetStorage {
             files,
             indexes: Arc::default(),
+            mirror,
         })
 }
 
@@ -80,13 +83,7 @@ async fn object(
     if !valid_sha256(&sha256) {
         return Err(StatusCode::NOT_FOUND);
     }
-    serve(
-        &storage.files,
-        FsPath::new("assets").join("objects").join(sha256),
-        request,
-        true,
-    )
-    .await
+    storage.object(&sha256, request).await
 }
 
 async fn last_build_version(
@@ -123,16 +120,26 @@ async fn archive(
     }
     let index = storage.index(&platform, version, &version_dir).await?;
     let sha256 = index.get(&archive).ok_or(StatusCode::NOT_FOUND)?;
-    serve(
-        &storage.files,
-        FsPath::new("assets").join("objects").join(sha256),
-        request,
-        true,
-    )
-    .await
+    storage.object(sha256, request).await
 }
 
 impl AssetStorage {
+    /// Redirects to the mirror's copy when there is one, else serves it here.
+    async fn object(&self, sha256: &str, request: Request) -> Result<Response, StatusCode> {
+        if let Some(mirror) = &self.mirror {
+            if let Some(redirect) = mirror.redirect(sha256).await {
+                return Ok(redirect);
+            }
+        }
+        serve(
+            &self.files,
+            FsPath::new("assets").join("objects").join(sha256),
+            request,
+            true,
+        )
+        .await
+    }
+
     async fn index(
         &self,
         platform: &str,
