@@ -225,7 +225,7 @@
       "OperationType3": "ModAttackByRace",
       "OperationValue3": [
         "Hero",
-        "10",
+        "20",
         "0",
         "True"
       ],
@@ -430,7 +430,7 @@
       "IgnoreBlock": true,
       "OperationType1": "GetMana",
       "OperationValue1": [
-        "500"
+        "1000"
       ],
       "OperationState1": ""
     },
@@ -503,7 +503,7 @@
       "OperationValue2": [
         "8225",
         "1",
-        "300"
+        "600"
       ],
       "OperationState2": ""
     },
@@ -524,13 +524,35 @@
       "OperationState1": ""
     },
     {
+      "Index": 60008231,
+      "ReplaceNameKey": "",
+      "ReplaceDescKey": "",
+      "TriggerType": "OnStart",
+      "TriggerRatio": 1000,
+      "TargetCount": 1,
+      "TargetCountState": "",
+      "IgnoreBlock": true,
+      "OperationType1": "ModSkillPowerR",
+      "OperationValue1": [
+        "8235",
+        "1",
+        "600"
+      ],
+      "OperationState1": "",
+      "OperationType2": "ModSkillPowerR",
+      "OperationValue2": [
+        "8235",
+        "3",
+        "600"
+      ],
+      "OperationState2": ""
+    },
+    {
       "Index": 91008240,
       "ReplaceNameKey": "",
       "ReplaceDescKey": "SKILL_DESC_91008240",
       "DescParam": [
-        "5",
-        "1",
-        "20"
+        "5"
       ],
       "TriggerType": "OnStart",
       "TriggerRatio": 1000,
@@ -551,47 +573,25 @@
         "20"
       ],
       "OperationState2": "",
-      "OperationType3": "ChangeStateValue",
+      "OperationType3": "ModSkillEnabled",
       "OperationValue3": [
-        "Isolet_Toughness",
-        "MaxStack",
-        "4"
-      ],
-      "OperationState3": "",
-      "OperationType4": "ChangeStateValue",
-      "OperationValue4": [
-        "Isolet_RecoverUp",
-        "MaxStack",
-        "4"
-      ],
-      "OperationState4": "",
-      "OperationType5": "ModCriticalPower",
-      "OperationValue5": [
-        "200"
-      ],
-      "OperationDurationMs5": 999999,
-      "OperationState5": "",
-      "OperationType6": "ModSkillEnabled",
-      "OperationValue6": [
         "8225",
         "6"
       ],
-      "OperationState6": "",
-      "OperationType7": "ModSkillEnabled",
-      "OperationValue7": [
+      "OperationState3": "",
+      "OperationType4": "ModSkillEnabled",
+      "OperationValue4": [
         "8225",
         "7"
       ],
-      "OperationState7": ""
+      "OperationState4": ""
     },
     {
       "Index": 91008241,
       "ReplaceNameKey": "",
       "ReplaceDescKey": "SKILL_DESC_91008240",
       "DescParam": [
-        "6",
-        "1",
-        "24"
+        "6"
       ],
       "TriggerType": "OnStart",
       "TriggerRatio": 1000,
@@ -612,47 +612,25 @@
         "21"
       ],
       "OperationState2": "",
-      "OperationType3": "ChangeStateValue",
+      "OperationType3": "ModSkillEnabled",
       "OperationValue3": [
-        "Isolet_Toughness",
-        "MaxStack",
-        "4"
-      ],
-      "OperationState3": "",
-      "OperationType4": "ChangeStateValue",
-      "OperationValue4": [
-        "Isolet_RecoverUp",
-        "MaxStack",
-        "4"
-      ],
-      "OperationState4": "",
-      "OperationType5": "ModCriticalPower",
-      "OperationValue5": [
-        "240"
-      ],
-      "OperationDurationMs5": 999999,
-      "OperationState5": "",
-      "OperationType6": "ModSkillEnabled",
-      "OperationValue6": [
         "8225",
         "6"
       ],
-      "OperationState6": "",
-      "OperationType7": "ModSkillEnabled",
-      "OperationValue7": [
+      "OperationState3": "",
+      "OperationType4": "ModSkillEnabled",
+      "OperationValue4": [
         "8225",
         "7"
       ],
-      "OperationState7": ""
+      "OperationState4": ""
     },
     {
       "Index": 91008242,
       "ReplaceNameKey": "",
       "ReplaceDescKey": "SKILL_DESC_91008240",
       "DescParam": [
-        "7",
-        "1",
-        "29"
+        "7"
       ],
       "TriggerType": "OnStart",
       "TriggerRatio": 1000,
@@ -673,47 +651,25 @@
         "22"
       ],
       "OperationState2": "",
-      "OperationType3": "ChangeStateValue",
+      "OperationType3": "ModSkillEnabled",
       "OperationValue3": [
-        "Isolet_Toughness",
-        "MaxStack",
-        "4"
-      ],
-      "OperationState3": "",
-      "OperationType4": "ChangeStateValue",
-      "OperationValue4": [
-        "Isolet_RecoverUp",
-        "MaxStack",
-        "4"
-      ],
-      "OperationState4": "",
-      "OperationType5": "ModCriticalPower",
-      "OperationValue5": [
-        "290"
-      ],
-      "OperationDurationMs5": 999999,
-      "OperationState5": "",
-      "OperationType6": "ModSkillEnabled",
-      "OperationValue6": [
         "8225",
         "6"
       ],
-      "OperationState6": "",
-      "OperationType7": "ModSkillEnabled",
-      "OperationValue7": [
+      "OperationState3": "",
+      "OperationType4": "ModSkillEnabled",
+      "OperationValue4": [
         "8225",
         "7"
       ],
-      "OperationState7": ""
+      "OperationState4": ""
     },
     {
       "Index": 91008243,
       "ReplaceNameKey": "",
       "ReplaceDescKey": "SKILL_DESC_91008240",
       "DescParam": [
-        "8",
-        "1",
-        "35"
+        "8"
       ],
       "TriggerType": "OnStart",
       "TriggerRatio": 1000,
@@ -734,47 +690,25 @@
         "23"
       ],
       "OperationState2": "",
-      "OperationType3": "ChangeStateValue",
+      "OperationType3": "ModSkillEnabled",
       "OperationValue3": [
-        "Isolet_Toughness",
-        "MaxStack",
-        "4"
-      ],
-      "OperationState3": "",
-      "OperationType4": "ChangeStateValue",
-      "OperationValue4": [
-        "Isolet_RecoverUp",
-        "MaxStack",
-        "4"
-      ],
-      "OperationState4": "",
-      "OperationType5": "ModCriticalPower",
-      "OperationValue5": [
-        "350"
-      ],
-      "OperationDurationMs5": 999999,
-      "OperationState5": "",
-      "OperationType6": "ModSkillEnabled",
-      "OperationValue6": [
         "8225",
         "6"
       ],
-      "OperationState6": "",
-      "OperationType7": "ModSkillEnabled",
-      "OperationValue7": [
+      "OperationState3": "",
+      "OperationType4": "ModSkillEnabled",
+      "OperationValue4": [
         "8225",
         "7"
       ],
-      "OperationState7": ""
+      "OperationState4": ""
     },
     {
       "Index": 91008244,
       "ReplaceNameKey": "",
       "ReplaceDescKey": "SKILL_DESC_91008240",
       "DescParam": [
-        "9",
-        "1",
-        "42"
+        "9"
       ],
       "TriggerType": "OnStart",
       "TriggerRatio": 1000,
@@ -795,47 +729,25 @@
         "24"
       ],
       "OperationState2": "",
-      "OperationType3": "ChangeStateValue",
+      "OperationType3": "ModSkillEnabled",
       "OperationValue3": [
-        "Isolet_Toughness",
-        "MaxStack",
-        "4"
-      ],
-      "OperationState3": "",
-      "OperationType4": "ChangeStateValue",
-      "OperationValue4": [
-        "Isolet_RecoverUp",
-        "MaxStack",
-        "4"
-      ],
-      "OperationState4": "",
-      "OperationType5": "ModCriticalPower",
-      "OperationValue5": [
-        "420"
-      ],
-      "OperationDurationMs5": 999999,
-      "OperationState5": "",
-      "OperationType6": "ModSkillEnabled",
-      "OperationValue6": [
         "8225",
         "6"
       ],
-      "OperationState6": "",
-      "OperationType7": "ModSkillEnabled",
-      "OperationValue7": [
+      "OperationState3": "",
+      "OperationType4": "ModSkillEnabled",
+      "OperationValue4": [
         "8225",
         "7"
       ],
-      "OperationState7": ""
+      "OperationState4": ""
     },
     {
       "Index": 91008245,
       "ReplaceNameKey": "",
       "ReplaceDescKey": "SKILL_DESC_91008240",
       "DescParam": [
-        "10",
-        "1",
-        "50"
+        "10"
       ],
       "TriggerType": "OnStart",
       "TriggerRatio": 1000,
@@ -856,38 +768,18 @@
         "25"
       ],
       "OperationState2": "",
-      "OperationType3": "ChangeStateValue",
+      "OperationType3": "ModSkillEnabled",
       "OperationValue3": [
-        "Isolet_Toughness",
-        "MaxStack",
-        "4"
-      ],
-      "OperationState3": "",
-      "OperationType4": "ChangeStateValue",
-      "OperationValue4": [
-        "Isolet_RecoverUp",
-        "MaxStack",
-        "4"
-      ],
-      "OperationState4": "",
-      "OperationType5": "ModCriticalPower",
-      "OperationValue5": [
-        "500"
-      ],
-      "OperationDurationMs5": 999999,
-      "OperationState5": "",
-      "OperationType6": "ModSkillEnabled",
-      "OperationValue6": [
         "8225",
         "6"
       ],
-      "OperationState6": "",
-      "OperationType7": "ModSkillEnabled",
-      "OperationValue7": [
+      "OperationState3": "",
+      "OperationType4": "ModSkillEnabled",
+      "OperationValue4": [
         "8225",
         "7"
       ],
-      "OperationState7": ""
+      "OperationState4": ""
     },
     {
       "Index": 93008202,
@@ -950,37 +842,13 @@
       "OperationType3": "ModActiveCooltime",
       "OperationValue3": [
         "3",
-        "-500",
+        "-1000",
         "InCoolTime"
       ],
       "OperationFlags3": [
         "Disabled"
       ],
       "OperationState3": ""
-    },
-    {
-      "Index": 93008212,
-      "ReplaceNameKey": "",
-      "ReplaceDescKey": "SKILL_DESC_93000210",
-      "TriggerType": "OnActiveSkill",
-      "TriggerValue": [
-        "0",
-        "Myself"
-      ],
-      "TriggerRatio": 1000,
-      "AttrType": "Physical",
-      "IgnoreStateType": [
-        "CC"
-      ],
-      "TargetCount": 1,
-      "TargetCountState": "",
-      "IgnoreBlock": true,
-      "DescParam": [
-        "5"
-      ],
-      "OperationType1": "ModToughness",
-      "OperationDurationMs1": 999999,
-      "OperationState1": "SoulWeapon82"
     }
   ]
 }

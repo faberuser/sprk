@@ -167,7 +167,7 @@
       "originalSha256": "f9befbe469e7c167c8f30e75aeb7d8d6fcc0b49b21e4a72239cf164718f0e1b6"
     },
     "TableJit/SkillTable.jit": {
-      "sha256": "31c77f2236331947003cf111ec594d9ff08aee6972c51ff2ab826779b9ecb891",
+      "sha256": "0ed79c510c3307dcd144147ec7553e8213907ba37ee3c68ef8af2d8163f40c4e",
       "originalSha256": "2743fc236f2aadf1f7df49a00868a7cf1209577fbc4dd44ded73e4c027e74c8e"
     },
     "TableJit/SoulWeaponNodeTreeTable.jit": {
@@ -175,7 +175,7 @@
       "originalSha256": "3c4e72d94770b71935e10ad6d79bec4088c95914ecf82308d56e7350419e9d22"
     },
     "TableJit/SoulWeaponSkillTable.jit": {
-      "sha256": "59cb0e757822abb33de386669748c0548ee6676be0ba57929482d37dab9fbedf",
+      "sha256": "bab8c60f26f7fd9f8ef39161b0053380fe356b4546eb387cc1b8175a64674484",
       "originalSha256": "2c6ee022a5050c8e83eed68b84dfa5a0c13621c891642a7941a504a329dd4870"
     },
     "TableJit/SoulWeaponUpgradePriceTable.jit": {
@@ -187,7 +187,7 @@
       "sha256": "e85ab891745e5078cd9651754e1d8d39ca8decfbfc56a37dd26cebc81f301679"
     },
     "TableJit/StateTable.jit": {
-      "sha256": "1edfa6d69b92b9c2de148f2adceed64bf5516f495bbad6083274b70fed8cd4ad",
+      "sha256": "f3120c812952376714c097982041f29129195416a04c77e358db86a858f5d68f",
       "originalSha256": "84b9439d6f4983b9104bb19574953fe67d472f58553eacb21a2e6f9ed3fa91ed"
     },
     "TableJit/WeaponCostumeTable.jit": {
