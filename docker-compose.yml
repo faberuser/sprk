@@ -61,6 +61,10 @@ services:
       SPRK_UPDATES_DIR: /client-updates
       # The release tag/repository are pinned in the image by CI.
       SPRK_UPDATES_PUBLIC_KEY: ${SPRK_UPDATES_PUBLIC_KEY:-}
+      # Download bandwidth cap (Mbit/s, shared fairly per player) and the proxy's
+      # client-IP header; see .env.example. Empty: unlimited.
+      SPRK_UPDATES_MAX_MBPS: ${SPRK_UPDATES_MAX_MBPS:-}
+      SPRK_UPDATES_CLIENT_IP_HEADER: ${SPRK_UPDATES_CLIENT_IP_HEADER:-}
     ports:
       - "${SPRK_UPDATE_PORT:-8081}:8080"
     volumes:
