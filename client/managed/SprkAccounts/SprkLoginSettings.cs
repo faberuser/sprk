@@ -202,9 +202,38 @@ public sealed class SprkLoginSettings : MonoBehaviour, GameOptionWindow.Listener
 		}
 	}
 
+	// On a fresh install the texture spec is Undefine. The texture row then shows its UI default
+	// (High) without storing it, so tapping High changes nothing, and the patch downloader later
+	// falls back to the device's recommended spec (usually Mid). Store that same recommendation
+	// before the row is built, so the row shows what will really be downloaded and any choice sticks.
+	private static void ResolveUndefinedSpec()
+	{
+		if (SystemOptionData.Spec != ESpecType.Undefine || !GameRoot.isValidInstance)
+		{
+			return;
+		}
+		PatchDownloadSpecData recommended = NGame2.NPatch.PatchDownloadHelper.GetRecommandSpecData();
+		if (recommended == null)
+		{
+			return;
+		}
+		ESpecType spec = recommended.StandardSpec switch
+		{
+			PatchSpecType.Low => ESpecType.Low,
+			PatchSpecType.Mid => ESpecType.Mid,
+			PatchSpecType.High => ESpecType.Original,
+			_ => ESpecType.Undefine,
+		};
+		if (spec != ESpecType.Undefine)
+		{
+			SystemOptionData.Spec = spec;
+		}
+	}
+
 	public void OpenSettings()
 	{
 		PrepareOptions();
+		ResolveUndefinedSpec();
 		SingletonAuto<LocalizationLoader>.instance.SetEnableLoadFromPatch(enableLoad: true);
 		LoginManagement instance = SceneAutoBehaviour<LoginManagement>.instance;
 		settings = instance.GetInstance<GameOptionWindow>();
