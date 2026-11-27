@@ -20,6 +20,13 @@ impl BattleTable {
             let rows = recovered["Tables"][name].as_array().ok_or_else(|| format!("Missing Honor reward table: {name}"))?;
             data.tables.insert(name.into(), rows.clone());
         }
+        // SPRK construction donation: members trade Rubies for a guild
+        // construction material they pick (GuildDonateConstruction). No native contract.
+        data.contracts.insert("guild/sprk_donate_construction".into(), serde_json::json!({
+            "Request": {"Gem": "int", "Resource": "string"},
+            "Results": ["Fail", "Success", "NotEnoughGem"],
+            "Response": {"CurrencyResult": "CurrencyResultInfo3", "Wood": "int", "Stone": "int", "Metal": "int"}
+        }));
         Ok(data)
     }
     pub fn load(path: &Path) -> Result<Self, Box<dyn std::error::Error>> {

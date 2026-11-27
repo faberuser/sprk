@@ -595,6 +595,20 @@ public sealed class SprkAutomation : MonoBehaviour
 				Write(reply);
 				return;
 			}
+			if (command.action == "guild-donate-probe")
+			{
+				string profile = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+				if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Login" || string.IsNullOrEmpty(profile) || !profile.StartsWith("guild-donate-"))
+				{
+					throw new InvalidOperationException("Guild donate fixture requires isolated Login and guild-donate profile");
+				}
+				string result = (string)Assembly.Load("SprkGuildDonate").GetType("SprkGuildDonateProbe").GetMethod("Run")
+					.Invoke(null, new object[1] { command.text });
+				reply = Snapshot(command.id);
+				reply.materials.Add(result);
+				Write(reply);
+				return;
+			}
 			if (command.action == "tm-reforge-until-probe")
 			{
 				string profile = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
