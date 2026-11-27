@@ -78,6 +78,10 @@ services:
       # client-IP header; see .env.example. Empty: unlimited.
       SPRK_UPDATES_MAX_MBPS: ${SPRK_UPDATES_MAX_MBPS:-}
       SPRK_UPDATES_CLIENT_IP_HEADER: ${SPRK_UPDATES_CLIENT_IP_HEADER:-}
+      # Download queue (players and connections per player at once); see .env.example.
+      SPRK_UPDATES_MAX_CLIENTS: ${SPRK_UPDATES_MAX_CLIENTS:-}
+      SPRK_UPDATES_MAX_CONNECTIONS_PER_CLIENT: ${SPRK_UPDATES_MAX_CONNECTIONS_PER_CLIENT:-}
+      SPRK_UPDATES_QUEUE_MAX_WAIT_SECONDS: ${SPRK_UPDATES_QUEUE_MAX_WAIT_SECONDS:-}
     ports:
       - "${SPRK_UPDATE_PORT:-8081}:8080"
     volumes:

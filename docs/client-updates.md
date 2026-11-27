@@ -245,6 +245,30 @@ between the players downloading at the time, however many connections each opens
 (`CF-Connecting-IP`, `X-Forwarded-For`); otherwise all players count as one and
 only the total cap applies.
 
+To bound the load itself, queue downloads:
+
+| Variable                                  | Default   | Purpose                                                       |
+| ----------------------------------------- | --------- | ------------------------------------------------------------- |
+| `SPRK_UPDATES_MAX_CLIENTS`                | unlimited | Players downloading at once; others wait, first come first served |
+| `SPRK_UPDATES_MAX_CONNECTIONS_PER_CLIENT` | unlimited | Downloads one player has open at once; the rest wait          |
+| `SPRK_UPDATES_QUEUE_MAX_WAIT_SECONDS`     | `120`     | Longest wait for a player slot (1–240) before it is let in anyway |
+
+A waiting request simply gets its response later; neither client sees an error.
+A player keeps its slot while a download is open and for 5 seconds after, so the
+game's file-after-file downloads are not requeued, and a player whose request was
+dropped keeps its place for 15 seconds so its retry is not sent to the back.
+Manifests and `LastBuildVersion.txt` are never queued.
+
+The game gives up on a file after 300 seconds, counting the wait, and stops the
+whole download after three failures. That is why the player limit is soft: a
+request that has waited `SPRK_UPDATES_QUEUE_MAX_WAIT_SECONDS` is let in over the
+limit (logged as a warning). The limit spreads out a rush of players; it cannot
+hold anyone back for long. The connection limit is a hard one, and with
+`SPRK_UPDATES_MAX_MBPS` set it does not slow a player down, because the player's
+share of the bandwidth stays the same however many files it fetches at once.
+Players are told apart the same way as for the bandwidth cap, so set
+`SPRK_UPDATES_CLIENT_IP_HEADER` behind a proxy.
+
 ## Validation
 
 ```sh

@@ -56,16 +56,20 @@ impl Config {
             .ok()
             .filter(|v: &f64| v.is_finite() && *v > 0.0)
             .ok_or_else(|| anyhow::anyhow!("SPRK_UPDATES_MAX_MBPS must be a positive number of megabits per second, got {rate:?}"))?;
-        let client_ip_header = match header.map(str::trim).filter(|v| !v.is_empty()) {
-            Some(name) => Some(HeaderName::try_from(name).map_err(|_| {
-                anyhow::anyhow!("SPRK_UPDATES_CLIENT_IP_HEADER is not a valid header name: {name:?}")
-            })?),
-            None => None,
-        };
         Ok(Some(Self {
             bytes_per_second: mbps * 1_000_000.0 / 8.0,
-            client_ip_header,
+            client_ip_header: parse_client_ip_header(header)?,
         }))
+    }
+}
+
+/// `SPRK_UPDATES_CLIENT_IP_HEADER`, shared with the download queue.
+pub(super) fn parse_client_ip_header(header: Option<&str>) -> anyhow::Result<Option<HeaderName>> {
+    match header.map(str::trim).filter(|v| !v.is_empty()) {
+        Some(name) => Ok(Some(HeaderName::try_from(name).map_err(|_| {
+            anyhow::anyhow!("SPRK_UPDATES_CLIENT_IP_HEADER is not a valid header name: {name:?}")
+        })?)),
+        None => Ok(None),
     }
 }
 
@@ -174,8 +178,9 @@ impl Drop for Download {
     }
 }
 
-fn client_key(config: &Config, request: &Request) -> String {
-    if let Some(name) = &config.client_ip_header {
+/// The player a request belongs to: its IP address (see the module comment).
+pub(super) fn client_key(client_ip_header: Option<&HeaderName>, request: &Request) -> String {
+    if let Some(name) = client_ip_header {
         if let Some(value) = request
             .headers()
             .get(name)
@@ -195,7 +200,7 @@ fn client_key(config: &Config, request: &Request) -> String {
 }
 
 async fn limit(State(limiter): State<Limiter>, request: Request, next: Next) -> Response {
-    let key = client_key(&limiter.0.config, &request);
+    let key = client_key(limiter.0.config.client_ip_header.as_ref(), &request);
     let response = next.run(request).await;
     // Headers (Content-Length, ranges) are untouched; only the body is paced.
     let (parts, body) = response.into_parts();
