@@ -71,6 +71,24 @@
       "SPRK_OPTION_SHOW": "Показать",
       "SPRK_OPTION_HIDE": "Скрыть",
       "SPRK_OPTION_SHOP_PACKAGE_TAB": "Наборы в особом магазине"
+    },
+    "Thai": {
+      "SPRK_OPTION_CHAT_CHANNEL": "ชาแนล",
+      "SPRK_OPTION_CHAT_POPUP": "ป๊อปอัพแชท",
+      "SPRK_OPTION_HIDE": "ซ่อน",
+      "SPRK_OPTION_HIDE_ALL": "ซ่อนทั้งหมด",
+      "SPRK_OPTION_SHOP_PACKAGE_TAB": "แพ็คเกจร้านค้าพิเศษ",
+      "SPRK_OPTION_SHOW": "แสดง",
+      "SPRK_OPTION_SHOW_ALL": "แสดงทั้งหมด"
+    },
+    "Vietnamese": {
+      "SPRK_OPTION_CHAT_CHANNEL": "Kênh",
+      "SPRK_OPTION_CHAT_POPUP": "Cửa sổ trò chuyện",
+      "SPRK_OPTION_HIDE": "Ẩn",
+      "SPRK_OPTION_HIDE_ALL": "Ẩn tất cả",
+      "SPRK_OPTION_SHOP_PACKAGE_TAB": "Gói Cửa hàng đặc biệt",
+      "SPRK_OPTION_SHOW": "Hiển thị",
+      "SPRK_OPTION_SHOW_ALL": "Hiện tất cả"
     }
   }
 }

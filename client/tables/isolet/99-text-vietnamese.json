@@ -1,0 +1,12 @@
+{
+  "localization": {
+    "Vietnamese": {
+      "SKILL_DESC_60008211": "Giảm 500 Kháng chí mạng của kẻ địch đang bị [Phát hỏa].",
+      "SKILL_DESC_60008220": "Mỗi đòn giảm {1} Mana của kẻ địch. Với Boss, giảm 500 Mana thay vào đó.",
+      "SKILL_DESC_60008230": "[Giông tố hỏa diễm] giảm 100 Mana của mục tiêu mỗi đòn trúng.",
+      "SKILL_DESC_8240": "Isolet hồi [64ff64]{3}[-] Mana mỗi lần dùng kỹ năng và tăng [64ff64]{2}[-]% Sát thương chí mạng của bản thân.\nKhi tạo [64ffff][Phản ứng phát nổ][-], ATK của cô tăng [64ff64]{4}[-]%. Hiệu ứng này cộng dồn tối đa [64ffff]{5}[-] lần và không thể bị gỡ bỏ.\nKhi tạo [64ff64][Giông tố hỏa diễm][-], sát thương phép thuật toàn bộ đồng minh phải nhận giảm [64ff64]{6}[-]%. Hiệu ứng này cộng dồn tối đa [64ffff]{7}[-] lần và không thể bị gỡ bỏ.",
+      "SKILL_DESC_91008240": "[Tinh túy Công nghệ Ma thuật] Tăng số cộng dồn tối đa của [Phản ứng phát nổ] thêm {1} và của [Giông tố hỏa diễm] thêm {2}. Tăng {3}% Sát thương chí mạng. Nhận thêm 1 cộng dồn mỗi khi tạo [Phản ứng phát nổ].",
+      "SKILL_DESC_93008202": "Tăng {1}% sát thương Isolet gây ra cho kẻ địch không phải Anh hùng và giảm 1 giây thời gian hồi chiêu kỹ năng chủ động của cô mỗi giây trong thời gian linh hồn tồn tại."
+    }
+  }
+}

@@ -122,9 +122,10 @@ fi
 docker image inspect "$image" >/dev/null 2>&1 || die "No $image yet: run without --no-build first."
 
 # The game image is local: never let Compose look for it in a registry. Fetch
-# the database image separately, since --pull never would not download it.
+# the database and asset-mirror images separately, since --pull never would
+# not download them.
 echo 'Starting the stack...'
-docker compose pull --quiet postgres postgres-backup
+docker compose pull --quiet postgres postgres-backup assets-mirror
 SPRK_IMAGE="$image" docker compose up -d --pull never --remove-orphans
 
 port="$(sed -nE 's/^SPRK_GAME_PORT=([0-9]+).*/\1/p' .env | tail -n 1)"

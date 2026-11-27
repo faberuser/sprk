@@ -42,6 +42,14 @@
     "LocalizationJit/LocalizationAll_Russian.jit": {
       "sha256": "707a43157063bb40b0c5e0e2ea1392e10eb41d2ed7ea30aa2abb9d2e5ec04880",
       "originalSha256": "ed31e3c00d64be92bf4d8d0c9521767a67e0cb5b4062f424b5c9bf05517269de"
+    },
+    "LocalizationJit/LocalizationAll_Thai.jit": {
+      "sha256": "b83be2f72600067848d8ad62250de50042e0a72e621fea45fd0d42e4cde384e7",
+      "originalSha256": "ed3a7e083f452c30dee3029ab7be851fe9719a6fa1bca2bebe93984ac9b624db"
+    },
+    "LocalizationJit/LocalizationAll_Vietnamese.jit": {
+      "sha256": "8e321c605e99d2ee8b133696c47ffded1a53be48e3d60652d2d5fdeb905d7a58",
+      "originalSha256": "a017880437887d66524e32d32504b7ef8918b8408954754f6c457ca776624c1e"
     }
   },
   "changesByLocale": {

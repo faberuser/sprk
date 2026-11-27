@@ -39,6 +39,16 @@
       "COSTUME_NAME_1403": "Базовый костюм Майи (3 зв.)",
       "COSTUME_NAME_1404": "Базовый костюм Майи (4 зв.)",
       "COSTUME_NAME_1405": "Базовый костюм Майи (5 зв.)"
+    },
+    "Thai": {
+      "COSTUME_NAME_1403": "Maya (3 ดาว)",
+      "COSTUME_NAME_1404": "Maya (4 ดาว)",
+      "COSTUME_NAME_1405": "Maya (5 ดาว)"
+    },
+    "Vietnamese": {
+      "COSTUME_NAME_1403": "Maya (3 sao)",
+      "COSTUME_NAME_1404": "Maya (4 sao)",
+      "COSTUME_NAME_1405": "Maya (5 sao)"
     }
   }
 }

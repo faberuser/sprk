@@ -157,10 +157,20 @@ see [SprkSkillDescriptionFormula](../client/managed/SprkSkillDescriptionFormula)
 ```
 
 Languages are the file names: `English`, `Korean`, `Japanese`,
-`ChineseSimplified`, `ChineseTraditional`, `French`, `German`, `Russian`. Keys
-are hashed with `JitOption.StringToHashCode` (the same function as
-`kingsraid-table-data/lookup_localization.py`); existing keys are replaced.
-Color tags such as `[ffc800]...[-]` and `{1}` placeholders work as in the game.
+`ChineseSimplified`, `ChineseTraditional`, `French`, `German`, `Russian`,
+`Thai`, `Vietnamese`. Keys are hashed with `JitOption.StringToHashCode` (the
+same function as `kingsraid-table-data/lookup_localization.py`); existing keys
+are replaced. A key written as `#<hash>` (decimal) addresses an entry by its
+hash directly, for text whose original key name is unknown. Color tags such as
+`[ffc800]...[-]` and `{1}` placeholders work as in the game.
+
+The pinned baseline ships no Thai or Vietnamese file. For those, `build_tables.py`
+starts from the seed files in `client/localization/seed/` (taken from the last
+official Thai/Vietnamese release) and applies the patches on top, mainly
+`client/tables/restored-languages/`, which brings them up to current English.
+The client loads English as a final fallback for keys missing in either language.
+Dump any localization file to JSON with
+`dotnet run --project tools/JitTables -c Release -- loc-dump <file.jit> <out.json>`.
 
 ## Integrity metadata and generated files
 

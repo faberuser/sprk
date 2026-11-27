@@ -7,7 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / 'localization/sprk.tsv'
 OUTPUT = ROOT / 'managed/Assembly-CSharp/SprkText.Generated.cs'
-LANGUAGES = ['German', 'French', 'Japanese', 'Korean', 'Russian', 'ChineseSimplified', 'ChineseTraditional']
+LANGUAGES = ['German', 'French', 'Japanese', 'Korean', 'Russian', 'ChineseSimplified', 'ChineseTraditional', 'Thai', 'Vietnamese']
 
 
 def read_entries(source=SOURCE):
@@ -16,8 +16,8 @@ def read_entries(source=SOURCE):
         if not line or line.startswith('#'):
             continue
         cells = [s.replace('\\n', '\n') for s in line.split('\t')]
-        if len(cells) != 8 or any(not s.strip() for s in cells):
-            raise ValueError(f'{SOURCE.name}:{number}: expected English and seven nonempty translations')
+        if len(cells) != len(LANGUAGES) + 1 or any(not s.strip() for s in cells):
+            raise ValueError(f'{SOURCE.name}:{number}: expected English and {len(LANGUAGES)} nonempty translations')
         key, *values = cells
         if any('\ufffd' in value or re.search(r'\?{2,}', value) for value in values):
             raise ValueError(f'{SOURCE.name}:{number}: possible text encoding damage')

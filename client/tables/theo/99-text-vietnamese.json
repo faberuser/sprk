@@ -1,0 +1,37 @@
+{
+  "localization": {
+    "Vietnamese": {
+      "SKILL_DESC_4010": "Tấn công 16 lần, gây tổng cộng [ffc800]{1}[-] sát thương phép thuật lên kẻ địch trong phạm vi. Mỗi đòn chí mạng tăng 3% Sát thương chí mạng trong 20 giây, và có 30% xác suất gây thêm [ffc800]{2}[-] sát thương phép thuật, gây choáng 0.3 giây. Hiệu ứng tăng Sát thương chí mạng cộng dồn tối đa 30 lần.",
+      "SKILL_DESC_4020": "Khi thi triển, kích hoạt 'Thần Tia Chớp' và ném ngọn giáo sấm sét vào kẻ địch, gây [ffc800]{1}[-] sát thương phép thuật. Kẻ địch trúng đòn nhận thêm [ffc800]{3}[-]% sát thương phép thuật trong [64ffff]{2}[-] giây. Khi ở trạng thái 'Thần Tia Chớp', tăng 40% xác suất kích hoạt 'Vì Jane' và [64ff64]{5}[-] ATK trong [64ffff]{4}[-] giây. 'Thần Tia Chớp' không thể bị gỡ bỏ.",
+      "SKILL_DESC_4030": "Nhảy lên tấn công, cắm giáo xuống đất và đánh trúng kẻ địch mục tiêu cùng kẻ địch trong phạm vi 5 lần, gây tổng cộng [ffc800]{1}[-] sát thương phép thuật và gây Choáng trong 3 giây. Nếu mục tiêu là Boss, đòn tấn công bỏ qua DEF của mục tiêu và gây Choáng trong 5 giây thay vào đó.",
+      "SKILL_DESC_4040": "Tăng 100 Xác suất chí mạng và 200 Lifesteal. Mỗi đòn đánh thường có 20% xác suất gây [64ff64]{1}[-] sát thương phép thuật và gây Choáng trong 0.7 giây.",
+      "SKILL_DESC_60004010": "Miễn nhiễm chế ngự khi đang thi triển.",
+      "SKILL_DESC_60004011": "Tăng 0.2 giây thời gian Choáng.",
+      "SKILL_DESC_60004020": "Khi ở trạng thái Thần Tia Chớp, tăng 10% sát thương gây lên Anh hùng.",
+      "SKILL_DESC_60004021": "Khi ở trạng thái Thần Tia Chớp, tăng 10% sát thương gây lên Boss.",
+      "SKILL_DESC_60004030": "Nếu chỉ có 1 kẻ địch, sát thương tăng 100%.",
+      "SKILL_DESC_60004031": "Gỡ bỏ hiệu ứng có lợi khỏi kẻ địch trúng đòn.",
+      "SKILL_DESC_60004040": "Nếu chỉ có 1 kẻ địch, sát thương tăng 100%.",
+      "SKILL_DESC_60004041": "Sát thương tăng 40% và thời gian Choáng tăng 0.3 giây.",
+      "SKILL_DESC_60004051": "Khi tấn công, nhận [Danh dự Hiệp sĩ], tăng 1% sát thương gây lên kẻ địch không phải Anh hùng. Hiệu ứng này cộng dồn tối đa 20 lần và không thể bị gỡ bỏ.",
+      "SKILL_DESC_90000400": "Đòn đánh thường và đòn kỹ năng cộng dồn 'Tia chớp' lên bản thân. Khi đạt 50 cộng dồn, kích hoạt 'Tia chớp, Legios', tăng 300 Tốc độ tấn công, 100% Sát thương chí mạng và 300 Xuyên phòng thủ của bản thân trong {1} giây. 'Tia chớp' vẫn có thể cộng dồn khi 'Tia chớp, Legios' đang kích hoạt. Hiệu ứng này không thể bị gỡ bỏ.",
+      "SKILL_DESC_90000401": "Đòn đánh thường và đòn kỹ năng cộng dồn 'Tia chớp' lên bản thân. Khi đạt 50 cộng dồn, kích hoạt 'Tia chớp, Legios', tăng 360 Tốc độ tấn công, 120% Sát thương chí mạng và 360 Xuyên phòng thủ của bản thân trong {1} giây. 'Tia chớp' vẫn có thể cộng dồn khi 'Tia chớp, Legios' đang kích hoạt. Hiệu ứng này không thể bị gỡ bỏ.",
+      "SKILL_DESC_90000402": "Đòn đánh thường và đòn kỹ năng cộng dồn 'Tia chớp' lên bản thân. Khi đạt 50 cộng dồn, kích hoạt 'Tia chớp, Legios', tăng 430 Tốc độ tấn công, 144% Sát thương chí mạng và 430 Xuyên phòng thủ của bản thân trong {1} giây. 'Tia chớp' vẫn có thể cộng dồn khi 'Tia chớp, Legios' đang kích hoạt. Hiệu ứng này không thể bị gỡ bỏ.",
+      "SKILL_DESC_90000403": "Đòn đánh thường và đòn kỹ năng cộng dồn 'Tia chớp' lên bản thân. Khi đạt 50 cộng dồn, kích hoạt 'Tia chớp, Legios', tăng 520 Tốc độ tấn công, 173% Sát thương chí mạng và 520 Xuyên phòng thủ của bản thân trong {1} giây. 'Tia chớp' vẫn có thể cộng dồn khi 'Tia chớp, Legios' đang kích hoạt. Hiệu ứng này không thể bị gỡ bỏ.",
+      "SKILL_DESC_90000404": "Đòn đánh thường và đòn kỹ năng cộng dồn 'Tia chớp' lên bản thân. Khi đạt 50 cộng dồn, kích hoạt 'Tia chớp, Legios', tăng 620 Tốc độ tấn công, 208% Sát thương chí mạng và 620 Xuyên phòng thủ của bản thân trong {1} giây. 'Tia chớp' vẫn có thể cộng dồn khi 'Tia chớp, Legios' đang kích hoạt. Hiệu ứng này không thể bị gỡ bỏ.",
+      "SKILL_DESC_90000405": "Đòn đánh thường và đòn kỹ năng cộng dồn 'Tia chớp' lên bản thân. Khi đạt 50 cộng dồn, kích hoạt 'Tia chớp, Legios', tăng 750 Tốc độ tấn công, 250% Sát thương chí mạng và 750 Xuyên phòng thủ của bản thân trong {1} giây. 'Tia chớp' vẫn có thể cộng dồn khi 'Tia chớp, Legios' đang kích hoạt. Hiệu ứng này không thể bị gỡ bỏ.",
+      "SKILL_DESC_91004020": "[Thần Tia Chớp] Tăng 300 Tốc độ tấn công trong thời gian hiệu lực của kỹ năng, và tăng thêm 10% xác suất kích hoạt 'Vì Jane'.",
+      "SKILL_DESC_91004021": "[Thần Tia Chớp] Tăng 300 Tốc độ tấn công trong thời gian hiệu lực của kỹ năng, và tăng thêm 12.5% xác suất kích hoạt 'Vì Jane'.",
+      "SKILL_DESC_91004022": "[Thần Tia Chớp] Tăng 300 Tốc độ tấn công trong thời gian hiệu lực của kỹ năng, và tăng thêm 15.5% xác suất kích hoạt 'Vì Jane'.",
+      "SKILL_DESC_91004023": "[Thần Tia Chớp] Tăng 300 Tốc độ tấn công trong thời gian hiệu lực của kỹ năng, và tăng thêm 20% xác suất kích hoạt 'Vì Jane'.",
+      "SKILL_DESC_91004024": "[Thần Tia Chớp] Tăng 300 Tốc độ tấn công trong thời gian hiệu lực của kỹ năng, và tăng thêm 25% xác suất kích hoạt 'Vì Jane'.",
+      "SKILL_DESC_91004025": "[Thần Tia Chớp] Tăng 300 Tốc độ tấn công trong thời gian hiệu lực của kỹ năng, và tăng thêm 30% xác suất kích hoạt 'Vì Jane'.",
+      "SKILL_DESC_91004040": "[Tất cả vì Jane] Tăng 20% xác suất kích hoạt và tăng 500 Tốc độ tấn công của bản thân trong 30 giây đầu mỗi trận đấu. Hiệu ứng này không thể bị gỡ bỏ.",
+      "SKILL_DESC_91004041": "[Tất cả vì Jane] Tăng 24% xác suất kích hoạt và tăng 500 Tốc độ tấn công của bản thân trong 30 giây đầu mỗi trận đấu. Hiệu ứng này không thể bị gỡ bỏ.",
+      "SKILL_DESC_91004042": "[Tất cả vì Jane] Tăng 29% xác suất kích hoạt và tăng 500 Tốc độ tấn công của bản thân trong 30 giây đầu mỗi trận đấu. Hiệu ứng này không thể bị gỡ bỏ.",
+      "SKILL_DESC_91004043": "[Tất cả vì Jane] Tăng 35% xác suất kích hoạt và tăng 500 Tốc độ tấn công của bản thân trong 30 giây đầu mỗi trận đấu. Hiệu ứng này không thể bị gỡ bỏ.",
+      "SKILL_DESC_91004044": "[Tất cả vì Jane] Tăng 42% xác suất kích hoạt và tăng 500 Tốc độ tấn công của bản thân trong 30 giây đầu mỗi trận đấu. Hiệu ứng này không thể bị gỡ bỏ.",
+      "SKILL_DESC_91004045": "[Tất cả vì Jane] Tăng 50% xác suất kích hoạt và tăng 500 Tốc độ tấn công của bản thân trong 30 giây đầu mỗi trận đấu. Hiệu ứng này không thể bị gỡ bỏ."
+    }
+  }
+}

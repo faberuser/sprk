@@ -20,12 +20,14 @@ const string Usage = """
       verify    <jit-dir> <Table>...              Dump every row, rebuild from the dump; reports byte identity.
       rebuild   <jit-dir> <Table> <out.jit>           Write the unpatched rebuild (to diff a failed verify).
       dump      <jit-dir> <Table> <out.json> [key...]   Write rows (all, or the given keys) as patchable JSON.
-      build     <input-dir> <patch-dir> <out-dir>   Apply every *.json patch; write changed tables,
+      build     <input-dir> <patch-dir> <out-dir> [seed-dir]   Apply every *.json patch; write changed tables,
                 localization and SPRK-Native*.json. Both dirs use the native patch layout
                 (TableJit/, LocalizationJit/); <input-dir> must be the pinned baseline.
+                A language the baseline lacks starts from <seed-dir>/LocalizationAll_<Language>.jit.
       bjs <file.bjs>                             Prints a PlainAsset JsonBin file as JSON.
       bundle-index <BundlePack.bin> <regex> [--values]  Lists index entries whose key matches (optionally with values).
-      loc-get <file.jit> <key>...                Prints the text for localization keys.
+      loc-get <file.jit> <key>...                Prints the text for localization keys (#<hash> for a raw hash).
+      loc-dump <file.jit> <out.json>             Writes every entry as {"<hash>": "text"} JSON.
       loc-verify <file.jit>...                   Round-trip localization files; reports byte identity.
       sprites   <BundlePack.bin> [regex]         List sprite paths and their atlas / sprite names.
     """;
@@ -77,7 +79,7 @@ try
             return 0;
         }
         case "build":
-            return Build(args[1], args[2], args[3]);
+            return Build(args[1], args[2], args[3], args.Length > 4 ? args[4] : null);
         case "bjs":
         {
             // Prints a PlainAsset JsonBin file (.bjs) as JSON; tries plain, then encrypted.
@@ -127,6 +129,15 @@ try
             }
             return 0;
         }
+        case "loc-dump":
+        {
+            var f = LocalizationFile.Load(args[1]);
+            var entries = f.Entries().OrderBy(e => e.Hash).ToDictionary(e => e.Hash.ToString(CultureInfo.InvariantCulture), e => e.Text);
+            var options = new JsonSerializerOptions { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+            File.WriteAllText(args[2], JsonSerializer.Serialize(entries, options) + "\n");
+            Console.WriteLine($"{Path.GetFileName(args[1])}: wrote {entries.Count} entries to {args[2]}");
+            return 0;
+        }
         case "loc-verify":
         {
             bool same = true;
@@ -159,7 +170,7 @@ static bool Report(string table, byte[] original, byte[] rebuilt)
 // King's Raid_Data/Documents/Patch/StandaloneWindows): TableJit/, LocalizationJit/
 // and the SPRK-Native*.json integrity metadata. The input must be the pinned
 // baseline, never a client that already contains these patches.
-static int Build(string inputDir, string patchDir, string outDir)
+static int Build(string inputDir, string patchDir, string outDir, string seedDir)
 {
     var patches = Directory.GetFiles(patchDir, "*.json", SearchOption.AllDirectories)
         .OrderBy(p => Path.GetRelativePath(patchDir, p), StringComparer.Ordinal)
@@ -253,7 +264,18 @@ static int Build(string inputDir, string patchDir, string outDir)
     foreach (var (language, strings) in byLanguage)
     {
         string relative = $"LocalizationJit/LocalizationAll_{language}.jit";
-        var file = LocalizationFile.Load(Path.Combine(inputDir, relative));
+        string source = Path.Combine(inputDir, relative);
+        if (!File.Exists(source) && seedDir != null)
+        {
+            // A language the baseline does not ship (Thai, Vietnamese) starts from a
+            // pinned seed file under client/localization/seed.
+            source = Path.Combine(seedDir, Path.GetFileName(relative));
+        }
+        if (!File.Exists(source))
+        {
+            throw new FileNotFoundException($"{relative}: not in the baseline and no seed file; add one under the seed folder.", source);
+        }
+        var file = LocalizationFile.Load(source);
         byte[] baseline = file.Serialize();
         if (!file.Original.AsSpan().SequenceEqual(baseline))
         {
@@ -336,16 +358,31 @@ sealed class LocalizationFile
         return f;
     }
 
+    // A key is a text key (hashed with JitOption.StringToHashCode) or "#<hash>", the
+    // stored hash itself, for entries whose text key is unknown (seed-language gaps).
+    public static int HashOf(string key)
+    {
+        return key.StartsWith('#') ? int.Parse(key.AsSpan(1), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture) : JitOption.StringToHashCode(key);
+    }
+
+    public IEnumerable<(int Hash, string Text)> Entries()
+    {
+        foreach (DictionaryEntry entry in strings)
+        {
+            yield return ((int)entry.Key, (string)entry.Value);
+        }
+    }
+
     public string Get(string key)
     {
-        int hash = JitOption.StringToHashCode(key);
+        int hash = HashOf(key);
         return strings.Contains(hash) ? (string)strings[hash] : null;
     }
 
     // Returns true when the key already existed.
     public bool Set(string key, string text)
     {
-        int hash = JitOption.StringToHashCode(key);
+        int hash = HashOf(key);
         bool existed = strings.Contains(hash);
         strings[hash] = text;
         return existed;

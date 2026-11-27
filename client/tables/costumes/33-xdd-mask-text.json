@@ -47,6 +47,18 @@
       "COSTUME_DESC_ACCESSORY_BODY_3102599": "A paper mask of xdd, cut out along its grin. Only given as a gift.",
       "ITEM_NAME_3102599": "Mask of xdd",
       "ITEM_DESC2_3102599": "A paper mask of xdd, cut out along its grin. Only given as a gift."
+    },
+    "Thai": {
+      "COSTUME_DESC_ACCESSORY_BODY_3102599": "หน้ากากกระดาษ xdd ตัดตามรอยยิ้ม ใช้เป็นของขวัญเท่านั้น",
+      "COSTUME_NAME_ACCESSORY_BODY_3102599": "หน้ากาก xdd",
+      "ITEM_DESC2_3102599": "หน้ากากกระดาษ xdd ตัดตามรอยยิ้ม ใช้เป็นของขวัญเท่านั้น",
+      "ITEM_NAME_3102599": "หน้ากาก xdd"
+    },
+    "Vietnamese": {
+      "COSTUME_DESC_ACCESSORY_BODY_3102599": "Mặt nạ giấy xdd, cắt theo nụ cười. Chỉ dùng làm quà tặng.",
+      "COSTUME_NAME_ACCESSORY_BODY_3102599": "Mặt nạ xdd",
+      "ITEM_DESC2_3102599": "Mặt nạ giấy xdd, cắt theo nụ cười. Chỉ dùng làm quà tặng.",
+      "ITEM_NAME_3102599": "Mặt nạ xdd"
     }
   }
 }

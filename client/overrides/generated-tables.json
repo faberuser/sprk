@@ -8,6 +8,8 @@
     "LocalizationJit/LocalizationAll_Japanese.jit",
     "LocalizationJit/LocalizationAll_Korean.jit",
     "LocalizationJit/LocalizationAll_Russian.jit",
+    "LocalizationJit/LocalizationAll_Thai.jit",
+    "LocalizationJit/LocalizationAll_Vietnamese.jit",
     "TableJit/AccessoryCostumeTable.jit",
     "TableJit/AccessorySelectItemTable.jit",
     "TableJit/ClientCreatureTable.jit",

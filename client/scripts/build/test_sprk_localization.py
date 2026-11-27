@@ -43,7 +43,7 @@ class LocalizationTests(unittest.TestCase):
             self.assertIn(json.loads(value), entries)
 
     def test_missing_locale_and_broken_format_are_rejected(self):
-        good = ['Count: {0}'] + ['Anzahl: {0}'] * 7
+        good = ['Count: {0}'] + ['Anzahl: {0}'] * len(catalog.LANGUAGES)
         cases = [good[:-1], good[:3] + [''] + good[4:], good[:3] + ['Anzahl: {1}'] + good[4:],
                  good[:3] + ['?? {0}'] + good[4:]]
         with tempfile.TemporaryDirectory() as folder:
@@ -57,7 +57,9 @@ class LocalizationTests(unittest.TestCase):
         languages = {}
         for path in (catalog.ROOT / 'tables').rglob('*.json'):
             for language, values in json.loads(path.read_text(encoding='utf-8')).get('localization', {}).items():
-                languages.setdefault(language, {}).update(values)
+                # "#<hash>" keys fill gaps in a restored language's seed file
+                # (tables/restored-languages); they are not SPRK text keys.
+                languages.setdefault(language, {}).update({k: v for k, v in values.items() if not k.startswith('#')})
         # Some patches translate text the base game already ships in English
         # (tables/birthday-stories), so translations may cover more keys than
         # the English patches; every translated language must still agree.
