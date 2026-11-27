@@ -805,10 +805,15 @@ async fn settle(s:&AppState,run:&Run,body:&Value)->Result<()> {
     if end_hp<0 || end_hp>hp {return Err(rule("InvalidValue"));}
     let contributions=body["AccountDamage"].as_object().ok_or_else(||rule("InvalidValue"))?;
     if contributions.len()!=run.members.len() {return Err(rule("InvalidValue"));}
-    let total=run.members.iter().try_fold(0_i64,|sum,a| {
+    for a in &run.members {
         let damage=contributions.get(&a.to_string()).and_then(Value::as_i64).ok_or_else(||rule("InvalidValue"))?;if damage<0 {return Err(rule("InvalidValue"));}
-        sum.checked_add(damage).ok_or_else(||rule("InvalidValue"))
-    })?;
+    }
+    // The party's score is shared by the number of heroes each player brought,
+    // not by damage dealt (a carry would otherwise take nearly all of it).
+    let accounts=run.payload["Simulation"]["AccountInfos"].as_array().ok_or_else(||rule("InvalidValue"))?;
+    let heroes=|a:i64| accounts.iter().find(|v|number(&v["UserInfo"],"AccountId")==a)
+        .and_then(|v|v["HeroInfos"].as_object()).map_or(0,|h|h.len() as i64);
+    let total:i64=run.members.iter().map(|a|heroes(*a)).sum();
     let lost_hp=if matches!(number(&run.payload["Simulation"],"DungeonIndex"),3|103) {number(boss_report,"GivedDamage")} else {hp-end_hp};
     if lost_hp<0 {return Err(rule("InvalidValue"));}let mut assigned=0_i64;
     let mut db=crate::database::begin(&s.db).await?;crate::postgres::lock_account(&mut *db, run.master).await?;
@@ -818,7 +823,7 @@ async fn settle(s:&AppState,run:&Run,body:&Value)->Result<()> {
         if entry["CoopRunId"]!=run.id || entry["CoopCharged"]!=true {return Err(rule("InvalidValue"));}
         if completed>0 {continue;}
         let own=creatures.iter().filter(|v|number(v,"TeamId")==0 && number(v,"AccountId")==*a).cloned().collect::<Vec<_>>();
-        let sum=contributions[&a.to_string()].as_i64().unwrap();
+        let sum=heroes(*a);
         let portion=if index==run.members.len()-1 {lost_hp-assigned}else if total>0 {(lost_hp as i128*sum as i128/total as i128) as i64}else{lost_hp/run.members.len() as i64};assigned+=portion;
         let mut report=own;report.push(json!({"Index":boss,"TeamId":1,"Hp":if number(&entry,"ConquestLevel")==3 {end_hp}else{hp-portion},"GivedDamage":portion}));
         let request=request(json!({"CreatureInfoString":json!(report).to_string(),"Completed":body["Win"],"PureBattleTime":number(body,"TimeMs")/1000}));
@@ -871,7 +876,14 @@ async fn cancel_abandoned(s:&AppState,id:&str,disconnected:Option<i64>)->Result<
             if let Some(a)=disconnected.filter(|a|!connected.contains(a)) {return arena::depart(s,&mut run,a).await;}
             return Ok(());
         }
-        if connected.is_empty() {
+        if connected.is_empty() && run.started && run.payload["PartyCampaign"]!=true {
+            // Conquest tickets were charged when the fight started. Losing every
+            // socket must not refund them and erase the damage already dealt
+            // (closing the game would reroll a bad run). Treat it like every
+            // player leaving: the worker ends the fight and it settles normally.
+            let remaining:Vec<i64>=run.members.iter().copied().filter(|a|!run.departed.contains(a)).collect();
+            for a in remaining {depart_player(s,&mut run,a).await?;}
+        } else if connected.is_empty() {
             cancel(s,&run).await?;
         } else {
             run.offline.retain(|a|!connected.contains(a));
@@ -1455,8 +1467,9 @@ mod tests {
         worker_packet(&s,"forged-worker","WorkerResult",result.clone()).await.unwrap_err();
         worker_packet(&s,"test-worker","WorkerResult",result.clone()).await.unwrap();worker_packet(&s,"test-worker","WorkerResult",result).await.unwrap();
         let total:i64=crate::db::query_scalar("SELECT SUM(score)::bigint FROM guild_battle_scores WHERE guild_id=$1 AND kind='suppress'").bind(g).fetch_one(&s.db).await.unwrap();assert_eq!(total,600);
-        for (i,u) in users.iter().enumerate() {
-            let a=n(&u["UserInfo"],"AccountId");let score:i64=crate::db::query_scalar("SELECT score FROM guild_battle_scores WHERE account=$1 AND kind='suppress'").bind(a).fetch_one(&s.db).await.unwrap();assert_eq!(score,(i as i64+1)*100);
+        // Shared by hero count (host 2, guests 1 each), not by the 100/200/300 damage.
+        for (u,expected) in users.iter().zip([300_i64,150,150]) {
+            let a=n(&u["UserInfo"],"AccountId");let score:i64=crate::db::query_scalar("SELECT score FROM guild_battle_scores WHERE account=$1 AND kind='suppress'").bind(a).fetch_one(&s.db).await.unwrap();assert_eq!(score,expected);
             let end=crate::api::battle::execute_request(&s,"campaign/end_campaign",Bytes::from(format!("SessionKey={}&ChapterIndex=9900&DungeonIndex=1&DungeonDifficulty=0&Completed=false",u["UserInfo"]["SessionKey"].as_str().unwrap()))).await.unwrap();
             assert_eq!(end["Result"],"Success","{end}");assert_eq!(end["GuildSuppressScoreInfo"]["TotalDamage"],score);
         }
@@ -1469,6 +1482,34 @@ mod tests {
         cancel(&s,&run).await.unwrap();cancel(&s,&run).await.unwrap();
         for u in users {let mut db=s.db.acquire().await.unwrap();assert_eq!(conquest::tickets(&mut db,&s,n(&u["UserInfo"],"AccountId"),0).await.unwrap()["NewValue"],2);}
         assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM guild_battle_scores WHERE kind='suppress'").fetch_one(&s.db).await.unwrap(),0);
+    }
+    #[tokio::test]
+    async fn conquest_coop_losing_every_socket_after_start_settles_instead_of_refunding() {
+        let (s,users,g,mut worker,_clients)=fixture().await;let id=start(&s).await;
+        assert_eq!(worker.recv().await.unwrap().0,"WorkerPrepare");assert_eq!(worker.recv().await.unwrap().0,"WorkerStart");
+        let members=users.iter().map(|u|n(&u["UserInfo"],"AccountId")).collect::<Vec<_>>();
+        // Every player closes the game mid-fight.
+        s.conquest.peers.clear();
+        cancel_abandoned(&s,&id,Some(members[0])).await.unwrap();
+        for a in &members {
+            let (name,body)=worker.recv().await.unwrap();assert_eq!(name,"WorkerWithdraw");assert_eq!(body["AccountId"],*a);
+        }
+        assert!(s.conquest.runs.contains_key(&id),"The fight must reach its worker result");
+        for a in &members {
+            let mut db=s.db.acquire().await.unwrap();
+            assert_eq!(conquest::tickets(&mut db,&s,*a,0).await.unwrap()["NewValue"],1,"A started fight keeps its ticket");
+        }
+        let handle=s.conquest.runs.get(&id).unwrap().clone();let hp=number(&handle.lock().await.payload,"BossHp");
+        let mut creatures=vec![json!({"Index":11301,"TeamId":1,"Hp":hp-300})];
+        for (i,a) in members.iter().enumerate() {creatures.push(json!({"Index":i+1,"TeamId":0,"AccountId":a,"Hp":0,"GivedDamage":0}));}
+        let damage=members.iter().map(|a|(a.to_string(),json!(100))).collect::<serde_json::Map<_,_>>();
+        worker_packet(&s,"test-worker","WorkerResult",json!({"RunId":id,"Win":false,"Creatures":creatures,"AccountDamage":damage,"TimeMs":5000,"MaxWaveIndex":1})).await.unwrap();
+        let total:i64=crate::db::query_scalar("SELECT SUM(score)::bigint FROM guild_battle_scores WHERE guild_id=$1 AND kind='suppress'").bind(g).fetch_one(&s.db).await.unwrap();
+        assert_eq!(total,300);
+        for a in &members {
+            let mut db=s.db.acquire().await.unwrap();
+            assert_eq!(conquest::tickets(&mut db,&s,*a,0).await.unwrap()["NewValue"],1);
+        }
     }
     #[tokio::test]
     async fn conquest_coop_restart_recovers_once_without_changing_completed_scores() {
