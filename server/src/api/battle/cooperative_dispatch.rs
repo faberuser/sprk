@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::{oneshot, Semaphore};
 
 pub(super) struct Pending {
-    worker: String,
+    pub(super) worker: String,
     reply: Option<oneshot::Sender<Value>>,
 }
 
@@ -83,15 +83,14 @@ impl Scheduler {
 
 /// Prepare one repeat. Returns whether a result was saved.
 async fn prepare(s: &AppState, a: i64, slot: i64) -> Result<bool> {
-    let (worker, sender, version) = {
-        let guard = s.conquest.worker.read().await;
-        let Some(w) = guard
-            .as_ref()
-            .filter(|w| w.dispatch_version >= 1 && !w.sender.is_closed())
-        else {
-            return Ok(false);
-        };
-        (w.id.clone(), w.sender.clone(), w.dispatch_version)
+    // With several workers, background simulations avoid the worker that
+    // live fights are placed on first (see BattleHub::pick_worker).
+    let Some((worker, sender, version)) = s
+        .conquest
+        .pick_worker(super::Placement::Dispatch, |w| w.dispatch_version >= 1)
+        .await
+    else {
+        return Ok(false);
     };
     let mut tx = crate::database::begin(&s.db).await?;
     crate::postgres::lock_account(&mut *tx, a).await?;
@@ -157,7 +156,7 @@ async fn prepare(s: &AppState, a: i64, slot: i64) -> Result<bool> {
             tokio::select! {
                 result=&mut rx => return result.ok(),
                 _=tokio::time::sleep(std::time::Duration::from_secs(3)) => {
-                    let active=s.conquest.worker.read().await.as_ref().is_some_and(|w|w.id==s_worker && !w.sender.is_closed());
+                    let active=s.conquest.worker_active(&s_worker).await;
                     let mut db=s.db.acquire().await.ok()?;
                     let current=get(&mut db,a,"dispatch",slot).await.ok()?;
                     if !active || current["SimulationJobId"]!=job["SimulationJobId"] || matches!(current["State"].as_str(),Some("Complete"|"Cancel")) {return None;}
@@ -256,6 +255,7 @@ pub(super) async fn packet(s: &AppState, worker: &str, name: &str, body: &Value)
     if p.worker != worker {
         return Err(rule("Unauthorized"));
     }
+    let worker_id = p.worker.clone();
     if name == "WorkerResult" {
         if !body["Win"].is_boolean() || !(0..=3600000).contains(&number(body, "TimeMs")) {
             return Err(rule("InvalidValue"));
@@ -269,10 +269,10 @@ pub(super) async fn packet(s: &AppState, worker: &str, name: &str, body: &Value)
         }
     } else if name == "WorkerPacket" && body["Name"] == "WaveReadyNot" {
         s.conquest
-            .send_worker("WorkerStart", json!({"RunId":id}))
+            .send_worker(&worker_id, "WorkerStart", json!({"RunId":id}))
             .await?;
         s.conquest
-            .send_worker("WorkerResume", json!({"RunId":id}))
+            .send_worker(&worker_id, "WorkerResume", json!({"RunId":id}))
             .await?;
     }
     Ok(())
@@ -370,10 +370,10 @@ mod tests {
         tokio::time::timeout(std::time::Duration::from_secs(90), async {
             while !s
                 .conquest
-                .worker
+                .workers
                 .read()
                 .await
-                .as_ref()
+                .first()
                 .is_some_and(|w| w.dispatch_version >= 1)
             {
                 tokio::time::sleep(std::time::Duration::from_millis(100)).await;
@@ -427,7 +427,7 @@ mod tests {
             put(&mut s.db.acquire().await.unwrap(), a, "dispatch", slot, &copy).await.unwrap();
         }
         let (tx, mut rx) = mpsc::channel(50);
-        *s.conquest.worker.write().await = Some(Worker {
+        *s.conquest.workers.write().await=vec!(Worker {
             id: "dispatch-test".into(), sender: tx,
             arena_version: 1, challenge_version: 1, dispatch_version: 1,
         });
@@ -482,7 +482,7 @@ mod tests {
             put(&mut s.db.acquire().await.unwrap(), a, "dispatch", slot, &copy).await.unwrap();
         }
         let (tx, mut rx) = mpsc::channel(50);
-        *s.conquest.worker.write().await = Some(Worker {
+        *s.conquest.workers.write().await=vec!(Worker {
             id: "dispatch-test".into(), sender: tx,
             arena_version: 1, challenge_version: 1, dispatch_version: 1,
         });
@@ -596,7 +596,7 @@ mod tests {
             // New process state; only the database survives. No player session is used.
             s = AppState::new(s.db.clone(), s.tables.as_ref().clone());
             let (tx, mut rx) = mpsc::channel(20);
-            *s.conquest.worker.write().await = Some(Worker {
+            *s.conquest.workers.write().await=vec!(Worker {
                 id: "dispatch-test".into(),
                 sender: tx,
                 arena_version: 1,

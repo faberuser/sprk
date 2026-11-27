@@ -197,7 +197,7 @@ pub(super) mod part {
             "guild_battle_scores" => GUILD_DAMAGE,
             "community_claims:guild_conquest_kill" => CONQUEST_KILLS,
             "community_claims:guild_attend_total" => GUILD_ATT,
-            "campaign_progress" => DUNGEONS,
+            "campaign_progress" | "battle_state:dungeon" => DUNGEONS,
             "progression_login" => LOGIN,
             "user_info" => LEVEL,
             "costumes" => COSTUMES,
@@ -347,6 +347,33 @@ fn mark_claim(family: &str, id: i64) {
 
 /// Loaded inputs, one field per part. Private to this module: evaluators read
 /// them through View's accessors, which record what each evaluation used.
+/// Folds the dungeon progress the client is shown at login (battle_state kind
+/// `dungeon`, keyed `chapter<<32 | dungeon`) into the `campaign_progress` rows.
+/// The client counts chapter stars as `MaxStar % 10` of that list, so the
+/// server must count the same stars: a clear saved only there (older writes)
+/// would otherwise show a reward as claimable that the server refuses.
+/// Clear counts stay from `campaign_progress`, since `DailyCompletedCount`
+/// resets every day; a clear known only to the shown list counts once.
+pub(super) fn merge_shown_dungeons(dungeons: &mut Vec<(i64, i64, i64, i64)>, shown: &[(i64, String)]) {
+    for (idx, data) in shown {
+        let Ok(p) = serde_json::from_str::<Value>(data) else { continue };
+        let max_star = p["MaxStar"].as_i64().unwrap_or(0);
+        if max_star <= 0 {
+            continue;
+        }
+        let (chapter, dungeon) = (idx >> 32, idx & 0xffff_ffff);
+        match dungeons.iter_mut().find(|d| d.0 == chapter && d.1 == dungeon) {
+            Some(d) => {
+                d.2 = d.2.max(1);
+                if max_star % 10 > d.3 % 10 {
+                    d.3 = max_star;
+                }
+            }
+            None => dungeons.push((chapter, dungeon, 1, max_star)),
+        }
+    }
+    dungeons.sort_unstable();
+}
 #[derive(Default)]
 struct Inputs {
     history: super::mission_history::History,
@@ -500,7 +527,9 @@ impl View {
                 .bind(account).fetch_all(&mut *db).await?, "saved Soul Weapon")?);
         }
         if has(DUNGEONS) {
-            let dungeons: Vec<(i64, i64, i64, i64)> = crate::db::query_as("SELECT chapter_id,dungeon_id,clear_count,best_star FROM campaign_progress WHERE account_id=$1").bind(account).fetch_all(&mut *db).await?;
+            let mut dungeons: Vec<(i64, i64, i64, i64)> = crate::db::query_as("SELECT chapter_id,dungeon_id,clear_count,best_star FROM campaign_progress WHERE account_id=$1 ORDER BY chapter_id,dungeon_id").bind(account).fetch_all(&mut *db).await?;
+            let shown: Vec<(i64, String)> = crate::db::query_as("SELECT idx,data FROM battle_state WHERE account=$1 AND kind='dungeon'").bind(account).fetch_all(&mut *db).await?;
+            merge_shown_dungeons(&mut dungeons, &shown);
             if dungeons != d.dungeons {
                 let by_stage = |rows: &[(i64, i64, i64, i64)]| {
                     let mut map = BTreeMap::<(i64, i64), Vec<(i64, i64, i64, i64)>>::new();

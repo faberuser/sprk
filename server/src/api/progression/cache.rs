@@ -242,6 +242,7 @@ mod tests {
             ("level", "UPDATE user_info SET team_level=team_level+1 WHERE account_id=$1"),
             ("hero", "UPDATE heroes SET level=level+1 WHERE account_id=$1"),
             ("dungeon", "INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star) VALUES($1,1,1,1,3) ON CONFLICT(account_id,chapter_id,dungeon_id) DO UPDATE SET clear_count=campaign_progress.clear_count+1"),
+            ("shown dungeon", "INSERT INTO battle_state(account,kind,idx,data) VALUES($1,'dungeon',(1::bigint<<32)|2,'{\"MaxStar\":13}') ON CONFLICT(account,kind,idx) DO UPDATE SET data='{\"MaxStar\":12}'"),
             ("unread extension kind", "INSERT INTO extension_state(account_id,kind,idx,data) VALUES($1,'stamina_recharges',1,'{\"Count\":1}') ON CONFLICT(account_id,kind,idx) DO UPDATE SET data='{\"Count\":2}'"),
             ("pet", "INSERT INTO extension_state(account_id,kind,idx,data) VALUES($1,'pet_misc',6,'{\"MiscValue\":2}') ON CONFLICT(account_id,kind,idx) DO UPDATE SET data='{\"MiscValue\":3}'"),
             ("play record", "INSERT INTO play_record_values(account_id,kind,idx,value) VALUES($1,'arena_wins',0,4) ON CONFLICT(account_id,kind,idx) DO UPDATE SET value=play_record_values.value+1"),

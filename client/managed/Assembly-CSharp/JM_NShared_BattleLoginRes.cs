@@ -24,6 +24,8 @@ public static class JM_NShared_BattleLoginRes
 	{
 		o.Result = BaseJsonMarshaler.ParseEnum<BattleLoginRes.ResultType>(d, "Result");
 		o.RequestId = BaseJsonMarshaler.ParseValueInt(d, "RequestId");
+		// SPRK: the server chooses the replay clock headroom for this battle.
+		SprkConquest.ReadLoginOptions(d);
 		return o;
 	}
 

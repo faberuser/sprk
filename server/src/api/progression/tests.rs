@@ -766,6 +766,26 @@ async fn subquest_requires_saved_dungeon_and_claims_once() {
         1
     );
 }
+/// The client counts chapter stars from the login dungeon list (battle_state),
+/// so a clear saved only there must count toward the reward as well.
+#[tokio::test]
+async fn chapter_reward_counts_stars_the_client_is_shown() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    assert_eq!(
+        call(&s, &u, "reward_clear_chapter", "ChapterIndex=1&Step=1").await["Result"],
+        "NotEnoughStar"
+    );
+    for id in 1..=8i64 {
+        crate::api::battle::put(&mut s.db.acquire().await.unwrap(), a, "dungeon", (1 << 32) | id,
+            &json!({"ChapterIndex":1,"DungeonIndex":id,"FirstRewardedDiff":2,"MaxStar":13}))
+            .await.unwrap();
+    }
+    assert_eq!(
+        call(&s, &u, "reward_clear_chapter", "ChapterIndex=1&Step=1").await["Result"],
+        "Success"
+    );
+}
 #[tokio::test]
 async fn chapter_reward_uses_decimal_star_encoding_and_bitmask() {
     let (s, u) = setup().await;

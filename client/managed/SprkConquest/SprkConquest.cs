@@ -201,6 +201,21 @@ public sealed class SprkConquest : MonoBehaviour
 
 	private static SprkConquest instance;
 
+	// Live simulation pacing on the worker (100 ms per tick).
+	private const double MaxLiveDebtMs = 300.0;
+
+	private const int MaxLiveTicksPerFrame = 3;
+
+	// Dispatch simulation time per frame, alone and beside live fights.
+	private const double DispatchSliceMs = 8.0;
+
+	private const double DispatchSliceWithLiveMs = 2.0;
+
+	// Worker frame rates with and without battles.
+	private const int BusyFrameRate = 60;
+
+	private const int IdleFrameRate = 5;
+
 	private int lastFrame = -1;
 
 	private static readonly Dictionary<WaveReadyBattleLog, ResultCreatureInfo[]> seeds = new Dictionary<WaveReadyBattleLog, ResultCreatureInfo[]>();
@@ -315,15 +330,34 @@ public sealed class SprkConquest : MonoBehaviour
 		{
 			result = 100;
 		}
+		// Co-op (Conquest, party raids) replays the worker's logs too. Each log is
+		// applied at the client's own clock, so a client level with the server
+		// applies every log that arrives a little late at a later time than the
+		// worker did and drifts out of sync. Stay slightly behind, like Arena.
+		if (!int.TryParse(Environment.GetEnvironmentVariable("SPRK_COOP_REPLAY_BUFFER_MS"), out var coop))
+		{
+			coop = 100;
+		}
 		bool flag = value.ContainsKey("MatchUid") && Convert.ToInt64(value["MatchUid"]) > 0;
 		bool flag2 = value.ContainsKey("MasterId") && Convert.ToInt64(value["MasterId"]) > 0;
-		replayClock = ((flag || flag2) ? new SprkReplayClock(flag ? result : 0) : null);
+		replayClock = ((flag || flag2) ? new SprkReplayClock(flag ? result : coop) : null);
 		WebServiceManager webServiceManager = SingletonUpdater<WebServiceManager>.instance;
 		if (webServiceManager != null && webServiceManager.Requester != null)
 		{
 			value["SessionKey"] = webServiceManager.Requester.SessionKey;
 		}
 		return value;
+	}
+
+	/// Applies the server's replay headroom (BattleLoginRes.ReplayBufferMs) to the
+	/// clock Login just created. It arrives before any battle log, so no clock
+	/// value has been accepted yet. Without the field, the local default stays.
+	public static void ReadLoginOptions(IDictionary data)
+	{
+		if (data != null && replayClock != null && data.Contains("ReplayBufferMs") && int.TryParse(Convert.ToString(data["ReplayBufferMs"]), out var result))
+		{
+			replayClock = new SprkReplayClock(result);
+		}
 	}
 
 	public static Dictionary<string, object> ReplayStatus(Dictionary<string, object> value)
@@ -491,6 +525,14 @@ public sealed class SprkConquest : MonoBehaviour
 			return;
 		}
 		lastFrame = Time.frameCount;
+		// An idle worker only waits for packets: a few frames a second keeps it
+		// responsive (a new run switches back on the next frame) without
+		// spending a fifth of a core per process on empty frames.
+		int frameRate = (runs.Count == 0) ? IdleFrameRate : BusyFrameRate;
+		if (Application.targetFrameRate != frameRate)
+		{
+			Application.targetFrameRate = frameRate;
+		}
 		float realtimeSinceStartup = Time.realtimeSinceStartup;
 		long timestamp = Stopwatch.GetTimestamp();
 		if (link == null || !link.Connected)
@@ -578,10 +620,13 @@ public sealed class SprkConquest : MonoBehaviour
 			{
 				if (!run.dispatch)
 				{
-					run.budget += num2;
+					// A long stall becomes a short pause instead of a fast-forward
+					// burst: players replay behind a small clock buffer, so
+					// a large backlog would arrive as one jump.
+					run.budget = System.Math.Min(run.budget + num2, MaxLiveDebtMs);
 				}
 			}
-			for (int k = 0; k < 5; k++)
+			for (int k = 0; k < MaxLiveTicksPerFrame; k++)
 			{
 				for (int l = 0; l < array2.Length; l++)
 				{
@@ -601,6 +646,15 @@ public sealed class SprkConquest : MonoBehaviour
 				}
 			}
 			Run[] array4 = array2.Where((Run r) => r.dispatch && !r.ended).ToArray();
+			// Background dispatch yields to live fights: a short slice while any
+			// is running, none while one is still behind real time.
+			bool liveRunning = array2.Any((Run r) => !r.dispatch && !r.ended);
+			bool liveBehind = array2.Any((Run r) => !r.dispatch && !r.ended && r.budget >= 100.0);
+			double dispatchSliceMs = liveBehind ? 0.0 : (liveRunning ? DispatchSliceWithLiveMs : DispatchSliceMs);
+			if (dispatchSliceMs <= 0.0)
+			{
+				array4 = new Run[0];
+			}
 			long sliceStart = Stopwatch.GetTimestamp();
 			SprkDispatchPacing.Pump(array4, delegate(Run run3)
 			{
@@ -624,7 +678,7 @@ public sealed class SprkConquest : MonoBehaviour
 					Finish(run3);
 				}
 				return true;
-			}, () => (double)(Stopwatch.GetTimestamp() - sliceStart) * 1000.0 / (double)Stopwatch.Frequency < 8.0, firstRun);
+			}, () => (double)(Stopwatch.GetTimestamp() - sliceStart) * 1000.0 / (double)Stopwatch.Frequency < dispatchSliceMs, firstRun);
 			if (array2.Length != 0)
 			{
 				firstRun = (firstRun + 1) % array2.Length;

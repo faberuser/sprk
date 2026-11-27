@@ -166,6 +166,17 @@ backgrounds, non-English text; see `battle_unused` in
 configuration points there and it is missing. Without a worker, those battle
 types are unavailable.
 
+A worker simulates all of its battles on one Unity main thread, and the engine
+is not safe to run on several threads inside one process. To use more cores,
+set `BATTLE_WORKERS` (1-64, default 1; `SPRK_BATTLE_WORKERS` in
+`docker-compose.yml`). The server starts that many worker processes and accepts
+that many logins. Each new live fight goes to the worker running the fewest
+live fights, and dispatch simulations prefer the last worker. A run stays on
+its worker until it ends. The first worker logs to `conquest-worker.log`, the
+others to `conquest-worker-<n>.log`. With `SPRK_BATTLE_TRACE_FILE` set, workers
+after the first get `<file>.<n>`. Each worker is a full Unity process, so plan
+its memory before raising the count.
+
 ## Tests
 
 Tests need a PostgreSQL server where the role can create databases, such as the

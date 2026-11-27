@@ -115,16 +115,13 @@ pub(super) async fn begin_party_for(
     };
     let dual_wave=family=="raid" && n(def,"Type")==16;
     let mut wave_counts=[0_i64;2];
+    let challenge = n(def,"Type")==7;
     let worker_id = s
         .conquest
-        .worker
-        .read()
+        .pick_worker(Placement::Live, |worker| !challenge || worker.challenge_version>=1)
         .await
-        .as_ref()
-        .filter(|worker| n(def,"Type")!=7 || worker.challenge_version>=1)
         .ok_or_else(|| rule("BattleServerNotFound"))?
-        .id
-        .clone();
+        .0;
     let members: Vec<i64> = crate::db::query_scalar(
         "SELECT account FROM battle_room_members WHERE room=$1 ORDER BY joined,account",
     )
@@ -450,7 +447,7 @@ mod tests {
     }
     async fn attach_worker(s: &AppState) -> mpsc::Receiver<Packet> {
         let (tx, rx) = mpsc::channel(100);
-        *s.conquest.worker.write().await = Some(Worker {
+        *s.conquest.workers.write().await=vec!(Worker {
             arena_version: 0,
             challenge_version: 1,
             dispatch_version: 0,
@@ -471,9 +468,9 @@ mod tests {
             crate::db::query("UPDATE battle_rooms SET family='raid',data=sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(sprk_json_set(data,'$.RaidIndex',70001),'$.RaidLevel',1),'$.ChapterIndex',951),'$.DungeonIndex',1),'$.DungeonDifficulty',0),'$.AffixIndices',('[6]')::jsonb)")
                 .execute(&s.db).await.unwrap();
             let args=format!("ChapterIndex=951&DungeonIndex=1&DungeonDifficulty=0&RaidIndex=70001&RaidLevel=1&RaidRoomNo=1&MultiplayMasterId={}&MultiplayMemberIds={}&HeroIndices=[1]&AccountIds=[{}]&AffixIndices=[999999]",members[0],json!(members),members[0]);
-            s.conquest.worker.write().await.as_mut().unwrap().challenge_version=0;
+            s.conquest.workers.write().await.first_mut().unwrap().challenge_version=0;
             assert_eq!(call(&s,&users[0],"campaign/begin_campaign",&args).await["Result"],"BattleServerNotFound");
-            s.conquest.worker.write().await.as_mut().unwrap().challenge_version=1;
+            s.conquest.workers.write().await.first_mut().unwrap().challenge_version=1;
             assert_eq!(call(&s,&users[0],"campaign/begin_campaign",&args).await["Result"],"Success");
             assert_eq!(call(&s,&users[1],"campaign/begin_campaign",&guest_args(&users,&args,guest_uses_stamina)).await["Result"],"Success");
             let run=s.conquest.runs.iter().next().unwrap().value().clone();
@@ -1153,7 +1150,7 @@ mod tests {
         #[cfg(windows)] { use std::os::windows::process::CommandExt; command.creation_flags(0x08000000); }
         let _native=Native(command.spawn().unwrap());
         tokio::time::timeout(std::time::Duration::from_secs(90),async {
-            while s.conquest.worker.read().await.is_none() { tokio::time::sleep(std::time::Duration::from_millis(100)).await; }
+            while s.conquest.workers.read().await.is_empty() { tokio::time::sleep(std::time::Duration::from_millis(100)).await; }
         }).await.expect("Native worker did not authenticate");
         let begun=call(&s,&users[0],"campaign/begin_campaign",&args).await; assert_eq!(begun["Result"],"Success","{begun}");
         let guest_request=if dragon {
